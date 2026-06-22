@@ -11,11 +11,11 @@ export interface CityRef {
 
 /**
  * Partner cities the dashboard surfaces.
- * Order matters — Chonburi is always first (host), then ASEAN/East-Asia partners,
+ * Order matters — NST is always first (host), then ASEAN/East-Asia partners,
  * then EU, then US (East then West).
  */
 export const PARTNER_CITIES: CityRef[] = [
-  { id: "cbo", city: "Chonburi",  countryShort: "TH", tz: "Asia/Bangkok",       lat: 13.3611, lng: 100.9847 },
+  { id: "nst", city: "Nakhon Si Thammarat", countryShort: "TH", tz: "Asia/Bangkok", lat: 8.4364, lng: 99.9631 },
   { id: "sgp", city: "Singapore", countryShort: "SG", tz: "Asia/Singapore",     lat: 1.3521,  lng: 103.8198 },
   { id: "tok", city: "Tokyo",     countryShort: "JP", tz: "Asia/Tokyo",         lat: 35.6762, lng: 139.6503 },
   { id: "sha", city: "Shanghai",  countryShort: "CN", tz: "Asia/Shanghai",      lat: 31.2304, lng: 121.4737 },

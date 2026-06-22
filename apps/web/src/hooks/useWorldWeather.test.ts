@@ -13,18 +13,18 @@ describe("PARTNER_CITIES invariants", () => {
     expect(PARTNER_CITIES.length).toBeGreaterThanOrEqual(6);
   });
 
-  it("Chonburi is always first (host city)", () => {
-    expect(PARTNER_CITIES[0].id).toBe("cbo");
-    expect(PARTNER_CITIES[0].city).toBe("Chonburi");
+  it("NST is always first (host city)", () => {
+    expect(PARTNER_CITIES[0].id).toBe("nst");
+    expect(PARTNER_CITIES[0].city).toBe("Nakhon Si Thammarat");
     expect(PARTNER_CITIES[0].tz).toBe("Asia/Bangkok");
   });
 
-  it("Chonburi coordinates are in the Eastern Seaboard region", () => {
-    const cbo = PARTNER_CITIES[0];
-    expect(cbo.lat).toBeGreaterThan(13);
-    expect(cbo.lat).toBeLessThan(14);
-    expect(cbo.lng).toBeGreaterThan(100);
-    expect(cbo.lng).toBeLessThan(102);
+  it("NST coordinates are in Southern Thailand", () => {
+    const nst = PARTNER_CITIES[0];
+    expect(nst.lat).toBeGreaterThan(8);
+    expect(nst.lat).toBeLessThan(9);
+    expect(nst.lng).toBeGreaterThan(99);
+    expect(nst.lng).toBeLessThan(101);
   });
 
   it("every city has a unique id", () => {

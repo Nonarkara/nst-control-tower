@@ -351,21 +351,21 @@ export const ALL_LAYERS: {
 }[] = [
   // ─── Municipality ──────────────────────────────────────────────────────
   { id: "municipality-boundary",  label: "Municipal boundary",        swatch: "#0EA5E9", group: "municipality",
-    describe: "Chonburi Town Municipality outer boundary (เทศบาลเมืองชลบุรี)." },
+    describe: "Nakhon Si Thammarat City Municipality boundary (เทศบาลนครนครศรีธรรมราช)." },
   { id: "municipality-buildings", label: "Buildings (OSM + MS, 3D)",  swatch: "#0EA5E9", group: "municipality",
     describe: "20,877 building footprints — OSM/Bing named landmarks (hospitals, temples, hotels) plus Microsoft Building Footprints for the full fabric. Height from levels tag or 2-storey default. Colour-coded by type in 3D." },
   { id: "tile3d-buildings",       label: "Buildings (3D Tiles)",       swatch: "#7DD3FC", group: "municipality",
-    describe: "Experimental OGC 3D Tiles stream for Chonburi city centre. Toggle on to compare against the GeoJSON layer." },
+    describe: "Experimental OGC 3D Tiles stream for NST city centre. Toggle on to compare against the GeoJSON layer." },
 
   // ─── Maritime (NEW) ────────────────────────────────────────────────────
   { id: "maritime-overlay",       label: "OpenSeaMap overlay",        swatch: "#22D3EE", group: "maritime",
     describe: "OpenSeaMap raster overlay — shows shipping lanes, depth contours, anchorage zones, mooring buoys for the Gulf of Thailand." },
   { id: "port-infrastructure",    label: "Port infrastructure",        swatch: "#F59E0B", group: "maritime",
-    describe: "Laem Chabang port + Si Racha tanker anchorage + Chonburi harbour piers (from OSM way[harbour], landuse=port)." },
+    describe: "NST coastal port infrastructure — fishing harbours, piers, and anchorages along the Gulf of Thailand coast (Pak Phanang, Tha Sala, Sichon). From OSM way[harbour], landuse=port." },
   { id: "ferry-terminals",        label: "Ferry / pier terminals",     swatch: "#FBBF24", group: "maritime",
-    describe: "Pier and ferry terminal POIs (Bang Saen, Si Racha, Koh Si Chang ferry)." },
+    describe: "Pier and ferry terminal POIs along the NST Gulf coast (Pak Phanang, Tha Sala, Sichon piers)." },
   { id: "navigation-aids",        label: "Lighthouses + nav aids",     swatch: "#FACC15", group: "maritime",
-    describe: "Lighthouses, beacons, navigation buoys around the Eastern Seaboard." },
+    describe: "Lighthouses, beacons, navigation buoys along the NST Gulf of Thailand coastline." },
   { id: "ais-vessels",            label: "AIS vessels (live)",         swatch: "#10B981", group: "maritime",
     describe: "Live vessel positions from AIS (Automatic Identification System) — cargo, tanker, fishing, passenger. Requires AISSTREAM_TOKEN; placeholder otherwise." },
   { id: "distance-grid",          label: "Distance grid (1·5·10 km)",  swatch: "#0EA5E9", group: "municipality",
@@ -381,17 +381,17 @@ export const ALL_LAYERS: {
   { id: "transit-lines",     label: "Transit lines (where mapped)", swatch: "#057B43", group: "mobility",
     describe: "Polyline tracks for any rail / metro lines reaching the EEC corridor (e.g. proposed BTS extension)." },
   { id: "cctv-cameras",      label: "CCTV cameras",            swatch: "#E5E7EB", group: "mobility",
-    describe: "Public traffic cameras from Longdo inside the Chonburi bbox. Click for the live JPG/HLS stream." },
+    describe: "Public traffic cameras from Longdo inside the NST province bbox. Click for the live JPG/HLS stream." },
 
   // ─── Incidents ─────────────────────────────────────────────────────────
   { id: "incidents-itic",    label: "iTIC traffic events",     swatch: "#F59E0B", group: "incidents",
-    describe: "Live iTIC / Longdo traffic events: accidents, closures, breakdowns. Bbox-filtered to Chonburi." },
+    describe: "Live iTIC / Longdo traffic events: accidents, closures, breakdowns. Bbox-filtered to Nakhon Si Thammarat." },
   { id: "incidents-city-reports", label: "Citizen reports (Traffy)", swatch: "#A78BFA", group: "incidents",
     describe: "Live citizen complaints from Traffy Fondue — Thailand's nationwide 311 channel." },
 
   // ─── Open data ─────────────────────────────────────────────────────────
   { id: "datago-points",     label: "data.go.th points",        swatch: "#C084FC", group: "open-data",
-    describe: "Government POIs from data.go.th filtered to Chonburi: schools, hospitals, health centres, government offices, temples, markets." },
+    describe: "Government POIs from data.go.th filtered to Nakhon Si Thammarat: schools, hospitals, health centres, government offices, temples, markets." },
 
   // ─── Civic (OSM, province-wide) ────────────────────────────────────────
   { id: "civic-points",      label: "Civic POIs (color-coded)", swatch: "#EF4444", group: "municipality",
@@ -399,20 +399,20 @@ export const ALL_LAYERS: {
   { id: "waterways",         label: "Canals + rivers + drains",  swatch: "#0EA5E9", group: "municipality",
     describe: "Hydrology network: rivers (sky blue, thick), canals (cerulean, medium), streams (pale sky, thin), drains/ditches (teal). Critical for flood-prevention planning + identifying drainage backbone." },
   { id: "fisheries",         label: "Fishing + aquaculture zones", swatch: "#FBBF24", group: "maritime",
-    describe: "Coastal fishing economy: Ang Sila oysters · Bang Saen shrimp · Bang Phra mussels · Chonburi Bay artisanal · Koh Si Chang offshore. Click for boat count + yield." },
+    describe: "Coastal fishing economy: Pak Phanang basin · Gulf of Thailand artisanal · Sichon coast · Tha Sala fishing piers · NST province aquaculture zones. Click for boat count + yield." },
   { id: "flood-risk-zones",  label: "Coastal flood-risk zones",   swatch: "#EF4444", group: "environment",
     describe: "Hand-authored polygons of historical flood-prone areas (king-tide, storm-surge, drainage-backflow). Hover for severity + household count. Replace with municipal GIS when supplied." },
 
   { id: "air4thai-stations", label: "Air4Thai PCD stations",     swatch: "#22C55E", group: "environment",
-    describe: "Official Thai government air-quality monitors across the Eastern Seaboard — Chonburi (Laem Chabang, Si Racha / Bo Win, Mueang) plus the Rayong / Map Ta Phut industrial belt. Coloured by PM2.5, labelled with live national AQI. Public source, no key. Click a station for its readings." },
+    describe: "Official Thai government air-quality monitors — PCD stations across Nakhon Si Thammarat province. Coloured by PM2.5, labelled with live national AQI. Public source, no key. Click a station for its readings." },
 
   // ─── GISTDA ────────────────────────────────────────────────────────────
   { id: "gistda-pois",       label: "GISTDA POI Digital Twin",   swatch: "#F59E0B", group: "open-data",
     describe: "Thailand GISTDA POI Digital Twin — 1,000 authoritative points: government offices, schools, temples, hospitals, hotels, banks, restaurants, shopping, transport, sport. Thai + English names, disabled-access flags." },
   { id: "gistda-solar",      label: "GISTDA Solar LOD2",         swatch: "#FBBF24", group: "environment",
-    describe: "GISTDA LOD2 building solar irradiance for Chonburi city centre — real measured height, footprint area, and monthly solar potential (kWh/m²). Blue=low, green=medium, yellow=high, red=excellent rooftop solar." },
+    describe: "GISTDA LOD2 building solar irradiance for NST city centre — real measured height, footprint area, and monthly solar potential (kWh/m²). Blue=low, green=medium, yellow=high, red=excellent rooftop solar." },
   { id: "gistda-landuse",    label: "GISTDA Land Use",           swatch: "#34D399", group: "open-data",
-    describe: "GISTDA land use / land cover classification for Chonburi Town — residential, commercial, industrial, agricultural, forest, water, transport, recreation. Colour-coded by category." },
+    describe: "GISTDA land use / land cover classification for Nakhon Si Thammarat — residential, commercial, industrial, agricultural, forest, water, transport, recreation. Colour-coded by category." },
 
   // ─── News ──────────────────────────────────────────────────────────────
   { id: "news-pins",         label: "Geocoded news pins",        swatch: "#EF4444", group: "incidents",
@@ -445,7 +445,7 @@ export const ALL_LAYERS: {
   { id: "satellite-viirs-truecolor", label: "VIIRS true-color", swatch: "#A5F3FC", group: "imagery",
     describe: "VIIRS NOAA-20 corrected reflectance — daily, sharper than MODIS." },
   { id: "satellite-night",   label: "VIIRS night lights",       swatch: "#FACC15", group: "imagery",
-    describe: "VIIRS Day/Night Band — Earth at night. The Eastern Seaboard glows along Sukhumvit and the port belt." },
+    describe: "VIIRS Day/Night Band — Earth at night. Southern Thailand's coastal cities glow along the Gulf of Thailand." },
   { id: "satellite-true-color", label: "MODIS true-color",      swatch: "#93C5FD", group: "imagery",
     describe: "MODIS Terra corrected reflectance — daily 250 m global mosaic. Best at zoom < 10." },
   { id: "satellite-himawari", label: "Himawari IR",             swatch: "#C7D2FE", group: "imagery",
@@ -455,11 +455,11 @@ export const ALL_LAYERS: {
   { id: "satellite-ndvi",    label: "NDVI greenery",            swatch: "#34D399", group: "imagery",
     describe: "MODIS NDVI 8-day composite — vegetation greenness." },
   { id: "satellite-lst",     label: "Land surface temp",        swatch: "#F97316", group: "imagery",
-    describe: "MODIS LST (day) — urban heat island. Chonburi city core typically reads 3–5 °C hotter than surrounding shrimp ponds." },
+    describe: "MODIS LST (day) — urban heat island. NST city core typically reads 2–4 °C hotter than surrounding rubber and palm plantations." },
   { id: "satellite-aerosol", label: "Aerosol optical depth",    swatch: "#F472B6", group: "imagery",
-    describe: "MODIS MAIAC AOD — proxy for PM2.5 + haze / industrial plumes from Laem Chabang." },
+    describe: "MODIS MAIAC AOD — proxy for PM2.5 + haze / seasonal smoke from agricultural burning in Southern Thailand." },
   { id: "satellite-no2",     label: "NO₂ pollution (OMI)",      swatch: "#EF4444", group: "imagery",
-    describe: "OMI tropospheric NO₂ — traffic + power-plant nitrogen dioxide. Bright along the Sukhumvit corridor." },
+    describe: "OMI tropospheric NO₂ — traffic + power-plant nitrogen dioxide across Southern Thailand." },
 ];
 
 /**

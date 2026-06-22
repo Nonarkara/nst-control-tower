@@ -839,7 +839,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
   const worldWeather = useWorldWeather();
   const hostWeather = useMemo(() => {
     // Prefer browser-side Open-Meteo data (richer fields).
-    const city = worldWeather.find((c) => c.city.id === "cbo");
+    const city = worldWeather.find((c) => c.city.id === "nst");
     if (city) {
       const { city: _city, fetchedAt: _fetchedAt, ...rest } = city;
       return rest;
