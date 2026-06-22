@@ -35,21 +35,21 @@ test.describe("Dashboard boot", () => {
 });
 
 test.describe("Lens switching", () => {
-  test("INT and MAR lens buttons toggle aria-pressed", async ({ page }) => {
+  test("INT and FLOOD lens buttons toggle aria-pressed", async ({ page }) => {
     await page.goto("/");
     await expect(page.locator(".map-host")).toBeVisible({ timeout: 20_000 });
 
-    // Lens buttons have label as text content (EXEC / OPS / MOB / MAR / etc.) and
+    // Lens buttons have label as text content (EXEC / OPS / MOB / FLOOD / etc.) and
     // their aria-label is the long description. Match by exact text inside .lens container.
     const lensPalette = page.locator(".lens");
     const intButton = lensPalette.locator("button", { hasText: /^INT$/ });
-    const marButton = lensPalette.locator("button", { hasText: /^MAR$/ });
+    const floodButton = lensPalette.locator("button", { hasText: /^FLOOD$/ });
 
     await intButton.click();
     await expect(intButton).toHaveAttribute("aria-pressed", "true");
 
-    await marButton.click();
-    await expect(marButton).toHaveAttribute("aria-pressed", "true");
+    await floodButton.click();
+    await expect(floodButton).toHaveAttribute("aria-pressed", "true");
     await expect(intButton).toHaveAttribute("aria-pressed", "false");
   });
 });

@@ -37,7 +37,6 @@ import {
   campusBoundaryLayer,
   cctvLayer,
   devicePresenceLayer,
-  esriSatelliteLayer,
   himawariInfraredLayer,
   openTopoTerrainLayer,
   incidentLayer,
@@ -157,7 +156,7 @@ function gibsUrl(product: string, level: number, format: "jpg" | "png"): string 
 
 // GIBS satellite layers rendered via MapLibre <Source>/<Layer> — MapLibre handles
 // raster tile stretching perfectly (proven by the carto basemap).
-// Deck.gl TileLayer is kept for esriSatelliteLayer only.
+// Deck.gl TileLayer is kept for Himawari and terrain only (no MapLibre equivalent).
 const GIBS_LAYERS: Array<{
   id: string;
   product: string;
@@ -918,12 +917,10 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
 
   const layers = useMemo<Layer[]>(() => {
     const out: Layer[] = [];
-    // Imagery first — renders beneath all vector data
-    // Esri is the only satellite useful at city zoom — high-res tiles up to 19.
-    if (enabledLayers.has("satellite-esri")) out.push(esriSatelliteLayer(1.0) as Layer);
-    // Satellite rasters — GIBS layers now served via MapLibre <Source>/<Layer>
-    // (see MapLibreMap children below) for reliable tile stretching at any zoom.
-    // Only Esri HD (maxZoom:19), Himawari (WMS), and terrain stay in deck.gl.
+    // Imagery first — renders beneath all vector data.
+    // ESRI and GIBS satellite layers are served via MapLibre <Source>/<Layer> below
+    // (ESRI first so GIBS colorize overlays render above it). Only Himawari (WMS)
+    // and terrain stay in deck.gl — they have no MapLibre equivalent.
     if (enabledLayers.has("satellite-terrain")) out.push(openTopoTerrainLayer(0.6) as Layer);
     if (enabledLayers.has("satellite-himawari")) out.push(himawariInfraredLayer(0.55) as Layer);
     const showBoundaryFill =
@@ -1440,11 +1437,29 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
               attributionControl={false}
               renderWorldCopies={false}
             >
-              {/* GIBS satellite raster sources — rendered via MapLibre for
-                  reliable tile stretching at any viewport zoom. Only active
-                  layers are mounted so MapLibre only fetches what's needed.
-                  `GIBS_RENDER` carries pre-built, stable {tiles, paint} refs
-                  so React-render churn doesn't make MapLibre re-diff every frame. */}
+              {/* Satellite raster sources — all served via MapLibre for reliable
+                  tile stretching at any zoom. ESRI is mounted first so it inserts
+                  below labels-top first; GIBS colorize overlays mount after and
+                  therefore sit above ESRI in MapLibre's layer stack, making them
+                  visible as tinted overlays over the satellite base.
+                  `GIBS_RENDER` carries pre-built stable {tiles, paint} refs to
+                  avoid react-map-gl re-diffing raster sources on every gesture. */}
+              {enabledLayers.has("satellite-esri") && (
+                <Source
+                  id="esri-world-imagery-src"
+                  type="raster"
+                  tiles={["https://services.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"]}
+                  tileSize={256}
+                  maxzoom={19}
+                >
+                  <MapLayer
+                    id="esri-world-imagery"
+                    type="raster"
+                    paint={{ "raster-opacity": 1 }}
+                    beforeId="labels-top"
+                  />
+                </Source>
+              )}
               {GIBS_RENDER.filter(g => enabledLayers.has(g.id as LayerId)).map(g => (
                 <Source
                   key={g.id}
@@ -1463,22 +1478,6 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
                   />
                 </Source>
               ))}
-              {enabledLayers.has("satellite-esri") && (
-                <Source
-                  id="esri-world-imagery-src"
-                  type="raster"
-                  tiles={["https://services.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"]}
-                  tileSize={256}
-                  maxzoom={19}
-                >
-                  <MapLayer
-                    id="esri-world-imagery"
-                    type="raster"
-                    paint={{ "raster-opacity": 1 }}
-                    beforeId="labels-top"
-                  />
-                </Source>
-              )}
             </MapLibreMap>
           </DeckGL>
           <BuildingSearch
