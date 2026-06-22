@@ -1,0 +1,125 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 600" role="img" font-family="'Noto Sans Thai','Sarabun','Tahoma',sans-serif">
+  <title>แฝดดิจิทัล — ทุกอาคารใส่ข้อมูลได้</title>
+  <desc>Infographic: a building on the map maps via a tap to a per-building data card listing name and type, sensors for temperature and humidity, incident reporting, and live status. Every OSM building id is stable so data binds through the /api/twin endpoint.</desc>
+
+  <rect width="1200" height="600" fill="#FAF8F1"/>
+
+  <!-- Title block -->
+  <text x="56" y="64" font-size="38" font-weight="800" fill="#2C2418">แฝดดิจิทัล — ทุกอาคารใส่ข้อมูลได้</text>
+  <text x="58" y="96" font-size="19" fill="#9A8F80" font-family="'Inter',sans-serif">Digital twin · every building can hold data.</text>
+  <rect x="58" y="110" width="120" height="7" rx="3.5" fill="#F1BE48"/>
+
+  <!-- ============ LEFT CARD: building on the map ============ -->
+  <rect x="56" y="160" width="430" height="360" rx="18" fill="#FFFFFF" stroke="#DED9CE" stroke-width="2"/>
+  <rect x="56" y="160" width="430" height="6" rx="3" fill="#6E4A33"/>
+  <circle cx="92" cy="204" r="17" fill="#EBE2D9"/>
+  <text x="92" y="211" text-anchor="middle" font-size="19" font-weight="800" fill="#6E4A33" font-family="'Inter',sans-serif">1</text>
+  <text x="122" y="211" font-size="22" font-weight="800" fill="#2C2418">อาคารบนแผนที่</text>
+
+  <!-- map panel -->
+  <rect x="84" y="244" width="374" height="240" rx="14" fill="#F4F1E9" stroke="#DED9CE" stroke-width="2"/>
+  <!-- subtle map grid lines -->
+  <g stroke="#DED9CE" stroke-width="1.5">
+    <line x1="84" y1="304" x2="458" y2="304"/>
+    <line x1="84" y1="364" x2="458" y2="364"/>
+    <line x1="84" y1="424" x2="458" y2="424"/>
+    <line x1="178" y1="244" x2="178" y2="484"/>
+    <line x1="272" y1="244" x2="272" y2="484"/>
+    <line x1="366" y1="244" x2="366" y2="484"/>
+  </g>
+  <!-- faint neighbour footprints -->
+  <g fill="#F0ECE2" stroke="#DED9CE" stroke-width="1.5">
+    <rect x="110" y="404" width="56" height="44" rx="4"/>
+    <rect x="372" y="270" width="58" height="40" rx="4"/>
+    <rect x="120" y="266" width="44" height="40" rx="4"/>
+  </g>
+
+  <!-- 3D-ish highlighted building block -->
+  <g>
+    <!-- right side wall -->
+    <path d="M271 396 L271 326 L327 300 L327 370 Z" fill="#6E4A33"/>
+    <!-- left side wall -->
+    <path d="M271 396 L271 326 L215 300 L215 370 Z" fill="#8A6A50"/>
+    <!-- top face -->
+    <path d="M215 300 L271 326 L327 300 L271 274 Z" fill="#C7B3A0" stroke="#FFFFFF" stroke-width="2" stroke-linejoin="round"/>
+    <!-- outline accent -->
+    <path d="M271 396 L271 326 L215 300 M271 326 L327 300" fill="none" stroke="#5A3E2C" stroke-width="1.5" stroke-linejoin="round" opacity="0.35"/>
+  </g>
+
+  <!-- tap pin / pulse on the building top -->
+  <circle cx="271" cy="299" r="22" fill="none" stroke="#6E4A33" stroke-width="2.4" opacity="0.45"/>
+  <circle cx="271" cy="299" r="9" fill="#6E4A33"/>
+  <circle cx="271" cy="299" r="3.5" fill="#FFFFFF"/>
+
+  <text x="271" y="510" text-anchor="middle" font-size="13" fill="#9A8F80" font-family="'Inter',sans-serif">OSM building footprint</text>
+
+  <!-- ============ ARROW + "แตะ" label ============ -->
+  <rect x="514" y="318" width="78" height="34" rx="17" fill="#EBE2D9"/>
+  <text x="553" y="341" text-anchor="middle" font-size="17" font-weight="700" fill="#6E4A33">แตะ</text>
+  <path d="M504 380 H602 m-18 -11 l18 11 l-18 11" fill="none" stroke="#C2BBAC" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- ============ RIGHT CARD: data card for that building ============ -->
+  <rect x="624" y="160" width="520" height="360" rx="18" fill="#FFFFFF" stroke="#DED9CE" stroke-width="2"/>
+  <rect x="624" y="160" width="520" height="6" rx="3" fill="#4A773C"/>
+  <circle cx="660" cy="204" r="17" fill="#E3EDDA"/>
+  <text x="660" y="211" text-anchor="middle" font-size="19" font-weight="800" fill="#4A773C" font-family="'Inter',sans-serif">2</text>
+  <text x="690" y="211" font-size="22" font-weight="800" fill="#2C2418">การ์ดข้อมูลรายอาคาร</text>
+
+  <!-- divider under header -->
+  <line x1="652" y1="234" x2="1116" y2="234" stroke="#DED9CE" stroke-width="2"/>
+
+  <!-- ROW 1: ชื่อ / ประเภท -->
+  <g transform="translate(660,258)">
+    <rect x="0" y="0" width="40" height="40" rx="10" fill="#EBE2D9"/>
+    <g stroke="#6E4A33" stroke-width="2.4" fill="none" stroke-linejoin="round" stroke-linecap="round">
+      <path d="M12 28 L12 16 L20 11 L28 16 L28 28 Z" fill="#FFFFFF"/>
+      <line x1="12" y1="28" x2="28" y2="28"/>
+      <rect x="17" y="21" width="6" height="7" fill="#EBE2D9"/>
+    </g>
+    <text x="56" y="18" font-size="17" font-weight="700" fill="#4A3C2C">ชื่อ / ประเภท</text>
+    <text x="56" y="36" font-size="12.5" fill="#9A8F80">อาคารพาณิชย์ · ร้านค้า</text>
+  </g>
+
+  <!-- ROW 2: เซนเซอร์ (อุณหภูมิ / ความชื้น) -->
+  <g transform="translate(660,318)">
+    <rect x="0" y="0" width="40" height="40" rx="10" fill="#FBEFCB"/>
+    <g stroke="#D6A12A" stroke-width="2.4" fill="none" stroke-linejoin="round" stroke-linecap="round">
+      <path d="M16 11 L16 24 a4 4 0 1 0 8 0 L24 11 a4 4 0 0 0 -8 0 Z" fill="#FFFFFF"/>
+      <line x1="20" y1="16" x2="20" y2="24"/>
+      <circle cx="20" cy="27" r="2.4" fill="#D6A12A" stroke="none"/>
+    </g>
+    <text x="56" y="18" font-size="17" font-weight="700" fill="#4A3C2C">เซนเซอร์</text>
+    <text x="56" y="36" font-size="12.5" fill="#9A8F80">อุณหภูมิ · ความชื้น</text>
+  </g>
+
+  <!-- ROW 3: การแจ้งเหตุ -->
+  <g transform="translate(660,378)">
+    <rect x="0" y="0" width="40" height="40" rx="10" fill="#F3E0D7"/>
+    <g stroke="#B14A2B" stroke-width="2.4" fill="none" stroke-linejoin="round" stroke-linecap="round">
+      <path d="M20 10 L29 27 L11 27 Z" fill="#FFFFFF"/>
+      <line x1="20" y1="17" x2="20" y2="21"/>
+      <circle cx="20" cy="24" r="1.4" fill="#B14A2B" stroke="none"/>
+    </g>
+    <text x="56" y="18" font-size="17" font-weight="700" fill="#4A3C2C">การแจ้งเหตุ</text>
+    <text x="56" y="36" font-size="12.5" fill="#9A8F80">แจ้งปัญหาถึงเทศบาล</text>
+  </g>
+
+  <!-- ROW 4: สถานะสด -->
+  <g transform="translate(660,438)">
+    <rect x="0" y="0" width="40" height="40" rx="10" fill="#EDF0DC"/>
+    <g stroke="#7E8A3A" stroke-width="2.4" fill="none" stroke-linejoin="round" stroke-linecap="round">
+      <path d="M11 20 L17 20 L19 13 L23 27 L25 20 L29 20"/>
+    </g>
+    <text x="56" y="18" font-size="17" font-weight="700" fill="#4A3C2C">สถานะสด</text>
+    <text x="56" y="36" font-size="12.5" fill="#9A8F80">อัปเดตแบบเรียลไทม์</text>
+  </g>
+
+  <!-- live status chip on right of card -->
+  <rect x="980" y="262" width="124" height="30" rx="15" fill="#EDF0DC"/>
+  <circle cx="1001" cy="277" r="5" fill="#7E8A3A"/>
+  <text x="1014" y="282" font-size="14" font-weight="700" fill="#5E6A24" font-family="'Inter',sans-serif">LIVE</text>
+
+  <!-- ============ BOTTOM PROMISE PILL ============ -->
+  <rect x="56" y="548" width="1088" height="34" rx="17" fill="#241B11"/>
+  <text x="600" y="571" text-anchor="middle" font-size="17" font-weight="700" fill="#FFFFFF">OSM id คงที่ → ผูกข้อมูลรายอาคารผ่าน /api/twin</text>
+</svg>

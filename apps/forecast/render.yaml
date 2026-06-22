@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: yala-forecast
+    env: python
+    plan: starter          # 512 MB RAM — fine for the Open-Meteo live path.
+    # The Open-Meteo flood/precip path needs no model. To enable TimesFM model
+    # forecasting, uncomment the torch/timesfm install below and bump the plan.
+    buildCommand: |
+      pip install -r requirements.txt
+      # pip install torch --index-url https://download.pytorch.org/whl/cpu
+      # pip install "timesfm[torch]>=1.2.0"
+    startCommand: python main.py
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        sync: false        # set manually in Render dashboard from Supabase connection string
+      - key: HF_HOME
+        value: /data/hf_cache
+      - key: PORT
+        value: "8000"
+    disk:
+      name: hf-model-cache
+      mountPath: /data/hf_cache
+      sizeGB: 5            # TimesFM checkpoint ~800 MB; 5 GB gives room to grow

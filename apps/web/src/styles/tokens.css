@@ -1,0 +1,260 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   Design DNA — Yala Control Tower (Deep South / เทศบาลนครยะลา)
+   ═══════════════════════════════════════════════════════════════════════
+   Place       → Yala, provincial capital of Thailand's Deep South — a
+                 planned CONCENTRIC-CIRCULAR city whose gold ring roads
+                 radiate from "Kilometre Zero." Malay-Muslim majority;
+                 a security- and flood-focused frontier capital.
+   Typography  → IBM Plex Sans (body), IBM Plex Sans Condensed (display
+                 labels), IBM Plex Mono (readouts), IBM Plex Sans Thai
+                 (Thai script), Lora (editorial serif — headlines, prose).
+   Color       → Stark blacks and off-whites. PETROL-TEAL primary accent —
+                 serious, governmental, regional to the Malay south, and
+                 deliberately distinct from any red-accented sibling city.
+                 GOLD as the secondary accent: it is the ring-road /
+                 Kilometre-Zero motif made literal. Deep blues for data.
+                 RED is held in reserve for genuine security alerts.
+   Surface     → No rounding, no blur, no shadow. Honest surfaces.
+   Grid        → Vignelli-standard 4 px grid. Tight, information-dense.
+   Heritage    → Bauhaus functionalism × Swiss typography × the concentric
+                 geometry of the city plan. Every element earns its place.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* ── Primary accent — petrol teal. Governmental, Malay-regional, calm. ── */
+  --accent:     #0d9488;
+  --accent-dim: #0f5f57;
+
+  /* ── Secondary accent — ring-road gold (Kilometre Zero, concentric plan) ── */
+  --gold:       #d97706;
+  --gold-dim:   #92400e;
+
+  /* ── Functional data colours — load-bearing, identical across themes ── */
+  --data: #2563eb;   /* deep blue — links, data marks, information */
+  --good: #16a34a;   /* emerald — live, healthy, positive */
+  --warn: #d97706;   /* amber — caution, degraded (distinct from accent) */
+  --bad:  #dc2626;   /* red — alert, error (reserved for genuine alerts) */
+  --crit: #991b1b;   /* deep red — critical, danger */
+  --info: #6b7280;   /* neutral grey — informational, never decorative */
+
+  /* ── Type system ─────────────────────────────────────────────────── */
+  --font-sans:
+    "IBM Plex Sans", "IBM Plex Sans Thai",
+    "Noto Sans Thai", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display:
+    "IBM Plex Sans Condensed", "IBM Plex Sans", "IBM Plex Sans Thai",
+    system-ui, sans-serif;
+  --font-serif:
+    "Lora", "Georgia", "Noto Serif", serif;
+  --font-mono:
+    "IBM Plex Mono", ui-monospace, "SF Mono", "Cascadia Code", monospace;
+  --font-thai:
+    "IBM Plex Sans Thai", "IBM Plex Sans", "Noto Sans Thai", sans-serif;
+
+  /* ── Type scale ──────────────────────────────────────────────────────
+     Sizes are in rem and scale with the fluid html root (see tokens below),
+     so the whole scale grows on a wall display and shrinks on a phone while
+     staying legible. Floor: nothing renders below ~12px effective on a
+     laptop. --size-body == 1rem (tracks the root). */
+  --size-eyebrow: 0.76rem;
+  --size-caption: 0.84rem;
+  --size-body:    1rem;
+  --size-h3:      1.14rem;
+  --size-h2:      1.4rem;
+  --size-h1:      1.92rem;
+  --size-display: 2.6rem;
+
+  /* Tight tracking compresses glyphs on tiny eyebrows — keep it gentle. */
+  --tracking-eyebrow: 0.07em;
+
+  /* ── Responsive sidebar rail width ───────────────────────────────────
+     Map must always dominate, so rails are clamped: narrow enough on a
+     laptop, wider on a big display where there's room. Overridden per
+     breakpoint below. */
+  --rail: clamp(248px, 19vw, 460px);
+
+  /* ── Spacing — 4 px Vignelli grid ────────────────────────────────── */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-6: 24px;
+  --s-8: 32px;
+  --s-12: 48px;
+
+  /* ── US EPA AQI colour scale — do not modify; these are standardised ── */
+  --aqi-good:           #22c55e;
+  --aqi-moderate:       #facc15;
+  --aqi-unhealthy-sg:   #f97316;
+  --aqi-unhealthy:      #ef4444;
+  --aqi-very-unhealthy: #a855f7;
+  --aqi-hazardous:      #7f1d1d;
+
+  /* ── Mayor's Desk action-tag category colours ─────────────────────── */
+  --tag-funeral:   #a78bfa;   /* purple — ceremonial */
+  --tag-police:    #f87171;   /* soft red — friction/authority */
+  --tag-festival:  #fbbf24;   /* amber — celebration */
+  --tag-health:    #f472b6;   /* pink — public health */
+
+  color-scheme: dark;
+}
+
+/* ── Dark theme (default) — near-black with blue undertone ───────────── */
+:root,
+[data-theme="dark"] {
+  --bg:    #0a0e14;
+  --bg-1:  #0d1117;
+  --bg-2:  #161b22;
+  --bg-3:  #21262d;
+  --line:  #30363d;
+  --line-2:#484f58;
+
+  --text:   #e6edf3;
+  --text-1: #c9d1d9;
+  --text-2: #8b949e;
+  --text-3: #7d8590;
+  color-scheme: dark;
+}
+
+/* ── Light theme ────────────────────────────────────────────────────────
+   Warm off-white (fafaf7), deep ink. Contrast >= 4.5:1.
+   Data accents darkened for legibility against white surfaces.
+*/
+[data-theme="light"] {
+  --bg:    #fafaf7;
+  --bg-1:  #ffffff;
+  --bg-2:  #f3f3ef;
+  --bg-3:  #ebebe6;
+  --line:  #d8d8d0;
+  --line-2:#b6b6ad;
+
+  --text:   #111315;
+  --text-1: #2c2f33;
+  --text-2: #56595e;
+  --text-3: #888c92;
+
+  --accent:     #0f766e;
+  --accent-dim: #115e59;
+  --gold:       #92400e;
+  --gold-dim:   #78350f;
+  --data: #1d4ed8;
+  --good: #15803d;
+  --warn: #92400e;
+  --bad:  #b91c1c;
+  --crit: #7f1d1d;
+  --info: #6e7781;
+  color-scheme: light;
+}
+
+/* ── Surface rules — no rounding, no blur, no shadow ───────────────── */
+*,
+*::before,
+*::after {
+  border-radius: 0 !important;
+  box-shadow: none;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* Fluid root: drives the whole rem scale. Grows from phone → 100" wall.
+   At ~1280px laptop ≈ 15.6px, 1440 ≈ 16px, caps at 20px for distance reading. */
+html {
+  font-size: clamp(15px, 0.28vw + 12px, 20px);
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: var(--size-body);
+  line-height: 1.5;
+  font-feature-settings: "ss03", "ss05", "cv11";
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+body, #root {
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+}
+
+/* ── Headings — condensed sans for display, serif available ──────── */
+h1, h2, h3, h4 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  margin: 0;
+  letter-spacing: -0.005em;
+  color: var(--text);
+}
+h1 { font-size: var(--size-h1); }
+h2 { font-size: var(--size-h2); }
+h3 { font-size: var(--size-h3); }
+
+/* Editorial serif — use on news headlines, prose blocks */
+.serif { font-family: var(--font-serif); }
+
+.eyebrow {
+  font-size: var(--size-eyebrow);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-eyebrow);
+  color: var(--text-3);
+  font-weight: 600;
+}
+
+.caption {
+  font-size: var(--size-caption);
+  color: var(--text-2);
+}
+
+.mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "ss01";
+}
+
+/* ── Buttons — no radius, crisp borders ─────────────────────────── */
+button {
+  font-family: inherit;
+  font-size: inherit;
+  background: transparent;
+  border: 1px solid var(--line-2);
+  color: var(--text-1);
+  padding: 6px 10px;
+  cursor: pointer;
+  letter-spacing: 0.01em;
+  transition: color 0.12s, border-color 0.12s, background 0.12s;
+}
+button:hover { color: var(--text); border-color: var(--data); background: rgba(37, 99, 235, 0.1); }
+button:active { transform: scale(0.98); opacity: 0.8; }
+button[aria-pressed="true"], button.active {
+  color: #fff;
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+a { color: var(--data); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* ── Skeleton shimmer ──────────────────────────────────────────────── */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.skeleton {
+  background: linear-gradient(90deg, var(--bg-1) 0%, var(--bg-2) 50%, var(--bg-1) 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.6s linear infinite;
+}
+
+/* ── Scrollbar — minimal, dark ─────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-thumb { background: var(--line); }
+::-webkit-scrollbar-thumb:hover { background: var(--line-2); }
+::-webkit-scrollbar-track { background: transparent; }
+
+/* ── Focus ring — petrol-teal accent ────────────────────────────────── */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}

@@ -1,0 +1,112 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 660" role="img" font-family="'Noto Sans Thai','Sarabun','Tahoma',sans-serif">
+  <title>เมืองเดียว หลายมุมมอง — One city, many lenses</title>
+  <desc>A 3x3 grid of nine lens chips. Each chip is a small white card with a colored top bar, a colored code badge (EXEC, OPS, MOB, MAR, ENV, EAR, SAF, VIB, INT), a Thai name, and a one-line purpose. Same map, only the data layers on top change.</desc>
+
+  <rect width="1200" height="660" fill="#FAF8F1"/>
+
+  <!-- Title block -->
+  <text x="56" y="64" font-size="38" font-weight="800" fill="#2C2418">เมืองเดียว หลายมุมมอง</text>
+  <text x="58" y="96" font-size="19" fill="#9A8F80" font-family="'Inter',sans-serif">One city, many lenses.</text>
+  <rect x="58" y="110" width="120" height="7" rx="3.5" fill="#F1BE48"/>
+  <text x="58" y="146" font-size="15.5" fill="#6A5A47">เลนส์เดียวกัน เปลี่ยนเฉพาะชั้นข้อมูลที่ซ้อนบนแผนที่</text>
+
+  <!-- ================= ROW 1 (y=176) ================= -->
+
+  <!-- EXEC -->
+  <g transform="translate(56,176)">
+    <rect x="0" y="0" width="362" height="124" rx="18" fill="#FFFFFF" stroke="#DED9CE" stroke-width="2"/>
+    <rect x="0" y="0" width="362" height="6" rx="3" fill="#2F6B5A"/>
+    <rect x="26" y="34" width="74" height="32" rx="9" fill="#DCE8E2"/>
+    <text x="63" y="56" text-anchor="middle" font-size="17" font-weight="800" fill="#2F6B5A" font-family="'Inter',sans-serif">EXEC</text>
+    <text x="118" y="58" font-size="23" font-weight="800" fill="#2C2418">ผู้บริหาร</text>
+    <text x="26" y="98" font-size="14.5" fill="#6A5A47">มุมกลยุทธ์ · ภาพรวมเมืองสำหรับผู้นำ</text>
+  </g>
+
+  <!-- OPS -->
+  <g transform="translate(419,176)">
+    <rect x="0" y="0" width="362" height="124" rx="18" fill="#FFFFFF" stroke="#DED9CE" stroke-width="2"/>
+    <rect x="0" y="0" width="362" height="6" rx="3" fill="#4A773C"/>
+    <rect x="26" y="34" width="64" height="32" rx="9" fill="#E3EDDA"/>
+    <text x="58" y="56" text-anchor="middle" font-size="17" font-weight="800" fill="#4A773C" font-family="'Inter',sans-serif">OPS</text>
+    <text x="108" y="58" font-size="23" font-weight="800" fill="#2C2418">ปฏิบัติการ</text>
+    <text x="26" y="98" font-size="14.5" fill="#6A5A47">งานประจำวัน · อาคาร จราจร เหตุการณ์</text>
+  </g>
+
+  <!-- MOB -->
+  <g transform="translate(782,176)">
+    <rect x="0" y="0" width="362" height="124" rx="18" fill="#FFFFFF" stroke="#DED9CE" stroke-width="2"/>
+    <rect x="0" y="0" width="362" height="6" rx="3" fill="#6E4A33"/>
+    <rect x="26" y="34" width="64" height="32" rx="9" fill="#EBE2D9"/>
+    <text x="58" y="56" text-anchor="middle" font-size="17" font-weight="800" fill="#6E4A33" font-family="'Inter',sans-serif">MOB</text>
+    <text x="108" y="58" font-size="23" font-weight="800" fill="#2C2418">จราจร</text>
+    <text x="26" y="98" font-size="14.5" fill="#6A5A47">การเดินทาง · เส้นทาง ขนส่ง การจราจร</text>
+  </g>
+
+  <!-- ================= ROW 2 (y=316) ================= -->
+
+  <!-- MAR -->
+  <g transform="translate(56,316)">
+    <rect x="0" y="0" width="362" height="124" rx="18" fill="#FFFFFF" stroke="#DED9CE" stroke-width="2"/>
+    <rect x="0" y="0" width="362" height="6" rx="3" fill="#4A773C"/>
+    <rect x="26" y="34" width="64" height="32" rx="9" fill="#E3EDDA"/>
+    <text x="58" y="56" text-anchor="middle" font-size="17" font-weight="800" fill="#4A773C" font-family="'Inter',sans-serif">MAR</text>
+    <text x="108" y="58" font-size="23" font-weight="800" fill="#2C2418">ทะเล</text>
+    <text x="26" y="98" font-size="14.5" fill="#6A5A47">อ่าว · เรือ ท่าเรือ สัญญาณ AIS</text>
+  </g>
+
+  <!-- ENV -->
+  <g transform="translate(419,316)">
+    <rect x="0" y="0" width="362" height="124" rx="18" fill="#FFFFFF" stroke="#DED9CE" stroke-width="2"/>
+    <rect x="0" y="0" width="362" height="6" rx="3" fill="#7E8A3A"/>
+    <rect x="26" y="34" width="64" height="32" rx="9" fill="#EDF0DC"/>
+    <text x="58" y="56" text-anchor="middle" font-size="17" font-weight="800" fill="#7E8A3A" font-family="'Inter',sans-serif">ENV</text>
+    <text x="108" y="58" font-size="23" font-weight="800" fill="#2C2418">สิ่งแวดล้อม</text>
+    <text x="26" y="98" font-size="14.5" fill="#6A5A47">น้ำท่วม · พลังงานแสงอาทิตย์ ลำน้ำ</text>
+  </g>
+
+  <!-- EAR -->
+  <g transform="translate(782,316)">
+    <rect x="0" y="0" width="362" height="124" rx="18" fill="#FFFFFF" stroke="#DED9CE" stroke-width="2"/>
+    <rect x="0" y="0" width="362" height="6" rx="3" fill="#6E4A33"/>
+    <rect x="26" y="34" width="64" height="32" rx="9" fill="#EBE2D9"/>
+    <text x="58" y="56" text-anchor="middle" font-size="17" font-weight="800" fill="#6E4A33" font-family="'Inter',sans-serif">EAR</text>
+    <text x="108" y="58" font-size="23" font-weight="800" fill="#2C2418">ดาวเทียม</text>
+    <text x="26" y="98" font-size="14.5" fill="#6A5A47">สังเกตการณ์โลก · ฝน น้ำท่วม ความร้อน</text>
+  </g>
+
+  <!-- ================= ROW 3 (y=456) ================= -->
+
+  <!-- SAF -->
+  <g transform="translate(56,456)">
+    <rect x="0" y="0" width="362" height="124" rx="18" fill="#FFFFFF" stroke="#DED9CE" stroke-width="2"/>
+    <rect x="0" y="0" width="362" height="6" rx="3" fill="#B14A2B"/>
+    <rect x="26" y="34" width="64" height="32" rx="9" fill="#F3E0D7"/>
+    <text x="58" y="56" text-anchor="middle" font-size="17" font-weight="800" fill="#B14A2B" font-family="'Inter',sans-serif">SAF</text>
+    <text x="108" y="58" font-size="23" font-weight="800" fill="#2C2418">ความปลอดภัย</text>
+    <text x="26" y="98" font-size="14.5" fill="#6A5A47">น้ำท่วมชายฝั่ง · กล้อง CCTV โรงพยาบาล</text>
+  </g>
+
+  <!-- VIB -->
+  <g transform="translate(419,456)">
+    <rect x="0" y="0" width="362" height="124" rx="18" fill="#FFFFFF" stroke="#DED9CE" stroke-width="2"/>
+    <rect x="0" y="0" width="362" height="6" rx="3" fill="#D6A12A"/>
+    <rect x="26" y="34" width="64" height="32" rx="9" fill="#FBEFCB"/>
+    <text x="58" y="56" text-anchor="middle" font-size="17" font-weight="800" fill="#D6A12A" font-family="'Inter',sans-serif">VIB</text>
+    <text x="108" y="58" font-size="23" font-weight="800" fill="#2C2418">พรีเซนต์</text>
+    <text x="26" y="98" font-size="14.5" fill="#6A5A47">โหมดนำเสนอ · ภาพสะอาด ดาวเทียมจริง</text>
+  </g>
+
+  <!-- INT -->
+  <g transform="translate(782,456)">
+    <rect x="0" y="0" width="362" height="124" rx="18" fill="#FFFFFF" stroke="#DED9CE" stroke-width="2"/>
+    <rect x="0" y="0" width="362" height="6" rx="3" fill="#2F6B5A"/>
+    <rect x="26" y="34" width="64" height="32" rx="9" fill="#DCE8E2"/>
+    <text x="58" y="56" text-anchor="middle" font-size="17" font-weight="800" fill="#2F6B5A" font-family="'Inter',sans-serif">INT</text>
+    <text x="108" y="58" font-size="23" font-weight="800" fill="#2C2418">พยากรณ์</text>
+    <text x="26" y="98" font-size="14.5" fill="#6A5A47">คาดการณ์ TimeFM · ผูกกับแผนที่ EO</text>
+  </g>
+
+  <!-- bottom promise pill -->
+  <rect x="56" y="600" width="1088" height="34" rx="17" fill="#241B11"/>
+  <text x="600" y="623" text-anchor="middle" font-size="16" font-weight="700" fill="#FFFFFF">แผนที่เดียว · ๙ เลนส์ · สลับชั้นข้อมูลในคลิกเดียว</text>
+</svg>

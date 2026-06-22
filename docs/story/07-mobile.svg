@@ -1,0 +1,167 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 620" role="img" font-family="'Noto Sans Thai','Sarabun','Tahoma',sans-serif">
+  <title>ใช้บนมือถือ — 3 หน้าจอ</title>
+  <desc>Infographic showing three clean mobile screens for the Yala dashboard: a full-screen dark map with a gold ring-road, a light city brief with AQI/weather cards and two world clocks, and a layers page with a lens grid and a news row. Bottom note: easy to swipe, never cramped.</desc>
+
+  <rect width="1200" height="620" fill="#FAF8F1"/>
+
+  <!-- Title block -->
+  <text x="56" y="64" font-size="38" font-weight="800" fill="#2C2418">ใช้บนมือถือ — 3 หน้าจอ</text>
+  <text x="58" y="96" font-size="19" fill="#9A8F80" font-family="'Inter',sans-serif">Map-first mobile · three clean pages.</text>
+  <rect x="58" y="110" width="120" height="7" rx="3.5" fill="#F1BE48"/>
+
+  <!-- ============ CARD 1 · MAP ============ -->
+  <g>
+    <rect x="56" y="152" width="336" height="392" rx="18" fill="#FFFFFF" stroke="#DED9CE" stroke-width="2"/>
+    <rect x="56" y="152" width="336" height="6" rx="3" fill="#D6A12A"/>
+    <circle cx="92" cy="196" r="17" fill="#FBEFCB"/>
+    <text x="92" y="203" text-anchor="middle" font-size="19" font-weight="800" fill="#D6A12A" font-family="'Inter',sans-serif">1</text>
+    <text x="122" y="203" font-size="22" font-weight="800" fill="#2C2418">แผนที่ MAP</text>
+
+    <!-- phone mockup: dark full-screen map -->
+    <g transform="translate(152,232)">
+      <rect x="0" y="0" width="144" height="264" rx="22" fill="#241B11" stroke="#DED9CE" stroke-width="2"/>
+      <!-- notch -->
+      <rect x="56" y="12" width="32" height="6" rx="3" fill="#2C2418"/>
+      <!-- dark map field -->
+      <rect x="12" y="28" width="120" height="208" rx="10" fill="#241B11"/>
+      <!-- faint map streets -->
+      <g stroke="#3A2C1C" stroke-width="1.4" stroke-linecap="round">
+        <path d="M12 96 H132"/>
+        <path d="M12 168 H132"/>
+        <path d="M52 28 V236"/>
+        <path d="M98 28 V236"/>
+      </g>
+      <!-- gold ring road -->
+      <ellipse cx="72" cy="128" rx="44" ry="58" fill="none" stroke="#D6A12A" stroke-width="3"/>
+      <!-- a couple of pins -->
+      <circle cx="72" cy="92" r="4" fill="#4A773C"/>
+      <circle cx="96" cy="150" r="4" fill="#6E4A33"/>
+      <circle cx="50" cy="158" r="4" fill="#B14A2B"/>
+      <!-- bottom home pill -->
+      <rect x="48" y="246" width="48" height="6" rx="3" fill="#2C2418"/>
+    </g>
+
+    <!-- caption label -->
+    <g transform="translate(80,514)">
+      <text x="0" y="0" font-size="17" font-weight="700" fill="#4A3C2C">แผนที่เต็มจอ</text>
+    </g>
+  </g>
+
+  <!-- arrow 1 -> 2 -->
+  <path d="M404 350 H452 m-16 -10 l16 10 l-16 10" fill="none" stroke="#C2BBAC" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- ============ CARD 2 · BRIEF ============ -->
+  <g>
+    <rect x="464" y="152" width="336" height="392" rx="18" fill="#FFFFFF" stroke="#DED9CE" stroke-width="2"/>
+    <rect x="464" y="152" width="336" height="6" rx="3" fill="#4A773C"/>
+    <circle cx="500" cy="196" r="17" fill="#E3EDDA"/>
+    <text x="500" y="203" text-anchor="middle" font-size="19" font-weight="800" fill="#4A773C" font-family="'Inter',sans-serif">2</text>
+    <text x="530" y="203" font-size="22" font-weight="800" fill="#2C2418">สรุป BRIEF</text>
+
+    <!-- phone mockup: light stacked cards -->
+    <g transform="translate(560,232)">
+      <rect x="0" y="0" width="144" height="264" rx="22" fill="#F4F1E9" stroke="#DED9CE" stroke-width="2"/>
+      <rect x="56" y="12" width="32" height="6" rx="3" fill="#C2BBAC"/>
+
+      <!-- AQI / weather card -->
+      <rect x="12" y="28" width="120" height="58" rx="9" fill="#FFFFFF" stroke="#DED9CE" stroke-width="1.6"/>
+      <circle cx="34" cy="50" r="11" fill="#EDF0DC"/>
+      <text x="34" y="55" text-anchor="middle" font-size="11" font-weight="800" fill="#7E8A3A" font-family="'Inter',sans-serif">42</text>
+      <rect x="54" y="42" width="64" height="6" rx="3" fill="#6A5A47"/>
+      <rect x="54" y="54" width="44" height="5" rx="2.5" fill="#C2BBAC"/>
+      <!-- sun icon -->
+      <g transform="translate(102,64)" stroke="#D6A12A" stroke-width="2" fill="none" stroke-linecap="round">
+        <circle cx="0" cy="0" r="5" fill="#FBEFCB" stroke="none"/>
+        <path d="M0 -9 V-7 M0 7 V9 M-9 0 H-7 M7 0 H9 M-6 -6 l1.4 1.4 M6 6 l-1.4 -1.4 M6 -6 l-1.4 1.4 M-6 6 l1.4 -1.4"/>
+      </g>
+
+      <!-- world clocks: 2-up -->
+      <rect x="12" y="98" width="56" height="56" rx="9" fill="#FFFFFF" stroke="#DED9CE" stroke-width="1.6"/>
+      <circle cx="40" cy="122" r="14" fill="#E3EDDA"/>
+      <g stroke="#4A773C" stroke-width="2.2" stroke-linecap="round" fill="none">
+        <path d="M40 122 V114 M40 122 L46 126"/>
+      </g>
+      <rect x="26" y="142" width="28" height="5" rx="2.5" fill="#9A8F80"/>
+
+      <rect x="76" y="98" width="56" height="56" rx="9" fill="#FFFFFF" stroke="#DED9CE" stroke-width="1.6"/>
+      <circle cx="104" cy="122" r="14" fill="#EBE2D9"/>
+      <g stroke="#6E4A33" stroke-width="2.2" stroke-linecap="round" fill="none">
+        <path d="M104 122 V115 M104 122 L99 126"/>
+      </g>
+      <rect x="90" y="142" width="28" height="5" rx="2.5" fill="#9A8F80"/>
+
+      <!-- a quiet stat strip -->
+      <rect x="12" y="166" width="120" height="34" rx="9" fill="#FFFFFF" stroke="#DED9CE" stroke-width="1.6"/>
+      <rect x="24" y="178" width="40" height="6" rx="3" fill="#6A5A47"/>
+      <rect x="24" y="190" width="64" height="5" rx="2.5" fill="#C2BBAC"/>
+      <circle cx="118" cy="183" r="6" fill="#FBEFCB"/>
+
+      <rect x="48" y="246" width="48" height="6" rx="3" fill="#C2BBAC"/>
+    </g>
+
+    <g transform="translate(488,514)">
+      <text x="0" y="0" font-size="17" font-weight="700" fill="#4A3C2C">สรุปข้อมูลเมือง</text>
+    </g>
+  </g>
+
+  <!-- arrow 2 -> 3 -->
+  <path d="M812 350 H860 m-16 -10 l16 10 l-16 10" fill="none" stroke="#C2BBAC" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- ============ CARD 3 · LAYERS ============ -->
+  <g>
+    <rect x="872" y="152" width="272" height="392" rx="18" fill="#FFFFFF" stroke="#DED9CE" stroke-width="2"/>
+    <rect x="872" y="152" width="272" height="6" rx="3" fill="#6E4A33"/>
+    <circle cx="908" cy="196" r="17" fill="#EBE2D9"/>
+    <text x="908" y="203" text-anchor="middle" font-size="19" font-weight="800" fill="#6E4A33" font-family="'Inter',sans-serif">3</text>
+    <text x="938" y="203" font-size="22" font-weight="800" fill="#2C2418">ชั้นข้อมูล</text>
+
+    <!-- phone mockup: layers grid + news row -->
+    <g transform="translate(936,232)">
+      <rect x="0" y="0" width="144" height="264" rx="22" fill="#F4F1E9" stroke="#DED9CE" stroke-width="2"/>
+      <rect x="56" y="12" width="32" height="6" rx="3" fill="#C2BBAC"/>
+
+      <!-- lens grid 3x2 -->
+      <g>
+        <rect x="12" y="28" width="38" height="38" rx="9" fill="#FFFFFF" stroke="#DED9CE" stroke-width="1.6"/>
+        <rect x="22" y="38" width="18" height="18" rx="4" fill="#E3EDDA"/>
+        <rect x="53" y="28" width="38" height="38" rx="9" fill="#FFFFFF" stroke="#DED9CE" stroke-width="1.6"/>
+        <circle cx="72" cy="47" r="9" fill="#EBE2D9"/>
+        <rect x="94" y="28" width="38" height="38" rx="9" fill="#FFFFFF" stroke="#DED9CE" stroke-width="1.6"/>
+        <path d="M103 56 l10 -16 l10 16 Z" fill="#FBEFCB"/>
+
+        <rect x="12" y="70" width="38" height="38" rx="9" fill="#FFFFFF" stroke="#DED9CE" stroke-width="1.6"/>
+        <rect x="22" y="80" width="18" height="18" rx="9" fill="#EDF0DC"/>
+        <rect x="53" y="70" width="38" height="38" rx="9" fill="#FFFFFF" stroke="#DED9CE" stroke-width="1.6"/>
+        <rect x="63" y="80" width="18" height="18" rx="4" fill="#DCE8E2"/>
+        <rect x="94" y="70" width="38" height="38" rx="9" fill="#FFFFFF" stroke="#DED9CE" stroke-width="1.6"/>
+        <rect x="104" y="80" width="18" height="18" rx="4" fill="#F3E0D7"/>
+      </g>
+
+      <!-- divider label -->
+      <rect x="12" y="120" width="46" height="6" rx="3" fill="#9A8F80"/>
+
+      <!-- news rows -->
+      <g>
+        <rect x="12" y="134" width="120" height="32" rx="8" fill="#FFFFFF" stroke="#DED9CE" stroke-width="1.6"/>
+        <circle cx="28" cy="150" r="6" fill="#6E4A33"/>
+        <rect x="42" y="143" width="78" height="6" rx="3" fill="#6A5A47"/>
+        <rect x="42" y="154" width="54" height="5" rx="2.5" fill="#C2BBAC"/>
+
+        <rect x="12" y="172" width="120" height="32" rx="8" fill="#FFFFFF" stroke="#DED9CE" stroke-width="1.6"/>
+        <circle cx="28" cy="188" r="6" fill="#4A773C"/>
+        <rect x="42" y="181" width="70" height="6" rx="3" fill="#6A5A47"/>
+        <rect x="42" y="192" width="60" height="5" rx="2.5" fill="#C2BBAC"/>
+      </g>
+
+      <rect x="48" y="246" width="48" height="6" rx="3" fill="#C2BBAC"/>
+    </g>
+
+    <g transform="translate(896,514)">
+      <text x="0" y="0" font-size="17" font-weight="700" fill="#4A3C2C">เลือกชั้นข้อมูล + ข่าว</text>
+    </g>
+  </g>
+
+  <!-- bottom promise pill -->
+  <rect x="56" y="570" width="1088" height="34" rx="17" fill="#241B11"/>
+  <text x="600" y="593" text-anchor="middle" font-size="17" font-weight="700" fill="#FFFFFF">เลื่อนนิ้วง่าย ไม่อัดแน่น</text>
+</svg>

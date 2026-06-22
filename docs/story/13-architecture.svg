@@ -1,0 +1,201 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 656" role="img" font-family="'Noto Sans Thai','Sarabun','Tahoma',sans-serif">
+  <title>สถาปัตยกรรม (สำหรับนักพัฒนา) — Architecture: a pnpm monorepo</title>
+  <desc>Developer-facing architecture infographic of the Yala dashboard, a pnpm monorepo. Three stacked workspace cards on the left: apps/api (amber) — Hono with adapters returning NormalizedFeed and a digital-twin store; apps/web (teal) — React 19, Vite, deck.gl and MapLibre with lenses, layers and panels; packages/shared (blue) — TypeScript types and utilities. On the right, a vertical data-flow chain: source, adapter, NormalizedFeed, twinStore, SWR, panel. A dark promise pill at the bottom restates the pipeline.</desc>
+
+  <rect width="1200" height="640" fill="#FAF8F1"/>
+
+  <!-- Title block -->
+  <text x="56" y="64" font-size="38" font-weight="800" fill="#2C2418">สถาปัตยกรรม (สำหรับนักพัฒนา)</text>
+  <text x="58" y="96" font-size="19" fill="#9A8F80" font-family="'Inter',sans-serif">Architecture — a pnpm monorepo.</text>
+  <rect x="58" y="110" width="120" height="7" rx="3.5" fill="#F1BE48"/>
+
+  <!-- ============ LEFT COLUMN: three workspace cards ============ -->
+
+  <!-- CARD 1: apps/api (amber) -->
+  <rect x="56" y="152" width="624" height="138" rx="18" fill="#FFFFFF" stroke="#DED9CE" stroke-width="2"/>
+  <rect x="56" y="152" width="624" height="6" rx="3" fill="#D6A12A"/>
+  <circle cx="92" cy="196" r="17" fill="#FBEFCB"/>
+  <text x="92" y="203" text-anchor="middle" font-size="19" font-weight="800" fill="#D6A12A" font-family="'Inter',sans-serif">1</text>
+  <text x="122" y="200" font-size="22" font-weight="800" fill="#2C2418" font-family="'Inter',sans-serif">apps/api</text>
+  <text x="122" y="221" font-size="12.5" fill="#9A8F80" font-family="'Inter',sans-serif">Hono server · the data backend</text>
+
+  <!-- api row: server icon + adapters -->
+  <g transform="translate(80,236)">
+    <rect x="0" y="0" width="40" height="40" rx="10" fill="#FDF7E6"/>
+    <g stroke="#D6A12A" stroke-width="2.4" fill="none" stroke-linejoin="round" stroke-linecap="round">
+      <rect x="10" y="11" width="20" height="8" rx="2" fill="#FBEFCB"/>
+      <rect x="10" y="22" width="20" height="8" rx="2" fill="#FBEFCB"/>
+      <circle cx="15" cy="15" r="1.2" fill="#D6A12A" stroke="none"/>
+      <circle cx="15" cy="26" r="1.2" fill="#D6A12A" stroke="none"/>
+    </g>
+    <text x="52" y="18" font-size="16" font-weight="700" fill="#4A3C2C" font-family="'Inter',sans-serif">adapters → NormalizedFeed</text>
+    <text x="52" y="36" font-size="12.5" fill="#9A8F80">ทุก route คืนค่ารูปแบบเดียว</text>
+  </g>
+
+  <!-- api row 2: twin store -->
+  <g transform="translate(380,236)">
+    <rect x="0" y="0" width="40" height="40" rx="10" fill="#FDF7E6"/>
+    <g stroke="#D6A12A" stroke-width="2.4" fill="none" stroke-linejoin="round" stroke-linecap="round">
+      <ellipse cx="20" cy="13" rx="10" ry="4" fill="#FBEFCB"/>
+      <path d="M10 13 v14 a10 4 0 0 0 20 0 v-14"/>
+      <path d="M10 20 a10 4 0 0 0 20 0"/>
+    </g>
+    <text x="52" y="18" font-size="16" font-weight="700" fill="#4A3C2C" font-family="'Inter',sans-serif">digital-twin store</text>
+    <text x="52" y="36" font-size="12.5" fill="#9A8F80">in-memory CRUD + relations</text>
+  </g>
+
+  <!-- CARD 2: apps/web (teal) -->
+  <rect x="56" y="306" width="624" height="138" rx="18" fill="#FFFFFF" stroke="#DED9CE" stroke-width="2"/>
+  <rect x="56" y="306" width="624" height="6" rx="3" fill="#4A773C"/>
+  <circle cx="92" cy="350" r="17" fill="#E3EDDA"/>
+  <text x="92" y="357" text-anchor="middle" font-size="19" font-weight="800" fill="#4A773C" font-family="'Inter',sans-serif">2</text>
+  <text x="122" y="354" font-size="22" font-weight="800" fill="#2C2418" font-family="'Inter',sans-serif">apps/web</text>
+  <text x="122" y="375" font-size="12.5" fill="#9A8F80" font-family="'Inter',sans-serif">React 19 + Vite + deck.gl + MapLibre</text>
+
+  <!-- web row: map layers -->
+  <g transform="translate(80,390)">
+    <rect x="0" y="0" width="40" height="40" rx="10" fill="#EEF3E6"/>
+    <g stroke="#4A773C" stroke-width="2.4" fill="none" stroke-linejoin="round" stroke-linecap="round">
+      <path d="M20 9 l11 6 l-11 6 l-11 -6 z" fill="#E3EDDA"/>
+      <path d="M9 21 l11 6 l11 -6"/>
+      <path d="M9 26 l11 6 l11 -6"/>
+    </g>
+    <text x="52" y="18" font-size="16" font-weight="700" fill="#4A3C2C" font-family="'Inter',sans-serif">lenses · layers</text>
+    <text x="52" y="36" font-size="12.5" fill="#9A8F80">มุมมองแผนที่ + เลเยอร์ deck.gl</text>
+  </g>
+
+  <!-- web row 2: panels -->
+  <g transform="translate(380,390)">
+    <rect x="0" y="0" width="40" height="40" rx="10" fill="#EEF3E6"/>
+    <g stroke="#4A773C" stroke-width="2.4" fill="none" stroke-linejoin="round" stroke-linecap="round">
+      <rect x="10" y="10" width="20" height="20" rx="3" fill="#E3EDDA"/>
+      <path d="M10 17 h20 M17 17 v13"/>
+    </g>
+    <text x="52" y="18" font-size="16" font-weight="700" fill="#4A3C2C" font-family="'Inter',sans-serif">panels</text>
+    <text x="52" y="36" font-size="12.5" fill="#9A8F80">PanelHeader + SWR hooks</text>
+  </g>
+
+  <!-- CARD 3: packages/shared (blue) -->
+  <rect x="56" y="460" width="624" height="138" rx="18" fill="#FFFFFF" stroke="#DED9CE" stroke-width="2"/>
+  <rect x="56" y="460" width="624" height="6" rx="3" fill="#6E4A33"/>
+  <circle cx="92" cy="504" r="17" fill="#EBE2D9"/>
+  <text x="92" y="511" text-anchor="middle" font-size="19" font-weight="800" fill="#6E4A33" font-family="'Inter',sans-serif">3</text>
+  <text x="122" y="508" font-size="22" font-weight="800" fill="#2C2418" font-family="'Inter',sans-serif">packages/shared</text>
+  <text x="122" y="529" font-size="12.5" fill="#9A8F80" font-family="'Inter',sans-serif">TypeScript types + utils · used by both</text>
+
+  <!-- shared row: types -->
+  <g transform="translate(80,544)">
+    <rect x="0" y="0" width="40" height="40" rx="10" fill="#F4EEE7"/>
+    <g stroke="#6E4A33" stroke-width="2.4" fill="none" stroke-linejoin="round" stroke-linecap="round">
+      <path d="M11 12 h13 l5 5 v15 h-18 z" fill="#EBE2D9"/>
+      <path d="M14 22 h11 M14 27 h8"/>
+    </g>
+    <text x="52" y="18" font-size="16" font-weight="700" fill="#4A3C2C" font-family="'Inter',sans-serif">types.ts</text>
+    <text x="52" y="36" font-size="12.5" fill="#9A8F80" font-family="'Inter',sans-serif">NormalizedFeed&lt;T&gt;, features</text>
+  </g>
+
+  <!-- shared row 2: utils -->
+  <g transform="translate(380,544)">
+    <rect x="0" y="0" width="40" height="40" rx="10" fill="#F4EEE7"/>
+    <g stroke="#6E4A33" stroke-width="2.4" fill="none" stroke-linejoin="round" stroke-linecap="round">
+      <circle cx="16" cy="16" r="6" fill="#EBE2D9"/>
+      <path d="M16 8 v-2 M16 26 v-2 M8 16 h-2 M26 16 h-2 M22 10 l1.4 -1.4"/>
+    </g>
+    <text x="52" y="18" font-size="16" font-weight="700" fill="#4A3C2C" font-family="'Inter',sans-serif">locale.ts · campus.ts</text>
+    <text x="52" y="36" font-size="12.5" fill="#9A8F80" font-family="'Inter',sans-serif">fmtAge, tierLabel, helpers</text>
+  </g>
+
+  <!-- imports bracket: web + api depend on shared -->
+  <path d="M40 245 V503" fill="none" stroke="#C2BBAC" stroke-width="2" stroke-dasharray="3 5" stroke-linecap="round"/>
+  <path d="M40 399 V503" fill="none" stroke="#C2BBAC" stroke-width="2" stroke-dasharray="3 5" stroke-linecap="round"/>
+
+  <!-- ============ RIGHT COLUMN: data-flow chain ============ -->
+  <text x="740" y="166" font-size="14" font-weight="800" fill="#9A8F80" font-family="'Inter',sans-serif" letter-spacing="1">DATA FLOW</text>
+
+  <!-- chain steps -->
+  <!-- step: source -->
+  <g transform="translate(740,186)">
+    <rect x="0" y="0" width="404" height="54" rx="14" fill="#FFFFFF" stroke="#DED9CE" stroke-width="2"/>
+    <rect x="0" y="0" width="6" height="54" rx="3" fill="#9A8F80"/>
+    <g transform="translate(20,15)" stroke="#6A5A47" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="2" y="2" width="22" height="22" rx="6" fill="#F0ECE2" stroke="none"/>
+      <circle cx="13" cy="13" r="6"/>
+      <path d="M7 13 h12 M13 7 a9 9 0 0 1 0 12 a9 9 0 0 1 0 -12"/>
+    </g>
+    <text x="56" y="25" font-size="16.5" font-weight="700" fill="#2C2418" font-family="'Inter',sans-serif">source</text>
+    <text x="56" y="43" font-size="12.5" fill="#9A8F80">external API · sensor · file</text>
+  </g>
+  <path d="M942 248 V268 m-9 -10 l9 10 l9 -10" fill="none" stroke="#C2BBAC" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- step: adapter -->
+  <g transform="translate(740,276)">
+    <rect x="0" y="0" width="404" height="54" rx="14" fill="#FFFFFF" stroke="#DED9CE" stroke-width="2"/>
+    <rect x="0" y="0" width="6" height="54" rx="3" fill="#D6A12A"/>
+    <g transform="translate(20,15)" stroke="#D6A12A" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="2" y="2" width="22" height="22" rx="6" fill="#FBEFCB" stroke="none"/>
+      <circle cx="13" cy="13" r="4"/>
+      <path d="M13 6 v-1 M13 21 v-1 M6 13 h-1 M21 13 h-1 M8.5 8.5 l-0.7 -0.7 M18.2 18.2 l-0.7 -0.7 M17.5 8.5 l0.7 -0.7 M8.5 17.5 l-0.7 0.7"/>
+    </g>
+    <text x="56" y="25" font-size="16.5" font-weight="700" fill="#2C2418" font-family="'Inter',sans-serif">adapter</text>
+    <text x="56" y="43" font-size="12.5" fill="#9A8F80">normalize · safeFeed · fallbackTier</text>
+  </g>
+  <path d="M942 338 V358 m-9 -10 l9 10 l9 -10" fill="none" stroke="#C2BBAC" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- step: NormalizedFeed -->
+  <g transform="translate(740,366)">
+    <rect x="0" y="0" width="404" height="54" rx="14" fill="#FFFFFF" stroke="#DED9CE" stroke-width="2"/>
+    <rect x="0" y="0" width="6" height="54" rx="3" fill="#6E4A33"/>
+    <g transform="translate(20,15)" stroke="#6E4A33" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="2" y="2" width="22" height="22" rx="6" fill="#EBE2D9" stroke="none"/>
+      <path d="M8 8 h10 M8 13 h10 M8 18 h6"/>
+    </g>
+    <text x="56" y="25" font-size="16.5" font-weight="700" fill="#2C2418" font-family="'Inter',sans-serif">NormalizedFeed&lt;T&gt;</text>
+    <text x="56" y="43" font-size="12.5" fill="#9A8F80">{ features[], meta }</text>
+  </g>
+  <path d="M942 428 V448 m-9 -10 l9 10 l9 -10" fill="none" stroke="#C2BBAC" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- step: twinStore -->
+  <g transform="translate(740,456)">
+    <rect x="0" y="0" width="404" height="54" rx="14" fill="#FFFFFF" stroke="#DED9CE" stroke-width="2"/>
+    <rect x="0" y="0" width="6" height="54" rx="3" fill="#2F6B5A"/>
+    <g transform="translate(20,15)" stroke="#2F6B5A" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="2" y="2" width="22" height="22" rx="6" fill="#DCE8E2" stroke="none"/>
+      <circle cx="13" cy="9" r="2.4"/>
+      <circle cx="8" cy="18" r="2.4"/>
+      <circle cx="18" cy="18" r="2.4"/>
+      <path d="M11.5 11 l-2 5 M14.5 11 l2 5"/>
+    </g>
+    <text x="56" y="25" font-size="16.5" font-weight="700" fill="#2C2418" font-family="'Inter',sans-serif">twinStore</text>
+    <text x="56" y="43" font-size="12.5" fill="#9A8F80">digital twin · entities + relations</text>
+  </g>
+  <path d="M942 518 V538 m-9 -10 l9 10 l9 -10" fill="none" stroke="#C2BBAC" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- step: SWR + panel (split row) -->
+  <g transform="translate(740,546)">
+    <rect x="0" y="0" width="196" height="54" rx="14" fill="#FFFFFF" stroke="#DED9CE" stroke-width="2"/>
+    <rect x="0" y="0" width="6" height="54" rx="3" fill="#4A773C"/>
+    <g transform="translate(20,15)" stroke="#4A773C" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="2" y="2" width="22" height="22" rx="6" fill="#E3EDDA" stroke="none"/>
+      <path d="M19 9 a7 7 0 1 0 1 6" />
+      <path d="M19 6 v3 h-3"/>
+    </g>
+    <text x="56" y="25" font-size="16.5" font-weight="700" fill="#2C2418" font-family="'Inter',sans-serif">SWR</text>
+    <text x="56" y="43" font-size="12.5" fill="#9A8F80">cache · revalidate</text>
+  </g>
+  <path d="M938 573 H966 m-10 -8 l10 8 l-10 8" fill="none" stroke="#C2BBAC" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <g transform="translate(968,546)">
+    <rect x="0" y="0" width="176" height="54" rx="14" fill="#F4F1E9" stroke="#DED9CE" stroke-width="2"/>
+    <rect x="0" y="0" width="6" height="54" rx="3" fill="#7E8A3A"/>
+    <g transform="translate(20,15)" stroke="#7E8A3A" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="2" y="2" width="22" height="22" rx="6" fill="#EDF0DC" stroke="none"/>
+      <rect x="7" y="7" width="12" height="12" rx="2"/>
+      <path d="M7 12 h12 M12 7 v12"/>
+    </g>
+    <text x="56" y="25" font-size="16.5" font-weight="700" fill="#2C2418" font-family="'Inter',sans-serif">panel</text>
+    <text x="56" y="43" font-size="12.5" fill="#9A8F80">renders</text>
+  </g>
+
+  <!-- ============ bottom promise pill ============ -->
+  <rect x="56" y="610" width="1088" height="34" rx="17" fill="#241B11"/>
+  <text x="600" y="633" text-anchor="middle" font-size="16" font-weight="700" fill="#FFFFFF" font-family="'Inter',sans-serif">source → adapter → NormalizedFeed → twinStore → SWR → panel</text>
+</svg>

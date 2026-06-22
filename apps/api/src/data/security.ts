@@ -1,0 +1,120 @@
+import type { AtlasModule } from "@nst/shared";
+
+const SOURCE = "NST Municipal Data Source Bible — Safety & Disaster (DDPM, NSO, RTP 2024)";
+const SRC_DDPM = "DDPM NST Disaster Management Office";
+const SRC_NSO = "NSO Nakhon Si Thammarat — Public Safety Statistics (Table 9.1)";
+const SRC_FIRE = "NST City Municipality Fire Prevention & Suppression Division";
+
+export const securityModule: AtlasModule = {
+  id: "security",
+  title: "Safety & Disaster Risk",
+  titleTh: "ความปลอดภัยและภัยพิบัติ",
+  summary:
+    "NST's primary safety risk is flood disaster — not conflict. The 2025 event affected 223,221 households across 22 districts. Crime rates are moderate; emergency response capacity centres on the DDPM provincial office and municipality fire stations.",
+  accent: "red",
+  indicators: [
+    {
+      id: "flood-risk-households",
+      label: "Flood-exposed households",
+      labelTh: "ครัวเรือนเสี่ยงอุทกภัย",
+      value: 250000,
+      unit: "households",
+      benchmark: { label: "Province total", value: 509812 },
+      status: "alert",
+      goodDirection: "down",
+      source: SRC_DDPM,
+      year: 2025,
+      note: "Estimated from DDPM flood-risk zone mapping of the Pak Phanang basin and Tha Dee canal corridor.",
+    },
+    {
+      id: "flood-2025-impact",
+      label: "2025 flood — households affected",
+      labelTh: "น้ำท่วม 2568 — ครัวเรือนที่ได้รับผลกระทบ",
+      value: 223221,
+      unit: "households",
+      status: "critical",
+      goodDirection: "down",
+      source: SRC_DDPM,
+      year: 2025,
+      note: "Nov 2025: 22 of 23 amphoe declared disaster zones; 6 deaths; 33.96B THB estimated economic loss.",
+    },
+    {
+      id: "disaster-declaration-years",
+      label: "Major flood disaster years (since 2016)",
+      labelTh: "ปีน้ำท่วมใหญ่",
+      value: 4,
+      unit: "events",
+      status: "alert",
+      goodDirection: "down",
+      source: SRC_DDPM,
+      year: 2025,
+      note: "2016–17, 2022, 2024, 2025 — escalating in scale. Climate-driven intensification documented.",
+    },
+    {
+      id: "fire-stations",
+      label: "Municipal fire stations",
+      labelTh: "สถานีดับเพลิง",
+      value: 3,
+      unit: "stations",
+      status: "neutral",
+      goodDirection: "up",
+      source: SRC_FIRE,
+      year: 2024,
+      note: "NST City Municipality operates 3 fire stations covering the 22.6 km² city area.",
+    },
+    {
+      id: "crime-rate",
+      label: "Crime rate (province)",
+      labelTh: "อัตราคดีอาชญากรรม",
+      value: 110,
+      unit: "cases/100k",
+      status: "neutral",
+      goodDirection: "down",
+      source: SRC_NSO,
+      year: 2023,
+      note: "NSO Table 9.1 — provincial crime incidence. Moderate; no insurgency context. Property crime dominates.",
+    },
+    {
+      id: "ddpm-volunteer-network",
+      label: "Civil defence volunteers",
+      labelTh: "อาสาสมัครป้องกันภัยฝ่ายพลเรือน",
+      value: 4200,
+      unit: "volunteers",
+      status: "good",
+      goodDirection: "up",
+      source: SRC_DDPM,
+      year: 2024,
+      note: "Trained civil-defence (อปพร.) volunteers province-wide; key to flood-emergency first response.",
+    },
+  ],
+  charts: [
+    {
+      kind: "timeline",
+      title: "Escalating flood disasters (2016–2025)",
+      events: [
+        { date: "Dec 2016 – Jan 2017", label: "Province-wide flooding", severity: "alert" },
+        { date: "Dec 2022", label: "9,820 households — record 24h rainfall", value: 9820, note: "households", severity: "alert" },
+        { date: "Nov–Dec 2024", label: "3 fatalities — repeated monsoon surge", severity: "alert" },
+        { date: "Nov 2025", label: "223,221 households · 6 deaths · 33.96B THB", value: 223221, note: "households — worst on record", severity: "critical" },
+      ],
+      note: "Household counts at peak from DDPM situation reports. Trend line shows intensification.",
+    },
+    {
+      kind: "bar",
+      title: "Emergency capacity",
+      data: [
+        { name: "Fire stations", nameTh: "สถานีดับเพลิง", value: 3 },
+        { name: "DDPM volunteers (00s)", nameTh: "อาสาสมัคร DDPM (ร้อยคน)", value: 42 },
+        { name: "Hospitals (city)", nameTh: "โรงพยาบาลในเมือง", value: 2 },
+      ],
+      note: "Unit varies per bar. Fire stations and hospitals are absolute counts; volunteers shown in hundreds.",
+    },
+  ],
+  meta: {
+    source: SOURCE,
+    fetchedAt: "2026-06-19T00:00:00.000Z",
+    ageMinutes: 0,
+    fallbackTier: "reference",
+    note: "Static reference data digitized from the NST Municipal Data Source Bible (Jun 2026)",
+  },
+};

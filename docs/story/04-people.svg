@@ -1,0 +1,130 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 744" role="img" font-family="'Noto Sans Thai','Sarabun','Tahoma',sans-serif">
+  <title>ใครได้อะไร — แล้วทำไมระบบถึงอยู่ได้</title>
+  <desc>วงจรหล่อเลี้ยงตัวเองของผู้มีส่วนได้ส่วนเสียสี่กลุ่ม — นายกเทศมนตรี เจ้าหน้าที่ ประชาชน และ depa·พันธมิตร — ที่แต่ละฝ่ายทั้งได้และให้ ส่งต่อกันเป็นวงจรตามเข็มนาฬิกา</desc>
+
+  <rect width="1200" height="720" fill="#FAF8F1"/>
+
+  <!-- TITLE BLOCK -->
+  <text x="56" y="62" font-size="38" font-weight="800" fill="#2C2418">ใครได้อะไร — แล้วทำไมระบบถึงอยู่ได้</text>
+  <text x="58" y="94" font-size="19" fill="#9A8F80" font-family="'Inter',sans-serif">Who benefits — the self-sustaining loop.</text>
+  <rect x="58" y="108" width="120" height="7" rx="3.5" fill="#F1BE48"/>
+
+  <!-- ============ CLOCKWISE LOOP ARROWS (behind cards) ============ -->
+  <!-- top -> right -->
+  <path d="M812 240 C 920 256, 968 312, 980 384" fill="none" stroke="#C2BBAC" stroke-width="3.5" stroke-linecap="round"/>
+  <path d="M980 384 l -11 -14 m 11 14 l 13 -10" fill="none" stroke="#C2BBAC" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- right -> bottom -->
+  <path d="M930 562 C 894 622, 812 654, 730 658" fill="none" stroke="#C2BBAC" stroke-width="3.5" stroke-linecap="round"/>
+  <path d="M730 658 l 18 -8 m -18 8 l 14 12" fill="none" stroke="#C2BBAC" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- bottom -> left -->
+  <path d="M470 658 C 388 654, 306 622, 270 562" fill="none" stroke="#C2BBAC" stroke-width="3.5" stroke-linecap="round"/>
+  <path d="M270 562 l 14 -12 m -14 12 l 18 8" fill="none" stroke="#C2BBAC" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- left -> top -->
+  <path d="M220 384 C 232 312, 280 256, 388 240" fill="none" stroke="#C2BBAC" stroke-width="3.5" stroke-linecap="round"/>
+  <path d="M388 240 l -13 -10 m 13 10 l -11 14" fill="none" stroke="#C2BBAC" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- ============ CENTER LABEL ============ -->
+  <circle cx="600" cy="430" r="96" fill="#F4F1E9" stroke="#DED9CE" stroke-width="2"/>
+  <circle cx="600" cy="430" r="78" fill="#FFFFFF" stroke="#DED9CE" stroke-width="2" stroke-dasharray="4 7"/>
+  <text x="600" y="416" text-anchor="middle" font-size="21" font-weight="800" fill="#2C2418">วงจร</text>
+  <text x="600" y="444" text-anchor="middle" font-size="21" font-weight="800" fill="#2C2418">หล่อเลี้ยง</text>
+  <text x="600" y="472" text-anchor="middle" font-size="21" font-weight="800" fill="#2C2418">ตัวเอง</text>
+
+  <!-- ===================================================== -->
+  <!-- TOP CARD — นายกเทศมนตรี [amber]                       -->
+  <!-- ===================================================== -->
+  <g>
+    <rect x="370" y="128" width="460" height="148" rx="18" fill="#FFFFFF" stroke="#DED9CE" stroke-width="2"/>
+    <rect x="370" y="128" width="460" height="6" rx="3" fill="#D6A12A"/>
+
+    <!-- icon chip: check badge -->
+    <rect x="398" y="158" width="40" height="40" rx="10" fill="#FBEFCB"/>
+    <g stroke="#D6A12A" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M418 165 l 5 3 l 5 -3 l 5 4 l -1 6 l 3 5 l -3 5 l -3 6 l -6 0 l -5 3 l -5 -3 l -6 0 l -3 -6 l -3 -5 l 3 -5 l -1 -6 l 5 -4 Z" fill="#F2DFA6"/>
+      <path d="M412 181 l 5 5 l 9 -10"/>
+    </g>
+
+    <circle cx="476" cy="150" r="15" fill="#FBEFCB"/>
+    <text x="476" y="156" text-anchor="middle" font-size="17" font-weight="800" fill="#D6A12A" font-family="'Inter',sans-serif">1</text>
+
+    <text x="452" y="185" font-size="22" font-weight="800" fill="#2C2418">นายกเทศมนตรี</text>
+
+    <text x="398" y="231" font-size="16" font-weight="700" fill="#4A773C">ได้: เห็นทั้งเมือง ตัดสินใจเร็ว</text>
+    <text x="398" y="261" font-size="16" font-weight="700" fill="#D6A12A">ให้: นโยบาย + สนับสนุน</text>
+  </g>
+
+  <!-- ===================================================== -->
+  <!-- RIGHT CARD — เจ้าหน้าที่ [teal]                       -->
+  <!-- ===================================================== -->
+  <g>
+    <rect x="850" y="356" width="295" height="148" rx="18" fill="#FFFFFF" stroke="#DED9CE" stroke-width="2"/>
+    <rect x="850" y="356" width="295" height="6" rx="3" fill="#4A773C"/>
+
+    <!-- icon chip: gear -->
+    <rect x="878" y="386" width="40" height="40" rx="10" fill="#E3EDDA"/>
+    <g stroke="#4A773C" stroke-width="2.4" fill="none" stroke-linejoin="round">
+      <circle cx="898" cy="406" r="6" fill="#C2D4B0"/>
+      <path d="M898 390 v4 M898 418 v4 M882 406 h4 M910 406 h4 M887 395 l3 3 M906 414 l3 3 M909 395 l-3 3 M890 414 l-3 3" stroke-linecap="round"/>
+    </g>
+
+    <circle cx="956" cy="378" r="15" fill="#E3EDDA"/>
+    <text x="956" y="384" text-anchor="middle" font-size="17" font-weight="800" fill="#4A773C" font-family="'Inter',sans-serif">2</text>
+
+    <text x="932" y="413" font-size="22" font-weight="800" fill="#2C2418">เจ้าหน้าที่</text>
+
+    <text x="878" y="459" font-size="16" font-weight="700" fill="#4A773C">ได้: ทำงานตรงจุด</text>
+    <text x="878" y="489" font-size="16" font-weight="700" fill="#D6A12A">ให้: อัปเดตข้อมูลหน้างาน</text>
+  </g>
+
+  <!-- ===================================================== -->
+  <!-- BOTTOM CARD — ประชาชน [blue]                          -->
+  <!-- ===================================================== -->
+  <g>
+    <rect x="370" y="584" width="460" height="148" rx="18" fill="#FFFFFF" stroke="#DED9CE" stroke-width="2"/>
+    <rect x="370" y="584" width="460" height="6" rx="3" fill="#6E4A33"/>
+
+    <!-- icon chip: chat pin -->
+    <rect x="398" y="614" width="40" height="40" rx="10" fill="#EBE2D9"/>
+    <g stroke="#6E4A33" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M409 620 h18 a3 3 0 0 1 3 3 v10 a3 3 0 0 1 -3 3 h-8 l-5 5 v-5 h-5 a3 3 0 0 1 -3 -3 v-10 a3 3 0 0 1 3 -3 Z" fill="#D8C7B5"/>
+      <circle cx="413" cy="628" r="1.4" fill="#6E4A33" stroke="none"/>
+      <circle cx="418" cy="628" r="1.4" fill="#6E4A33" stroke="none"/>
+      <circle cx="423" cy="628" r="1.4" fill="#6E4A33" stroke="none"/>
+    </g>
+
+    <circle cx="476" cy="606" r="15" fill="#EBE2D9"/>
+    <text x="476" y="612" text-anchor="middle" font-size="17" font-weight="800" fill="#6E4A33" font-family="'Inter',sans-serif">3</text>
+
+    <text x="452" y="641" font-size="22" font-weight="800" fill="#2C2418">ประชาชน</text>
+
+    <text x="398" y="687" font-size="16" font-weight="700" fill="#4A773C">ได้: บริการดีขึ้น โปร่งใส</text>
+    <text x="398" y="717" font-size="16" font-weight="700" fill="#D6A12A">ให้: แจ้งเหตุ + ข้อมูลพื้นที่</text>
+  </g>
+
+  <!-- ===================================================== -->
+  <!-- LEFT CARD — depa·พันธมิตร [violet]                    -->
+  <!-- ===================================================== -->
+  <g>
+    <rect x="55" y="356" width="295" height="148" rx="18" fill="#FFFFFF" stroke="#DED9CE" stroke-width="2"/>
+    <rect x="55" y="356" width="295" height="6" rx="3" fill="#2F6B5A"/>
+
+    <!-- icon chip: handshake/blocks -->
+    <rect x="83" y="386" width="40" height="40" rx="10" fill="#DCE8E2"/>
+    <g stroke="#2F6B5A" stroke-width="2.4" fill="none" stroke-linejoin="round">
+      <rect x="89" y="399" width="11" height="11" rx="2" fill="#C2D6CD"/>
+      <rect x="106" y="399" width="11" height="11" rx="2" fill="#C2D6CD"/>
+      <rect x="97" y="386" width="11" height="11" rx="2" fill="#A8C6BC"/>
+    </g>
+
+    <circle cx="161" cy="378" r="15" fill="#DCE8E2"/>
+    <text x="161" y="384" text-anchor="middle" font-size="17" font-weight="800" fill="#2F6B5A" font-family="'Inter',sans-serif">4</text>
+
+    <text x="137" y="413" font-size="22" font-weight="800" fill="#2C2418">depa · พันธมิตร</text>
+
+    <text x="83" y="459" font-size="16" font-weight="700" fill="#4A773C">ได้: โมเดลที่ขยายได้</text>
+    <text x="83" y="489" font-size="16" font-weight="700" fill="#D6A12A">ให้: ทุน + เทคโนโลยี</text>
+  </g>
+</svg>

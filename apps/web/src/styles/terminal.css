@@ -1,0 +1,98 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   Yala Watch Terminal (System B) — Bloomberg-style real-time + reference grid.
+   Dense, monospace, color-coded deltas. Flips from the geo dashboard.
+   Inherits the teal/gold control-tower DNA.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.term {
+  position: fixed; inset: 0; background: var(--bg); color: var(--text);
+  display: flex; flex-direction: column; overflow: hidden;
+  font-family: var(--font-mono);
+}
+
+/* header */
+.term-head {
+  display: flex; align-items: center; gap: var(--s-4);
+  padding: 8px var(--s-4); background: var(--bg-1); border-bottom: 1px solid var(--line);
+  flex-shrink: 0;
+}
+.term-head .term-mark { font-family: var(--font-display); font-weight: 700; font-size: var(--size-h3); letter-spacing: 0.01em; color: var(--text); }
+.term-head .term-mark b { color: var(--accent); }
+.term-head .term-sub { color: var(--text-3); font-size: var(--size-eyebrow); text-transform: uppercase; letter-spacing: 0.06em; }
+.term-clock { margin-left: auto; color: var(--text-1); font-variant-numeric: tabular-nums; }
+.term-flip { border: 1px solid var(--gold); color: var(--gold); padding: 5px 14px; text-transform: uppercase; letter-spacing: 0.06em; }
+.term-flip:hover { background: var(--gold); color: var(--bg); }
+
+/* ticker strip */
+.term-ticker { background: #000; border-bottom: 1px solid var(--line); overflow: hidden; flex-shrink: 0; height: 30px; display: flex; align-items: center; }
+.term-ticker-track { display: inline-flex; gap: 0; white-space: nowrap; animation: term-marquee 60s linear infinite; }
+.term-ticker:hover .term-ticker-track { animation-play-state: paused; }
+@keyframes term-marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+.term-tick { display: inline-flex; align-items: baseline; gap: 6px; padding: 0 18px; border-right: 1px solid var(--line); font-size: 0.8rem; }
+.term-tick .lab { color: var(--text-3); text-transform: uppercase; letter-spacing: 0.04em; font-size: 0.68rem; }
+.term-tick .val { color: var(--text); font-variant-numeric: tabular-nums; }
+.term-tick .up { color: var(--good); }
+.term-tick .down { color: var(--bad); }
+.term-tick .flat { color: var(--text-2); }
+
+/* body grid */
+.term-body { flex: 1; overflow-y: auto; padding: var(--s-3); }
+.term-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
+  gap: var(--s-3); align-content: start;
+}
+.term-panel { background: var(--bg-1); border: 1px solid var(--line); display: flex; flex-direction: column; min-height: 150px; }
+.term-panel.span2 { grid-column: span 2; }
+.term-panel-head {
+  display: flex; align-items: center; gap: 8px; padding: 6px var(--s-3);
+  border-bottom: 1px solid var(--line); background: var(--bg-2);
+}
+.term-panel-head h3 { font-size: var(--size-eyebrow); text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-1); font-family: var(--font-mono); font-weight: 600; }
+.term-panel-head .term-led { width: 7px; height: 7px; flex-shrink: 0; background: var(--text-3); }
+.term-led.live { background: var(--good); box-shadow: 0 0 6px var(--good); }
+.term-led.warn { background: var(--gold); }
+.term-led.crit { background: var(--bad); box-shadow: 0 0 6px var(--bad); }
+.term-panel-head .term-src { margin-left: auto; color: var(--text-3); font-size: 0.64rem; text-transform: uppercase; letter-spacing: 0.04em; }
+.term-panel-body { padding: var(--s-3); flex: 1; display: flex; flex-direction: column; gap: 8px; }
+
+/* big readout */
+.term-readout { display: flex; align-items: baseline; gap: 10px; }
+.term-readout .big { font-size: 2.1rem; line-height: 1; font-weight: 700; font-variant-numeric: tabular-nums; }
+.term-readout .unit { color: var(--text-2); font-size: 0.85rem; }
+.term-readout .delta { font-size: 0.85rem; font-variant-numeric: tabular-nums; }
+.term-readout .delta.up { color: var(--good); }
+.term-readout .delta.down { color: var(--bad); }
+
+/* row metrics */
+.term-rows { display: grid; gap: 3px; }
+.term-row { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; font-size: 0.82rem; padding: 2px 0; border-bottom: 1px dotted var(--line); }
+.term-row .k { color: var(--text-2); }
+.term-row .v { color: var(--text); font-variant-numeric: tabular-nums; }
+.term-row .v.up { color: var(--good); } .term-row .v.down { color: var(--bad); }
+
+/* the juxtaposition line — the insight from pairing live × static */
+.term-jux { margin-top: auto; padding-top: 8px; border-top: 1px solid var(--line); color: var(--text-2); font-size: 0.74rem; line-height: 1.4; font-family: var(--font-sans); }
+.term-jux b { color: var(--gold); font-weight: 600; }
+
+/* status pills */
+.term-pill { display: inline-block; font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.05em; padding: 1px 6px; border: 1px solid var(--line-2); }
+.term-pill.ok { color: var(--good); border-color: var(--good); }
+.term-pill.warn { color: var(--gold); border-color: var(--gold); }
+.term-pill.crit { color: var(--bad); border-color: var(--bad); }
+
+/* news wire */
+.term-wire { display: flex; flex-direction: column; gap: 0; overflow-y: auto; max-height: 280px; }
+.term-wire-item { padding: 5px 0; border-bottom: 1px solid var(--line); font-size: 0.78rem; cursor: pointer; font-family: var(--font-sans); }
+.term-wire-item:hover { color: var(--accent); }
+.term-wire-item .t { color: var(--text-3); font-family: var(--font-mono); font-size: 0.66rem; margin-right: 6px; }
+.term-wire-item .tag { color: var(--bad); font-family: var(--font-mono); font-size: 0.64rem; margin-left: 4px; }
+
+/* loading */
+.term-load { color: var(--text-3); font-size: 0.8rem; }
+
+/* the geo dashboard's "flip to terminal" top-bar button */
+.flip-toggle {
+  font-family: var(--font-mono); letter-spacing: 0.06em; text-transform: uppercase;
+  border: 1px solid var(--gold); color: var(--gold); padding: 4px 12px;
+}
+.flip-toggle:hover { background: var(--gold); color: var(--bg); border-color: var(--gold); }

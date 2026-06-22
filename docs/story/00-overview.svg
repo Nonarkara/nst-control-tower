@@ -1,0 +1,102 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 560" role="img" aria-labelledby="t d" font-family="'Noto Sans Thai','Sarabun','Tahoma',sans-serif">
+  <title id="t">ภาพรวมยะลาสมาร์ทซิตี้แดชบอร์ด — Overview</title>
+  <desc id="d">Three steps: real data from the city (47 sources — satellites, sensors, open government data, citizen reports) is combined into one dashboard (a live digital twin of Yala), which leads to faster decisions for the mayor, officials and citizens.</desc>
+  <rect width="1200" height="560" fill="#FAF8F1"/>
+
+  <!-- title -->
+  <text x="56" y="64" font-size="38" font-weight="800" fill="#2C2418">ยะลา สมาร์ทซิตี้ — ภาพรวม</text>
+  <text x="58" y="96" font-size="19" fill="#9A8F80" font-family="'Inter',sans-serif">Real city data → one screen → a faster decision.</text>
+  <rect x="58" y="110" width="120" height="7" rx="3.5" fill="#F1BE48"/>
+
+  <!-- ===== STEP 1 — SOURCES ===== -->
+  <g>
+    <rect x="56" y="152" width="320" height="332" rx="18" fill="#FFFFFF" stroke="#DED9CE" stroke-width="2"/>
+    <rect x="56" y="152" width="320" height="6" rx="3" fill="#4A773C"/>
+    <circle cx="92" cy="196" r="17" fill="#E3EDDA"/><text x="92" y="203" text-anchor="middle" font-size="19" font-weight="800" fill="#4A773C" font-family="'Inter',sans-serif">1</text>
+    <text x="122" y="203" font-size="22" font-weight="800" fill="#2C2418">ข้อมูลจริงจากเมือง</text>
+    <rect x="122" y="216" width="120" height="26" rx="13" fill="#4A773C"/><text x="182" y="234" text-anchor="middle" font-size="14" font-weight="700" fill="#fff" font-family="'Inter',sans-serif">47 แหล่งข้อมูล</text>
+
+    <!-- satellite -->
+    <g transform="translate(80,266)">
+      <rect x="0" y="0" width="40" height="40" rx="10" fill="#EEF3E6"/>
+      <g stroke="#4A773C" stroke-width="2.4" fill="none" stroke-linejoin="round"><rect x="16" y="16" width="14" height="9" rx="2" fill="#E3EDDA"/><rect x="6" y="17" width="9" height="7" rx="1.5"/><rect x="31" y="17" width="3" height="7"/><path d="M22 16 q0 -6 6 -7"/></g>
+      <text x="52" y="19" font-size="17" font-weight="700" fill="#4A3C2C">ดาวเทียม</text>
+      <text x="52" y="37" font-size="12.5" fill="#9A8F80">ภาพถ่าย · สภาพอากาศ</text>
+    </g>
+    <!-- sensor -->
+    <g transform="translate(80,326)">
+      <rect x="0" y="0" width="40" height="40" rx="10" fill="#FBEFCB"/>
+      <g stroke="#D6A12A" stroke-width="2.4" fill="none" stroke-linecap="round"><rect x="13" y="14" width="14" height="14" rx="3" fill="#FFFFFF"/><circle cx="20" cy="21" r="2.4" fill="#D6A12A"/><path d="M30 14 q5 7 0 14 M33 10 q9 11 0 22"/></g>
+      <text x="52" y="19" font-size="17" font-weight="700" fill="#4A3C2C">เซนเซอร์ · IoT</text>
+      <text x="52" y="37" font-size="12.5" fill="#9A8F80">น้ำ · อากาศ · จราจร</text>
+    </g>
+    <!-- gov -->
+    <g transform="translate(80,386)">
+      <rect x="0" y="0" width="40" height="40" rx="10" fill="#EBE2D9"/>
+      <g stroke="#6E4A33" stroke-width="2.4" fill="none" stroke-linejoin="round"><path d="M11 18 L20 11 L29 18 Z" fill="#fff"/><path d="M13 18 V28 M20 18 V28 M27 18 V28 M9 29 H31"/></g>
+      <text x="52" y="19" font-size="17" font-weight="700" fill="#4A3C2C">ข้อมูลเปิดภาครัฐ</text>
+      <text x="52" y="37" font-size="12.5" fill="#9A8F80">data.go.th · GISTDA</text>
+    </g>
+    <!-- citizen -->
+    <g transform="translate(80,446)">
+      <rect x="0" y="-14" width="40" height="40" rx="10" fill="#F0ECE2"/>
+      <g stroke="#6A5A47" stroke-width="2.4" fill="none" stroke-linejoin="round"><rect x="14" y="-7" width="12" height="22" rx="3" fill="#fff"/><circle cx="20" cy="11" r="1.6" fill="#6A5A47"/></g>
+      <text x="52" y="5" font-size="17" font-weight="700" fill="#4A3C2C">ประชาชนแจ้งเหตุ</text>
+      <text x="52" y="23" font-size="12.5" fill="#9A8F80">Traffy Fondue</text>
+    </g>
+  </g>
+
+  <!-- arrow 1 -->
+  <g>
+    <text x="436" y="300" text-anchor="middle" font-size="14" font-weight="700" fill="#9A8F80">รวมเป็น</text>
+    <text x="436" y="318" text-anchor="middle" font-size="14" font-weight="700" fill="#9A8F80">ภาพเดียว</text>
+    <path d="M400 338 H472 m-16 -10 l16 10 l-16 10" fill="none" stroke="#C2BBAC" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+
+  <!-- ===== STEP 2 — DASHBOARD ===== -->
+  <g>
+    <rect x="496" y="152" width="320" height="332" rx="18" fill="#FFFFFF" stroke="#DED9CE" stroke-width="2"/>
+    <rect x="496" y="152" width="320" height="6" rx="3" fill="#D6A12A"/>
+    <circle cx="532" cy="196" r="17" fill="#FBEFCB"/><text x="532" y="203" text-anchor="middle" font-size="19" font-weight="800" fill="#D6A12A" font-family="'Inter',sans-serif">2</text>
+    <text x="562" y="200" font-size="22" font-weight="800" fill="#2C2418">แดชบอร์ดเมืองยะลา</text>
+    <text x="562" y="224" font-size="15" font-weight="700" fill="#4A773C">แฝดดิจิทัล · Digital Twin</text>
+
+    <!-- clean map screen -->
+    <rect x="566" y="246" width="180" height="180" rx="14" fill="#241B11"/>
+    <g transform="translate(656,336)">
+      <circle r="68" fill="none" stroke="#3A2C1C" stroke-width="8"/>
+      <circle r="54" fill="none" stroke="#D6A12A" stroke-width="2.4"/><circle r="34" fill="none" stroke="#D6A12A" stroke-width="2.4"/><circle r="15" fill="none" stroke="#D6A12A" stroke-width="2.4"/>
+      <g stroke="#D6A12A" stroke-width="2" opacity="0.85"><path d="M0 -68 V68 M-68 0 H68 M-48 -48 L48 48 M-48 48 L48 -48"/></g>
+      <rect x="-9" y="-50" width="7" height="10" fill="#B14A2B"/><rect x="26" y="-18" width="8" height="13" fill="#D6A12A"/><rect x="-44" y="6" width="8" height="11" fill="#4A773C"/><rect x="6" y="30" width="7" height="11" fill="#6E4A33"/>
+      <circle r="3.5" fill="#D6A12A"/>
+    </g>
+    <text x="656" y="462" text-anchor="middle" font-size="14" font-weight="700" fill="#6A5A47">15,148 อาคาร · เห็นทั้งเมือง</text>
+  </g>
+
+  <!-- arrow 2 -->
+  <g>
+    <text x="876" y="300" text-anchor="middle" font-size="14" font-weight="700" fill="#9A8F80">ใช้</text>
+    <text x="876" y="318" text-anchor="middle" font-size="14" font-weight="700" fill="#9A8F80">ตัดสินใจ</text>
+    <path d="M840 338 H912 m-16 -10 l16 10 l-16 10" fill="none" stroke="#C2BBAC" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+
+  <!-- ===== STEP 3 — DECISIONS / PEOPLE ===== -->
+  <g>
+    <rect x="936" y="152" width="208" height="332" rx="18" fill="#FFFFFF" stroke="#DED9CE" stroke-width="2"/>
+    <rect x="936" y="152" width="208" height="6" rx="3" fill="#7E8A3A"/>
+    <circle cx="972" cy="196" r="17" fill="#EDF0DC"/><text x="972" y="203" text-anchor="middle" font-size="19" font-weight="800" fill="#7E8A3A" font-family="'Inter',sans-serif">3</text>
+    <text x="1002" y="203" font-size="22" font-weight="800" fill="#2C2418">ตัดสินใจ</text>
+
+    <g font-size="16" font-weight="700" fill="#4A3C2C">
+      <g transform="translate(964,250)"><rect x="0" y="-18" width="34" height="34" rx="9" fill="#FBEFCB"/><path d="M10 4 L14 9 L24 -2" fill="none" stroke="#D6A12A" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><text x="46" y="-2" fill="#2C2418">นายกฯ</text><text x="46" y="16" font-size="12.5" font-weight="400" fill="#9A8F80">เห็นภาพ ตัดสินใจเร็ว</text></g>
+      <g transform="translate(964,320)"><rect x="0" y="-18" width="34" height="34" rx="9" fill="#E3EDDA"/><path d="M10 4 L14 9 L24 -2" fill="none" stroke="#4A773C" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><text x="46" y="-2" fill="#2C2418">เจ้าหน้าที่</text><text x="46" y="16" font-size="12.5" font-weight="400" fill="#9A8F80">ลงมือตรงจุด</text></g>
+      <g transform="translate(964,390)"><rect x="0" y="-18" width="34" height="34" rx="9" fill="#EBE2D9"/><path d="M10 4 L14 9 L24 -2" fill="none" stroke="#6E4A33" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><text x="46" y="-2" fill="#2C2418">ประชาชน</text><text x="46" y="16" font-size="12.5" font-weight="400" fill="#9A8F80">เห็นได้ เชื่อใจได้</text></g>
+    </g>
+  </g>
+
+  <!-- bottom promise -->
+  <g>
+    <rect x="56" y="510" width="1088" height="34" rx="17" fill="#241B11"/>
+    <text x="600" y="533" text-anchor="middle" font-size="17" font-weight="700" fill="#FFFFFF">ข้อมูลจริง  →  ภาพเดียว  →  ตัดสินใจเร็วขึ้น</text>
+  </g>
+</svg>

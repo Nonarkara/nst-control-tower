@@ -1,0 +1,192 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 620" role="img" font-family="'Noto Sans Thai','Sarabun','Tahoma',sans-serif">
+  <title>แผนที่เมือง 3 มิติ — The 3D city map</title>
+  <desc>A clean flat infographic showing a central dark 3D city map screen with a gold ring-road and type-colored building blocks, surrounded by five callout cards explaining map features: switch between 2D, 3D and underground views; buildings colored by type (hospital, temple, school, market); a compass to reset north; live lat/long coordinates that follow the mouse; and tapping a building to add data.</desc>
+
+  <rect width="1200" height="620" fill="#FAF8F1"/>
+
+  <!-- Title block -->
+  <text x="56" y="64" font-size="38" font-weight="800" fill="#2C2418">แผนที่เมือง 3 มิติ</text>
+  <text x="58" y="96" font-size="19" fill="#9A8F80" font-family="'Inter',sans-serif">The 3D city map.</text>
+  <rect x="58" y="110" width="120" height="7" rx="3.5" fill="#F1BE48"/>
+
+  <!-- ===================== CENTRAL MAP SCREEN ===================== -->
+  <g transform="translate(420,170)">
+    <!-- screen panel -->
+    <rect x="0" y="0" width="360" height="300" rx="20" fill="#241B11" stroke="#2C2418" stroke-width="2"/>
+    <!-- subtle inner frame -->
+    <rect x="14" y="14" width="332" height="272" rx="14" fill="#241B11" stroke="#2C2418" stroke-width="1.5"/>
+
+    <!-- gold ring road (ellipse loop) -->
+    <ellipse cx="180" cy="160" rx="138" ry="92" fill="none" stroke="#D6A12A" stroke-width="6" opacity="0.95"/>
+    <!-- radial connector roads -->
+    <g stroke="#D6A12A" stroke-width="3" opacity="0.55" stroke-linecap="round">
+      <path d="M180 68 V160"/>
+      <path d="M318 160 H180"/>
+      <path d="M180 252 V160"/>
+      <path d="M42 160 H180"/>
+    </g>
+
+    <!-- type-colored 3D building blocks -->
+    <!-- hospital (red) -->
+    <g>
+      <path d="M120 150 l24 -12 l24 12 v34 l-24 12 l-24 -12 z" fill="#B14A2B"/>
+      <path d="M144 138 l24 12 v34 l-24 -12 z" fill="#8A3A22"/>
+      <path d="M120 150 l24 12 v34 l-24 -12 z" fill="#C26A4A"/>
+    </g>
+    <!-- temple (teal) -->
+    <g>
+      <path d="M196 132 l22 -11 l22 11 v40 l-22 11 l-22 -11 z" fill="#4A773C"/>
+      <path d="M218 121 l22 11 v40 l-22 -11 z" fill="#355A2C"/>
+      <path d="M196 132 l22 11 v40 l-22 -11 z" fill="#97A857"/>
+    </g>
+    <!-- school (blue) -->
+    <g>
+      <path d="M118 196 l22 -11 l22 11 v26 l-22 11 l-22 -11 z" fill="#6E4A33"/>
+      <path d="M140 185 l22 11 v26 l-22 -11 z" fill="#5A3E2C"/>
+      <path d="M118 196 l22 11 v26 l-22 -11 z" fill="#8A6A50"/>
+    </g>
+    <!-- market (green) -->
+    <g>
+      <path d="M198 196 l22 -11 l22 11 v30 l-22 11 l-22 -11 z" fill="#7E8A3A"/>
+      <path d="M220 185 l22 11 v30 l-22 -11 z" fill="#4E5A1E"/>
+      <path d="M198 196 l22 11 v30 l-22 -11 z" fill="#97A857"/>
+    </g>
+    <!-- small generic block (violet) -->
+    <g>
+      <path d="M250 158 l16 -8 l16 8 v20 l-16 8 l-16 -8 z" fill="#2F6B5A"/>
+      <path d="M266 150 l16 8 v20 l-16 -8 z" fill="#1F4A3E"/>
+      <path d="M250 158 l16 8 v20 l-16 -8 z" fill="#5E9485"/>
+    </g>
+
+    <!-- compass badge top-right inside screen -->
+    <circle cx="320" cy="46" r="18" fill="#241B11" stroke="#4A3C2C" stroke-width="1.5"/>
+    <path d="M320 33 l5 12 l-5 -3 l-5 3 z" fill="#B14A2B"/>
+    <path d="M320 59 l5 -12 l-5 3 l-5 -3 z" fill="#9A8F80"/>
+
+    <!-- coordinate readout chip bottom-left inside screen -->
+    <rect x="26" y="252" width="138" height="26" rx="13" fill="#241B11" stroke="#4A3C2C" stroke-width="1.2"/>
+    <circle cx="42" cy="265" r="3" fill="#2F6B5A"/>
+    <text x="52" y="269" font-size="12.5" fill="#C2BBAC" font-family="'Inter',sans-serif">6.5410, 101.2800</text>
+  </g>
+
+  <!-- ===================== CALLOUT CARDS ===================== -->
+
+  <!-- Card 1 (top-left) — 2D / 3D / underground — amber -->
+  <g>
+    <rect x="56" y="152" width="320" height="118" rx="18" fill="#FFFFFF" stroke="#DED9CE" stroke-width="2"/>
+    <rect x="56" y="152" width="320" height="6" rx="3" fill="#D6A12A"/>
+    <circle cx="92" cy="196" r="17" fill="#FBEFCB"/>
+    <text x="92" y="203" text-anchor="middle" font-size="19" font-weight="800" fill="#D6A12A" font-family="'Inter',sans-serif">1</text>
+    <text x="122" y="203" font-size="21" font-weight="800" fill="#2C2418">สลับมุมมอง</text>
+    <g transform="translate(80,224)">
+      <rect x="0" y="0" width="40" height="40" rx="10" fill="#FDF7E6"/>
+      <g stroke="#D6A12A" stroke-width="2.4" fill="none" stroke-linejoin="round" stroke-linecap="round">
+        <rect x="9" y="14" width="11" height="11" rx="2" fill="#FBEFCB"/>
+        <path d="M22 25 l5 -3 l5 3 v5 l-5 3 l-5 -3 z" fill="#FBEFCB"/>
+        <path d="M9 30 h18"/>
+      </g>
+      <text x="52" y="19" font-size="17" font-weight="700" fill="#4A3C2C">2D · 3D · ใต้ดิน</text>
+      <text x="52" y="37" font-size="12.5" fill="#9A8F80">สลับมุมมองได้ในคลิกเดียว</text>
+    </g>
+  </g>
+
+  <!-- Card 2 (mid-left) — buildings colored by type + legend — teal -->
+  <g>
+    <rect x="56" y="290" width="320" height="180" rx="18" fill="#FFFFFF" stroke="#DED9CE" stroke-width="2"/>
+    <rect x="56" y="290" width="320" height="6" rx="3" fill="#4A773C"/>
+    <circle cx="92" cy="334" r="17" fill="#E3EDDA"/>
+    <text x="92" y="341" text-anchor="middle" font-size="19" font-weight="800" fill="#4A773C" font-family="'Inter',sans-serif">2</text>
+    <text x="122" y="341" font-size="21" font-weight="800" fill="#2C2418">อาคารแยกสี</text>
+    <g transform="translate(80,362)">
+      <rect x="0" y="0" width="40" height="40" rx="10" fill="#EEF3E6"/>
+      <g stroke="#4A773C" stroke-width="2.4" fill="none" stroke-linejoin="round" stroke-linecap="round">
+        <path d="M14 27 l6 -4 l6 4 v6 h-12 z" fill="#E3EDDA"/>
+        <path d="M22 23 v-6 h6 v10"/>
+      </g>
+      <text x="52" y="19" font-size="17" font-weight="700" fill="#4A3C2C">แยกสีตามประเภท</text>
+      <text x="52" y="37" font-size="12.5" fill="#9A8F80">เห็นภาพรวมเมืองได้ทันที</text>
+    </g>
+    <!-- legend swatches row -->
+    <g transform="translate(80,420)" font-family="'Noto Sans Thai','Sarabun','Tahoma',sans-serif">
+      <rect x="0" y="0" width="13" height="13" rx="3" fill="#B14A2B"/>
+      <text x="19" y="11" font-size="12.5" fill="#6A5A47">โรงพยาบาล</text>
+      <rect x="118" y="0" width="13" height="13" rx="3" fill="#4A773C"/>
+      <text x="137" y="11" font-size="12.5" fill="#6A5A47">วัด</text>
+      <rect x="0" y="24" width="13" height="13" rx="3" fill="#6E4A33"/>
+      <text x="19" y="35" font-size="12.5" fill="#6A5A47">โรงเรียน</text>
+      <rect x="118" y="24" width="13" height="13" rx="3" fill="#7E8A3A"/>
+      <text x="137" y="35" font-size="12.5" fill="#6A5A47">ตลาด</text>
+    </g>
+  </g>
+
+  <!-- Card 3 (top-right) — compass reset north — blue -->
+  <g>
+    <rect x="824" y="152" width="320" height="118" rx="18" fill="#FFFFFF" stroke="#DED9CE" stroke-width="2"/>
+    <rect x="824" y="152" width="320" height="6" rx="3" fill="#6E4A33"/>
+    <circle cx="860" cy="196" r="17" fill="#EBE2D9"/>
+    <text x="860" y="203" text-anchor="middle" font-size="19" font-weight="800" fill="#6E4A33" font-family="'Inter',sans-serif">3</text>
+    <text x="890" y="203" font-size="21" font-weight="800" fill="#2C2418">เข็มทิศ</text>
+    <g transform="translate(848,224)">
+      <rect x="0" y="0" width="40" height="40" rx="10" fill="#F4EEE7"/>
+      <g stroke="#6E4A33" stroke-width="2.4" fill="none" stroke-linejoin="round" stroke-linecap="round">
+        <circle cx="20" cy="20" r="11" fill="#EBE2D9"/>
+        <path d="M20 12 l4 8 l-4 -2 l-4 2 z" fill="#6E4A33" stroke="none"/>
+        <path d="M20 28 l4 -8 l-4 2 l-4 -2 z" fill="#C7B3A0" stroke="none"/>
+      </g>
+      <text x="52" y="19" font-size="17" font-weight="700" fill="#4A3C2C">กดรีเซ็ตทิศเหนือ</text>
+      <text x="52" y="37" font-size="12.5" fill="#9A8F80">หันแผนที่กลับให้ตรง</text>
+    </g>
+  </g>
+
+  <!-- Card 4 (mid-right) — lat/long follows mouse — violet -->
+  <g>
+    <rect x="824" y="290" width="320" height="118" rx="18" fill="#FFFFFF" stroke="#DED9CE" stroke-width="2"/>
+    <rect x="824" y="290" width="320" height="6" rx="3" fill="#2F6B5A"/>
+    <circle cx="860" cy="334" r="17" fill="#DCE8E2"/>
+    <text x="860" y="341" text-anchor="middle" font-size="19" font-weight="800" fill="#2F6B5A" font-family="'Inter',sans-serif">4</text>
+    <text x="890" y="341" font-size="21" font-weight="800" fill="#2C2418">พิกัด lat/long</text>
+    <g transform="translate(848,362)">
+      <rect x="0" y="0" width="40" height="40" rx="10" fill="#EEF3F0"/>
+      <g stroke="#2F6B5A" stroke-width="2.4" fill="none" stroke-linejoin="round" stroke-linecap="round">
+        <path d="M20 10 C13 10 9 15 9 21 C9 28 20 32 20 32 C20 32 31 28 31 21 C31 15 27 10 20 10 Z" fill="#DCE8E2"/>
+        <circle cx="20" cy="20" r="3.5" fill="#2F6B5A" stroke="none"/>
+      </g>
+      <text x="52" y="19" font-size="17" font-weight="700" fill="#4A3C2C">ตามเมาส์ตลอดเวลา</text>
+      <text x="52" y="37" font-size="12.5" fill="#9A8F80">รู้ตำแหน่งจริงทันที</text>
+    </g>
+  </g>
+
+  <!-- Card 5 (bottom-right) — tap building to add data — green -->
+  <g>
+    <rect x="824" y="428" width="320" height="118" rx="18" fill="#FFFFFF" stroke="#DED9CE" stroke-width="2"/>
+    <rect x="824" y="428" width="320" height="6" rx="3" fill="#7E8A3A"/>
+    <circle cx="860" cy="472" r="17" fill="#EDF0DC"/>
+    <text x="860" y="479" text-anchor="middle" font-size="19" font-weight="800" fill="#7E8A3A" font-family="'Inter',sans-serif">5</text>
+    <text x="890" y="479" font-size="21" font-weight="800" fill="#2C2418">แตะอาคาร</text>
+    <g transform="translate(848,500)">
+      <rect x="0" y="0" width="40" height="40" rx="10" fill="#F2F4E6"/>
+      <g stroke="#7E8A3A" stroke-width="2.4" fill="none" stroke-linejoin="round" stroke-linecap="round">
+        <path d="M11 13 h11 v18 h-11 z" fill="#EDF0DC"/>
+        <path d="M25 22 h8 M29 18 v8"/>
+      </g>
+      <text x="52" y="19" font-size="17" font-weight="700" fill="#4A3C2C">ใส่ข้อมูลได้</text>
+      <text x="52" y="37" font-size="12.5" fill="#9A8F80">แตะแล้วเพิ่มรายละเอียด</text>
+    </g>
+  </g>
+
+  <!-- ===================== ARROWS to map ===================== -->
+  <!-- Card1 -> map -->
+  <path d="M384 211 H412 m-16 -10 l16 10 l-16 10" fill="none" stroke="#C2BBAC" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Card2 -> map -->
+  <path d="M384 380 H412 m-16 -10 l16 10 l-16 10" fill="none" stroke="#C2BBAC" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- map -> Card3 -->
+  <path d="M788 211 H816 m-16 -10 l16 10 l-16 10" fill="none" stroke="#C2BBAC" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- map -> Card4 -->
+  <path d="M788 349 H816 m-16 -10 l16 10 l-16 10" fill="none" stroke="#C2BBAC" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- map -> Card5 -->
+  <path d="M788 460 H816 m-16 -10 l16 10 l-16 10" fill="none" stroke="#C2BBAC" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- ===================== bottom promise pill ===================== -->
+  <rect x="56" y="572" width="1088" height="34" rx="17" fill="#241B11"/>
+  <text x="600" y="595" text-anchor="middle" font-size="17" font-weight="700" fill="#FFFFFF">มองเมืองทั้งใบ → ค้นทุกอาคาร → เพิ่มข้อมูลได้เอง</text>
+</svg>

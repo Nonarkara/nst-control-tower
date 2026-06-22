@@ -1,0 +1,1631 @@
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, memo } from "react";
+import DeckGL from "@deck.gl/react";
+import type { Layer, ControllerProps } from "@deck.gl/core";
+import { Map as MapLibreMap, Source, Layer as MapLayer } from "react-map-gl/maplibre";
+import maplibregl from "maplibre-gl";
+import type { FeatureCollection, LineString, Point, Polygon, MultiPolygon } from "geojson";
+import { CHONBURI } from "@nst/shared";
+import type {
+  AcademicSnapshot,
+  AirQualityPoint,
+  CampusZoneProperties,
+  ExecutiveSnapshot,
+  IncidentFeature,
+  IntelligenceItem,
+  MarketSnapshot,
+  PrecipNowcast,
+  WeatherSnapshot,
+  GistdaPoi,
+  GistdaSolarBuilding,
+  GistdaLandUse,
+  ConflictIncident,
+  SecurityStatus,
+  FloodGauge,
+  DamStatus,
+  WaterGauge,
+  RainfallStation,
+  EwsStation,
+  RidReservoir,
+  FlightFids,
+} from "@nst/shared";
+
+import { useFeed } from "./hooks/useFeed";
+import { buildTrafficSamples, type RoadProps } from "./sim/trafficSim";
+import {
+  buildingRoofsLayer,
+  buildingsLayer,
+  campusBoundaryLayer,
+  cctvLayer,
+  devicePresenceLayer,
+  esriSatelliteLayer,
+  himawariInfraredLayer,
+  openTopoTerrainLayer,
+  incidentLayer,
+  trafficHeatmapLayer,
+  transitStationsLayer,
+  transitLinesLayer,
+  roadNetworkLayer,
+  maritimeOverlayLayer,
+  portInfrastructureLayer,
+  ferryTerminalsLayer,
+  navigationAidsLayer,
+  datagoPointsLayer,
+  distanceGridLayer,
+  distanceGridLabelsLayer,
+  civicPointsLayer,
+  waterwaysLayer,
+  fisheriesLayer,
+  floodRiskLayer,
+  templeSpiresLayer,
+  oldTownDistrictLayer,
+  type HeritageFeatureProps,
+  CIVIC_PALETTE,
+  type CivicKind,
+  type DatagoPoint,
+  type BuildingProperties,
+  type CctvCamera,
+  type ShuttleVehicle,
+  type StationProps,
+  type TransitLineProps,
+  type ClassifiedRoadProps,
+  gistdaPoiLayer,
+  air4thaiLayer,
+  gistdaSolarLayer,
+  gistdaLandUseLayer,
+  newsPinsLayer,
+  ringRoadsLayer,
+  riverBufferLayer,
+  floodGaugesLayer,
+  watershedNodesLayer,
+  damStatusLayer,
+  conflictIncidentsLayer,
+  conflictChoroplethLayer,
+  povertyChoroplethLayer,
+  securityNewsLayer,
+  alphaEarthLandcoverLayer,
+  alphaEarthFloodProneLayer,
+} from "./map/layers";
+import { useTile3DLayer } from "./map/Tile3DLayer";
+import { ALL_LAYERS, LENSES, layerCanEnable, enforceLayerExclusivity, exclusiveGroupOf, type LayerId, type LensId, type MapViewState } from "./map/presets";
+
+import { TopBar } from "./components/TopBar";
+import { MapCompass } from "./components/MapCompass";
+import { BuildingLegend } from "./components/BuildingLegend";
+import { HourRail } from "./components/HourRail";
+import { LayerPalette, type LayerStatus } from "./components/LayerPalette";
+import { KpiStrip } from "./components/KpiStrip";
+import { PmcuBrief } from "./components/PmcuBrief";
+import { NewsDesk } from "./components/NewsDesk";
+import { FacebookPanel } from "./components/FacebookPanel";
+import { WaterPanel, type ReservoirStatus } from "./components/WaterPanel";
+import { ProvincialKPIs, type ProvincialKPIs as ProvincialKPIsType } from "./components/ProvincialKPIs";
+import { EarthAlphaBrief } from "./components/EarthAlphaBrief";
+import { FloodBrief } from "./components/FloodBrief";
+import { FloodPosture } from "./components/FloodPosture";
+import { UpstreamWatershed } from "./components/UpstreamWatershed";
+import { FlightsPanel } from "./components/FlightsPanel";
+// Heavy modals — lazy-loaded so they're excluded from the initial bundle.
+// Each loads only on first open; subsequent opens are instant (module cached).
+const SourceCatalog = lazy(() => import("./components/SourceCatalog").then((m) => ({ default: m.SourceCatalog })));
+const Manual = lazy(() => import("./components/Manual").then((m) => ({ default: m.Manual })));
+const Whitepaper = lazy(() => import("./components/Whitepaper").then((m) => ({ default: m.Whitepaper })));
+const SheetsPanel = lazy(() => import("./components/SheetsPanel").then((m) => ({ default: m.SheetsPanel })));
+const SituationDigest = lazy(() => import("./components/SituationDigest").then((m) => ({ default: m.SituationDigest })));
+const AtlasView = lazy(() => import("./components/atlas/AtlasView").then((m) => ({ default: m.AtlasView })));
+const PlatformView = lazy(() => import("./components/platform/PlatformView").then((m) => ({ default: m.PlatformView })));
+
+// Inline the SheetsPanel URL check so we don't eagerly load the whole module.
+const SHEETS_STORAGE_KEY = "nst:sheets-url-v1";
+import { AqiBadge, type AqiTrend } from "./components/AqiBadge";
+import { BuildingCard } from "./components/BuildingCard";
+import { IncidentCard } from "./components/IncidentCard";
+import { BuildingSearch } from "./components/BuildingSearch";
+import { MapOverlayControls } from "./components/MapOverlayControls";
+import { WorldStrip } from "./components/WorldStrip";
+import { TrendsPanel, type TrendsSnapshot } from "./components/TrendsPanel";
+import { useWorldWeather } from "./hooks/useWorldWeather";
+import { SpeedTestPanel } from "./components/SpeedTestPanel";
+import { DeviceCheckIn } from "./components/DeviceCheckIn";
+import { NewsTicker } from "./components/NewsTicker";
+import { useSystemHealth } from "./hooks/useSystemHealth";
+import { MarketsTicker } from "./components/MarketsTicker";
+import { MobileNav, type MobilePanel } from "./components/MobileNav";
+import { ChatBox } from "./components/ChatBox";
+import { PredictivePanel, METRIC_LAYER_MAP, METRIC_LABEL, type ForecastMetric } from "./components/PredictivePanel";
+import { ExecutiveBriefing } from "./components/ExecutiveBriefing";
+import { API_BASE } from "./lib/apiBase";
+import { summarizeWatershed } from "./lib/watershed";
+import type { NasaEarthReadings, FacebookPost } from "@nst/shared";
+import { useDevicePresence } from "./hooks/useDevicePresence";
+import { useIsMobile } from "./hooks/useMediaQuery";
+import { useOnlineStatus } from "./hooks/useOnlineStatus";
+import { useTheme } from "./hooks/useTheme";
+
+/**
+ * Basemap — CARTO no-labels at the bottom, labels rendered on TOP via a
+ * separate raster source so deck.gl context layers can interleave between
+ * them. Theme-aware: dark → carto dark + deep navy ocean tint;
+ * light → carto positron-light + pale sky-blue ocean tint.
+ */
+// Yesterday ISO date — GIBS tiles publish with ~24 h delay
+const GIBS_DATE = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+const GIBS_BASE = "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best";
+
+function gibsUrl(product: string, level: number, format: "jpg" | "png"): string {
+  return `${GIBS_BASE}/${product}/default/${GIBS_DATE}/GoogleMapsCompatible_Level${level}/{z}/{y}/{x}.${format}`;
+}
+
+// GIBS satellite layers rendered via MapLibre <Source>/<Layer> — MapLibre handles
+// raster tile stretching perfectly (proven by the carto basemap).
+// Deck.gl TileLayer is kept for esriSatelliteLayer only.
+const GIBS_LAYERS: Array<{
+  id: string;
+  product: string;
+  level: number;
+  format: "jpg" | "png";
+  opacity: number;
+}> = [
+  { id: "satellite-true-color",         product: "MODIS_Terra_CorrectedReflectance_TrueColor",    level: 9, format: "jpg", opacity: 0.85 },
+  { id: "satellite-viirs-truecolor",     product: "VIIRS_NOAA20_CorrectedReflectance_TrueColor",   level: 9, format: "jpg", opacity: 0.85 },
+  { id: "satellite-night",               product: "VIIRS_SNPP_DayNightBand_ENCC",                  level: 8, format: "png", opacity: 0.85 },
+  { id: "satellite-imerg",               product: "IMERG_Precipitation_Rate",                      level: 6, format: "png", opacity: 0.75 },
+  { id: "satellite-ndvi",                product: "MODIS_Terra_NDVI_8Day",                         level: 9, format: "png", opacity: 0.70 },
+  { id: "satellite-lst",                 product: "MODIS_Terra_Land_Surface_Temp_Day",             level: 7, format: "png", opacity: 0.70 },
+  { id: "satellite-aerosol",             product: "MODIS_Combined_Value_Added_AOD",                level: 7, format: "png", opacity: 0.70 },
+  { id: "satellite-no2",                 product: "OMI_Nitrogen_Dioxide_Tropo_Column",             level: 6, format: "png", opacity: 0.70 },
+  // NOTE: MODIS_Combined_Flood_3-Day is EPSG:4326-only on GIBS — it 400s on our
+  // web-mercator (3857) map, so it's dropped. Flood is covered by the AlphaEarth
+  // flood-prone layer + flood-risk polygons + river buffer + IMERG rainfall.
+];
+
+// Pre-computed, stable references for the React-rendered <Source>/<Layer> props.
+// Without these, `tiles={[gibsUrl(...)]}` and `paint={{ "raster-opacity": ... }}`
+// allocate a new array + object on every render, forcing react-map-gl to deep-diff
+// raster sources on every map gesture.
+const GIBS_RENDER: Array<{
+  id: string;
+  tiles: readonly [string];
+  paint: { readonly "raster-opacity": number };
+  maxzoom: number;
+}> = GIBS_LAYERS.map((g) => ({
+  id: g.id,
+  tiles: [gibsUrl(g.product, g.level, g.format)] as const,
+  paint: { "raster-opacity": g.opacity } as const,
+  maxzoom: g.level,
+}));
+
+function basemapStyle(theme: "dark" | "light"): maplibregl.StyleSpecification {
+  const baseSlug = theme === "dark" ? "dark_nolabels" : "light_nolabels";
+  const labelsSlug = theme === "dark" ? "dark_only_labels" : "light_only_labels";
+  const oceanBg = theme === "dark" ? "#031730" : "#E0F2FE";
+  const baseOpacity = theme === "dark" ? 0.78 : 0.92;
+  const labelOpacity = theme === "dark" ? 0.85 : 0.90;
+  return {
+    version: 8,
+    sources: {
+      "carto-base": {
+        type: "raster",
+        tiles: [
+          `https://cartodb-basemaps-a.global.ssl.fastly.net/${baseSlug}/{z}/{x}/{y}.png`,
+          `https://cartodb-basemaps-b.global.ssl.fastly.net/${baseSlug}/{z}/{x}/{y}.png`,
+          `https://cartodb-basemaps-c.global.ssl.fastly.net/${baseSlug}/{z}/{x}/{y}.png`,
+        ],
+        tileSize: 256,
+        attribution: "© OpenStreetMap, © CARTO",
+        maxzoom: 20,
+      },
+      "carto-labels": {
+        type: "raster",
+        tiles: [
+          `https://cartodb-basemaps-a.global.ssl.fastly.net/${labelsSlug}/{z}/{x}/{y}.png`,
+          `https://cartodb-basemaps-b.global.ssl.fastly.net/${labelsSlug}/{z}/{x}/{y}.png`,
+          `https://cartodb-basemaps-c.global.ssl.fastly.net/${labelsSlug}/{z}/{x}/{y}.png`,
+        ],
+        tileSize: 256,
+        maxzoom: 20,
+      },
+    },
+    layers: [
+      { id: "ocean-bg", type: "background", paint: { "background-color": oceanBg } },
+      { id: "basemap", type: "raster", source: "carto-base", paint: { "raster-opacity": baseOpacity } },
+      { id: "labels-top", type: "raster", source: "carto-labels", paint: { "raster-opacity": labelOpacity } },
+    ],
+  };
+}
+
+function normalizeProperties<T extends { features?: Array<{ properties?: object | null }> }>(data: T): T {
+  if (data && Array.isArray(data.features)) {
+    for (const f of data.features) {
+      if (f.properties === null || f.properties === undefined) {
+        (f as Record<string, unknown>).properties = {};
+      }
+    }
+  }
+  return data;
+}
+
+function useGeoJson<T extends { features?: Array<{ properties?: object | null }> }>(path: string) {
+  const [data, setData] = useState<T | null>(null);
+  useEffect(() => {
+    const ctrl = new AbortController();
+    fetch(path, { signal: ctrl.signal })
+      .then((r) => r.json())
+      .then((j) => {
+        setData(normalizeProperties(j as T));
+      })
+      .catch(() => {});
+    return () => {
+      ctrl.abort();
+    };
+  }, [path]);
+  return data;
+}
+
+
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+const MemoTopBar = memo(TopBar);
+const MemoHourRail = memo(HourRail);
+const MemoLayerPalette = memo(LayerPalette);
+const MemoKpiStrip = memo(KpiStrip);
+const MemoPmcuBrief = memo(PmcuBrief);
+const MemoWorldStrip = memo(WorldStrip);
+const MemoNewsTicker = memo(NewsTicker);
+const MemoMarketsTicker = memo(MarketsTicker);
+const MemoPredictivePanel = memo(PredictivePanel);
+const MemoTrendsPanel = memo(TrendsPanel);
+const MemoExecutiveBriefing = memo(ExecutiveBriefing);
+
+export default function App({ onFlip }: { onFlip?: () => void } = {}) {
+  const { theme } = useTheme();
+  const mapStyle = useMemo(() => basemapStyle(theme), [theme]);
+  const { health: systemHealth, error: systemHealthError } = useSystemHealth(60_000);
+  // Municipal boundary — real Mueang Chon Buri District perimeter (OSM relation
+  // 18997107). Replaces the forked chula-campus.geojson, which held Chulalongkorn
+  // University (Bangkok) geometry and was invisible in the Chonburi viewport.
+  const campus = useGeoJson<FeatureCollection<Polygon | MultiPolygon, CampusZoneProperties>>(
+    "/geo/nst/boundary.geojson",
+  );
+  const buildings = useGeoJson<FeatureCollection<Polygon | MultiPolygon, BuildingProperties>>(
+    "/geo/nst/buildings.geojson",
+  );
+  // surrounding-buildings, bangkok-districts, flood-prone-areas removed —
+  // all three files contain Chula/Bangkok coordinates and are invisible in
+  // the Chonburi viewport. Use chonburi-flood-risk.geojson for flood zones.
+  // Forked Chula campus layers (cu-lands, cu-shuttle-*, chula-gates, cu-electricity/
+  // water/drainage/wifi) archived under public/geo/_archive — see ARCHIVE.md.
+  const roads = useGeoJson<FeatureCollection<LineString, RoadProps>>("/geo/nst/roads.geojson");
+  const transitStations = useGeoJson<FeatureCollection<Point, StationProps>>("/geo/nst/transit-stations.geojson");
+  const transitLines = useGeoJson<FeatureCollection<LineString, TransitLineProps>>("/geo/nst/transit-lines.geojson");
+
+  // Hour + weekend state for the traffic simulation
+  const [hour, setHour] = useState<number>(() => new Date().getHours());
+  const [isWeekend, setIsWeekend] = useState<boolean>(() => {
+    const d = new Date().getDay();
+    return d === 0 || d === 6;
+  });
+
+  // Lens + per-layer toggles
+  const [lens, setLens] = useState<LensId>("operations");
+  const [mapViewState, setMapViewState] = useState<MapViewState>({ kind: "lens", lensId: "operations" });
+  const [enabledLayers, setEnabledLayers] = useState<Set<LayerId>>(
+    () => enforceLayerExclusivity(LENSES.find((l) => l.id === "operations")!.layers.filter((id) => layerCanEnable(id))),
+  );
+  const [catalogOpen, setCatalogOpen] = useState(false);
+  const [manualOpen, setManualOpen] = useState(false);
+  const [whitepaperOpen, setWhitepaperOpen] = useState(false);
+  const [sheetsOpen, setSheetsOpen] = useState(false);
+  const [atlasOpen, setAtlasOpen] = useState(false);
+  const [platformOpen, setPlatformOpen] = useState(false);
+  const [sheetsConfigured, setSheetsConfigured] = useState(() => {
+    try { return Boolean(localStorage.getItem(SHEETS_STORAGE_KEY)); } catch { return false; }
+  });
+  // Forecast alerts — metrics whose p50 has breached alertThreshold
+  const [forecastAlerts, setForecastAlerts] = useState<Set<string>>(new Set());
+  const [forecastMetrics, setForecastMetrics] = useState<ForecastMetric[]>([]);
+
+  // Mobile: 1-column stack with bottom segmented nav to swap panels.
+  const isMobile = useIsMobile();
+  const online = useOnlineStatus();
+  const [mobilePanel, setMobilePanel] = useState<MobilePanel>("map");
+
+  // Controlled map viewState — needed so building-search and click can fly the camera.
+  // Bounds = the whole province (outerBounds); minZoom 8 lets the map cover the full
+  // provincial extent, while still zooming in past 13 for the Old Town building fabric.
+  const [viewState, setViewState] = useState({
+    ...CHONBURI.defaultView,
+    minZoom: 8,
+    maxZoom: 20,
+    transitionDuration: 0,
+    maxBounds: CHONBURI.outerBounds,
+  });
+
+  // Mirror viewState to a ref so high-frequency reads (click handler, deck.gl
+  // event callback) don't depend on stale React closures and don't force callback
+  // recreation on every pan/zoom frame.
+  const viewStateRef = useRef(viewState);
+  viewStateRef.current = viewState;
+
+  // rAF-throttled viewState mirror — DeckGL fires onViewStateChange potentially
+  // many times per frame (high-refresh trackpads fire pointer events at 240 Hz+).
+  // We coalesce those into ONE React state update per animation frame so the
+  // ~1300-line App component re-renders at most 60 Hz, regardless of gesture rate.
+  // The ref stays current immediately so any synchronous reader sees the latest.
+  const pendingViewStateRef = useRef<typeof viewState | null>(null);
+  const rafScheduledRef = useRef(false);
+  const handleViewStateChange = useCallback(({ viewState: vs }: { viewState: Record<string, unknown> }) => {
+    const longitude = vs.longitude as number;
+    const latitude = vs.latitude as number;
+    const zoom = vs.zoom as number;
+    const pitch = vs.pitch as number;
+    const bearing = vs.bearing as number;
+    const next = {
+      ...viewStateRef.current,
+      longitude, latitude, zoom, pitch, bearing,
+      transitionDuration: 0,
+    };
+    pendingViewStateRef.current = next;
+    viewStateRef.current = next;
+    if (rafScheduledRef.current) return;
+    rafScheduledRef.current = true;
+    requestAnimationFrame(() => {
+      rafScheduledRef.current = false;
+      const pending = pendingViewStateRef.current;
+      pendingViewStateRef.current = null;
+      if (pending) setViewState(pending);
+    });
+  }, []);
+
+  // Selected building for the popup card.
+  const [selectedBuilding, setSelectedBuilding] = useState<BuildingProperties | null>(null);
+  // Selected incident — drives the IncidentCard with its "Open report ↗" link.
+  const [selectedIncident, setSelectedIncident] = useState<IncidentFeature | null>(null);
+
+  // Camera helpers
+  const flyTo = useCallback((longitude: number, latitude: number, zoom = 17) => {
+    setViewState((prev) => ({
+      ...prev,
+      longitude,
+      latitude,
+      zoom,
+      transitionDuration: 700,
+    }));
+  }, []);
+
+  // Reset map rotation to true north (compass click).
+  const resetNorth = useCallback(() => {
+    setViewState((prev) => ({ ...prev, bearing: 0, transitionDuration: 500 }));
+  }, []);
+
+  // Live lat/long readout under the cursor. Written imperatively to a DOM ref so
+  // pointer-rate updates (60–240 Hz) never re-render the ~1300-line App. deck.gl
+  // already runs a hover pick for getTooltip, so onHover adds no extra cost.
+  const coordRef = useRef<HTMLSpanElement>(null);
+  const handleMapHover = useCallback((info: { coordinate?: number[] }) => {
+    const el = coordRef.current;
+    if (!el) return;
+    const c = info?.coordinate;
+    if (c && c.length >= 2) {
+      const [lng, lat] = c;
+      el.textContent =
+        `${Math.abs(lat).toFixed(5)}°${lat >= 0 ? "N" : "S"}  ` +
+        `${Math.abs(lng).toFixed(5)}°${lng >= 0 ? "E" : "W"}`;
+    } else {
+      el.textContent = "—";
+    }
+  }, []);
+  // handleMapClick reads viewState from ref to keep the callback identity stable —
+  // before this change it was recreated on every pan/zoom frame because viewState
+  // coords were in the deps array, forcing deck.gl to rebind its onClick prop.
+  const handleMapClick = useCallback((info: { layer?: { id?: string } | null; object?: unknown; coordinate?: number[] }) => {
+    if ((info.layer?.id === "municipality-buildings" || info.layer?.id === "campus-buildings") && info.object) {
+      const f = info.object as { properties: BuildingProperties; geometry: { coordinates: number[][][] | number[][][][] } };
+      setSelectedIncident(null);
+      setSelectedBuilding(f.properties);
+      const vs = viewStateRef.current;
+      const [lng, lat] = info.coordinate ?? [vs.longitude, vs.latitude];
+      flyTo(lng, lat, Math.max(vs.zoom, 17));
+    } else if ((info.layer?.id === "incidents-city-reports" || info.layer?.id === "incidents-itic") && info.object) {
+      // Click an incident → open its card with a deep-link back to the report.
+      setSelectedBuilding(null);
+      setSelectedIncident(info.object as IncidentFeature);
+    } else if (!info.layer) {
+      setSelectedBuilding(null);
+      setSelectedIncident(null);
+    }
+  }, [flyTo]);
+
+  const zoomBy = (delta: number) => {
+    setViewState((prev) => ({
+      ...prev,
+      zoom: Math.max(prev.minZoom ?? 3, Math.min(prev.maxZoom ?? 20, prev.zoom + delta)),
+      transitionDuration: 200,
+    }));
+  };
+
+  // Device GPS presence — drives the on-map pulse + DeviceCheckIn panel.
+  const { presence, request: requestDevice, clear: clearDevice } = useDevicePresence();
+  const firstFixFlown = useRef(false);
+  useEffect(() => {
+    if (!firstFixFlown.current && presence.lng != null && presence.lat != null && presence.insideArea) {
+      flyTo(presence.lng, presence.lat, 17);
+      firstFixFlown.current = true;
+    }
+  }, [presence.lng, presence.lat, presence.insideArea, flyTo]);
+
+  // View mode cycles 2D → 3D (buildings extrude) → 3DS (substructure: buildings
+  // turn translucent, utilities drop to their burial depth). Camera follows.
+  type ViewMode = "2D" | "3D" | "3DS";
+  const [viewMode, setViewMode] = useState<ViewMode>("3D");
+  const is3D = viewMode === "3D" || viewMode === "3DS";
+  const isSubstructure = viewMode === "3DS";
+
+  const cycleViewMode = useCallback(() => {
+    setViewMode((prevMode) => {
+      return prevMode === "2D" ? "3D" : prevMode === "3D" ? "3DS" : "2D";
+    });
+  }, []);
+
+  useEffect(() => {
+    setViewState((prev) => ({
+      ...prev,
+      pitch: viewMode === "2D" ? 0 : viewMode === "3D" ? 60 : 72,
+      bearing: viewMode === "2D" ? 0 : viewMode === "3D" ? -18 : -28,
+      transitionDuration: 700,
+    }));
+  }, [viewMode]);
+
+  // ESC closes the topmost overlay.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      if (manualOpen) setManualOpen(false);
+      else if (whitepaperOpen) setWhitepaperOpen(false);
+      else if (catalogOpen) setCatalogOpen(false);
+      else if (selectedIncident) setSelectedIncident(null);
+      else if (selectedBuilding) setSelectedBuilding(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [catalogOpen, selectedBuilding, selectedIncident, manualOpen, whitepaperOpen]);
+
+  // Lookup table for hover tooltips — keeps DeckGL declarative.
+  const tooltipForPickMemo = useCallback((info: { layer?: { id?: string } | null; object?: unknown }) => {
+    const o = info.object as Record<string, unknown> | undefined;
+    if (!info.layer || !o) return null;
+    const id = info.layer.id;
+    const p = (o as { properties?: Record<string, unknown> }).properties ?? o;
+    const pick = (...keys: string[]) => {
+      for (const k of keys) {
+        const v = (p as Record<string, unknown>)[k];
+        if (typeof v === "string" && v.trim()) return v;
+        if (typeof v === "number") return String(v);
+      }
+      return null;
+    };
+    let title: string | null = null;
+    let sub: string | null = null;
+    switch (id) {
+      case "municipality-buildings":
+      case "campus-buildings":
+        title = pick("nameEn", "name", "nameTh") ?? "Building";
+        sub = (() => {
+          const lvls = (p as { levels?: number }).levels;
+          const h = (p as { height?: number }).height;
+          if (h) return `${h} m tall`;
+          if (lvls) return `${lvls} floors`;
+          return null;
+        })();
+        break;
+      case "incidents-itic":
+      case "incidents-city-reports":
+        title = pick("title") ?? "Incident";
+        sub = pick("category", "severity", "status");
+        break;
+      case "cctv-cameras":
+        title = pick("name") ?? "CCTV";
+        sub = pick("vendor");
+        break;
+      case "transit-stations":
+        title = pick("name") ?? "Transit station";
+        sub = `${pick("system") ?? ""} · ${pick("line") ?? ""}`;
+        break;
+      case "civic-points": {
+        const kind = (p as { kind?: string }).kind ?? "other";
+        const palette = CIVIC_PALETTE[kind as CivicKind] ?? CIVIC_PALETTE.other;
+        const nm = pick("name:en", "name", "name:th") ?? palette.label;
+        title = `${palette.glyph} ${nm}`;
+        sub = palette.label + (pick("operator") ? ` · ${pick("operator")}` : "");
+        break;
+      }
+      case "waterways": {
+        const wt = (p as { waterway?: string }).waterway ?? "stream";
+        const nm = pick("name:en", "name", "name:th") ?? wt;
+        title = nm;
+        sub = wt.toUpperCase() + (pick("intermittent") === "yes" ? " · intermittent" : "");
+        break;
+      }
+      case "datago-points":
+        title = pick("name", "nameEn") ?? "data.go.th POI";
+        sub = `${(p as { category?: string }).category ?? ""} · ${(p as { source?: string }).source ?? ""}`;
+        break;
+      case "air4thai-stations": {
+        const pm25 = (p as { pm25?: number | null }).pm25;
+        const aqi = (p as { aqi?: number | null }).aqi;
+        title = (p as { station?: string }).station ?? "Air4Thai station";
+        sub = `PM2.5 ${pm25 ?? "—"} µg/m³ · AQI ${aqi ?? "—"} · PCD`;
+        break;
+      }
+      case "gistda-pois":
+        title = pick("name", "nameEn") ?? "GISTDA POI";
+        sub = `${(p as { category?: string }).category ?? ""} · ${(p as { road?: string }).road ?? ""}`;
+        break;
+      case "gistda-solar":
+        title = `Building #${pick("id") ?? ""}`;
+        sub = `${(p as { solarIrr?: number }).solarIrr ?? "—"} kWh/m² · ${(p as { roofType?: string }).roofType ?? ""} · ${(p as { height?: number }).height ?? "—"} m`;
+        break;
+      case "news-pins": {
+        const tags = (p as { tags?: string[] }).tags ?? [];
+        title = pick("title") ?? "News";
+        sub = `${tags.join(" ")} · ${pick("source") ?? ""}`;
+        break;
+      }
+      case "gistda-landuse": {
+        title = pick("name", "nameEn") ?? "Land parcel";
+        sub = `${pick("code") ?? ""} · ${Math.round(Number((p as { area?: number }).area ?? 0))} m²`;
+        break;
+      }
+      case "port-infrastructure":
+      case "ferry-terminals":
+      case "navigation-aids":
+        title = pick("name:en", "name", "name:th") ?? "Maritime feature";
+        sub = pick("man_made", "amenity", "harbour", "seamark:type") ?? null;
+        break;
+      case "temple-spires-base":
+      case "old-town-district":
+        title = pick("name") ?? pick("nameTh") ?? "Heritage site";
+        sub = pick("era") ?? null;
+        break;
+      case "fisheries":
+        title = pick("name") ?? "Fishery zone";
+        sub = `${pick("kind") ?? ""} · ${pick("boats") ?? ""}${pick("yearly_yield_t") ? ` · ${pick("yearly_yield_t")} t/yr` : ""}`;
+        break;
+      case "flood-risk":
+      case "flood-risk-zones":
+        title = pick("name") ?? "Flood-prone area";
+        sub = `${(pick("severity") ?? "").toUpperCase()} · ${pick("type") ?? ""}${pick("households") ? ` · ${pick("households")} households` : ""}`;
+        break;
+      case "ring-roads":
+        title = pick("name", "nameEn", "nameTh") ?? "Road";
+        sub = `${(p as { ring?: boolean }).ring ? "RING ROAD · " : ""}${pick("highway") ?? ""}`;
+        break;
+      case "river-buffer":
+        title = pick("name") ?? "Tha Dee / canal flood corridor";
+        sub = pick("bufferM") ? `${pick("bufferM")} m buffer` : null;
+        break;
+      case "conflict-incidents":
+        title = `${(pick("eventType") ?? "incident").replace(/-/g, " ")}`;
+        sub = `${pick("province") ?? ""}${pick("district") ? ` · ${pick("district")}` : ""} · ${(p as { fatalities?: number }).fatalities ?? 0} killed · ${pick("date") ?? ""}`;
+        break;
+      case "security-news": {
+        const tags = (p as { tags?: string[] }).tags ?? [];
+        title = pick("title") ?? "Security news";
+        sub = `${tags.join(" ")} · ${pick("source") ?? ""}`;
+        break;
+      }
+      case "flood-gauges":
+        title = pick("name") ?? "River gauge";
+        sub = `${(pick("status") ?? "").toUpperCase()} · ${pick("levelM") ?? "—"} m${pick("warningM") ? ` / ${pick("warningM")} m warn` : ""}`;
+        break;
+      case "watershed-nodes": {
+        title = `${pick("name") ?? ""} ${pick("nameEn") ?? ""}`.trim() || "Watershed node";
+        const bits = [pick("statusLabel"), pick("role")].filter(Boolean);
+        const toBank = (p as { toBankM?: number | null }).toBankM;
+        if (typeof toBank === "number") bits.push(`${toBank.toFixed(1)} m to bank`);
+        const rain = (p as { rain24h?: number | null }).rain24h;
+        if (typeof rain === "number" && rain > 0) bits.push(`☔ ${Math.round(rain)} mm/24h`);
+        const soil = (p as { soil?: number | null }).soil;
+        if (typeof soil === "number") bits.push(`soil ${Math.round(soil)}%`);
+        sub = bits.join(" · ");
+        break;
+      }
+      case "dam-status":
+        title = pick("name") ?? "Khao Luang runoff";
+        sub = `${(pick("status") ?? "").toUpperCase()} · ${pick("storagePct") ?? "—"}% · ${pick("outflowCms") ?? "—"} m³/s`;
+        break;
+      case "alphaearth-landcover":
+        title = pick("class") ?? "Land cover";
+        sub = pick("note") ?? "AlphaEarth (derived)";
+        break;
+      case "alphaearth-floodprone":
+        title = `Flood risk · ${(pick("risk") ?? "").toUpperCase()}`;
+        sub = pick("note") ?? "AlphaEarth (derived)";
+        break;
+      default:
+        return null;
+    }
+    return {
+      html:
+        `<div class="picker-tooltip"><div class="picker-title">${escapeHtml(title ?? "")}</div>` +
+        (sub ? `<div class="picker-sub">${escapeHtml(sub)}</div>` : "") +
+        `</div>`,
+      style: {
+        background: "transparent",
+        border: "none",
+        padding: "0",
+      },
+    };
+  }, []);
+
+  const onLensChange = useCallback((id: LensId) => {
+    setLens(id);
+    setMapViewState({ kind: "lens", lensId: id });
+    const next = LENSES.find((l) => l.id === id);
+    if (next) setEnabledLayers(enforceLayerExclusivity(next.layers.filter((layerId) => layerCanEnable(layerId))));
+    setForecastAlerts(new Set()); // clear stale alert badges on lens switch
+  }, []);
+
+  const handleForecastMetricClick = useCallback((metric: string) => {
+    const entry = METRIC_LAYER_MAP[metric];
+    if (!entry) return;
+    setEnabledLayers((prev) => {
+      const next = new Set(prev);
+      entry.layers.forEach((id) => next.add(id));
+      return enforceLayerExclusivity(next, entry.layers.find((id) => exclusiveGroupOf(id)));
+    });
+    if (entry.flyToCoast) flyTo(100.995, 13.352, 13.5);
+  }, [flyTo]);
+
+  const handleForecastAlert = useCallback((metric: string) => {
+    setForecastAlerts((prev) => prev.has(metric) ? prev : new Set([...prev, metric]));
+  }, []);
+  // Transient toast — gives a layer toggle visible feedback when it would
+  // otherwise render nothing (no features yet, or a feed that needs an API key).
+  // Kills the "I clicked it and nothing happened" embarrassment.
+  const [toast, setToast] = useState<string | null>(null);
+  const toastTimer = useRef<number | null>(null);
+  const showToast = useCallback((msg: string) => {
+    setToast(msg);
+    if (toastTimer.current) window.clearTimeout(toastTimer.current);
+    toastTimer.current = window.setTimeout(() => setToast(null), 4200);
+  }, []);
+  useEffect(() => () => { if (toastTimer.current) window.clearTimeout(toastTimer.current); }, []);
+
+  // Latest layer feedback (counts + feed health), read by onToggleLayer without
+  // making the callback depend on every feed poll. Assigned during render below.
+  const layerFeedbackRef = useRef<{
+    counts: Record<string, number>;
+    statuses: Partial<Record<LayerId, LayerStatus>>;
+    enabled: Set<LayerId>;
+  }>({ counts: {}, statuses: {}, enabled: new Set() });
+
+  const onToggleLayer = useCallback((id: LayerId) => {
+    const fb = layerFeedbackRef.current;
+    const turningOn = !fb.enabled.has(id);
+    setEnabledLayers((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) { next.delete(id); return next; }
+      next.add(id);
+      // Base satellite + full-area colorizers are radio groups — the layer the
+      // user just tapped wins, the rest of its group switches off.
+      return enforceLayerExclusivity(next, id);
+    });
+    if (turningOn) {
+      const label = ALL_LAYERS.find((l) => l.id === id)?.label ?? id;
+      const group = exclusiveGroupOf(id);
+      const removed = group ? group.filter((g) => g !== id && fb.enabled.has(g)) : [];
+      const status = fb.statuses[id];
+      const count = fb.counts[id];
+      if (removed.length) {
+        const names = removed.map((r) => ALL_LAYERS.find((l) => l.id === r)?.label ?? r).join(", ");
+        showToast(`${label} — switched off ${names} (one overlay at a time keeps the map readable)`);
+      } else if (status?.tier === "unavailable") {
+        showToast(`${label} — no live data (${status.note ?? "needs API key"})`);
+      } else if (count === 0) {
+        showToast(`${label} — no features to show right now`);
+      }
+    }
+  }, [showToast]);
+  const restoreLens = useCallback(() => {
+    const next = LENSES.find((l) => l.id === lens);
+    setMapViewState({ kind: "lens", lensId: lens });
+    if (next) setEnabledLayers(enforceLayerExclusivity(next.layers.filter((layerId) => layerCanEnable(layerId))));
+  }, [lens]);
+  const setAerialOnly = useCallback(() => {
+    setViewMode("2D");
+    setMapViewState({ kind: "custom", label: "Clean aerial view" });
+    setEnabledLayers(new Set<LayerId>(["satellite-esri", "municipality-boundary-line"]));
+  }, []);
+  const clearOverlays = useCallback(() => {
+    setViewMode("2D");
+    setMapViewState({ kind: "custom", label: "Overlays hidden" });
+    setEnabledLayers(new Set<LayerId>(["satellite-esri", "municipality-boundary-line"]));
+  }, []);
+
+  // Feeds
+  const cityReports = useFeed<IncidentFeature>(`${API_BASE}/api/incidents/city-reports`, 5 * 60_000);
+  const iticEvents = useFeed<IncidentFeature>(`${API_BASE}/api/incidents/itic`, 3 * 60_000);
+  const news = useFeed<IntelligenceItem>(`${API_BASE}/api/news`, 3 * 60_000);
+  const weather = useFeed<WeatherSnapshot>(`${API_BASE}/api/weather`, 30 * 60_000);
+  const airQuality = useFeed<AirQualityPoint>(`${API_BASE}/api/air-quality`, 15 * 60_000);
+  const air4thai = useFeed<AirQualityPoint>(`${API_BASE}/api/air-quality/air4thai`, 30 * 60_000);
+  const cctv = useFeed<CctvCamera>(`${API_BASE}/api/cctv/longdo`, 10 * 60_000);
+  const aqiTrend = useFeed<AqiTrend>(`${API_BASE}/api/air-quality/trend`, 15 * 60_000);
+  const trends = useFeed<TrendsSnapshot>(`${API_BASE}/api/trends`, 15 * 60_000);
+  const executive = useFeed<ExecutiveSnapshot>(`${API_BASE}/api/executive`, 15 * 60_000);
+  const markets = useFeed<MarketSnapshot>(`${API_BASE}/api/markets`, 10 * 60_000);
+  const precip = useFeed<PrecipNowcast>(`${API_BASE}/api/precip-nowcast`, 5 * 60_000);
+  const datago = useFeed<DatagoPoint>(`${API_BASE}/api/datago/points`, 30 * 60_000);
+  const facebook = useFeed<FacebookPost>(`${API_BASE}/api/social/facebook`, 10 * 60_000);
+  const reservoirs = useFeed<ReservoirStatus>(`${API_BASE}/api/datago/reservoirs`, 60 * 60_000);
+  const provincialKPIs = useFeed<ProvincialKPIsType>(`${API_BASE}/api/datago/provincial-kpis`, 6 * 60 * 60_000);
+  const gistdaPois = useFeed<GistdaPoi>(`${API_BASE}/api/gistda/poi`, 60 * 60_000);
+  const gistdaSolar = useFeed<GistdaSolarBuilding>(`${API_BASE}/api/gistda/solar`, 6 * 60 * 60_000);
+  const gistdaLandUse = useFeed<GistdaLandUse>(`${API_BASE}/api/gistda/landuse`, 60 * 60_000);
+  const nasaEarth = useFeed<NasaEarthReadings>(`${API_BASE}/api/nasa/earth-readings`, 6 * 60 * 60_000);
+  // Shuttle and academic calendar not available in this deployment
+  const shuttle = { data: [] as ShuttleVehicle[], fallbackTier: "unavailable" as const, ageMinutes: 0 };
+  const academic = { data: [] as AcademicSnapshot[] };
+
+  // Maritime infrastructure (static OSM GeoJSON)
+  const maritimePorts = useGeoJson<FeatureCollection<Polygon | MultiPolygon | LineString, Record<string, unknown>>>(
+    "/geo/nst/ports.geojson",
+  );
+  const maritimeFerries = useGeoJson<FeatureCollection<Point, Record<string, unknown>>>(
+    "/geo/nst/ferries.geojson",
+  );
+  const maritimeNavAids = useGeoJson<FeatureCollection<Point, Record<string, unknown>>>(
+    "/geo/nst/nav-aids.geojson",
+  );
+  const maritime = { ports: maritimePorts, ferries: maritimeFerries, navAids: maritimeNavAids };
+
+  // Deep South province + Yala district boundaries — for aggregate choropleths.
+  const provinceBoundaries = useGeoJson<FeatureCollection<Polygon | MultiPolygon, Record<string, unknown>>>(
+    "/geo/nst/boundaries/provinces.geojson",
+  );
+  const districtBoundaries = useGeoJson<FeatureCollection<Polygon | MultiPolygon, Record<string, unknown>>>(
+    "/geo/nst/boundaries/districts.geojson",
+  );
+
+  // Civic POIs + waterways — Yala municipal OSM extract.
+  const civicPoints = useGeoJson<FeatureCollection<Point, Record<string, unknown>>>(
+    "/geo/nst/civic-pois.geojson",
+  );
+  const waterways = useGeoJson<FeatureCollection<LineString, Record<string, unknown>>>(
+    "/geo/nst/waterways.geojson",
+  );
+  const fisheries = useGeoJson<FeatureCollection<Polygon | MultiPolygon, Record<string, unknown>>>(
+    "/geo/nst/fisheries.geojson",
+  );
+  const heritage = useGeoJson<FeatureCollection<Point | Polygon | MultiPolygon, HeritageFeatureProps>>(
+    "/geo/nst/heritage.geojson",
+  );
+  const floodRisk = useGeoJson<FeatureCollection<Polygon | MultiPolygon, Record<string, unknown>>>(
+    "/geo/nst/flood-risk.geojson",
+  );
+
+  // ── Yala-specific static GeoJSON ──────────────────────────────────────────
+  const ringRoads = useGeoJson<FeatureCollection<LineString, Record<string, unknown>>>(
+    "/geo/nst/ring-roads.geojson",
+  );
+  const riverBuffer = useGeoJson<FeatureCollection<Polygon | MultiPolygon, Record<string, unknown>>>(
+    "/geo/nst/river-buffer.geojson",
+  );
+  // AlphaEarth EO layers — may be absent in some deployments; fail gracefully.
+  const alphaLandcover = useGeoJson<FeatureCollection<Polygon | MultiPolygon, Record<string, unknown>>>(
+    "/geo/nst/alphaearth/landcover.geojson",
+  );
+  const alphaFloodProne = useGeoJson<FeatureCollection<Polygon | MultiPolygon, Record<string, unknown>>>(
+    "/geo/nst/alphaearth/floodprone.geojson",
+  );
+
+  // ── Yala live feeds (API; render nothing if the endpoint 404s) ────────────
+  // Deep South conflict feed retained as a no-op (NST is not an insurgency
+  // province); the layer stays in the union but receives no data.
+  const conflictIncidents = useFeed<ConflictIncident>(`${API_BASE}/api/security/incidents`, 30 * 60_000);
+  const floodGauges = useFeed<FloodGauge>(`${API_BASE}/api/flood/gauges`, 15 * 60_000);
+  const damStatus = useFeed<DamStatus>(`${API_BASE}/api/flood/dam`, 30 * 60_000);
+  const waterGauges = useFeed<WaterGauge>(`${API_BASE}/api/water/gauges`, 10 * 60_000);
+  const waterRain = useFeed<RainfallStation>(`${API_BASE}/api/water/rain`, 30 * 60_000);
+  const ewsStations = useFeed<EwsStation>(`${API_BASE}/api/water/ews`, 15 * 60_000);
+  const ridReservoirs = useFeed<RidReservoir>(`${API_BASE}/api/water/reservoirs-rid`, 60 * 60_000);
+  const flights = useFeed<FlightFids>(`${API_BASE}/api/flights`, 90 * 60_000);
+
+  const worldWeather = useWorldWeather();
+  const hostWeather = useMemo(() => {
+    // Prefer browser-side Open-Meteo data (richer fields).
+    const city = worldWeather.find((c) => c.city.id === "cbo");
+    if (city) {
+      const { city: _city, fetchedAt: _fetchedAt, ...rest } = city;
+      return rest;
+    }
+    // Fall back to backend /api/weather when browser fetch fails (Safari, CSP, offline).
+    const snap = weather.data?.[0];
+    if (!snap) return null;
+    return {
+      tempC: snap.tempC,
+      apparentTempC: snap.feelsLikeC,
+      humidity: snap.humidity,
+      rainNow: snap.precipMm,
+      windKmh: snap.windKmh,
+      windDeg: null,
+      uv: null,
+      cloudPct: null,
+      pressurehPa: null,
+      visKm: null,
+      isDay: null,
+      condition: snap.condition,
+      sunrise: null,
+      sunset: null,
+      daily: [],
+    };
+  }, [worldWeather, weather.data]);
+
+  const hostPulse = useMemo(() => {
+    const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
+    const openReports = cityReports.data.filter((r) => r.status !== "resolved").length;
+    const news24h = news.data.filter((n) => {
+      const t = new Date(n.publishedAt).getTime();
+      return !Number.isNaN(t) && t >= oneDayAgo;
+    }).length;
+    return {
+      iticEvents: iticEvents.data.length,
+      openReports,
+      news24h,
+      shuttleLive: shuttle.data.length,
+    };
+  }, [iticEvents.data, cityReports.data, news.data, shuttle.data]);
+
+  // Traffic samples — recomputed when hour or roads change
+  const trafficSamples = useMemo(() => {
+    if (!roads) return [];
+    return buildTrafficSamples(roads, hour, { isWeekend });
+  }, [roads, hour, isWeekend]);
+
+  // 3D Tiles pilot — must be called at top level (Rules of Hooks)
+  const tile3dLayer = useTile3DLayer({
+    visible: enabledLayers.has("tile3d-buildings"),
+    tilesetUrl: "/geo/3d-tiles/tileset.json",
+  });
+
+  // Quantized zoom level — only changes when crossing the discrete thresholds
+  // used for maxRoofs. Prevents the layers useMemo from firing on every zoom tick.
+  const zoomBucket = viewState.zoom >= 16.5 ? 2 : viewState.zoom >= 15.2 ? 1 : 0;
+
+  // Pre-memoize the two largest layers (20,877 buildings each). The umbrella
+  // `layers` memo below has ~40 deps including SWR feed polls — if any of those
+  // change, the buildings/roofs GeoJsonLayer would otherwise be re-instantiated
+  // and deck.gl would re-tessellate. With a stable reference, deck.gl sees the
+  // same layer object and skips the diff entirely.
+  const memoizedBuildingsLayer = useMemo<Layer | null>(
+    () => buildings ? (buildingsLayer(buildings, { extruded: is3D, ghosted: isSubstructure }) as Layer) : null,
+    [buildings, is3D, isSubstructure],
+  );
+  const memoizedRoofsLayer = useMemo<Layer | null>(
+    () => {
+      if (!buildings || !is3D || isSubstructure) return null;
+      const maxRoofs = zoomBucket === 2 ? 3200 : zoomBucket === 1 ? 1400 : 500;
+      return buildingRoofsLayer(buildings, { maxRoofs, elevationScale: 1.65 }) as Layer;
+    },
+    [buildings, is3D, isSubstructure, zoomBucket],
+  );
+
+  const layers = useMemo<Layer[]>(() => {
+    const out: Layer[] = [];
+    // Imagery first — renders beneath all vector data
+    // Esri is the only satellite useful at city zoom — high-res tiles up to 19.
+    if (enabledLayers.has("satellite-esri")) out.push(esriSatelliteLayer(1.0) as Layer);
+    // Satellite rasters — GIBS layers now served via MapLibre <Source>/<Layer>
+    // (see MapLibreMap children below) for reliable tile stretching at any zoom.
+    // Only Esri HD (maxZoom:19), Himawari (WMS), and terrain stay in deck.gl.
+    if (enabledLayers.has("satellite-terrain")) out.push(openTopoTerrainLayer(0.6) as Layer);
+    if (enabledLayers.has("satellite-himawari")) out.push(himawariInfraredLayer(0.55) as Layer);
+    const showBoundaryFill =
+      enabledLayers.has("municipality-boundary-fill") ||
+      enabledLayers.has("municipality-boundary");
+    const showBoundaryLine = enabledLayers.has("municipality-boundary-line") || showBoundaryFill;
+    if ((showBoundaryLine || showBoundaryFill) && campus)
+      out.push(campusBoundaryLayer(campus, { filled: showBoundaryFill, stroked: showBoundaryLine }) as Layer);
+    if ((enabledLayers.has("municipality-buildings") || enabledLayers.has("campus-buildings")) && memoizedBuildingsLayer)
+      out.push(memoizedBuildingsLayer);
+    if (enabledLayers.has("building-roofs") && memoizedRoofsLayer)
+      out.push(memoizedRoofsLayer);
+    // 3D Tiles pilot — OGC-standard streaming buildings (replaces extruded GeoJSON when available)
+    if (tile3dLayer) out.push(tile3dLayer as Layer);
+    if (enabledLayers.has("road-network") && roads)
+      out.push(roadNetworkLayer(roads as unknown as FeatureCollection<LineString, ClassifiedRoadProps>) as Layer);
+    if (enabledLayers.has("transit-lines") && transitLines)
+      out.push(transitLinesLayer(transitLines) as Layer);
+    if (enabledLayers.has("traffic-heatmap") && trafficSamples.length > 0) out.push(trafficHeatmapLayer(trafficSamples) as Layer);
+    if (enabledLayers.has("transit-stations") && transitStations) out.push(transitStationsLayer(transitStations) as Layer);
+    if (enabledLayers.has("cctv-cameras")) out.push(cctvLayer(cctv.data) as Layer);
+    if (enabledLayers.has("incidents-city-reports")) out.push(incidentLayer("incidents-city-reports", cityReports.data) as Layer);
+    if (enabledLayers.has("incidents-itic")) out.push(incidentLayer("incidents-itic", iticEvents.data) as Layer);
+    // Maritime
+    if (enabledLayers.has("maritime-overlay")) out.push(maritimeOverlayLayer() as Layer);
+    if (enabledLayers.has("port-infrastructure") && maritime?.ports) out.push(portInfrastructureLayer(maritime.ports) as Layer);
+    if (enabledLayers.has("ferry-terminals") && maritime?.ferries) out.push(ferryTerminalsLayer(maritime.ferries) as Layer);
+    if (enabledLayers.has("navigation-aids") && maritime?.navAids) out.push(navigationAidsLayer(maritime.navAids) as Layer);
+    // Open data
+    if (enabledLayers.has("datago-points") && datago.data.length > 0) out.push(datagoPointsLayer(datago.data) as Layer);
+    // Air4Thai PCD stations (official Thai government AQ monitors in Chonburi)
+    if (enabledLayers.has("air4thai-stations") && air4thai.data.length > 0) out.push(air4thaiLayer(air4thai.data) as Layer);
+    // GISTDA POI Digital Twin (authoritative Thai government POIs)
+    if (enabledLayers.has("gistda-pois") && gistdaPois.data.length > 0) out.push(gistdaPoiLayer(gistdaPois.data) as Layer);
+    // GISTDA LOD2 Solar Irradiance (building rooftop solar potential)
+    if (enabledLayers.has("gistda-solar") && gistdaSolar.data.length > 0) out.push(gistdaSolarLayer(gistdaSolar.data) as Layer);
+    // GISTDA Land Use / Land Cover
+    if (enabledLayers.has("gistda-landuse") && gistdaLandUse.data.length > 0) out.push(gistdaLandUseLayer(gistdaLandUse.data) as Layer);
+    // News pins — geocoded headlines so the mayor sees "which market" at a glance
+    if (enabledLayers.has("news-pins") && news.data.length > 0) out.push(newsPinsLayer(news.data) as Layer);
+    // Civic POIs (province-wide OSM: hospitals/schools/police/fire/temples/markets/...)
+    if (enabledLayers.has("civic-points") && civicPoints) out.push(civicPointsLayer(civicPoints) as Layer);
+    // Waterways (canals + rivers + drains)
+    if (enabledLayers.has("waterways") && waterways) out.push(waterwaysLayer(waterways) as Layer);
+    // Fishing zones
+    if (enabledLayers.has("fisheries") && fisheries) out.push(fisheriesLayer(fisheries) as Layer);
+    // Heritage: explicit toggles so operators can remove these overlays for a clean aerial view.
+    if (heritage) {
+      const districtFc = {
+        type: "FeatureCollection" as const,
+        features: heritage.features.filter(f => f.properties.kind === "old-town-district"),
+      } as FeatureCollection<Polygon | MultiPolygon, HeritageFeatureProps>;
+      const spiresFc = {
+        type: "FeatureCollection" as const,
+        features: heritage.features.filter(f => f.properties.kind !== "old-town-district"),
+      } as FeatureCollection<Point, HeritageFeatureProps>;
+      if (enabledLayers.has("heritage-old-town")) {
+        const dist = oldTownDistrictLayer(districtFc);
+        if (dist) out.push(dist as Layer);
+      }
+      if (enabledLayers.has("heritage-temple-spires")) {
+        out.push(...(templeSpiresLayer(spiresFc) as Layer[]));
+      }
+    }
+    // Flood-risk polygons
+    if (enabledLayers.has("flood-risk-zones") && floodRisk) out.push(floodRiskLayer(floodRisk) as Layer);
+
+    // ── Yala — circular-city signature + hydrology + EO ───────────────────
+    // AlphaEarth EO polygons render beneath the vector signature layers.
+    if (enabledLayers.has("alphaearth-landcover") && alphaLandcover)
+      out.push(alphaEarthLandcoverLayer(alphaLandcover) as Layer);
+    if (enabledLayers.has("alphaearth-floodprone") && alphaFloodProne)
+      out.push(alphaEarthFloodProneLayer(alphaFloodProne) as Layer);
+    if (enabledLayers.has("river-buffer") && riverBuffer) out.push(riverBufferLayer(riverBuffer) as Layer);
+    if (enabledLayers.has("ring-roads") && ringRoads)
+      out.push(ringRoadsLayer(ringRoads as unknown as Parameters<typeof ringRoadsLayer>[0]) as Layer);
+    // ── Yala — Deep South security (aggregate choropleth, never points) ───
+    if (enabledLayers.has("conflict-choropleth") && provinceBoundaries)
+      out.push(...(conflictChoroplethLayer(provinceBoundaries) as Layer[]));
+    if (enabledLayers.has("poverty-choropleth") && districtBoundaries)
+      out.push(povertyChoroplethLayer(districtBoundaries) as Layer);
+    // Legacy point-incident layer retained for non-SEC contexts; SEC lens uses the choropleth.
+    if (enabledLayers.has("conflict-incidents") && conflictIncidents.data.length > 0)
+      out.push(conflictIncidentsLayer(conflictIncidents.data) as Layer);
+    if (enabledLayers.has("security-news") && news.data.length > 0)
+      out.push(securityNewsLayer(news.data) as Layer);
+    // ── Watershed upstream→city cascade (Tha Dee flow nodes) ──────────────
+    if (enabledLayers.has("watershed-nodes") && waterGauges.data.length > 0)
+      out.push(...(watershedNodesLayer(
+        summarizeWatershed(waterGauges.data, waterRain.data, ewsStations.data),
+      ) as Layer[]));
+    // ── Yala — flood gauges + Bang Lang Dam (API-backed) ──────────────────
+    if (enabledLayers.has("flood-gauges") && floodGauges.data.length > 0)
+      out.push(floodGaugesLayer(floodGauges.data) as Layer);
+    if (enabledLayers.has("dam-status") && damStatus.data.length > 0)
+      out.push(damStatusLayer(damStatus.data) as Layer);
+
+    // Distance grid (1·5·10 km)
+    if (enabledLayers.has("distance-grid")) {
+      out.push(distanceGridLayer(CHONBURI.center, [1, 5, 10]) as Layer);
+      out.push(distanceGridLabelsLayer(CHONBURI.center, [1, 5, 10]) as Layer);
+    }
+
+    // Device GPS pulse — always above everything else when a fix is available.
+    if (presence.lng != null && presence.lat != null) {
+      const [accDisk, dot] = devicePresenceLayer(presence.lng, presence.lat, presence.accuracyM);
+      out.push(accDisk as Layer, dot as Layer);
+    }
+
+    return out;
+  }, [
+    enabledLayers, zoomBucket, is3D, isSubstructure, campus, buildings,
+    memoizedBuildingsLayer, memoizedRoofsLayer,
+    trafficSamples,
+    transitStations, transitLines, roads,
+    cctv.data, cityReports.data,
+    iticEvents.data,
+    civicPoints, waterways, fisheries, floodRisk, heritage,
+    maritimePorts, maritimeFerries, maritimeNavAids, datago.data,
+    gistdaPois.data, gistdaSolar.data, gistdaLandUse.data, news.data,
+    ringRoads, riverBuffer, alphaLandcover, alphaFloodProne,
+    provinceBoundaries, districtBoundaries,
+    conflictIncidents.data, floodGauges.data, damStatus.data,
+    waterGauges.data, waterRain.data, ewsStations.data,
+    presence.lng, presence.lat, presence.accuracyM,
+    tile3dLayer,
+  ]);
+
+  // Feature counts — passed to LayerPalette so every toggle shows a number,
+  // making it immediately obvious whether the layer has data or not.
+  const layerCounts = useMemo(() => ({
+    "municipality-boundary-line": campus?.features.length ?? 0,
+    "municipality-boundary-fill": campus?.features.length ?? 0,
+    "municipality-boundary":      campus?.features.length ?? 0,
+    "municipality-buildings": buildings?.features.length ?? 0,
+    "building-roofs":         buildings?.features.length ?? 0,
+    "heritage-old-town":      heritage?.features.filter((f) => f.properties.kind === "old-town-district").length ?? 0,
+    "heritage-temple-spires": heritage?.features.filter((f) => f.properties.kind !== "old-town-district").length ?? 0,
+    "road-network":           roads?.features.length ?? 0,
+    "transit-stations":       transitStations?.features.length ?? 0,
+    "transit-lines":          transitLines?.features.length ?? 0,
+    "civic-points":           civicPoints?.features.length ?? 0,
+    "waterways":              waterways?.features.length ?? 0,
+    "fisheries":              fisheries?.features.length ?? 0,
+    "flood-risk-zones":       floodRisk?.features.length ?? 0,
+    "port-infrastructure":    maritimePorts?.features.length ?? 0,
+    "ferry-terminals":        maritimeFerries?.features.length ?? 0,
+    "navigation-aids":        maritimeNavAids?.features.length ?? 0,
+    "cctv-cameras":           cctv.data.length,
+    "incidents-itic":         iticEvents.data.length,
+    "incidents-city-reports": cityReports.data.length,
+    "datago-points":          datago.data.length,
+    "air4thai-stations":      air4thai.data.length,
+    "gistda-pois":            gistdaPois.data.length,
+    "gistda-solar":           gistdaSolar.data.length,
+    "gistda-landuse":         gistdaLandUse.data.length,
+    "news-pins":              news.data.filter((n) => n.lat != null).length,
+    "ring-roads":             ringRoads?.features.length ?? 0,
+    "river-buffer":           riverBuffer?.features.length ?? 0,
+    "alphaearth-landcover":   alphaLandcover?.features.length ?? 0,
+    "alphaearth-floodprone":  alphaFloodProne?.features.length ?? 0,
+    "conflict-incidents":     conflictIncidents.data.length,
+    "security-news":          news.data.filter((n) => n.lat != null && n.tags.includes("SEC")).length,
+    "flood-gauges":           floodGauges.data.length,
+    "dam-status":             damStatus.data.length,
+    "watershed-nodes":        waterGauges.data.length > 0 ? 4 : 0,
+  } as Record<string, number>), [
+    campus, buildings, roads, transitStations, transitLines, civicPoints, waterways,
+    fisheries, floodRisk, heritage, maritimePorts, maritimeFerries, maritimeNavAids,
+    cctv.data, iticEvents.data, cityReports.data, datago.data,
+    air4thai.data, gistdaPois.data, gistdaSolar.data, gistdaLandUse.data, news.data,
+    ringRoads, riverBuffer, alphaLandcover, alphaFloodProne,
+    conflictIncidents.data, floodGauges.data, damStatus.data, waterGauges.data,
+  ]);
+
+  // Feed health per map layer — drives the "needs key" pill in the palette and
+  // the toast on toggle. Only layers backed by a live feed appear here.
+  const layerStatuses = useMemo<Partial<Record<LayerId, LayerStatus>>>(() => ({
+    "cctv-cameras":           { tier: cctv.fallbackTier, note: cctv.note },
+    "incidents-itic":         { tier: iticEvents.fallbackTier, note: iticEvents.note },
+    "incidents-city-reports": { tier: cityReports.fallbackTier, note: cityReports.note },
+    "datago-points":          { tier: datago.fallbackTier, note: datago.note },
+    "air4thai-stations":      { tier: air4thai.fallbackTier, note: air4thai.note },
+    "gistda-pois":            { tier: gistdaPois.fallbackTier, note: gistdaPois.note },
+    "gistda-solar":           { tier: gistdaSolar.fallbackTier, note: gistdaSolar.note },
+    "gistda-landuse":         { tier: gistdaLandUse.fallbackTier, note: gistdaLandUse.note },
+    "news-pins":              { tier: news.fallbackTier, note: news.note },
+    "security-news":          { tier: news.fallbackTier, note: news.note },
+    "conflict-incidents":     { tier: conflictIncidents.fallbackTier, note: conflictIncidents.note },
+    "flood-gauges":           { tier: floodGauges.fallbackTier, note: floodGauges.note },
+    "dam-status":             { tier: damStatus.fallbackTier, note: damStatus.note },
+    "watershed-nodes":        { tier: waterGauges.fallbackTier, note: waterGauges.note },
+  }), [
+    cctv.fallbackTier, cctv.note,
+    iticEvents.fallbackTier, iticEvents.note, cityReports.fallbackTier, cityReports.note,
+    datago.fallbackTier, datago.note, air4thai.fallbackTier, air4thai.note,
+    gistdaPois.fallbackTier, gistdaPois.note,
+    gistdaSolar.fallbackTier, gistdaSolar.note, gistdaLandUse.fallbackTier, gistdaLandUse.note,
+    news.fallbackTier, news.note,
+    conflictIncidents.fallbackTier, conflictIncidents.note,
+    floodGauges.fallbackTier, floodGauges.note, damStatus.fallbackTier, damStatus.note,
+    waterGauges.fallbackTier, waterGauges.note,
+  ]);
+
+  // Keep the toggle handler's view of feedback fresh without re-creating it.
+  layerFeedbackRef.current = { counts: layerCounts, statuses: layerStatuses, enabled: enabledLayers };
+
+  // Average GISTDA Solar irradiance across all buildings (kWh/m²/month)
+  const avgSolarIrrKWh = useMemo(() => {
+    const vals = gistdaSolar.data
+      .map((b) => b.solarIrr)
+      .filter((v): v is number => typeof v === "number" && v > 0);
+    return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+  }, [gistdaSolar.data]);
+
+  const feedHealth = useMemo(() => [
+    { label: "NEWS", tier: news.fallbackTier, ageMinutes: news.ageMinutes },
+    { label: "CR", tier: cityReports.fallbackTier, ageMinutes: cityReports.ageMinutes },
+    { label: "iTIC", tier: iticEvents.fallbackTier, ageMinutes: iticEvents.ageMinutes },
+    { label: "CCTV", tier: cctv.fallbackTier, ageMinutes: cctv.ageMinutes },
+    { label: "DATA", tier: datago.fallbackTier, ageMinutes: datago.ageMinutes },
+    { label: "AQ", tier: aqiTrend.fallbackTier, ageMinutes: aqiTrend.ageMinutes },
+    { label: "WX", tier: weather.fallbackTier, ageMinutes: weather.ageMinutes },
+    { label: "EX", tier: executive.fallbackTier, ageMinutes: executive.ageMinutes },
+    { label: "MK", tier: markets.fallbackTier, ageMinutes: markets.ageMinutes },
+  ], [news.fallbackTier, news.ageMinutes, cityReports.fallbackTier, cityReports.ageMinutes, iticEvents.fallbackTier, iticEvents.ageMinutes, cctv.fallbackTier, cctv.ageMinutes, datago.fallbackTier, datago.ageMinutes, aqiTrend.fallbackTier, aqiTrend.ageMinutes, weather.fallbackTier, weather.ageMinutes, executive.fallbackTier, executive.ageMinutes, markets.fallbackTier, markets.ageMinutes]);
+
+  return (
+    <div
+      className={`shell ${isMobile ? `mobile mobile-panel-${mobilePanel}` : ""}`}
+      data-mobile={isMobile ? "true" : "false"}
+    >
+      {!online && (
+        <div className="offline-banner mono" role="alert" aria-live="assertive">
+          ⚠ OFFLINE — feeds are stale until the connection returns
+        </div>
+      )}
+      {toast && (
+        <div className="layer-toast mono" role="status" aria-live="polite">
+          {toast}
+        </div>
+      )}
+      {/* ── Top bar ── */}
+      <MemoTopBar        feeds={feedHealth}
+        onOpenCatalog={useCallback(() => setCatalogOpen(true), [])}
+        catalogCount={ALL_LAYERS.length}
+        viewMode={viewMode}
+        onCycleViewMode={cycleViewMode}
+        onOpenManual={useCallback(() => setManualOpen(true), [])}
+        onOpenWhitepaper={useCallback(() => setWhitepaperOpen(true), [])}
+        onOpenAtlas={useCallback(() => setAtlasOpen(true), [])}
+        onOpenPlatform={useCallback(() => setPlatformOpen(true), [])}
+        onFlip={onFlip}
+        onOpenSheets={useCallback(() => setSheetsOpen(true), [])}
+        sheetsConfigured={sheetsConfigured}
+        academic={academic.data[0] ?? null}
+        systemStatus={systemHealth?.system.status ?? "unknown"}
+      />
+
+      {/* Degraded system banner */}
+      {systemHealth && systemHealth.system.status !== "healthy" && (
+        <div className={`system-banner banner-${systemHealth.system.status}`}>
+          <span className="mono">
+            SYSTEM {systemHealth.system.status.toUpperCase()} — {" "}
+            {systemHealth.system.down > 0 && `${systemHealth.system.down} adapter${systemHealth.system.down > 1 ? "s" : ""} down`}
+            {systemHealth.system.down > 0 && systemHealth.system.degraded > 0 && ", "}
+            {systemHealth.system.degraded > 0 && `${systemHealth.system.degraded} degraded`}
+            {" · "}
+            <a href={`${API_BASE}/api/health/detailed`} target="_blank" rel="noreferrer" className="banner-link">
+              View details →
+            </a>
+          </span>
+        </div>
+      )}
+      {!systemHealth && systemHealthError && (
+        <div className="system-banner banner-down">
+          <span className="mono">
+            API HOST UNREACHABLE — {API_BASE.replace(/^https?:\/\//, "")} · {systemHealthError}
+          </span>
+        </div>
+      )}
+
+      {/* ── World strip + tickers: desktop only. On a phone the map tab is kept
+          uncluttered — the world strip (weather + clocks) is relocated into the
+          Brief page, and news lives in the Layers page. ── */}
+      {!isMobile && (
+        <>
+          {/* ── World strip: Chonburi host + 3 user-editable clocks ── */}
+          <MemoWorldStrip        hostAqi={aqiTrend.data[0]?.current.aqi ?? null}
+            hostPm25={aqiTrend.data[0]?.current.pm25 ?? null}
+            hostWeather={hostWeather}
+            hostPulse={hostPulse}
+            precipNowcast={precip.data[0] ?? null}
+          />
+
+          {/* ── News ticker: stock-market scroll of top headlines ── */}
+          <MemoNewsTicker items={news.data} loading={news.fallbackTier === "loading"} />
+
+          {/* ── Markets ticker: SET Bangkok + global indices + THB forex + WTI/Brent + FRED macro ── */}
+          <MemoMarketsTicker        snapshot={markets.data[0] ?? null}
+            loading={markets.fallbackTier === "loading"}
+          />
+        </>
+      )}
+
+      {/* ── Left sidebar: provincial Chonburi brief.
+          EXEC vs OPS share the same sidebar — the lens only changes the map
+          layer set (EXEC = strategic, OPS = day-to-day). The legacy Chula
+          ExecutiveBrief / StrategicAlerts / PeerComparison panels were built
+          for a university and don't belong on a city mayor's desk. ── */}
+      <aside className="left-bar" aria-hidden={isMobile && mobilePanel !== "brief"}>
+        {/* ── Mobile only: the world strip (weather + clocks), feed health, and
+            the secondary actions relocate here so the Map tab stays a clean,
+            full-screen map. Reflowed into readable blocks by CSS. ── */}
+        {isMobile && (
+          <div className="mobile-brief-top">
+            <MemoWorldStrip
+              hostAqi={aqiTrend.data[0]?.current.aqi ?? null}
+              hostPm25={aqiTrend.data[0]?.current.pm25 ?? null}
+              hostWeather={hostWeather}
+              hostPulse={hostPulse}
+              precipNowcast={precip.data[0] ?? null}
+            />
+            <div className="mobile-brief-feeds" aria-label="Live data feed health">
+              {feedHealth.map((f) => (
+                <span
+                  key={f.label}
+                  className={`feed-chip feed-${f.tier}`}
+                  title={`${f.tier} · ${f.ageMinutes}m ago`}
+                >
+                  <span className={`dot ${f.tier === "loading" ? "loading" : f.tier}`} />
+                  {f.label}
+                </span>
+              ))}
+            </div>
+            <div className="mobile-brief-actions">
+              <button className="mono" onClick={() => setCatalogOpen(true)}>SOURCES · {ALL_LAYERS.length}</button>
+              <button className="mono" onClick={() => setAtlasOpen(true)}>◷ ATLAS</button>
+              <button className="mono" onClick={() => setPlatformOpen(true)}>⌕ LEARN</button>
+            </div>
+          </div>
+        )}
+        {lens === "intelligence" && (
+          <div className="left-section" style={{ paddingBottom: 12 }}>
+            <Suspense fallback={null}>
+              <SituationDigest
+                nasaReadings={nasaEarth.data[0] ?? null}
+                avgSolarIrrKWh={avgSolarIrrKWh}
+                forecastAlerts={forecastAlerts}
+                forecasts={forecastMetrics}
+              />
+            </Suspense>
+          </div>
+        )}
+        {lens === "executive" && (
+          <div className="left-section" style={{ paddingBottom: 12 }}>
+            <MemoExecutiveBriefing              executive={executive.data[0] ?? null}
+              weather={weather.data[0] ?? null}
+              airQuality={airQuality.data[0] ?? null}
+              openIncidents={cityReports.data.filter((r) => r.status !== "resolved").length + iticEvents.data.length}
+              reservoirs={reservoirs.data}
+              markets={markets.data[0] ?? null}
+              adapterHealth={systemHealth?.adapters}
+              ageMinutes={executive.ageMinutes}
+              fallbackTier={executive.fallbackTier === "loading" ? undefined : executive.fallbackTier}
+            />
+          </div>
+        )}
+        {provincialKPIs.data.length > 0 && (
+          <div className="left-section">
+            <ProvincialKPIs
+              data={provincialKPIs.data[0] ?? null}
+              loading={provincialKPIs.fallbackTier === "loading"}
+              ageMinutes={provincialKPIs.ageMinutes}
+              fallbackTier={provincialKPIs.fallbackTier === "loading" ? undefined : provincialKPIs.fallbackTier}
+            />
+          </div>
+        )}
+        <div className="left-section left-section-divided">
+          <AqiBadge trend={aqiTrend.data[0] ?? null} loading={aqiTrend.fallbackTier === "loading"} />
+        </div>
+        <div className="left-section left-section-divided">
+          <FloodBrief
+            gauges={floodGauges.data}
+            waterGauges={waterGauges.data}
+            dam={damStatus.data[0] ?? null}
+            precip={precip.data[0] ?? null}
+            floodRiskFeatures={floodRisk?.features ?? null}
+            ageMinutes={waterGauges.data.length > 0 ? waterGauges.ageMinutes : floodGauges.ageMinutes}
+            fallbackTier={waterGauges.data.length > 0
+              ? (waterGauges.fallbackTier === "loading" ? undefined : waterGauges.fallbackTier)
+              : (floodGauges.fallbackTier === "loading" ? undefined : floodGauges.fallbackTier)}
+          />
+        </div>
+        <div className="left-section left-section-divided">
+          <FloodPosture
+            waterGauges={waterGauges.data}
+            rainfall={waterRain.data}
+            ews={ewsStations.data}
+            dam={damStatus.data[0] ?? null}
+            precip={precip.data[0] ?? null}
+            ageMinutes={waterGauges.data.length > 0 ? waterGauges.ageMinutes : waterRain.ageMinutes}
+            fallbackTier={waterGauges.data.length > 0
+              ? (waterGauges.fallbackTier === "loading" ? undefined : waterGauges.fallbackTier)
+              : (waterRain.fallbackTier === "loading" ? undefined : waterRain.fallbackTier)}
+          />
+        </div>
+        <div className="left-section left-section-divided">
+          <UpstreamWatershed
+            waterGauges={waterGauges.data}
+            rainfall={waterRain.data}
+            ews={ewsStations.data}
+            ageMinutes={waterGauges.data.length > 0 ? waterGauges.ageMinutes : waterRain.ageMinutes}
+            fallbackTier={waterGauges.data.length > 0
+              ? (waterGauges.fallbackTier === "loading" ? undefined : waterGauges.fallbackTier)
+              : (waterRain.fallbackTier === "loading" ? undefined : waterRain.fallbackTier)}
+          />
+        </div>
+        <div className="left-section left-section-divided">
+          <EarthAlphaBrief
+            enabledLayers={enabledLayers}
+            onToggleLayer={onToggleLayer}
+            gistdaPoiCount={gistdaPois.data.length}
+            gistdaSolarCount={gistdaSolar.data.length}
+            gistdaLandUseCount={gistdaLandUse.data.length}
+            floodZoneCount={floodRisk?.features.length ?? 0}
+            waterwayCount={waterways?.features.length ?? 0}
+            fisheryZoneCount={fisheries?.features.length ?? 0}
+            openIncidentCount={cityReports.data.filter((r) => r.status !== "resolved").length + iticEvents.data.length}
+            sheetsConfigured={sheetsConfigured}
+            nasaReadings={nasaEarth.data[0] ?? null}
+            avgSolarIrrKWh={avgSolarIrrKWh}
+            ageMinutes={nasaEarth.ageMinutes}
+            fallbackTier={nasaEarth.fallbackTier === "loading" ? undefined : nasaEarth.fallbackTier}
+          />
+        </div>
+        <div className="left-section left-section-divided">
+          <WaterPanel
+            reservoirs={reservoirs.data}
+            ridReservoirs={ridReservoirs.data}
+            waterGauges={waterGauges.data}
+            waterRain={waterRain.data}
+            loading={reservoirs.fallbackTier === "loading" && waterGauges.fallbackTier === "loading"}
+            ageMinutes={waterGauges.data.length > 0 ? waterGauges.ageMinutes : reservoirs.ageMinutes}
+            fallbackTier={waterGauges.data.length > 0
+              ? (waterGauges.fallbackTier === "loading" ? undefined : waterGauges.fallbackTier)
+              : (reservoirs.fallbackTier === "loading" ? undefined : reservoirs.fallbackTier)}
+          />
+        </div>
+        <div className="left-section left-section-divided">
+          <FlightsPanel
+            flights={flights.data}
+            loading={flights.fallbackTier === "loading"}
+            ageMinutes={flights.ageMinutes}
+            fallbackTier={flights.fallbackTier === "loading" ? undefined : flights.fallbackTier}
+            note={flights.note}
+          />
+        </div>
+        <div className="left-section left-section-divided">
+          <MemoPredictivePanel            apiBase={API_BASE}
+            onMetricClick={handleForecastMetricClick}
+            onAlert={handleForecastAlert}
+            onForecastsLoaded={(f) => setForecastMetrics(f)}
+          />
+        </div>
+        <MemoPmcuBrief          hour={hour}
+          isWeekend={isWeekend}
+          iticEvents={iticEvents.data}
+          cityReports={cityReports.data}
+          trafficSampleCount={trafficSamples.length}
+        />
+        <div className="left-section">
+          <DeviceCheckIn presence={presence} onRequest={requestDevice} onClear={clearDevice} />
+        </div>
+        <div className="left-section">
+          <SpeedTestPanel />
+        </div>
+        <div className="left-section">
+          <span className="eyebrow mono">Municipal Brief</span>
+          <MemoKpiStrip
+            cityReports={cityReports.data}
+            floodGauges={floodGauges.data}
+            airQuality={airQuality.data}
+            weather={weather.data}
+          />
+        </div>
+      </aside>
+
+      {/* ── Map center — nothing overlaps this ── */}
+      <main className="map-area" aria-hidden={isMobile && mobilePanel !== "map"}>
+        <div className="map-host">
+          <div className="sr-only" role="status" aria-live="polite">
+            Nakhon Si Thammarat map. {mapViewState.kind === "custom" ? mapViewState.label : `Current lens: ${LENSES.find((l) => l.id === lens)?.label ?? lens}`}.
+            {enabledLayers.size} layers are currently enabled. Use Clean aerial view to inspect satellite imagery without data overlays.
+          </div>
+          <DeckGL
+            viewState={viewState}
+            onViewStateChange={handleViewStateChange}
+            // Controller options — minZoom/maxZoom live in MapStateProps which is not
+            // re-exported by @deck.gl/core, so we extend ControllerProps locally.
+            // All three constraints enforce bounds *before* onViewStateChange fires,
+            // preventing the one-frame "flash to outer space" that a pure React clamp cannot.
+            // scrollZoom.speed: default 0.01 → one fast trackpad swipe jumps 5+ levels;
+            // 0.004 is ~2.5× slower, still comfortable but safe.
+            controller={{ minZoom: 8, maxZoom: 20, maxBounds: CHONBURI.outerBounds, scrollZoom: { speed: 0.004, smooth: false } } as ControllerProps & { minZoom?: number; maxZoom?: number }}
+            layers={layers}
+            getTooltip={tooltipForPickMemo}
+            onClick={handleMapClick}
+            onHover={handleMapHover}
+          >
+            <MapLibreMap
+              mapStyle={mapStyle}
+              mapLib={maplibregl as unknown as typeof maplibregl}
+              attributionControl={false}
+              renderWorldCopies={false}
+            >
+              {/* GIBS satellite raster sources — rendered via MapLibre for
+                  reliable tile stretching at any viewport zoom. Only active
+                  layers are mounted so MapLibre only fetches what's needed.
+                  `GIBS_RENDER` carries pre-built, stable {tiles, paint} refs
+                  so React-render churn doesn't make MapLibre re-diff every frame. */}
+              {GIBS_RENDER.filter(g => enabledLayers.has(g.id as LayerId)).map(g => (
+                <Source
+                  key={g.id}
+                  id={`gibs-src-${g.id}`}
+                  type="raster"
+                  tiles={g.tiles as unknown as string[]}
+                  tileSize={256}
+                  minzoom={0}
+                  maxzoom={g.maxzoom}
+                >
+                  <MapLayer
+                    id={`gibs-lyr-${g.id}`}
+                    type="raster"
+                    paint={g.paint}
+                    beforeId="labels-top"
+                  />
+                </Source>
+              ))}
+              {enabledLayers.has("satellite-esri") && (
+                <Source
+                  id="esri-world-imagery-src"
+                  type="raster"
+                  tiles={["https://services.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"]}
+                  tileSize={256}
+                  maxzoom={19}
+                >
+                  <MapLayer
+                    id="esri-world-imagery"
+                    type="raster"
+                    paint={{ "raster-opacity": 1 }}
+                    beforeId="labels-top"
+                  />
+                </Source>
+              )}
+            </MapLibreMap>
+          </DeckGL>
+          <BuildingSearch
+            buildings={buildings}
+            onSelect={(centroid, props) => {
+              setSelectedBuilding(props);
+              flyTo(centroid[0], centroid[1], 17.5);
+            }}
+          />
+          <MapOverlayControls
+            mapViewState={mapViewState}
+            onAerialOnly={setAerialOnly}
+            onClearOverlays={clearOverlays}
+            onRestoreLens={restoreLens}
+          />
+          {/* Map zoom controls — back-up for gesture / trackpad */}
+          <div className="zoom-controls" aria-label="Map zoom controls">
+            <button onClick={() => zoomBy(0.6)} aria-label="Zoom in" className="zoom-btn">+</button>
+            <button onClick={() => zoomBy(-0.6)} aria-label="Zoom out" className="zoom-btn">−</button>
+          </div>
+          {/* Compass — reflects bearing, click resets to north */}
+          <MapCompass bearing={viewState.bearing} onResetNorth={resetNorth} />
+          {/* Bottom-left HUD: building-type legend (when buildings are shown) + live coordinate readout */}
+          <div className="map-hud-bl">
+            {enabledLayers.has("municipality-buildings") && <BuildingLegend />}
+            <div className="coord-readout" aria-hidden="true">
+              <span className="coord-label">⌖</span>
+              <span className="coord-val" ref={coordRef}>—</span>
+            </div>
+          </div>
+          <BuildingCard
+            building={selectedBuilding}
+            onClose={() => setSelectedBuilding(null)}
+          />
+          <IncidentCard
+            incident={selectedIncident}
+            onClose={() => setSelectedIncident(null)}
+          />
+          {forecastAlerts.size > 0 && (
+            <div style={{
+              position: "absolute", top: 12, left: "50%", transform: "translateX(-50%)",
+              zIndex: 20, display: "flex", gap: 6, pointerEvents: "none",
+            }}>
+              {[...forecastAlerts].map((m) => (
+                <span key={m} className="mono eyebrow" style={{
+                  background: "var(--bad)", color: "var(--bg)",
+                  padding: "3px 8px", fontSize: "0.60rem", letterSpacing: "0.1em",
+                }}>▲ {METRIC_LABEL[m] ?? m} FORECAST</span>
+              ))}
+            </div>
+          )}
+        </div>
+      </main>
+
+      {/* ── Right sidebar: news (scrollable) + layer controls.
+          StrategicAlerts and PeerComparison were Chula-university panels —
+          removed until rebuilt with provincial peer data (Rayong, Chachoengsao). ── */}
+      <aside className="right-bar" aria-hidden={isMobile && mobilePanel !== "layers"}>
+        <div className="right-trends">
+          <MemoTrendsPanel            snapshots={trends.data}
+            loading={trends.fallbackTier === "loading"}
+            ageMinutes={trends.ageMinutes}
+            onRefresh={trends.refetch}
+            fallbackTier={trends.fallbackTier === "loading" ? undefined : trends.fallbackTier}
+          />
+        </div>
+        <div className="right-news">
+          <NewsDesk
+            items={news.data}
+            loading={news.fallbackTier === "loading"}
+            ageMinutes={news.ageMinutes}
+            onRefresh={news.refetch}
+          />
+          <div className="left-section-divided" style={{ marginTop: 4 }}>
+            <FacebookPanel
+              posts={facebook.data}
+              loading={facebook.fallbackTier === "loading"}
+              ageMinutes={facebook.ageMinutes}
+              fallbackTier={facebook.fallbackTier === "loading" ? undefined : facebook.fallbackTier}
+            />
+          </div>
+        </div>
+        <div className="right-layers">
+          <MemoLayerPalette            lens={lens}
+            onLensChange={onLensChange}
+            enabled={enabledLayers}
+            onToggleLayer={onToggleLayer}
+            counts={layerCounts}
+            statuses={layerStatuses}
+          />
+        </div>
+      </aside>
+
+      {/* ── Bottom bar: ident / traffic timeline / counts ── */}
+      <div className="bottom-bar">
+        <div className="bottom-ident">
+          <span className="pill">v0.1</span>
+          <span>Nakhon Si Thammarat · Old Town &amp; Khao Luang</span>
+          <span className="pill pill-standard" title="UNDP-JTC Digital Twins for Cities (Jul 2025) · ADB Digital Twin Framework (May 2025)">DT·L2</span>
+          <span className="bottom-standard mono">UNDP · ADB</span>
+        </div>
+        <MemoHourRail          hour={hour}
+          isWeekend={isWeekend}
+          onHourChange={setHour}
+          onWeekendToggle={setIsWeekend}
+        />
+        <div className="bottom-stats">
+          <span>{buildings?.features.length ?? 0} BUILDINGS · {trafficSamples.length} ROADS · {layers.length} LAYERS</span>
+          <span>{civicPoints?.features.length ?? 0} CIVIC · {cctv.data.length} CCTV · {gistdaPois.data.length} GISTDA</span>
+        </div>
+      </div>
+
+      {/* Modals — lazy-loaded chunks, fetched only on first open */}
+      <Suspense fallback={null}>
+        {catalogOpen && <SourceCatalog open={catalogOpen} onClose={() => setCatalogOpen(false)} />}
+      </Suspense>
+      <Suspense fallback={null}>
+        {manualOpen && <Manual open={manualOpen} onClose={() => setManualOpen(false)} />}
+      </Suspense>
+      <Suspense fallback={null}>
+        {atlasOpen && <AtlasView onClose={() => setAtlasOpen(false)} />}
+      </Suspense>
+      <Suspense fallback={null}>
+        {platformOpen && (
+          <PlatformView
+            onClose={() => setPlatformOpen(false)}
+            onOpenLens={(id) => onLensChange(id as LensId)}
+            onOpenAtlas={() => { setPlatformOpen(false); setAtlasOpen(true); }}
+          />
+        )}
+      </Suspense>
+      <Suspense fallback={null}>
+        {whitepaperOpen && <Whitepaper open={whitepaperOpen} onClose={() => setWhitepaperOpen(false)} />}
+      </Suspense>
+      <Suspense fallback={null}>
+        {sheetsOpen && (
+          <SheetsPanel
+            open={sheetsOpen}
+            onClose={() => {
+              setSheetsOpen(false);
+              try { setSheetsConfigured(Boolean(localStorage.getItem(SHEETS_STORAGE_KEY))); } catch {}
+            }}
+          />
+        )}
+      </Suspense>
+      <ChatBox apiBase={API_BASE} />
+      {isMobile && <MobileNav panel={mobilePanel} onChange={setMobilePanel} />}
+    </div>
+  );
+}

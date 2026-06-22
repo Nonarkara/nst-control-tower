@@ -1,0 +1,125 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1248 560" role="img" font-family="'Noto Sans Thai','Sarabun','Tahoma',sans-serif">
+  <title>ทำงานยังไง? — How it works</title>
+  <desc>A horizontal five-step pipeline showing how the system works: raw data sources flow into an adapter, then into a standardized NormalizedFeed, then into a digital twin map, and finally onto the dashboard. The pipeline runs automatically 24 hours a day and refreshes every 2 to 30 minutes.</desc>
+
+  <rect width="1248" height="560" fill="#FAF8F1"/>
+
+  <!-- Title block -->
+  <text x="56" y="64" font-size="38" font-weight="800" fill="#2C2418">ทำงานยังไง?</text>
+  <text x="58" y="96" font-size="19" fill="#9A8F80" font-family="'Inter',sans-serif">How it works.</text>
+  <rect x="58" y="110" width="120" height="7" rx="3.5" fill="#F1BE48"/>
+
+  <!-- ======================= CARD 1 — raw sources [teal] ======================= -->
+  <g>
+    <rect x="56" y="176" width="186" height="284" rx="18" fill="#FFFFFF" stroke="#DED9CE" stroke-width="2"/>
+    <rect x="56" y="176" width="186" height="6" rx="3" fill="#4A773C"/>
+    <circle cx="86" cy="216" r="17" fill="#E3EDDA"/>
+    <text x="86" y="223" text-anchor="middle" font-size="19" font-weight="800" fill="#4A773C" font-family="'Inter',sans-serif">1</text>
+
+    <!-- icon chip: database / data store -->
+    <rect x="80" y="256" width="40" height="40" rx="10" fill="#EEF3E6"/>
+    <g stroke="#4A773C" stroke-width="2.4" fill="none" stroke-linejoin="round" stroke-linecap="round">
+      <ellipse cx="100" cy="268" rx="11" ry="4" fill="#E3EDDA"/>
+      <path d="M89 268 V284 c0 2.2 4.9 4 11 4 s11 -1.8 11 -4 V268"/>
+      <path d="M89 276 c0 2.2 4.9 4 11 4 s11 -1.8 11 -4"/>
+    </g>
+
+    <text x="80" y="338" font-size="21" font-weight="800" fill="#2C2418">แหล่งข้อมูล</text>
+    <text x="80" y="362" font-size="13" fill="#9A8F80" font-family="'Inter',sans-serif">raw sources</text>
+    <text x="80" y="398" font-size="13.5" fill="#6A5A47">เซนเซอร์ · API · ดาวเทียม</text>
+  </g>
+
+  <!-- arrow 1 -> 2 -->
+  <path d="M252 318 H290 m-16 -10 l16 10 l-16 10" fill="none" stroke="#C2BBAC" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- ======================= CARD 2 — adapter [amber] ======================= -->
+  <g>
+    <rect x="306" y="176" width="186" height="284" rx="18" fill="#FFFFFF" stroke="#DED9CE" stroke-width="2"/>
+    <rect x="306" y="176" width="186" height="6" rx="3" fill="#D6A12A"/>
+    <circle cx="336" cy="216" r="17" fill="#FBEFCB"/>
+    <text x="336" y="223" text-anchor="middle" font-size="19" font-weight="800" fill="#D6A12A" font-family="'Inter',sans-serif">2</text>
+
+    <!-- icon chip: gear -->
+    <rect x="330" y="256" width="40" height="40" rx="10" fill="#FDF7E6"/>
+    <g stroke="#D6A12A" stroke-width="2.4" fill="none" stroke-linejoin="round" stroke-linecap="round">
+      <path d="M350 261 l1.6 0 0.7 3.1 a8 8 0 0 1 2.4 1 l2.7 -1.7 1.2 1.2 -1.7 2.7 a8 8 0 0 1 1 2.4 l3.1 0.7 0 1.6 -3.1 0.7 a8 8 0 0 1 -1 2.4 l1.7 2.7 -1.2 1.2 -2.7 -1.7 a8 8 0 0 1 -2.4 1 l-0.7 3.1 -1.6 0 -0.7 -3.1 a8 8 0 0 1 -2.4 -1 l-2.7 1.7 -1.2 -1.2 1.7 -2.7 a8 8 0 0 1 -1 -2.4 l-3.1 -0.7 0 -1.6 3.1 -0.7 a8 8 0 0 1 1 -2.4 l-1.7 -2.7 1.2 -1.2 2.7 1.7 a8 8 0 0 1 2.4 -1 z" fill="#FBEFCB"/>
+      <circle cx="350" cy="276" r="3.4" fill="#FDF7E6"/>
+    </g>
+
+    <text x="330" y="338" font-size="21" font-weight="800" fill="#2C2418">ตัวแปลง</text>
+    <text x="330" y="362" font-size="13" fill="#9A8F80" font-family="'Inter',sans-serif">adapter</text>
+    <text x="330" y="398" font-size="13.5" fill="#6A5A47">ดึง · ทำความสะอาด</text>
+  </g>
+
+  <!-- arrow 2 -> 3 -->
+  <path d="M502 318 H540 m-16 -10 l16 10 l-16 10" fill="none" stroke="#C2BBAC" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- ======================= CARD 3 — NormalizedFeed [teal] ======================= -->
+  <g>
+    <rect x="556" y="176" width="186" height="284" rx="18" fill="#FFFFFF" stroke="#DED9CE" stroke-width="2"/>
+    <rect x="556" y="176" width="186" height="6" rx="3" fill="#4A773C"/>
+    <circle cx="586" cy="216" r="17" fill="#E3EDDA"/>
+    <text x="586" y="223" text-anchor="middle" font-size="19" font-weight="800" fill="#4A773C" font-family="'Inter',sans-serif">3</text>
+
+    <!-- icon chip: three equal stacked bars -->
+    <rect x="580" y="256" width="40" height="40" rx="10" fill="#EEF3E6"/>
+    <g stroke="#4A773C" stroke-width="2.4" stroke-linejoin="round">
+      <rect x="587" y="263" width="26" height="6" rx="3" fill="#E3EDDA"/>
+      <rect x="587" y="273" width="26" height="6" rx="3" fill="#E3EDDA"/>
+      <rect x="587" y="283" width="26" height="6" rx="3" fill="#E3EDDA"/>
+    </g>
+
+    <text x="580" y="338" font-size="21" font-weight="800" fill="#2C2418">ฟีดมาตรฐาน</text>
+    <text x="580" y="362" font-size="13" fill="#9A8F80" font-family="'Inter',sans-serif">NormalizedFeed</text>
+    <text x="580" y="398" font-size="13.5" fill="#6A5A47">รูปแบบเดียวกันหมด</text>
+  </g>
+
+  <!-- arrow 3 -> 4 -->
+  <path d="M752 318 H790 m-16 -10 l16 10 l-16 10" fill="none" stroke="#C2BBAC" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- ======================= CARD 4 — digital twin [amber] ======================= -->
+  <g>
+    <rect x="806" y="176" width="186" height="284" rx="18" fill="#FFFFFF" stroke="#DED9CE" stroke-width="2"/>
+    <rect x="806" y="176" width="186" height="6" rx="3" fill="#D6A12A"/>
+    <circle cx="836" cy="216" r="17" fill="#FBEFCB"/>
+    <text x="836" y="223" text-anchor="middle" font-size="19" font-weight="800" fill="#D6A12A" font-family="'Inter',sans-serif">4</text>
+
+    <!-- icon chip: ring-road map -->
+    <rect x="830" y="256" width="40" height="40" rx="10" fill="#FDF7E6"/>
+    <g stroke="#D6A12A" stroke-width="2.4" fill="none" stroke-linejoin="round" stroke-linecap="round">
+      <circle cx="850" cy="276" r="11" fill="#FBEFCB"/>
+      <circle cx="850" cy="276" r="4.5" fill="#FDF7E6"/>
+      <path d="M850 265 V271 M850 281 V287 M839 276 H845 M855 276 H861"/>
+    </g>
+
+    <text x="830" y="338" font-size="21" font-weight="800" fill="#2C2418">แฝดดิจิทัล</text>
+    <text x="830" y="362" font-size="13" fill="#9A8F80" font-family="'Inter',sans-serif">digital twin</text>
+    <text x="830" y="398" font-size="13.5" fill="#6A5A47">เมืองจำลองบนแผนที่</text>
+  </g>
+
+  <!-- arrow 4 -> 5 -->
+  <path d="M1002 318 H1040 m-16 -10 l16 10 l-16 10" fill="none" stroke="#C2BBAC" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- ======================= CARD 5 — dashboard [blue] ======================= -->
+  <g>
+    <rect x="1056" y="176" width="186" height="284" rx="18" fill="#FFFFFF" stroke="#DED9CE" stroke-width="2"/>
+    <rect x="1056" y="176" width="186" height="6" rx="3" fill="#6E4A33"/>
+    <circle cx="1086" cy="216" r="17" fill="#EBE2D9"/>
+    <text x="1086" y="223" text-anchor="middle" font-size="19" font-weight="800" fill="#6E4A33" font-family="'Inter',sans-serif">5</text>
+
+    <!-- icon chip: screen / monitor -->
+    <rect x="1080" y="256" width="40" height="40" rx="10" fill="#F4EEE7"/>
+    <g stroke="#6E4A33" stroke-width="2.4" fill="none" stroke-linejoin="round" stroke-linecap="round">
+      <rect x="1088" y="264" width="24" height="16" rx="2.5" fill="#EBE2D9"/>
+      <path d="M1100 280 V285 M1095 288 H1105"/>
+    </g>
+
+    <text x="1080" y="338" font-size="21" font-weight="800" fill="#2C2418">แดชบอร์ด</text>
+    <text x="1080" y="362" font-size="13" fill="#9A8F80" font-family="'Inter',sans-serif">dashboard</text>
+    <text x="1080" y="398" font-size="13.5" fill="#6A5A47">เห็นทุกอย่างจอเดียว</text>
+  </g>
+
+  <!-- bottom promise pill -->
+  <rect x="56" y="500" width="1186" height="40" rx="20" fill="#241B11"/>
+  <text x="649" y="525" text-anchor="middle" font-size="17" font-weight="700" fill="#FFFFFF">ทำงานอัตโนมัติ 24 ชม. · รีเฟรชทุก 2–30 นาที</text>
+</svg>

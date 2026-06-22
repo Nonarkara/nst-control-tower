@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>org.nonarkara.nst-api</string>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/axiom/Projects/dashboards/NST/apps/api</string>
+
+    <!-- Run through a login shell (bash -l) so the daemon inherits the full user
+         environment the pnpm shim needs; the wrapper cds + caffeinates + execs
+         pnpm start:node. (Bare launchd env silently breaks the pnpm shim.) -->
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>-l</string>
+        <string>/Users/axiom/Projects/dashboards/NST/infra/run-nst-api.sh</string>
+    </array>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/opt/homebrew/bin:/usr/bin:/bin:/Users/axiom/Library/pnpm:/Users/axiom/.local/bin</string>
+        <key>HOST</key>
+        <string>127.0.0.1</string>
+        <key>PORT</key>
+        <string>8794</string>
+        <key>ENVIRONMENT</key>
+        <string>production</string>
+        <!-- GEMINI_API_KEY / ACLED_API_KEY can be injected into the live plist at
+             ~/Library/LaunchAgents/org.nonarkara.nst-api.plist (not committed). -->
+    </dict>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>KeepAlive</key>
+    <dict>
+        <key>SuccessfulExit</key>
+        <false/>
+        <key>Crashed</key>
+        <true/>
+    </dict>
+
+    <key>ThrottleInterval</key>
+    <integer>10</integer>
+
+    <key>StandardOutPath</key>
+    <string>/Users/axiom/Projects/dashboards/NST/var/api.out.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/axiom/Projects/dashboards/NST/var/api.err.log</string>
+
+    <key>ProcessType</key>
+    <string>Background</string>
+</dict>
+</plist>

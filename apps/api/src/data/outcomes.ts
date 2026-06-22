@@ -1,0 +1,150 @@
+import type { AtlasModule } from "@nst/shared";
+
+const HAI_RANK_OF = 77;
+const haiScore = (rank: number): number => 78 - rank;
+
+export const outcomesModule: AtlasModule = {
+  id: "outcomes",
+  title: "Development Outcomes",
+  titleTh: "ผลลัพธ์การพัฒนา",
+  summary:
+    "NST's headline development challenge is the flood-poverty trap: recurrent disasters drain household wealth, disrupt schooling, and suppress the tourism-driven growth rebound. The province ranks mid-tier on HAI but has deep rural poverty.",
+  accent: "red",
+  indicators: [
+    {
+      id: "mpi-poverty",
+      label: "MPI poverty rate",
+      labelTh: "อัตราความยากจนหลายมิติ",
+      value: 11.2,
+      unit: "%",
+      status: "watch",
+      goodDirection: "down",
+      source: "TPMAP (NESDB + NECTEC), 2025",
+      year: 2025,
+      note: "≈173,000 persons below the multidimensional poverty line province-wide. Concentrated in flood-prone rural amphoe.",
+    },
+    {
+      id: "poor-persons",
+      label: "Persons in poverty",
+      labelTh: "จำนวนคนจน",
+      value: 173000,
+      unit: "persons",
+      status: "watch",
+      goodDirection: "down",
+      source: "TPMAP (NESDB + NECTEC), 2025",
+      year: 2025,
+      note: "Multidimensional poor target population; flood losses set back progress every monsoon season.",
+    },
+    {
+      id: "household-income",
+      label: "Avg household income",
+      labelTh: "รายได้เฉลี่ยต่อครัวเรือน",
+      value: 23500,
+      unit: "฿/mo",
+      benchmark: { label: "National", value: 28308 },
+      status: "watch",
+      goodDirection: "up",
+      source: "NSO NST / NSO SES, 2024–25",
+      year: 2024,
+      note: "NST 2024 monthly income vs national 2025 average — ≈17% below. Tourism and rubber income reduce the gap vs Deep South peers.",
+    },
+    {
+      id: "hai-overall",
+      label: "Human Achievement Index",
+      labelTh: "ดัชนีความก้าวหน้าของคน",
+      value: "Rank 28",
+      rank: { pos: 28, of: HAI_RANK_OF },
+      status: "neutral",
+      goodDirection: "up",
+      source: "NESDB HAI, 2022",
+      year: 2022,
+      note: "Mid-tier province; education and health dimensions weigh down the overall score.",
+    },
+    {
+      id: "flood-poverty-trap",
+      label: "Flood-poverty link",
+      labelTh: "ความยากจนจากน้ำท่วม",
+      value: "High",
+      status: "critical",
+      goodDirection: "down",
+      source: "DDPM / NESDB, 2025",
+      year: 2025,
+      note: "Nov 2025 flood wiped an estimated 33.96B THB of economic value; affects rural households disproportionately — the core development-outcome risk.",
+    },
+    {
+      id: "gpp-per-capita-vs-national",
+      label: "GPP per capita vs national",
+      labelTh: "GPP ต่อหัวเทียบประเทศ",
+      value: 46,
+      unit: "% of national",
+      benchmark: { label: "National avg", value: 236815 },
+      status: "alert",
+      goodDirection: "up",
+      source: "NESDC GPP Dashboard, 2020",
+      year: 2020,
+      note: "NST GPP per capita ≈109,050 THB = 46% of national average (236,815 THB). Above Yala (39%) but well below Bangkok.",
+    },
+  ],
+  charts: [
+    {
+      kind: "radar",
+      title: "NESDB HAI dimensions (score = 78 − national rank)",
+      max: 78,
+      note: "Higher = better. NST performs above mid-line on most dimensions but trails on income and education. Source: NESDB HAI 2022.",
+      axes: [
+        { name: "Transport", value: haiScore(12), note: "Rank 12 / 77" },
+        { name: "Employment", value: haiScore(18), note: "Rank 18 / 77" },
+        { name: "Family", value: haiScore(22), note: "Rank 22 / 77" },
+        { name: "Housing", value: haiScore(25), note: "Rank 25 / 77" },
+        { name: "Participation", value: haiScore(30), note: "Rank 30 / 77" },
+        { name: "Health", value: haiScore(35), note: "Rank 35 / 77" },
+        { name: "Income", value: haiScore(40), note: "Rank 40 / 77" },
+        { name: "Education", value: haiScore(42), note: "Rank 42 / 77" },
+      ],
+    },
+    {
+      kind: "grouped-bar",
+      title: "Income & O-NET gaps vs national",
+      note: "Household income (฿/mo) and P.6 O-NET (points, 0–100). Sources: NSO SES 2024–25; NIETS O-NET 2025.",
+      groups: [
+        {
+          label: "Income (฿/mo)",
+          values: [
+            { name: "NST", value: 23500, color: "#d97706" },
+            { name: "National", value: 28308 },
+          ],
+        },
+        {
+          label: "O-NET P.6 (pts)",
+          values: [
+            { name: "NST Province", value: 33.4, color: "#d97706" },
+            { name: "National", value: 35.38 },
+          ],
+        },
+      ],
+    },
+    {
+      kind: "grouped-bar",
+      title: "GPP per capita vs peers (2020)",
+      unit: "THB",
+      note: "NST sits above the Deep South but well below national average. NESDC 2020.",
+      groups: [
+        {
+          label: "GPP/capita (THB)",
+          values: [
+            { name: "NST", value: 109050, color: "#0d9488" },
+            { name: "Yala", value: 91815, color: "#6b7280" },
+            { name: "National", value: 236815 },
+          ],
+        },
+      ],
+    },
+  ],
+  meta: {
+    source: "NST Municipal Data Source Bible — Outcomes (TPMAP, NSO, NESDB HAI, NIETS, DDPM)",
+    fetchedAt: "2026-06-19T00:00:00.000Z",
+    ageMinutes: 0,
+    fallbackTier: "reference",
+    note: "Static reference data digitized from the NST Municipal Data Source Bible (Jun 2026)",
+  },
+};

@@ -1,0 +1,145 @@
+import type { AtlasModule } from "@nst/shared";
+
+const SRC_NESDB = "NESDB / NESDC GPP Dashboard (GD Catalog) — NST Province";
+const SRC_LFS = "NSO Labor Force Survey — NST Provincial Office";
+const SRC_MOTS = "Ministry of Tourism & Sports (MOTS) — NST 2019–2024";
+const SRC_OAE = "Office of Agricultural Economics (OAE) — NST Province";
+const SRC_DBD = "DBD Business Registration — NST Province";
+
+export const economyModule: AtlasModule = {
+  id: "economy",
+  title: "Economy, Labor & Agriculture",
+  titleTh: "เศรษฐกิจและแรงงาน",
+  summary:
+    "NST's GPP per capita of ≈109,050 THB is well above the Deep South average. Tourism (3.94M visitors, \"fastest-growing\") and rubber (243,292 ha) drive the economy, while wave after wave of flooding threatens agricultural output and growth momentum.",
+  accent: "gold",
+  indicators: [
+    {
+      id: "gpp-per-capita",
+      label: "GPP per capita",
+      labelTh: "ผลิตภัณฑ์มวลรวมต่อหัว",
+      value: 109050,
+      unit: "฿/yr",
+      benchmark: { label: "National average", value: 236815 },
+      status: "watch",
+      goodDirection: "up",
+      source: SRC_NESDB,
+      year: 2020,
+      note: "GPP per capita 2020 constant prices; province GPP ≈ 164,375M THB (2020); peak was 234,028M THB (2018).",
+    },
+    {
+      id: "gpp-province",
+      label: "Province GPP",
+      labelTh: "ผลิตภัณฑ์มวลรวมจังหวัด",
+      value: 164375,
+      unit: "M THB",
+      benchmark: { label: "Peak (2018)", value: 234028 },
+      status: "watch",
+      delta: { value: -29.8, unit: "%", trend: "down" },
+      goodDirection: "up",
+      source: SRC_NESDB,
+      year: 2020,
+      note: "Fell from 234,028M (2018) to 164,375M (2020) — COVID + commodity price volatility impact.",
+    },
+    {
+      id: "tourism",
+      label: "Tourism visitors",
+      labelTh: "นักท่องเที่ยว",
+      value: 3940000,
+      unit: "visitors",
+      benchmark: { label: "Revenue", value: "฿15,000M+" },
+      status: "good",
+      goodDirection: "up",
+      source: SRC_MOTS,
+      year: 2019,
+      note: "2019 pre-COVID peak: 3.94M visitors; TAT ranked NST the \"fastest-growing tourist province\". Key: Khao Luang NP, Mu Ko Ang Thong, Old Town.",
+    },
+    {
+      id: "rubber-area",
+      label: "Rubber plantation area",
+      labelTh: "พื้นที่ยางพารา",
+      value: 243292,
+      unit: "ha",
+      status: "neutral",
+      goodDirection: "neutral",
+      source: SRC_OAE,
+      year: 2024,
+      note: "Largest rubber-producing province in Thailand; Pak Phanang basin flooding periodically disrupts tapping.",
+    },
+    {
+      id: "livestock",
+      label: "Livestock head",
+      labelTh: "จำนวนปศุสัตว์",
+      value: 774571,
+      unit: "head",
+      status: "neutral",
+      goodDirection: "neutral",
+      source: SRC_OAE,
+      year: 2023,
+      note: "Province livestock registry (cattle, buffalo, swine, goats). Flood losses are a recurring insured risk.",
+    },
+    {
+      id: "registered-businesses",
+      label: "Registered businesses",
+      labelTh: "ธุรกิจที่จดทะเบียน",
+      value: 28000,
+      unit: "entities",
+      status: "neutral",
+      goodDirection: "up",
+      source: SRC_DBD,
+      year: 2024,
+      note: "DBD business registrations in NST province. Concentrated in Mueang district (trade, tourism services).",
+    },
+  ],
+  charts: [
+    {
+      kind: "line",
+      title: "Province GPP trend (M THB, 2014–2020)",
+      unit: "M THB",
+      series: [
+        {
+          name: "GPP",
+          points: [
+            { x: 2014, y: 146078 },
+            { x: 2016, y: 178000 },
+            { x: 2018, y: 234028 },
+            { x: 2020, y: 164375 },
+          ],
+        },
+      ],
+      note: "NESDC constant-price GPP series. 2018 peak driven by rubber & tourism boom; 2020 drop = COVID + commodity collapse.",
+    },
+    {
+      kind: "hbar",
+      title: "Key agricultural outputs",
+      unit: "ha / head",
+      data: [
+        { name: "Rubber plantation", nameTh: "ยางพารา", value: 243292, note: "ha — largest in Thailand" },
+        { name: "Oil palm", nameTh: "ปาล์มน้ำมัน", value: 48000, note: "ha" },
+        { name: "Durian", nameTh: "ทุเรียน", value: 18000, note: "ha (premium Thung Yai variety)" },
+        { name: "Livestock", nameTh: "ปศุสัตว์", value: 774571, note: "head" },
+      ],
+      note: "OAE NST Province 2023–2024.",
+    },
+    {
+      kind: "donut",
+      title: "GPP sector split (2020)",
+      unit: "%",
+      centerLabel: "164,375M ฿",
+      data: [
+        { name: "Agriculture", nameTh: "เกษตรกรรม", value: 35, color: "gold" },
+        { name: "Services & Tourism", nameTh: "บริการ/ท่องเที่ยว", value: 40, color: "blue" },
+        { name: "Manufacturing", nameTh: "อุตสาหกรรม", value: 20, color: "teal" },
+        { name: "Other", nameTh: "อื่นๆ", value: 5, color: "red" },
+      ],
+      note: "Estimated sector split from NESDC 2020 GPP data. Agriculture (rubber, palm) + services (tourism, trade) dominate.",
+    },
+  ],
+  meta: {
+    source: "NST Municipal Data Source Bible — Economy (NESDC, OAE, MOTS, DBD)",
+    fetchedAt: "2026-06-19T00:00:00.000Z",
+    ageMinutes: 0,
+    fallbackTier: "reference",
+    note: "Static reference data digitized from the NST Municipal Data Source Bible (Jun 2026)",
+  },
+};

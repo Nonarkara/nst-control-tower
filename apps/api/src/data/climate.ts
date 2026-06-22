@@ -1,0 +1,165 @@
+import type { AtlasModule } from "@nst/shared";
+
+const SRC_GLOFAS = "Open-Meteo GloFAS Flood API — Pak Phanang + Tha Dee discharge points";
+const SRC_DDPM = "DDPM NST situation reports + RID Thai Water Net";
+const SRC_RAINFALL = "TMD / CHIRPS NST rainfall climatology (1981–2024)";
+const SRC_GISTDA = "GISTDA Flood Monitoring — Pak Phanang basin";
+const SRC_RESEARCH = "Pak Phanang River Basin Multi-Hazard Assessment (AIT/OEPP 2019)";
+
+export const climateModule: AtlasModule = {
+  id: "climate",
+  title: "Climate, Water & Flood",
+  titleTh: "ภูมิอากาศและอุทกภัย",
+  summary:
+    "NST sits on the Gulf of Thailand coast below the Khao Luang massif (1,835 m). With 2,292 mm/yr and ~308 rain days, the Pak Phanang basin and Tha Dee canal are NST's primary flood vectors — responsible for the 2025 disaster that hit 223,221 households across 22 districts.",
+  accent: "blue",
+  indicators: [
+    {
+      id: "annual-rainfall",
+      label: "Annual rainfall",
+      labelTh: "ปริมาณฝนเฉลี่ยต่อปี",
+      value: 2292,
+      unit: "mm/yr",
+      status: "neutral",
+      goodDirection: "neutral",
+      source: SRC_RAINFALL,
+      note: "TMD climatological normal (1981–2024); ~308 rain days/yr. November is the wettest month.",
+    },
+    {
+      id: "pak-phanang-basin",
+      label: "Pak Phanang River basin",
+      labelTh: "ลุ่มน้ำปากพนัง",
+      value: 299113,
+      unit: "ha",
+      status: "neutral",
+      goodDirection: "neutral",
+      source: SRC_RESEARCH,
+      note: "Basin covers 11 amphoe; multi-hazard assessment: 11% high / 63% medium / 1% low flood risk.",
+    },
+    {
+      id: "khao-luang-elevation",
+      label: "Khao Luang peak",
+      labelTh: "ยอดเขาหลวง",
+      value: 1835,
+      unit: "m",
+      status: "neutral",
+      goodDirection: "neutral",
+      source: SRC_RESEARCH,
+      note: "Highest peak in peninsular Thailand; orographic rainfall from northeast monsoon drives the Pak Phanang and Tha Dee basins.",
+    },
+    {
+      id: "wettest-month",
+      label: "Wettest month (Nov)",
+      labelTh: "เดือนฝนตกชุก (พ.ย.)",
+      value: 280,
+      unit: "mm",
+      status: "watch",
+      goodDirection: "neutral",
+      source: SRC_RAINFALL,
+      note: "November peak; northeast monsoon season (Oct–Dec) drives repeated flash and river flooding.",
+    },
+    {
+      id: "flood-2025-households",
+      label: "2025 flood — households hit",
+      labelTh: "น้ำท่วม 2568 — ครัวเรือนที่ได้รับผลกระทบ",
+      value: 223221,
+      unit: "households",
+      benchmark: { label: "Districts", value: 22 },
+      status: "critical",
+      goodDirection: "down",
+      source: SRC_DDPM,
+      year: 2025,
+      note: "Nov 2025 event: 6 deaths, 33.96B THB estimated damage across 22 of 23 amphoe — the worst on record.",
+    },
+    {
+      id: "flood-2025-damage",
+      label: "2025 flood — estimated damage",
+      labelTh: "ความเสียหาย 2568",
+      value: 33.96,
+      unit: "B THB",
+      status: "critical",
+      goodDirection: "down",
+      source: SRC_DDPM,
+      year: 2025,
+      note: "Preliminary DDPM/province estimate; includes agricultural, infrastructure, and property losses.",
+    },
+  ],
+  charts: [
+    {
+      kind: "timeline",
+      title: "Major NST flood events",
+      events: [
+        {
+          date: "Dec 2016 – Jan 2017",
+          label: "Severe provincial flood — Pak Phanang basin",
+          severity: "alert",
+        },
+        {
+          date: "Dec 2022",
+          label: "9,820 households — >500 mm/24h",
+          value: 9820,
+          note: "households",
+          severity: "alert",
+        },
+        {
+          date: "Nov–Dec 2024",
+          label: "3 fatalities — Khao Luang runoff surge",
+          severity: "alert",
+        },
+        {
+          date: "Nov 2025",
+          label: "223,221 households · 6 deaths · 33.96B THB — worst on record",
+          value: 223221,
+          note: "households, 22 districts",
+          severity: "critical",
+        },
+      ],
+      note: "Households affected at peak, by event. Source: " + SRC_DDPM,
+    },
+    {
+      kind: "area",
+      title: "Monthly rainfall climatology (mm)",
+      unit: "mm",
+      series: [
+        {
+          name: "Rainfall",
+          points: [
+            { x: "Jan", y: 55 },
+            { x: "Feb", y: 40 },
+            { x: "Mar", y: 65 },
+            { x: "Apr", y: 100 },
+            { x: "May", y: 130 },
+            { x: "Jun", y: 115 },
+            { x: "Jul", y: 130 },
+            { x: "Aug", y: 145 },
+            { x: "Sep", y: 180 },
+            { x: "Oct", y: 240 },
+            { x: "Nov", y: 280 },
+            { x: "Dec", y: 230 },
+          ],
+        },
+      ],
+      note: "TMD/CHIRPS 1981–2024 climatological normal for NST City. Annual total ≈ 2,292 mm.",
+    },
+    {
+      kind: "donut",
+      title: "Pak Phanang basin flood-risk zones",
+      unit: "%",
+      centerLabel: "299,113 ha",
+      data: [
+        { name: "High risk", nameTh: "ความเสี่ยงสูง", value: 11, color: "red" },
+        { name: "Medium risk", nameTh: "ความเสี่ยงปานกลาง", value: 63, color: "gold" },
+        { name: "Low risk", nameTh: "ความเสี่ยงต่ำ", value: 1, color: "teal" },
+        { name: "Other / non-classified", nameTh: "อื่นๆ", value: 25, color: "blue" },
+      ],
+      note: "Multi-hazard assessment of 299,113 ha Pak Phanang basin (AIT/OEPP 2019).",
+    },
+  ],
+  meta: {
+    source: SRC_DDPM,
+    fetchedAt: "2026-06-19T00:00:00.000Z",
+    ageMinutes: 0,
+    fallbackTier: "reference",
+    note: "Static reference data digitized from the NST Municipal Data Source Bible (Jun 2026)",
+  },
+};

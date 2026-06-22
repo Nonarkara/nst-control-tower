@@ -1,0 +1,2660 @@
+import { GeoJsonLayer, IconLayer, PathLayer, TextLayer } from "@deck.gl/layers";
+import type { Layer } from "@deck.gl/core";
+import { HeatmapLayer } from "@deck.gl/aggregation-layers";
+import { ScatterplotLayer } from "@deck.gl/layers";
+import { TileLayer } from "@deck.gl/geo-layers";
+import { BitmapLayer } from "@deck.gl/layers";
+import type { Feature, FeatureCollection, Polygon, MultiPolygon, LineString, Point } from "geojson";
+import type {
+  IncidentFeature,
+  CampusZoneProperties,
+  AirQualityPoint,
+  IsochroneResult,
+  ConflictIncident,
+  FloodGauge,
+  DamStatus,
+} from "@nst/shared";
+import type { HeatPoint } from "../sim/trafficSim";
+import {
+  classifyBuilding,
+  buildingHeightMeters,
+  finitePositive,
+  hexToRgb,
+  type BuildingProperties,
+  type LandmarkKind,
+} from "../lib/building";
+import { ZONE_STATUS_RGB, ZONE_STATUS_LABEL, type ZoneSummary } from "../lib/watershed";
+
+export interface CctvCamera {
+  id: string;
+  name: string;
+  lat: number;
+  lng: number;
+  vendor: string;
+  imageUrl?: string;
+}
+export interface ShuttleVehicle {
+  id: string;
+  line: string;
+  lat: number;
+  lng: number;
+  bearing?: number;
+  occupancy?: string;
+}
+
+export interface RouteProps { route: string; color: string; label: string }
+export interface StopProps { id: string; name: string; lines: string[] }
+export interface StationProps { id: string; name: string; system: "BTS" | "MRT"; line: string; code: string }
+export interface TransitLineProps { id: string; system: "BTS" | "MRT" | "ART"; line: string; color: string; ref: string }
+export interface GateProps { id: string; kind: "gate" | "lift-gate" | "entrance"; name: string | null; nameTh: string | null; named: boolean }
+export interface ClassifiedRoadProps { name: string | null; nameEn: string | null; nameTh: string | null; highway: string; priority: number; oneway: boolean }
+export interface NeighborhoodBuildingProps { id: string; name: string | null; nameEn: string | null; height: number; levels: number | null; building: string }
+
+const ZONE_COLORS: Record<string, [number, number, number]> = {
+  academic: [56, 189, 248],
+  residential: [167, 139, 250],
+  athletic: [245, 158, 11],
+  park: [52, 211, 153],
+  commercial: [14, 165, 233],
+  service: [122, 132, 151],
+  perimeter: [14, 165, 233],
+};
+
+type ZoneFeature = Feature<Polygon | MultiPolygon, CampusZoneProperties>;
+
+export function campusBoundaryLayer(
+  collection: FeatureCollection<Polygon | MultiPolygon, CampusZoneProperties>,
+  options: { extruded?: boolean; filled?: boolean; stroked?: boolean } = {},
+) {
+  return new GeoJsonLayer({
+    id: "campus-boundary",
+    data: collection as unknown as FeatureCollection,
+    stroked: options.stroked ?? true,
+    filled: options.filled ?? true,
+    pickable: true,
+    extruded: options.extruded ?? false,
+    getFillColor: ((f: ZoneFeature) => {
+      const z = ZONE_COLORS[f.properties.zoneType] ?? [120, 120, 120];
+      return [z[0], z[1], z[2], 38] as [number, number, number, number];
+    }) as unknown as [number, number, number, number],
+    getLineColor: ((f: ZoneFeature) => {
+      const z = ZONE_COLORS[f.properties.zoneType] ?? [200, 200, 200];
+      return [z[0], z[1], z[2], 200] as [number, number, number, number];
+    }) as unknown as [number, number, number, number],
+    getLineWidth: 1.5,
+    lineWidthMinPixels: 1,
+    getElevation: ((f: ZoneFeature) => f.properties.height ?? 0) as unknown as number,
+  });
+}
+
+export function trafficHeatmapLayer(data: HeatPoint[]) {
+  return new HeatmapLayer<HeatPoint>({
+    id: "traffic-heatmap",
+    data,
+    getPosition: (d) => d.position,
+    getWeight: (d) => d.weight,
+    radiusPixels: 38,
+    intensity: 1.2,
+    threshold: 0.04,
+    aggregation: "SUM",
+    colorRange: [
+      [56, 189, 248, 0],
+      [56, 189, 248, 120],
+      [167, 139, 250, 180],
+      [245, 158, 11, 210],
+      [248, 113, 113, 235],
+      [239, 68, 68, 255],
+    ],
+  });
+}
+
+const INCIDENT_COLORS: Record<IncidentFeature["category"], [number, number, number]> = {
+  "traffic-accident": [239, 68, 68],
+  "traffic-congestion": [245, 158, 11],
+  construction: [251, 191, 36],
+  flooding: [56, 189, 248],
+  waste: [168, 162, 158],
+  lighting: [253, 224, 71],
+  sidewalk: [167, 139, 250],
+  drainage: [125, 211, 252],
+  trees: [52, 211, 153],
+  other: [148, 163, 184],
+};
+
+export function incidentLayer(id: string, data: IncidentFeature[]) {
+  return new ScatterplotLayer<IncidentFeature>({
+    id,
+    data,
+    getPosition: (d) => [d.lng, d.lat],
+    getFillColor: (d) => {
+      const c = INCIDENT_COLORS[d.category] ?? [200, 200, 200];
+      return [...c, d.status === "resolved" ? 90 : 220] as [number, number, number, number];
+    },
+    getRadius: (d) => (d.severity === "high" ? 26 : d.severity === "medium" ? 18 : 12),
+    radiusMinPixels: 4,
+    radiusMaxPixels: 22,
+    stroked: true,
+    getLineColor: [10, 14, 20, 230],
+    lineWidthMinPixels: 1,
+    pickable: true,
+  });
+}
+
+export function shuttleRoutesLayer(collection: FeatureCollection<LineString, RouteProps>) {
+  return new GeoJsonLayer({
+    id: "cu-shuttle-routes",
+    data: collection as unknown as FeatureCollection,
+    stroked: true,
+    filled: false,
+    pickable: true,
+    getLineColor: ((f: Feature<LineString, RouteProps>) => {
+      const c = hexToRgb(f.properties.color);
+      return [c[0], c[1], c[2], 220] as [number, number, number, number];
+    }) as unknown as [number, number, number, number],
+    getLineWidth: 3,
+    lineWidthMinPixels: 2,
+    lineWidthMaxPixels: 5,
+  });
+}
+
+/**
+ * Render a single CU shuttle route (one line of the 5). Per-line toggles let
+ * the user isolate a route to read it; the colour comes from the route's own
+ * `color` property (color-codes municipal land zones).
+ */
+export function shuttleRouteLineLayer(
+  routeId: string,
+  collection: FeatureCollection<LineString, RouteProps>,
+) {
+  const feature = collection.features.find((f) => f.properties.route === routeId);
+  if (!feature) return null;
+  const rgb = hexToRgb(feature.properties.color);
+  return new GeoJsonLayer({
+    id: `cu-shuttle-line-${routeId}`,
+    data: { type: "FeatureCollection", features: [feature] } as unknown as FeatureCollection,
+    stroked: true,
+    filled: false,
+    pickable: true,
+    getLineColor: [rgb[0], rgb[1], rgb[2], 230],
+    getLineWidth: 4,
+    lineWidthMinPixels: 3,
+    lineWidthMaxPixels: 6,
+  });
+}
+
+export function shuttleStopsLayer(collection: FeatureCollection<Point, StopProps>) {
+  return new ScatterplotLayer({
+    id: "cu-shuttle-stops",
+    data: collection.features,
+    getPosition: ((f: Feature<Point, StopProps>) => f.geometry.coordinates) as unknown as [number, number],
+    getRadius: 18,
+    radiusMinPixels: 3,
+    radiusMaxPixels: 7,
+    getFillColor: [251, 191, 36, 230],
+    stroked: true,
+    getLineColor: [10, 14, 20, 255],
+    lineWidthMinPixels: 1,
+    pickable: true,
+  });
+}
+
+export function shuttleVehiclesLayer(vehicles: ShuttleVehicle[]) {
+  return new ScatterplotLayer<ShuttleVehicle>({
+    id: "cu-shuttle-vehicles",
+    data: vehicles,
+    getPosition: (v) => [v.lng, v.lat],
+    getRadius: 38,
+    radiusMinPixels: 6,
+    radiusMaxPixels: 12,
+    getFillColor: [34, 211, 238, 240],
+    stroked: true,
+    getLineColor: [10, 14, 20, 255],
+    lineWidthMinPixels: 2,
+    pickable: true,
+  });
+}
+
+export function transitStationsLayer(collection: FeatureCollection<Point, StationProps>) {
+  return new ScatterplotLayer({
+    id: "transit-stations",
+    data: collection.features,
+    getPosition: ((f: Feature<Point, StationProps>) => f.geometry.coordinates) as unknown as [number, number],
+    getRadius: 32,
+    radiusMinPixels: 5,
+    radiusMaxPixels: 10,
+    getFillColor: ((f: Feature<Point, StationProps>) =>
+      f.properties.system === "BTS"
+        ? [56, 189, 248, 240]
+        : [96, 165, 250, 240]) as unknown as [number, number, number, number],
+    stroked: true,
+    getLineColor: [10, 14, 20, 255],
+    lineWidthMinPixels: 1.5,
+    pickable: true,
+  });
+}
+
+export interface CuLandProperties {
+  id: string;
+  name: { en: string; th: string; zh: string };
+  kind: "commercial" | "mixed-use" | "athletic" | "park" | "residential" | "healthcare" | "cultural" | "education";
+  operator: string;
+  color: string;
+  describe: string;
+}
+
+export function cuLandsLayer(collection: FeatureCollection<Polygon | MultiPolygon, CuLandProperties>) {
+  return new GeoJsonLayer({
+    id: "cu-lands",
+    data: collection as unknown as FeatureCollection,
+    stroked: true,
+    filled: true,
+    pickable: true,
+    getFillColor: ((f: Feature<Polygon | MultiPolygon, CuLandProperties>) => {
+      const c = hexToRgb(f.properties.color);
+      return [c[0], c[1], c[2], 70] as [number, number, number, number];
+    }) as unknown as [number, number, number, number],
+    getLineColor: ((f: Feature<Polygon | MultiPolygon, CuLandProperties>) => {
+      const c = hexToRgb(f.properties.color);
+      return [c[0], c[1], c[2], 230] as [number, number, number, number];
+    }) as unknown as [number, number, number, number],
+    getLineWidth: 1.5,
+    lineWidthMinPixels: 1.5,
+    extruded: false,
+  });
+}
+
+// ─── Campus building footprints (real OSM data) ──────────────────────────
+// BuildingProperties, LandmarkKind, classifyBuilding, buildingHeightMeters,
+// and finitePositive are imported from ../lib/building (pure, unit-tested).
+export type { BuildingProperties, LandmarkKind };
+
+// Landmark fill colours — one decision per category, legible in dark 3D.
+// Reading guide: red=health, gold=culture, cyan=civic, violet=education,
+//                amber=commerce, steel=industry, teal=office, sand=fabric.
+export const LANDMARK_COLOR: Record<NonNullable<LandmarkKind>, [number, number, number]> = {
+  "ms-generic":  [165, 138, 112],  // warm sand — background residential fabric (20K buildings)
+  residential:   [210, 110,  65],  // terracotta — OSM-tagged houses / apartments
+  commercial:    [245, 158,  11],  // amber — shops, retail, markets, F&B
+  industrial:    [120, 130, 140],  // steel grey — warehouses, factories
+  office:        [ 45, 170, 160],  // teal — offices, banks, post offices
+  hotel:         [251, 191,  36],  // gold — tourism anchor
+  temple:        [253, 224,  71],  // bright gold — cultural backbone
+  church:        [253, 186, 116],  // pale peach — Christian worship
+  mosque:        [134, 239, 172],  // mint green — Islamic worship
+  government:    [ 56, 189, 248],  // sky-400 — city hall + public institutions
+  police:        [ 34, 211, 238],  // cyan — safety infrastructure
+  fire:          [251, 146,  60],  // orange — emergency response
+  hospital:      [239,  68,  68],  // red — health anchor
+  clinic:        [251, 113, 133],  // pink-red — clinics / doctors
+  school:        [167, 139, 250],  // violet — education
+  university:    [196, 181, 253],  // light violet
+  power:         [245, 158,  11],  // amber — EGAT / PEA infrastructure
+  tall:          [125, 211, 252],  // sky-300 — skyline height marker
+};
+
+// Neutral slate for buildings with no known type (OSM `building=yes`, unclassified).
+// Keeping these muted lets the genuinely-typed buildings carry the colour signal —
+// the map now reads by TYPE, not by height.
+export const UNTYPED_COLOR: [number, number, number] = [99, 110, 124];
+
+// On-map legend — the canonical band → colour key, consumed by <BuildingLegend>.
+// Representative bands (some fine OSM categories collapse into one row); order is
+// the display order.
+export const BUILDING_LEGEND: { label: string; color: [number, number, number] }[] = [
+  { label: "Residential", color: LANDMARK_COLOR.residential },
+  { label: "Commercial",  color: LANDMARK_COLOR.commercial },
+  { label: "Office",      color: LANDMARK_COLOR.office },
+  { label: "Industrial",  color: LANDMARK_COLOR.industrial },
+  { label: "Government",  color: LANDMARK_COLOR.government },
+  { label: "Police",      color: LANDMARK_COLOR.police },
+  { label: "Fire",        color: LANDMARK_COLOR.fire },
+  { label: "Hospital",    color: LANDMARK_COLOR.hospital },
+  { label: "School",      color: LANDMARK_COLOR.school },
+  { label: "Temple",      color: LANDMARK_COLOR.temple },
+  { label: "Mosque",      color: LANDMARK_COLOR.mosque },
+  { label: "Hotel",       color: LANDMARK_COLOR.hotel },
+  { label: "Unclassified", color: UNTYPED_COLOR },
+];
+
+/**
+ * Render every municipality building as a filled, tappable 3D box.
+ *
+ * 2D: hairline footprints — landmarks warmer, ordinary buildings dim.
+ * 3D: extruded to real height. Landmarks get their category colour at full
+ *     vibrancy regardless of height. Ordinary buildings stay on the blue
+ *     height-ramp (sky-300 → sky-700). The result: the mayor can read the
+ *     urban topology — the gold temple cluster, amber hotel strip, red
+ *     hospital district — all visible in a single 3D view.
+ * 3DS: ghosted for the substructure (utilities) cutaway view.
+ */
+export function buildingsLayer(
+  collection: FeatureCollection<Polygon | MultiPolygon, BuildingProperties>,
+  options: { extruded?: boolean; ghosted?: boolean } = {},
+) {
+  const extruded = options.extruded ?? false;
+  const ghosted  = options.ghosted  ?? false;
+  const fillA = ghosted ? 32  : undefined; // undefined → per-building alpha
+  const lineA = ghosted ? 110 : 220;
+
+  return new GeoJsonLayer({
+    id: "municipality-buildings",
+    data: collection as unknown as FeatureCollection,
+    // Source GeoJSON is already valid (single FeatureCollection with proper
+    // geometry); skipping normalization saves a full pass over 20k+ features
+    // every time the layer instance is created.
+    _normalize: false,
+    // Stroke is a full second draw pass over 20k+ polygons. In extruded (3D) mode
+    // the lighting already provides depth cues, so we skip the edge pass entirely.
+    // In flat 2D mode we keep it — edges are the only way to distinguish footprints.
+    stroked: !extruded,
+    filled: true,
+    pickable: true,
+    autoHighlight: false,
+    extruded,
+    elevationScale: extruded && !ghosted ? 1.65 : 1,
+    material: extruded && !ghosted
+      ? { ambient: 0.72, diffuse: 0.82, shininess: 24, specularColor: [255, 245, 220] }
+      : false,
+    getFillColor: ((f: Feature<Polygon | MultiPolygon, BuildingProperties>) => {
+      const kind = classifyBuilding(f.properties);
+      const base = kind ? LANDMARK_COLOR[kind] : UNTYPED_COLOR;
+      if (ghosted) {
+        return [base[0], base[1], base[2], 32] as [number, number, number, number];
+      }
+      if (extruded) {
+        // Typed buildings carry their category colour at full vibrancy; untyped
+        // stay neutral so the type signal reads clearly in the 3D massing.
+        return [base[0], base[1], base[2], kind ? 230 : 210] as [number, number, number, number];
+      }
+      // 2D flat view — typed buildings stand out, untyped are dim
+      return [base[0], base[1], base[2], kind ? 130 : 70] as [number, number, number, number];
+    }) as unknown as [number, number, number, number],
+    getLineColor: ((f: Feature<Polygon | MultiPolygon, BuildingProperties>) => {
+      const kind = classifyBuilding(f.properties);
+      if (kind) {
+        const c = LANDMARK_COLOR[kind];
+        return [c[0], c[1], c[2], lineA] as [number, number, number, number];
+      }
+      return f.properties.name
+        ? [14, 165, 233, lineA] as [number, number, number, number]
+        : [15, 23, 42, lineA] as [number, number, number, number];
+    }) as unknown as [number, number, number, number],
+    getLineWidth: ((f: Feature<Polygon | MultiPolygon, BuildingProperties>) =>
+      classifyBuilding(f.properties) ? 1.2 : 0.6) as unknown as number,
+    lineWidthMinPixels: extruded && !ghosted ? 0.7 : 0.5,
+    getElevation: ((f: Feature<Polygon | MultiPolygon, BuildingProperties>) =>
+      buildingHeightMeters(f.properties)) as unknown as number,
+    opacity: ghosted ? 0.35 : 1,
+    updateTriggers: {
+      getFillColor: [extruded, ghosted],
+      getLineColor: [ghosted],
+      getElevation: [extruded, ghosted],
+    },
+  });
+}
+
+/**
+ * Roof cap layer — renders a thin shimmering slab on top of each extruded
+ * building so the tops read as "rooftops" rather than flat cut-offs.
+ *
+ * Heritage types (temple / church / mosque / government) receive:
+ *  • A significantly taller cap (+12 m for sacred buildings, +4 m for civic)
+ *    — this makes their silhouettes read as "pointed / crowned" in the 3D
+ *    skyline, suggesting the chedi/prang/bell-tower that would sit above the
+ *    main structure.  True pitched-roof geometry would need ScenegraphLayer
+ *    + custom GLTF, which is a larger effort.
+ *  • A much brighter, more saturated colour so the gold temple cluster and
+ *    the sky-blue civic strip are immediately readable from above.
+ *
+ * Ordinary buildings get a +0.5 m cap in their height-ramp colour.
+ */
+export function buildingRoofsLayer(
+  collection: FeatureCollection<Polygon | MultiPolygon, BuildingProperties>,
+  options: { maxRoofs?: number; elevationScale?: number } = {},
+) {
+  const maxRoofs = options.maxRoofs ?? 1400;
+  const scale = options.elevationScale ?? 1.65;
+
+  const sorted = [...collection.features]
+    .sort((a, b) => buildingHeightMeters(b.properties) - buildingHeightMeters(a.properties))
+    .slice(0, maxRoofs);
+
+  const roofCollection: FeatureCollection = { type: "FeatureCollection", features: sorted };
+
+  // Per-building roof elevation bonus (meters, before elevationScale is applied)
+  function roofBonus(props: BuildingProperties): number {
+    const kind = classifyBuilding(props);
+    if (kind === "temple" || kind === "church" || kind === "mosque") return 12; // spire crown
+    if (kind === "government" || kind === "police" || kind === "fire")  return  5; // civic parapet
+    if (kind === "hotel" || kind === "hospital")                        return  3; // landmark cap
+    return 0.5;
+  }
+
+  // Heritage roof colours — bright, pure, recognisable at distance
+  const HERITAGE_ROOF: Partial<Record<NonNullable<LandmarkKind>, [number, number, number, number]>> = {
+    temple:     [255, 235,  50, 240],  // blazing gold — chedi, prang
+    church:     [255, 200, 100, 220],  // warm amber — bell tower
+    mosque:     [160, 255, 200, 220],  // mint — minaret
+    government: [ 80, 200, 255, 220],  // bright sky — city hall, court
+    police:     [ 50, 230, 250, 210],  // cyan — police stations
+    fire:       [255, 160,  60, 220],  // orange — fire stations
+    hospital:   [255, 100, 100, 220],  // coral red — hospital crowns
+    hotel:      [255, 220,  80, 210],  // gold — hotel landmark
+  };
+
+  return new GeoJsonLayer({
+    id: "building-roofs",
+    data: roofCollection,
+    // Source GeoJSON is already valid — skip normalization.
+    _normalize: false,
+    stroked: false,
+    filled: true,
+    pickable: false,
+    extruded: true,
+    elevationScale: scale,
+    material: { ambient: 0.90, diffuse: 0.75, shininess: 28, specularColor: [255, 252, 230] },
+    getFillColor: ((f: Feature<Polygon | MultiPolygon, BuildingProperties>) => {
+      const kind = classifyBuilding(f.properties);
+      const heritage = kind ? HERITAGE_ROOF[kind] : undefined;
+      if (heritage) return heritage;
+      const base = kind ? LANDMARK_COLOR[kind] : UNTYPED_COLOR;
+      return [Math.min(base[0] + 30, 255), Math.min(base[1] + 30, 255), Math.min(base[2] + 30, 255), 200] as [number, number, number, number];
+    }) as unknown as [number, number, number, number],
+    getElevation: ((f: Feature<Polygon | MultiPolygon, BuildingProperties>) =>
+      buildingHeightMeters(f.properties) + roofBonus(f.properties)) as unknown as number,
+    opacity: 0.92,
+    // Without updateTriggers, deck.gl falls back to conservative heuristics and
+    // re-runs the elevation/color accessors every time the layer is instantiated.
+    // The accessors are pure functions of feature properties + scale, so we tag
+    // the only inputs that actually change.
+    updateTriggers: {
+      getElevation: [scale],
+    },
+  });
+}
+
+// ─── Underground / substructure PathLayer factories ─────────────────────
+// Re-render utility line geometry at a negative z so we can see the
+// network "buried" beneath the ghosted buildings. Depths are typical Bangkok
+// burial: electricity ~2 m, water ~3 m, drainage ~4 m.
+
+function lineFeaturesAt(
+  collection: FeatureCollection,
+  depthMeters: number,
+): Array<{ path: [number, number, number][]; properties: Record<string, unknown> }> {
+  const out: Array<{ path: [number, number, number][]; properties: Record<string, unknown> }> = [];
+  for (const f of collection.features) {
+    if (f.geometry.type !== "LineString") continue;
+    const coords = (f.geometry.coordinates as [number, number][]).map(
+      (c) => [c[0], c[1], -depthMeters] as [number, number, number],
+    );
+    out.push({ path: coords, properties: (f.properties ?? {}) as Record<string, unknown> });
+  }
+  return out;
+}
+
+export function electricityPathLayer(collection: FeatureCollection) {
+  const paths = lineFeaturesAt(collection, 2);
+  return [
+    new PathLayer({
+      id: "cu-electricity-paths-3ds",
+      data: paths,
+      getPath: (d) => d.path,
+      getColor: (d) =>
+        (d.properties as ElectricityProps).kind === "hv-backbone"
+          ? [245, 158, 11, 255]
+          : [253, 186, 116, 230],
+      getWidth: (d) => ((d.properties as ElectricityProps).kind === "hv-backbone" ? 14 : 8),
+      widthUnits: "pixels",
+      widthMinPixels: 4,
+      pickable: true,
+    }),
+    new TextLayer({
+      id: "cu-electricity-labels-3ds",
+      data: paths.filter((d) => ((d.properties as unknown as ElectricityProps).kind === "hv-backbone" || (d.properties as unknown as ElectricityProps).name)),
+      getPosition: (d) => {
+        const mid = Math.floor(d.path.length / 2);
+        return d.path[mid];
+      },
+      getText: (d) => (d.properties as unknown as ElectricityProps).name || "",
+      getSize: 14,
+      getColor: [245, 158, 11, 240],
+      getAngle: 0,
+      getTextAnchor: "middle",
+      getAlignmentBaseline: "center",
+      billboard: true,
+      fontFamily: "monospace",
+      fontWeight: "bold",
+      parameters: { depthTest: false },
+      pickable: false,
+    }),
+  ];
+}
+
+export function waterPathLayer(collection: FeatureCollection) {
+  const paths = lineFeaturesAt(collection, 3);
+  return [
+    new PathLayer({
+      id: "cu-water-paths-3ds",
+      data: paths,
+      getPath: (d) => d.path,
+      getColor: (d) =>
+        (d.properties as WaterProps).kind === "main"
+          ? [56, 189, 248, 250]
+          : [147, 197, 253, 220],
+      getWidth: (d) => ((d.properties as WaterProps).kind === "main" ? 12 : 7),
+      widthUnits: "pixels",
+      widthMinPixels: 4,
+      pickable: true,
+    }),
+    new TextLayer({
+      id: "cu-water-labels-3ds",
+      data: paths.filter((d) => ((d.properties as unknown as WaterProps).kind === "main" || (d.properties as unknown as WaterProps).name)),
+      getPosition: (d) => {
+        const mid = Math.floor(d.path.length / 2);
+        return d.path[mid];
+      },
+      getText: (d) => {
+        const p = d.properties as unknown as WaterProps;
+        const parts: string[] = [];
+        if (p.name) parts.push(p.name);
+        if (p.diameter) parts.push(`Ø${p.diameter}`);
+        return parts.join(" ");
+      },
+      getSize: 13,
+      getColor: [56, 189, 248, 235],
+      getAngle: 0,
+      getTextAnchor: "middle",
+      getAlignmentBaseline: "center",
+      billboard: true,
+      fontFamily: "monospace",
+      fontWeight: "bold",
+      parameters: { depthTest: false },
+      pickable: false,
+    }),
+  ];
+}
+
+export function drainagePathLayer(collection: FeatureCollection) {
+  const paths = lineFeaturesAt(collection, 4);
+  return [
+    new PathLayer({
+      id: "cu-drainage-paths-3ds",
+      data: paths,
+      getPath: (d) => d.path,
+      getColor: (d) =>
+        (d.properties as DrainageProps).kind === "main"
+          ? [16, 185, 129, 250]
+          : [110, 231, 183, 220],
+      getWidth: (d) => ((d.properties as DrainageProps).kind === "main" ? 14 : 8),
+      widthUnits: "pixels",
+      widthMinPixels: 4,
+      pickable: true,
+    }),
+    new TextLayer({
+      id: "cu-drainage-labels-3ds",
+      data: paths.filter((d) => ((d.properties as unknown as DrainageProps).kind === "main" || (d.properties as unknown as DrainageProps).name)),
+      getPosition: (d) => {
+        const mid = Math.floor(d.path.length / 2);
+        return d.path[mid];
+      },
+      getText: (d) => {
+        const p = d.properties as unknown as DrainageProps;
+        const parts: string[] = [];
+        if (p.name) parts.push(p.name);
+        if (p.diameter) parts.push(`Ø${p.diameter}`);
+        if (p.capacityM3) parts.push(`${p.capacityM3}m³`);
+        return parts.join(" ");
+      },
+      getSize: 13,
+      getColor: [16, 185, 129, 235],
+      getAngle: 0,
+      getTextAnchor: "middle",
+      getAlignmentBaseline: "center",
+      billboard: true,
+      fontFamily: "monospace",
+      fontWeight: "bold",
+      parameters: { depthTest: false },
+      pickable: false,
+    }),
+  ];
+}
+
+export interface BmaPoi {
+  id: string;
+  kind:
+    | "hospital"
+    | "health-center"
+    | "school"
+    | "fire-station"
+    | "police-station"
+    | "park"
+    | "market"
+    | "bma-office"
+    | "flood-gate"
+    | "pump-station"
+    | "cctv"
+    | "bus-stop"
+    | "other";
+  name: string;
+  lat: number;
+  lng: number;
+  description?: string;
+}
+
+const POI_COLORS: Record<BmaPoi["kind"], [number, number, number]> = {
+  hospital:        [239, 68, 68],
+  "health-center": [248, 113, 113],
+  school:          [56, 189, 248],
+  "fire-station":  [251, 146, 60],
+  "police-station":[59, 130, 246],
+  park:            [52, 211, 153],
+  market:          [251, 191, 36],
+  "bma-office":    [168, 162, 158],
+  "flood-gate":    [34, 211, 238],
+  "pump-station":  [125, 211, 252],
+  cctv:            [229, 231, 235],
+  "bus-stop":      [167, 139, 250],
+  other:           [148, 163, 184],
+};
+
+export function bmaPoiLayer(pois: BmaPoi[]) {
+  return new ScatterplotLayer<BmaPoi>({
+    id: "bma-pois",
+    data: pois,
+    getPosition: (p) => [p.lng, p.lat],
+    getRadius: (p) => (p.kind === "hospital" ? 28 : p.kind === "fire-station" || p.kind === "police-station" ? 22 : 14),
+    radiusMinPixels: 4,
+    radiusMaxPixels: 10,
+    getFillColor: (p) => {
+      const c = POI_COLORS[p.kind] ?? [200, 200, 200];
+      return [c[0], c[1], c[2], 230] as [number, number, number, number];
+    },
+    stroked: true,
+    getLineColor: [10, 14, 20, 255],
+    lineWidthMinPixels: 1,
+    pickable: true,
+  });
+}
+
+export function bmaParksLayer(collection: FeatureCollection<Polygon | MultiPolygon, { PARK_NAME_T?: string }>) {
+  return new GeoJsonLayer({
+    id: "bma-parks",
+    data: collection as unknown as FeatureCollection,
+    stroked: true,
+    filled: true,
+    pickable: true,
+    getFillColor: [52, 211, 153, 50],
+    getLineColor: [52, 211, 153, 200],
+    getLineWidth: 0.8,
+    lineWidthMinPixels: 0.5,
+  });
+}
+
+export interface AqStation {
+  id: string;
+  name: string;
+  address: string;
+  pm25: number | null;
+  pm10: number | null;
+  lat: number;
+  lng: number;
+}
+
+export function bmaAqStationsLayer(stations: AqStation[]) {
+  return new ScatterplotLayer<AqStation>({
+    id: "bma-aq-stations",
+    data: stations,
+    getPosition: (s) => [s.lng, s.lat],
+    getRadius: 60,
+    radiusMinPixels: 8,
+    radiusMaxPixels: 16,
+    getFillColor: (s) => {
+      const v = s.pm25 ?? 0;
+      if (v < 12) return [34, 197, 94, 255];
+      if (v < 35) return [250, 204, 21, 255];
+      if (v < 55) return [249, 115, 22, 255];
+      if (v < 150) return [239, 68, 68, 255];
+      return [127, 29, 29, 255];
+    },
+    stroked: true,
+    getLineColor: [10, 14, 20, 255],
+    lineWidthMinPixels: 2,
+    pickable: true,
+  });
+}
+
+/**
+ * Air4Thai PCD stations — official Thai government air-quality monitors inside
+ * Chonburi province. Coloured by PM2.5 (US-EPA bands), labelled with the live
+ * AQI so an operator sees the real sensor readings on the map. Pickable so the
+ * tooltip shows station name + readings.
+ */
+export function air4thaiLayer(stations: AirQualityPoint[]) {
+  return new ScatterplotLayer<AirQualityPoint>({
+    id: "air4thai-stations",
+    data: stations,
+    getPosition: (s) => [s.lng, s.lat],
+    getRadius: 90,
+    radiusMinPixels: 9,
+    radiusMaxPixels: 20,
+    getFillColor: (s) => {
+      const v = s.pm25 ?? -1;
+      if (v < 0) return [148, 163, 184, 200]; // no reading — slate
+      if (v <= 12) return [34, 197, 94, 255];
+      if (v <= 35.4) return [250, 204, 21, 255];
+      if (v <= 55.4) return [249, 115, 22, 255];
+      if (v <= 150.4) return [239, 68, 68, 255];
+      return [127, 29, 29, 255];
+    },
+    stroked: true,
+    getLineColor: [10, 14, 20, 255],
+    lineWidthMinPixels: 2,
+    pickable: true,
+  });
+}
+
+export function cctvLayer(cameras: CctvCamera[]) {
+  return new ScatterplotLayer<CctvCamera>({
+    id: "cctv-cameras",
+    data: cameras,
+    getPosition: (c) => [c.lng, c.lat],
+    getRadius: 24,
+    radiusMinPixels: 4,
+    radiusMaxPixels: 8,
+    getFillColor: [229, 231, 235, 220],
+    stroked: true,
+    getLineColor: [10, 14, 20, 255],
+    lineWidthMinPixels: 1,
+    pickable: true,
+  });
+}
+
+// IconLayer reference, kept so 3D-extruded buildings + vehicle icons can be added later.
+export { IconLayer };
+
+// ─── Surrounding buildings (urban fabric ~1km around campus) ─────────────
+export interface SurroundingBuildingProperties {
+  id: string;
+  name: string | null;
+  nameEn: string | null;
+  nameTh: string | null;
+  building: string;
+  levels: number | null;
+  height: number | null;
+  operator: string | null;
+}
+
+function surroundingBuildingHeightMeters(props: SurroundingBuildingProperties): number {
+  if (props.height) return props.height;
+  if (props.levels) return props.levels * 3.2;
+  return 12;
+}
+
+export function surroundingBuildingsLayer(
+  collection: FeatureCollection<Polygon | MultiPolygon, SurroundingBuildingProperties>,
+  options: { extruded?: boolean; ghosted?: boolean } = {},
+) {
+  const extruded = options.extruded ?? false;
+  const ghosted = options.ghosted ?? false;
+  const fillAlpha = ghosted ? 28 : 0.85;
+  const lineAlpha = ghosted ? 90 : 180;
+
+  return new GeoJsonLayer({
+    id: "surrounding-buildings",
+    data: collection as unknown as FeatureCollection,
+    stroked: true,
+    filled: true,
+    pickable: true,
+    extruded,
+    material: extruded && !ghosted
+      ? { ambient: 0.5, diffuse: 0.6, shininess: 8, specularColor: [200, 200, 220] }
+      : false,
+    getFillColor: ((f: Feature<Polygon | MultiPolygon, SurroundingBuildingProperties>) => {
+      const h = surroundingBuildingHeightMeters(f.properties);
+      // Cooler palette than campus buildings so campus reads as the warm focus
+      if (h >= 100) return [160, 140, 200, ghosted ? fillAlpha : 200];
+      if (h >= 60) return [120, 130, 180, ghosted ? fillAlpha : 185];
+      if (h >= 35) return [90, 110, 150, ghosted ? fillAlpha : 170];
+      return [70, 90, 120, ghosted ? fillAlpha : 155];
+    }) as unknown as [number, number, number, number],
+    getLineColor: ((f: Feature<Polygon | MultiPolygon, SurroundingBuildingProperties>) =>
+      f.properties.name
+        ? ([140, 160, 200, lineAlpha] as [number, number, number, number])
+        : ([90, 110, 140, lineAlpha] as [number, number, number, number])) as unknown as [number, number, number, number],
+    getLineWidth: 0.6,
+    lineWidthMinPixels: 0.5,
+    getElevation: ((f: Feature<Polygon | MultiPolygon, SurroundingBuildingProperties>) =>
+      surroundingBuildingHeightMeters(f.properties)) as unknown as number,
+    opacity: ghosted ? 0.3 : 0.9,
+    updateTriggers: {
+      getFillColor: [extruded, ghosted],
+      getLineColor: [ghosted],
+    },
+  });
+}
+
+// ─── Bangkok district boundaries ─────────────────────────────────────────
+export interface DistrictProperties {
+  id: string;
+  nameTh: string;
+  nameEn: string;
+  code: string;
+  areaKm2: number;
+}
+
+export function districtBoundariesLayer(
+  collection: FeatureCollection<Polygon | MultiPolygon, DistrictProperties>,
+) {
+  return new GeoJsonLayer({
+    id: "bangkok-districts",
+    data: collection as unknown as FeatureCollection,
+    stroked: true,
+    filled: false,
+    pickable: true,
+    getLineColor: [255, 255, 255, 160],
+    getLineWidth: 2,
+    lineWidthMinPixels: 1.5,
+    lineWidthMaxPixels: 3,
+  });
+}
+
+export function districtLabelsLayer(
+  collection: FeatureCollection<Polygon | MultiPolygon, DistrictProperties>,
+) {
+  // Compute centroids for labels
+  const labels = collection.features.map((f) => {
+    let cx = 0, cy = 0, n = 0;
+    const coords = f.geometry.type === "Polygon"
+      ? f.geometry.coordinates[0]
+      : f.geometry.coordinates[0][0];
+    for (const [x, y] of coords) { cx += x; cy += y; n++; }
+    return {
+      position: [cx / n, cy / n, 0] as [number, number, number],
+      text: `${f.properties.nameEn}`,
+      sub: f.properties.nameTh,
+    };
+  });
+  return new TextLayer({
+    id: "bangkok-district-labels",
+    data: labels,
+    getPosition: (d) => d.position,
+    getText: (d) => d.text,
+    getSize: 16,
+    getColor: [255, 255, 255, 200],
+    getAngle: 0,
+    getTextAnchor: "middle",
+    getAlignmentBaseline: "center",
+    billboard: true,
+    fontFamily: "'IBM Plex Sans Condensed', sans-serif",
+    fontWeight: "bold",
+    getBackgroundColor: [0, 0, 0, 120],
+    background: true,
+    parameters: { depthTest: false },
+    pickable: false,
+  });
+}
+
+// ─── Flood-prone areas ───────────────────────────────────────────────────
+export interface FloodAreaProperties {
+  id: string;
+  nameTh: string;
+  nameEn: string;
+  risk: "low" | "medium" | "high";
+  cause: string;
+  frequency: string;
+  lastMajor: string;
+}
+
+const FLOOD_COLORS: Record<FloodAreaProperties["risk"], [number, number, number, number]> = {
+  low:    [250, 204, 21, 70],
+  medium: [245, 158, 11, 90],
+  high:   [239, 68, 68, 110],
+};
+
+export function floodProneAreasLayer(
+  collection: FeatureCollection<Polygon | MultiPolygon, FloodAreaProperties>,
+) {
+  return new GeoJsonLayer({
+    id: "flood-prone-areas",
+    data: collection as unknown as FeatureCollection,
+    stroked: true,
+    filled: true,
+    pickable: true,
+    getFillColor: ((f: Feature<Polygon | MultiPolygon, FloodAreaProperties>) =>
+      FLOOD_COLORS[f.properties.risk] ?? [200, 200, 200, 60]) as unknown as [number, number, number, number],
+    getLineColor: ((f: Feature<Polygon | MultiPolygon, FloodAreaProperties>) => {
+      const c = FLOOD_COLORS[f.properties.risk] ?? [200, 200, 200, 60];
+      return [c[0], c[1], c[2], 200] as [number, number, number, number];
+    }) as unknown as [number, number, number, number],
+    getLineWidth: 1.5,
+    lineWidthMinPixels: 1,
+    getLineDashArray: [4, 3],
+    lineDashJustified: true,
+  });
+}
+
+// ─── Utility layers ──────────────────────────────────────────────────────
+// Electricity, water mains, storm drainage, WiFi survey. Geometry comes from
+// hand-authored GeoJSONs at /geo/cu-electricity|water|drainage|wifi.geojson —
+// see those files for sourcing notes (real substation names verified against
+// the CU-MEA SMART CITY agreement; everything else is realistic
+// approximation along the road network).
+
+interface ElectricityProps {
+  id: string;
+  kind: "substation" | "ring-feeder" | "delivery" | "hv-backbone" | "mv-feeder" | "solar-pv" | "battery-storage";
+  name: string;
+  voltage?: number;
+  capacityMva?: number;
+  capacityKw?: number;
+  capacityMwh?: number;
+  status?: string;
+  describe?: string;
+}
+
+export function electricityLineLayer(collection: FeatureCollection) {
+  // Only LineString features (HV backbone, MV feeder).
+  const fc = {
+    type: "FeatureCollection",
+    features: collection.features.filter((f) => f.geometry.type === "LineString"),
+  } as FeatureCollection;
+  return new GeoJsonLayer({
+    id: "cu-electricity-lines",
+    data: fc,
+    stroked: true,
+    filled: false,
+    pickable: true,
+    getLineColor: ((f: Feature<LineString, ElectricityProps>) =>
+      f.properties.kind === "hv-backbone"
+        ? ([245, 158, 11, 240] as [number, number, number, number]) // amber HV
+        : ([253, 186, 116, 215] as [number, number, number, number])) as unknown as [number, number, number, number],
+    getLineWidth: ((f: Feature<LineString, ElectricityProps>) =>
+      f.properties.kind === "hv-backbone" ? 5 : 2.5) as unknown as number,
+    lineWidthMinPixels: 2,
+    lineWidthMaxPixels: 6,
+  });
+}
+
+export function electricityNodeLayer(collection: FeatureCollection) {
+  const points = collection.features.filter((f) => f.geometry.type === "Point");
+  return new ScatterplotLayer({
+    id: "cu-electricity-nodes",
+    data: points,
+    getPosition: ((f: Feature<Point, ElectricityProps>) =>
+      f.geometry.coordinates) as unknown as [number, number],
+    getRadius: ((f: Feature<Point, ElectricityProps>) => {
+      const k = f.properties.kind;
+      if (k === "substation") return 90;
+      if (k === "delivery") return 60;
+      if (k === "battery-storage") return 50;
+      if (k === "solar-pv") return 45;
+      return 35;
+    }) as unknown as number,
+    radiusMinPixels: 5,
+    radiusMaxPixels: 14,
+    getFillColor: ((f: Feature<Point, ElectricityProps>) => {
+      const k = f.properties.kind;
+      if (k === "substation") return [245, 158, 11, 240]; // amber
+      if (k === "delivery") return [251, 191, 36, 220];
+      if (k === "battery-storage") return [167, 139, 250, 230]; // violet
+      if (k === "solar-pv") return [250, 204, 21, 230]; // yellow
+      return [253, 186, 116, 220];
+    }) as unknown as [number, number, number, number],
+    stroked: true,
+    getLineColor: [10, 14, 20, 255],
+    lineWidthMinPixels: 1.5,
+    pickable: true,
+  });
+}
+
+interface WaterProps {
+  id: string;
+  kind: "supply-point" | "main" | "lateral" | "fire-hydrant";
+  diameter?: number;
+  status?: string;
+  name?: string;
+}
+
+export function waterLineLayer(collection: FeatureCollection) {
+  const fc = {
+    type: "FeatureCollection",
+    features: collection.features.filter((f) => f.geometry.type === "LineString"),
+  } as FeatureCollection;
+  return new GeoJsonLayer({
+    id: "cu-water-lines",
+    data: fc,
+    stroked: true,
+    filled: false,
+    pickable: true,
+    getLineColor: ((f: Feature<LineString, WaterProps>) =>
+      f.properties.kind === "main"
+        ? ([56, 189, 248, 230] as [number, number, number, number]) // cyan main
+        : ([147, 197, 253, 200] as [number, number, number, number])) as unknown as [number, number, number, number],
+    getLineWidth: ((f: Feature<LineString, WaterProps>) =>
+      f.properties.kind === "main" ? 4 : 2) as unknown as number,
+    lineWidthMinPixels: 1.5,
+    lineWidthMaxPixels: 5,
+  });
+}
+
+export function waterNodeLayer(collection: FeatureCollection) {
+  const points = collection.features.filter((f) => f.geometry.type === "Point");
+  return new ScatterplotLayer({
+    id: "cu-water-nodes",
+    data: points,
+    getPosition: ((f: Feature<Point, WaterProps>) => f.geometry.coordinates) as unknown as [number, number],
+    getRadius: 40,
+    radiusMinPixels: 4,
+    radiusMaxPixels: 10,
+    getFillColor: ((f: Feature<Point, WaterProps>) =>
+      f.properties.kind === "supply-point"
+        ? ([56, 189, 248, 240] as [number, number, number, number])
+        : ([147, 197, 253, 230] as [number, number, number, number])) as unknown as [number, number, number, number],
+    stroked: true,
+    getLineColor: [10, 14, 20, 255],
+    lineWidthMinPixels: 1.5,
+    pickable: true,
+  });
+}
+
+interface DrainageProps {
+  id: string;
+  kind: "main" | "feeder" | "retention-basin" | "outfall" | "pump-station";
+  diameter?: number;
+  capacityM3?: number;
+  flow?: string;
+  status?: string;
+  name?: string;
+}
+
+export function drainageLineLayer(collection: FeatureCollection) {
+  const fc = {
+    type: "FeatureCollection",
+    features: collection.features.filter((f) => f.geometry.type === "LineString"),
+  } as FeatureCollection;
+  return new GeoJsonLayer({
+    id: "cu-drainage-lines",
+    data: fc,
+    stroked: true,
+    filled: false,
+    pickable: true,
+    getLineColor: ((f: Feature<LineString, DrainageProps>) =>
+      f.properties.kind === "main"
+        ? ([16, 185, 129, 230] as [number, number, number, number]) // emerald main
+        : ([110, 231, 183, 200] as [number, number, number, number])) as unknown as [number, number, number, number],
+    getLineWidth: ((f: Feature<LineString, DrainageProps>) =>
+      f.properties.kind === "main" ? 5 : 2.5) as unknown as number,
+    lineWidthMinPixels: 2,
+    lineWidthMaxPixels: 6,
+  });
+}
+
+export function drainageNodeLayer(collection: FeatureCollection) {
+  const points = collection.features.filter((f) => f.geometry.type === "Point");
+  return new ScatterplotLayer({
+    id: "cu-drainage-nodes",
+    data: points,
+    getPosition: ((f: Feature<Point, DrainageProps>) => f.geometry.coordinates) as unknown as [number, number],
+    getRadius: ((f: Feature<Point, DrainageProps>) =>
+      f.properties.kind === "retention-basin" ? 110 : 50) as unknown as number,
+    radiusMinPixels: 5,
+    radiusMaxPixels: 16,
+    getFillColor: ((f: Feature<Point, DrainageProps>) => {
+      const k = f.properties.kind;
+      if (k === "retention-basin") return [16, 185, 129, 220];
+      if (k === "outfall") return [56, 189, 248, 230];
+      if (k === "pump-station") return [110, 231, 183, 230];
+      return [16, 185, 129, 220];
+    }) as unknown as [number, number, number, number],
+    stroked: true,
+    getLineColor: [10, 14, 20, 255],
+    lineWidthMinPixels: 1.5,
+    pickable: true,
+  });
+}
+
+// ─── WiFi survey heatmap + points ────────────────────────────────────────
+
+interface WifiProps {
+  id: string;
+  name: string;
+  mbps: number;
+  rttMs?: number;
+  ssid?: string;
+  source?: string;
+}
+
+// WiFi heatmap, weighted by Mbps (faster = stronger contribution)
+export function wifiHeatmapLayer(collection: FeatureCollection) {
+  const features = collection.features.filter(
+    (f): f is Feature<Point, WifiProps> => f.geometry.type === "Point",
+  );
+  return new HeatmapLayer<Feature<Point, WifiProps>>({
+    id: "cu-wifi-heat",
+    data: features,
+    getPosition: (f) => f.geometry.coordinates as [number, number],
+    getWeight: (f) => f.properties.mbps / 200,
+    radiusPixels: 80,
+    intensity: 1.2,
+    threshold: 0.05,
+    aggregation: "MEAN",
+    colorRange: [
+      [239, 68, 68, 0],
+      [239, 68, 68, 120],
+      [245, 158, 11, 180],
+      [56, 189, 248, 220],
+      [34, 197, 94, 240],
+    ],
+  });
+}
+
+/** Pulsing dot at the operator's GPS fix. Two concentric circles + an
+ *  accuracy disk underneath. */
+export function devicePresenceLayer(
+  lng: number,
+  lat: number,
+  accuracyM: number | null,
+) {
+  const data = [{ lng, lat, accuracyM }];
+  // Convert accuracy metres to a rough pixel radius at zoom 16 (campus zoom).
+  // deck.gl Scatterplot uses `radius` in meters when `radiusUnits === "meters"`
+  // (the default for this layer). We pass the actual metre value.
+  return [
+    new ScatterplotLayer({
+      id: "device-accuracy",
+      data,
+      getPosition: (d) => [d.lng, d.lat] as [number, number],
+      getRadius: () => accuracyM ?? 30,
+      radiusUnits: "meters",
+      radiusMinPixels: 8,
+      radiusMaxPixels: 240,
+      getFillColor: [56, 189, 248, 50],
+      stroked: false,
+      pickable: false,
+    }),
+    new ScatterplotLayer({
+      id: "device-dot",
+      data,
+      getPosition: (d) => [d.lng, d.lat] as [number, number],
+      getRadius: 16,
+      radiusUnits: "pixels",
+      getFillColor: [56, 189, 248, 240],
+      stroked: true,
+      getLineColor: [255, 255, 255, 240],
+      lineWidthUnits: "pixels",
+      getLineWidth: 2,
+      pickable: false,
+    }),
+  ];
+}
+
+export function wifiPointsLayer(collection: FeatureCollection) {
+  const features = collection.features.filter((f) => f.geometry.type === "Point");
+  return new ScatterplotLayer({
+    id: "cu-wifi-points",
+    data: features,
+    getPosition: ((f: Feature<Point, WifiProps>) =>
+      f.geometry.coordinates) as unknown as [number, number],
+    getRadius: 22,
+    radiusMinPixels: 4,
+    radiusMaxPixels: 8,
+    getFillColor: ((f: Feature<Point, WifiProps>) => {
+      const m = f.properties.mbps;
+      if (m >= 120) return [34, 197, 94, 230];   // green — fast
+      if (m >= 80)  return [56, 189, 248, 230];  // cyan — ok
+      if (m >= 50)  return [245, 158, 11, 230];  // amber — meh
+      return [239, 68, 68, 230];                  // red — slow
+    }) as unknown as [number, number, number, number],
+    stroked: true,
+    getLineColor: [10, 14, 20, 255],
+    lineWidthMinPixels: 1,
+    pickable: true,
+  });
+}
+
+/**
+ * CU 2015 paper map as a georeferenced raster overlay.
+ * Bounds tuned to the actual campus extent (Bunthadthong → Ratchadamri,
+ * Rama 1 → Si Lom). Refine the corner coordinates if alignment drifts.
+ */
+export function cuMapOverlay(
+  url = "/maps/cu-map-2015.png",
+  bounds: [number, number, number, number] = [100.5176, 13.7270, 100.5455, 13.7475],
+  opacity = 0.85,
+) {
+  return new BitmapLayer({
+    id: "cu-map-2015",
+    image: url,
+    bounds,
+    opacity,
+    pickable: false,
+    desaturate: 0,
+    // depthTest off so the bitmap stays glued to the ground when buildings
+    // are extruded — otherwise the building bottoms occlude it and the map
+    // appears to vanish at pitch > 0.
+    parameters: { depthTest: false },
+  });
+}
+
+/** NASA GIBS WMTS tile layer — free, no API key. */
+/**
+ * NASA GIBS global tile layer (MODIS true-color, NDVI, LST, flood).
+ * Always visible when called — the caller decides whether to add it to
+ * the deck.gl layer list based on enabledLayers. The zoom restriction was
+ * removed: if the user explicitly turns a satellite layer on, they should
+ * see it. Layer descriptions in the palette already say "regional zoom".
+ */
+// GIBS product → (format, max-level) heuristic. RGB / true-color products
+// ship as JPG at Level 9; thematic palettes (NDVI, LST, AOD, NO2, IMERG)
+// ship as PNG at lower max levels.
+function inferFormat(productId: string): "jpg" | "png" {
+  if (productId.includes("CorrectedReflectance")) return "jpg";
+  if (productId.includes("TrueColor")) return "jpg";
+  if (productId.includes("DayNightBand")) return "png";
+  return "png";
+}
+function inferLevel(productId: string): 6 | 7 | 8 | 9 {
+  if (productId.includes("IMERG")) return 6;
+  if (productId.includes("OMI_") || productId.includes("AOD")) return 6;
+  if (productId.includes("Land_Surface_Temp")) return 7;
+  if (productId.includes("DayNightBand")) return 8;
+  return 9;
+}
+
+interface GibsOpts {
+  /** "jpg" for true-color / RGB products, "png" for thematic / index products. */
+  format?: "jpg" | "png";
+  /** Tile matrix max level: 9 for high-res, 7-8 for thematic, 6 for IMERG / OMI. */
+  level?: 6 | 7 | 8 | 9;
+}
+export function gibsLayer(
+  productId: string,
+  date?: string,
+  opacity = 0.6,
+  opts: GibsOpts = {},
+) {
+  const dateStr = date ?? new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const format = opts.format ?? inferFormat(productId);
+  const level = opts.level ?? inferLevel(productId);
+  return new TileLayer({
+    id: `gibs-${productId}`,
+    data:
+      `https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/${productId}/default/${dateStr}` +
+      `/GoogleMapsCompatible_Level${level}/{z}/{y}/{x}.${format}`,
+    minZoom: 0,
+    maxZoom: level,
+    tileSize: 256,
+    opacity,
+    renderSubLayers: (props) => {
+      const { boundingBox } = props.tile as unknown as {
+        boundingBox: [[number, number], [number, number]];
+      };
+      const [[w, s], [e, n]] = boundingBox;
+      return new BitmapLayer({
+        ...props,
+        data: undefined,
+        image: props.data as unknown as string,
+        bounds: [w, s, e, n],
+      });
+    },
+  });
+}
+
+/** Esri World Imagery — high-resolution satellite, publicly accessible. */
+export function esriSatelliteLayer(opacity = 0.9) {
+  return new TileLayer({
+    id: "satellite-esri",
+    data: "https://services.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+    minZoom: 0,
+    maxZoom: 19,
+    tileSize: 256,
+    opacity,
+    renderSubLayers: (props) => {
+      const { boundingBox } = props.tile as unknown as {
+        boundingBox: [[number, number], [number, number]];
+      };
+      const [[w, s], [e, n]] = boundingBox;
+      return new BitmapLayer({
+        ...props,
+        data: undefined,
+        image: props.data as unknown as string,
+        bounds: [w, s, e, n],
+      });
+    },
+  });
+}
+
+/** OpenTopoMap terrain — for elevation/contour context. Lower max zoom (17). */
+export function openTopoTerrainLayer(opacity = 0.6) {
+  return new TileLayer({
+    id: "satellite-terrain",
+    data: [
+      "https://a.tile.opentopomap.org/{z}/{x}/{y}.png",
+      "https://b.tile.opentopomap.org/{z}/{x}/{y}.png",
+      "https://c.tile.opentopomap.org/{z}/{x}/{y}.png",
+    ],
+    minZoom: 0,
+    maxZoom: 17,
+    tileSize: 256,
+    opacity,
+    renderSubLayers: (props) => {
+      const { boundingBox } = props.tile as unknown as {
+        boundingBox: [[number, number], [number, number]];
+      };
+      const [[w, s], [e, n]] = boundingBox;
+      return new BitmapLayer({
+        ...props,
+        data: undefined,
+        image: props.data as unknown as string,
+        bounds: [w, s, e, n],
+      });
+    },
+  });
+}
+
+/**
+ * Himawari-9 Band 13 (clean infrared) via NASA GIBS WMS. Geostationary cloud
+ * loop, 10-min cadence — best for spotting incoming storms over Bangkok.
+ * Uses WMS (not WMTS) because GIBS only exposes Himawari that way.
+ */
+export function himawariInfraredLayer(opacity = 0.55) {
+  const today = new Date().toISOString().slice(0, 10);
+  // GIBS WMS template — single tile per request, but TileLayer drives the bbox.
+  const wmsBase =
+    "https://gibs.earthdata.nasa.gov/wms/epsg3857/best/wms.cgi?" +
+    "SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap&FORMAT=image/png&TRANSPARENT=TRUE&" +
+    `LAYERS=Himawari_AHI_Band13_Clean_Infrared&TIME=${today}&CRS=EPSG:3857&WIDTH=256&HEIGHT=256`;
+  return new TileLayer({
+    id: "satellite-himawari",
+    minZoom: 0,
+    maxZoom: 9,
+    tileSize: 256,
+    opacity,
+    getTileData: async ({ bbox }) => {
+      // bbox in Web Mercator metres. GIBS expects BBOX=minx,miny,maxx,maxy.
+      const { west, south, east, north } = bbox as { west: number; south: number; east: number; north: number };
+      // Convert lat/lng to mercator metres (deck.gl gives lng/lat).
+      const R = 6378137;
+      const toMx = (lng: number) => (lng * Math.PI * R) / 180;
+      const toMy = (lat: number) => Math.log(Math.tan((Math.PI * (90 + lat)) / 360)) * R;
+      const url = `${wmsBase}&BBOX=${toMx(west)},${toMy(south)},${toMx(east)},${toMy(north)}`;
+      try {
+        const res = await fetch(url);
+        if (!res.ok) return null;
+        const blob = await res.blob();
+        if (typeof createImageBitmap === "function") {
+          return await createImageBitmap(blob);
+        }
+        // Old Safari without createImageBitmap — skip tile rather than leak blob URLs
+        return null;
+      } catch {
+        return null;
+      }
+    },
+    renderSubLayers: (props) => {
+      const { boundingBox } = props.tile as unknown as {
+        boundingBox: [[number, number], [number, number]];
+      };
+      const [[w, s], [e, n]] = boundingBox;
+      return new BitmapLayer({
+        ...props,
+        data: undefined,
+        image: props.data as unknown as ImageBitmap,
+        bounds: [w, s, e, n],
+      });
+    },
+  });
+}
+
+// ─── BTS / MRT line geometry ────────────────────────────────────────────
+// Polyline tracks for the elevated/underground rail network around the
+// campus. Coloured per system: BTS Sukhumvit/Silom (greens), MRT Blue
+// (blue), Airport/Gold lines (warm). Lines render below station scatter.
+
+export function transitLinesLayer(collection: FeatureCollection<LineString, TransitLineProps>) {
+  return new GeoJsonLayer({
+    id: "transit-lines",
+    data: collection as unknown as FeatureCollection,
+    stroked: true,
+    filled: false,
+    pickable: true,
+    getLineColor: ((f: Feature<LineString, TransitLineProps>) => {
+      const c = hexToRgb(f.properties.color);
+      return [c[0], c[1], c[2], 230] as [number, number, number, number];
+    }) as unknown as [number, number, number, number],
+    getLineWidth: 5,
+    lineWidthUnits: "pixels",
+    lineWidthMinPixels: 2,
+    lineWidthMaxPixels: 7,
+  });
+}
+
+// ─── Campus gates / entrances ───────────────────────────────────────────
+// Every barrier=gate / barrier=lift_gate / entrance=* node on or near the
+// campus perimeter. Named gates (ประตูพญาไท 1/2/3, อังรีดูนังต์ 1/2, ประตูดำ)
+// render larger and amber; unnamed minor gates stay small and grey.
+
+export function campusGatesLayer(collection: FeatureCollection<Point, GateProps>) {
+  return new ScatterplotLayer({
+    id: "campus-gates",
+    data: collection.features,
+    getPosition: ((f: Feature<Point, GateProps>) => f.geometry.coordinates) as unknown as [number, number],
+    getRadius: ((f: Feature<Point, GateProps>) => (f.properties.named ? 36 : 18)) as unknown as number,
+    radiusMinPixels: 4,
+    radiusMaxPixels: 12,
+    getFillColor: ((f: Feature<Point, GateProps>) =>
+      f.properties.named
+        ? [251, 191, 36, 240]
+        : [148, 163, 184, 220]) as unknown as [number, number, number, number],
+    stroked: true,
+    getLineColor: [10, 14, 20, 255],
+    lineWidthMinPixels: 1.5,
+    pickable: true,
+  });
+}
+
+// ─── Road network — classified by priority ──────────────────────────────
+// Renders the OSM road network as a visible map element. Width + colour
+// scale by `priority`: motorway/primary = thick warm, secondary = medium
+// cyan, tertiary = thin cyan, residential/lane = thinnest neutral.
+
+const ROAD_STYLE: Record<number, { color: [number, number, number]; width: number }> = {
+  6: { color: [251, 113, 133], width: 4.5 },  // motorway
+  5: { color: [251, 146, 60],  width: 3.5 },  // primary / secondary
+  4: { color: [125, 211, 252], width: 2.5 },  // tertiary
+  3: { color: [148, 163, 184], width: 1.5 },  // residential / lane
+  2: { color: [148, 163, 184], width: 1.0 },  // unclassified / minor
+};
+
+export function roadNetworkLayer(collection: FeatureCollection<LineString, ClassifiedRoadProps>) {
+  return new GeoJsonLayer({
+    id: "road-network",
+    data: collection as unknown as FeatureCollection,
+    stroked: true,
+    filled: false,
+    pickable: true,
+    getLineColor: ((f: Feature<LineString, ClassifiedRoadProps>) => {
+      const s = ROAD_STYLE[f.properties.priority] ?? ROAD_STYLE[3];
+      return [s.color[0], s.color[1], s.color[2], 180] as [number, number, number, number];
+    }) as unknown as [number, number, number, number],
+    getLineWidth: ((f: Feature<LineString, ClassifiedRoadProps>) => {
+      const s = ROAD_STYLE[f.properties.priority] ?? ROAD_STYLE[3];
+      return s.width;
+    }) as unknown as number,
+    lineWidthUnits: "pixels",
+    lineWidthMinPixels: 0.5,
+    lineWidthMaxPixels: 6,
+  });
+}
+
+// ─── Neighborhood tall buildings (≥30 m) ────────────────────────────────
+// Skyline context — the towers around Pathumwan / Silom / Ratchaprasong.
+// Cooler palette than the campus buildings so the campus visually pops.
+
+export function neighborhoodBuildingsLayer(
+  collection: FeatureCollection<Polygon | MultiPolygon, NeighborhoodBuildingProps>,
+  options: { extruded?: boolean; ghosted?: boolean } = {},
+) {
+  const extruded = options.extruded ?? false;
+  const ghosted = options.ghosted ?? false;
+
+  const colorFor = (h: number): [number, number, number, number] => {
+    const alpha = ghosted ? 32 : extruded ? 215 : 70;
+    if (h >= 150) return [186, 230, 253, alpha]; // supertall — pale sky
+    if (h >= 80)  return [125, 211, 252, alpha];
+    if (h >= 50)  return [56, 189, 248,  alpha];
+    return         [71, 85, 105,    alpha];
+  };
+
+  return new GeoJsonLayer({
+    id: "neighborhood-buildings",
+    data: collection as unknown as FeatureCollection,
+    stroked: true,
+    filled: true,
+    pickable: true,
+    extruded,
+    material: extruded && !ghosted
+      ? { ambient: 0.55, diffuse: 0.65, shininess: 8, specularColor: [200, 220, 255] }
+      : false,
+    getFillColor: ((f: Feature<Polygon | MultiPolygon, NeighborhoodBuildingProps>) =>
+      colorFor(f.properties.height)) as unknown as [number, number, number, number],
+    getLineColor: [125, 211, 252, ghosted ? 90 : 200],
+    getLineWidth: 0.6,
+    lineWidthMinPixels: 0.4,
+    getElevation: ((f: Feature<Polygon | MultiPolygon, NeighborhoodBuildingProps>) =>
+      f.properties.height) as unknown as number,
+    opacity: ghosted ? 0.35 : 1,
+    updateTriggers: {
+      getFillColor: [extruded, ghosted],
+    },
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// MARITIME LAYERS
+// ═══════════════════════════════════════════════════════════════════════
+
+export interface AisVessel {
+  mmsi: string;
+  name: string | null;
+  lat: number;
+  lng: number;
+  course?: number;
+  speed?: number;
+  type?: string;
+  flag?: string;
+  lastUpdate?: string;
+}
+
+export interface DatagoPoint {
+  id: string;
+  name: string;
+  nameEn?: string;
+  category: string;
+  lat: number;
+  lng: number;
+  source: string;
+  attribution?: string;
+}
+
+// OpenSeaMap raster tile overlay — shipping lanes, depth, anchorages
+export function maritimeOverlayLayer() {
+  return new TileLayer({
+    id: "maritime-overlay",
+    data: "https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png",
+    minZoom: 0,
+    maxZoom: 18,
+    tileSize: 256,
+    pickable: false,
+    opacity: 0.85,
+    renderSubLayers: (props) => {
+      const { boundingBox } = props.tile as unknown as {
+        boundingBox: [[number, number], [number, number]];
+      };
+      const [[w, s], [e, n]] = boundingBox;
+      return new BitmapLayer({
+        ...props,
+        data: undefined,
+        image: props.data as unknown as string,
+        bounds: [w, s, e, n],
+      });
+    },
+  });
+}
+
+// Port infrastructure — polygons (harbour landuse, piers, breakwaters)
+export function portInfrastructureLayer(collection: FeatureCollection<Polygon | MultiPolygon | LineString, Record<string, unknown>>) {
+  return new GeoJsonLayer({
+    id: "port-infrastructure",
+    data: collection,
+    pickable: true,
+    stroked: true,
+    filled: true,
+    getFillColor: [245, 158, 11, 70],
+    getLineColor: [245, 158, 11, 220],
+    getLineWidth: 2,
+    lineWidthMinPixels: 1,
+  });
+}
+
+// Ferry terminals — point markers
+export function ferryTerminalsLayer(collection: FeatureCollection<Point, Record<string, unknown>>) {
+  const features = collection.features.filter((f) => f.geometry.type === "Point");
+  return new ScatterplotLayer<Feature<Point, Record<string, unknown>>>({
+    id: "ferry-terminals",
+    data: features,
+    pickable: true,
+    radiusUnits: "pixels",
+    getPosition: (f) => f.geometry.coordinates as [number, number],
+    getRadius: 7,
+    getFillColor: [251, 191, 36, 230],
+    getLineColor: [255, 255, 255, 180],
+    stroked: true,
+    lineWidthMinPixels: 1.5,
+  });
+}
+
+// Navigation aids — lighthouses, beacons, buoys
+export function navigationAidsLayer(collection: FeatureCollection<Point, Record<string, unknown>>) {
+  const features = collection.features.filter((f) => f.geometry.type === "Point");
+  return new ScatterplotLayer<Feature<Point, Record<string, unknown>>>({
+    id: "navigation-aids",
+    data: features,
+    pickable: true,
+    radiusUnits: "pixels",
+    getPosition: (f) => f.geometry.coordinates as [number, number],
+    getRadius: 6,
+    getFillColor: (f) => {
+      const t = String(f.properties?.["man_made"] ?? f.properties?.["seamark:type"] ?? "");
+      if (t === "lighthouse") return [250, 204, 21, 240];
+      if (t.includes("buoy")) return [56, 189, 248, 220];
+      return [250, 204, 21, 200];
+    },
+    getLineColor: [255, 255, 255, 200],
+    stroked: true,
+    lineWidthMinPixels: 1.5,
+  });
+}
+
+// AIS vessels — live ship positions
+const VESSEL_COLOR: Record<string, [number, number, number]> = {
+  cargo:     [16, 185, 129],   // green
+  tanker:    [239, 68, 68],    // red
+  passenger: [56, 189, 248],   // blue
+  fishing:   [251, 191, 36],   // amber
+  pleasure:  [167, 139, 250],  // purple
+  tug:       [122, 132, 151],  // grey
+  unknown:   [156, 163, 175],  // neutral
+};
+
+export function aisVesselsLayer(vessels: AisVessel[]) {
+  return new ScatterplotLayer<AisVessel>({
+    id: "ais-vessels",
+    data: vessels,
+    pickable: true,
+    radiusUnits: "pixels",
+    getPosition: (v) => [v.lng, v.lat],
+    getRadius: 5,
+    getFillColor: (v) => {
+      const t = (v.type ?? "unknown").toLowerCase();
+      for (const k of Object.keys(VESSEL_COLOR)) if (t.includes(k)) return [...VESSEL_COLOR[k], 230] as [number, number, number, number];
+      return [...VESSEL_COLOR.unknown, 200] as [number, number, number, number];
+    },
+    getLineColor: [255, 255, 255, 180],
+    stroked: true,
+    lineWidthMinPixels: 1,
+  });
+}
+
+// data.go.th points — government POI markers
+const DATAGO_COLOR: Record<string, [number, number, number]> = {
+  school:    [167, 139, 250],
+  hospital:  [239, 68, 68],
+  health:    [251, 113, 133],
+  temple:    [251, 191, 36],
+  market:    [16, 185, 129],
+  office:    [56, 189, 248],
+  default:   [192, 132, 252],
+};
+
+export function datagoPointsLayer(points: DatagoPoint[]) {
+  return new ScatterplotLayer<DatagoPoint>({
+    id: "datago-points",
+    data: points,
+    pickable: true,
+    radiusUnits: "pixels",
+    getPosition: (p) => [p.lng, p.lat],
+    getRadius: 5,
+    getFillColor: (p) => {
+      const cat = p.category.toLowerCase();
+      for (const k of Object.keys(DATAGO_COLOR)) if (cat.includes(k)) return [...DATAGO_COLOR[k], 220] as [number, number, number, number];
+      return [...DATAGO_COLOR.default, 200] as [number, number, number, number];
+    },
+    getLineColor: [255, 255, 255, 180],
+    stroked: true,
+    lineWidthMinPixels: 1,
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// DISTANCE GRID (1 / 5 / 10 km rings from municipality centroid)
+// Useful for: response-time radii, evacuation planning, ferry reach, AIS
+// proximity, mayor's "I can be there in X minutes" framing.
+// ═══════════════════════════════════════════════════════════════════════
+
+import { PolygonLayer } from "@deck.gl/layers";
+
+const KM_RING_COLORS: Record<number, [number, number, number, number]> = {
+  1:  [14, 165, 233, 220],  // cerulean
+  5:  [56, 189, 248, 180],  // sky-400
+  10: [125, 211, 252, 140], // sky-300
+};
+
+/** Build a ring polygon at `radiusKm` from [lng, lat]. 64-segment circle. */
+function ringAt(lng: number, lat: number, radiusKm: number): [number, number][] {
+  const segs = 96;
+  const earthR = 6371;
+  const out: [number, number][] = [];
+  for (let i = 0; i <= segs; i++) {
+    const brg = (i * 2 * Math.PI) / segs;
+    const dr = radiusKm / earthR;
+    const lat1 = (lat * Math.PI) / 180;
+    const lng1 = (lng * Math.PI) / 180;
+    const lat2 = Math.asin(Math.sin(lat1) * Math.cos(dr) + Math.cos(lat1) * Math.sin(dr) * Math.cos(brg));
+    const lng2 = lng1 + Math.atan2(
+      Math.sin(brg) * Math.sin(dr) * Math.cos(lat1),
+      Math.cos(dr) - Math.sin(lat1) * Math.sin(lat2),
+    );
+    out.push([(lng2 * 180) / Math.PI, (lat2 * 180) / Math.PI]);
+  }
+  return out;
+}
+
+export function distanceGridLayer(
+  center: [number, number],
+  radiiKm: number[] = [1, 5, 10],
+) {
+  const rings = radiiKm.map((km) => ({
+    km,
+    contour: ringAt(center[0], center[1], km),
+  }));
+  return new PolygonLayer<{ km: number; contour: [number, number][] }>({
+    id: "distance-grid",
+    data: rings,
+    pickable: false,
+    filled: false,
+    stroked: true,
+    getPolygon: (d) => d.contour,
+    getLineColor: (d) => KM_RING_COLORS[d.km] ?? [148, 163, 184, 160],
+    getLineWidth: (d) => (d.km === 10 ? 2.5 : d.km === 5 ? 2 : 1.5),
+    lineWidthUnits: "pixels",
+    lineWidthMinPixels: 1,
+  });
+}
+
+// Text labels for each ring
+export function distanceGridLabelsLayer(
+  center: [number, number],
+  radiiKm: number[] = [1, 5, 10],
+) {
+  // Place each label slightly north-east of the centroid at radius
+  const labels = radiiKm.map((km) => {
+    const earthR = 6371;
+    const dr = km / earthR;
+    const brg = Math.PI / 4; // 45° NE
+    const lat1 = (center[1] * Math.PI) / 180;
+    const lng1 = (center[0] * Math.PI) / 180;
+    const lat2 = Math.asin(Math.sin(lat1) * Math.cos(dr) + Math.cos(lat1) * Math.sin(dr) * Math.cos(brg));
+    const lng2 = lng1 + Math.atan2(
+      Math.sin(brg) * Math.sin(dr) * Math.cos(lat1),
+      Math.cos(dr) - Math.sin(lat1) * Math.sin(lat2),
+    );
+    return { km, position: [(lng2 * 180) / Math.PI, (lat2 * 180) / Math.PI] as [number, number] };
+  });
+  return new TextLayer<{ km: number; position: [number, number] }>({
+    id: "distance-grid-labels",
+    data: labels,
+    pickable: false,
+    getPosition: (d) => d.position,
+    getText: (d) => `${d.km} km`,
+    getSize: 11,
+    sizeUnits: "pixels",
+    getColor: (d) => KM_RING_COLORS[d.km] ?? [200, 220, 240, 220],
+    fontFamily: "IBM Plex Mono, monospace",
+    fontWeight: 600,
+    getTextAnchor: "start",
+    getAlignmentBaseline: "bottom",
+    background: true,
+    backgroundPadding: [4, 2],
+    getBackgroundColor: [3, 16, 31, 220],
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// CIVIC + WATERWAYS — consistent category palette + hover tooltips
+// ═══════════════════════════════════════════════════════════════════════
+
+export interface CivicPoint {
+  kind: CivicKind;
+  name?: string;
+  nameTh?: string;
+  nameEn?: string;
+}
+export type CivicKind =
+  | "hospital" | "clinic" | "pharmacy"
+  | "school" | "university" | "kindergarten"
+  | "police" | "fire"
+  | "government" | "courthouse" | "post"
+  | "temple-buddhist" | "church" | "mosque"
+  | "market" | "bus-station" | "ferry"
+  | "power-substation" | "water-works" | "wastewater"
+  | "other";
+
+// Shared category palette — coded by colour family so the legend is
+// learnable across the whole dashboard. Health = red family; Education
+// = violet; Safety = amber/orange; Government = cerulean; Religion =
+// gold; Utility = teal; Transport = sky.
+export const CIVIC_PALETTE: Record<CivicKind, { color: [number, number, number]; glyph: string; label: string }> = {
+  hospital:         { color: [239, 68, 68],  glyph: "✚", label: "Hospital" },
+  clinic:           { color: [251, 113, 133], glyph: "✚", label: "Clinic" },
+  pharmacy:         { color: [253, 164, 175], glyph: "Rx", label: "Pharmacy" },
+  school:           { color: [167, 139, 250], glyph: "🅢", label: "School" },
+  university:       { color: [196, 181, 253], glyph: "Ⓤ", label: "University" },
+  kindergarten:     { color: [221, 214, 254], glyph: "Ⓚ", label: "Kindergarten" },
+  police:           { color: [56, 189, 248],  glyph: "P",  label: "Police" },
+  fire:             { color: [251, 146, 60],  glyph: "🜂", label: "Fire station" },
+  government:       { color: [14, 165, 233],  glyph: "⌬", label: "Government" },
+  courthouse:       { color: [3, 105, 161],   glyph: "⚖", label: "Courthouse" },
+  post:             { color: [125, 211, 252], glyph: "✉", label: "Post office" },
+  "temple-buddhist":{ color: [251, 191, 36],  glyph: "卐", label: "Temple" },
+  church:           { color: [253, 224, 71],  glyph: "✟", label: "Church" },
+  mosque:           { color: [250, 204, 21],  glyph: "☪", label: "Mosque" },
+  market:           { color: [16, 185, 129],  glyph: "▦", label: "Market" },
+  "bus-station":    { color: [125, 211, 252], glyph: "🚌", label: "Bus station" },
+  ferry:            { color: [251, 191, 36],  glyph: "⛴", label: "Ferry pier" },
+  "power-substation": { color: [245, 158, 11], glyph: "⚡", label: "Substation" },
+  "water-works":    { color: [34, 211, 238],  glyph: "💧", label: "Water works" },
+  wastewater:       { color: [13, 148, 136],  glyph: "♻", label: "Wastewater" },
+  other:            { color: [148, 163, 184], glyph: "○",  label: "Other" },
+};
+
+function readKind(props: Record<string, unknown> | null | undefined): CivicKind {
+  const k = (props?.kind as string) ?? "other";
+  return (k in CIVIC_PALETTE ? (k as CivicKind) : "other");
+}
+
+export function civicPointsLayer(collection: FeatureCollection<Point, Record<string, unknown>>) {
+  return new ScatterplotLayer<Feature<Point, Record<string, unknown>>>({
+    id: "civic-points",
+    data: collection.features,
+    pickable: true,
+    radiusUnits: "pixels",
+    getPosition: (f) => f.geometry.coordinates as [number, number],
+    getRadius: (f) => {
+      const k = readKind(f.properties);
+      // High-importance kinds get bigger dots so the mayor sees them first
+      if (k === "hospital" || k === "fire" || k === "police" || k === "government") return 6;
+      if (k === "university" || k === "courthouse") return 5;
+      return 4;
+    },
+    getFillColor: (f) => {
+      const c = CIVIC_PALETTE[readKind(f.properties)].color;
+      return [...c, 220] as [number, number, number, number];
+    },
+    getLineColor: [255, 255, 255, 220],
+    stroked: true,
+    lineWidthMinPixels: 1,
+  });
+}
+
+// Waterways — colour by type (rivers blue, canals brand-cyan, drains green)
+const WATERWAY_COLOR: Record<string, [number, number, number, number]> = {
+  river:  [56, 189, 248, 200],
+  canal:  [14, 165, 233, 220],
+  stream: [125, 211, 252, 170],
+  drain:  [13, 148, 136, 170],
+  ditch:  [13, 148, 136, 140],
+};
+
+export function waterwaysLayer(collection: FeatureCollection<LineString, Record<string, unknown>>) {
+  return new GeoJsonLayer({
+    id: "waterways",
+    data: collection,
+    pickable: true,
+    stroked: true,
+    filled: false,
+    getLineColor: (f) => {
+      const t = String(f.properties?.waterway ?? "stream").toLowerCase();
+      return (WATERWAY_COLOR[t] ?? WATERWAY_COLOR.stream);
+    },
+    getLineWidth: (f) => {
+      const t = String(f.properties?.waterway ?? "stream").toLowerCase();
+      return t === "river" ? 4 : t === "canal" ? 2.5 : 1;
+    },
+    lineWidthUnits: "pixels",
+    lineWidthMinPixels: 1,
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// FISHERIES + COASTAL FLOOD RISK
+// Hand-authored polygons. Update as municipal GIS supplies real shapes.
+// ═══════════════════════════════════════════════════════════════════════
+
+const FISHERY_COLOR: Record<string, [number, number, number, number]> = {
+  oyster:    [251, 191, 36, 110],
+  shrimp:    [251, 146, 60, 110],
+  mussel:    [167, 139, 250, 110],
+  artisanal: [56, 189, 248, 110],
+  offshore:  [14, 165, 233, 110],
+};
+
+export function fisheriesLayer(collection: FeatureCollection<Polygon | MultiPolygon, Record<string, unknown>>) {
+  return new GeoJsonLayer({
+    id: "fisheries",
+    data: collection,
+    pickable: true,
+    stroked: true,
+    filled: true,
+    getFillColor: (f) => {
+      const k = String(f.properties?.kind ?? "artisanal");
+      return (FISHERY_COLOR[k] ?? FISHERY_COLOR.artisanal);
+    },
+    getLineColor: (f) => {
+      const k = String(f.properties?.kind ?? "artisanal");
+      const c = FISHERY_COLOR[k] ?? FISHERY_COLOR.artisanal;
+      return [c[0], c[1], c[2], 230];
+    },
+    getLineWidth: 2,
+    lineWidthUnits: "pixels",
+    lineWidthMinPixels: 1,
+  });
+}
+
+const FLOOD_COLOR: Record<string, [number, number, number, number]> = {
+  high:   [239, 68, 68, 130],
+  medium: [251, 146, 60, 110],
+  low:    [251, 191, 36, 90],
+};
+
+export function floodRiskLayer(collection: FeatureCollection<Polygon | MultiPolygon, Record<string, unknown>>) {
+  return new GeoJsonLayer({
+    id: "flood-risk",
+    data: collection,
+    pickable: true,
+    stroked: true,
+    filled: true,
+    getFillColor: (f) => {
+      const sev = String(f.properties?.severity ?? "medium");
+      return (FLOOD_COLOR[sev] ?? FLOOD_COLOR.medium);
+    },
+    getLineColor: (f) => {
+      const sev = String(f.properties?.severity ?? "medium");
+      const c = FLOOD_COLOR[sev] ?? FLOOD_COLOR.medium;
+      return [c[0], c[1], c[2], 230];
+    },
+    getLineWidth: 1.5,
+    lineWidthUnits: "pixels",
+    lineWidthMinPixels: 1,
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// HERITAGE LAYERS — temples, old town, Chinese shrines
+// ═══════════════════════════════════════════════════════════════════════
+
+export interface HeritageFeatureProps {
+  kind: "temple-spire" | "chinese-shrine" | "old-town-district";
+  name: string;
+  nameTh?: string;
+  height?: number;
+  era?: string;
+  describe?: string;
+}
+
+/**
+ * Temple spires — tall bright gold columns at known temple locations.
+ * A real Thai temple's prang/chedi towers 15-50 m; this layer renders
+ * it as a glowing gold column so it reads in the skyline from afar.
+ * Deck.gl ScatterplotLayer with 3D emulation via thick radius + color.
+ */
+export function templeSpiresLayer(
+  collection: FeatureCollection<Point, HeritageFeatureProps>,
+) {
+  const spires = collection.features.filter(
+    (f) => f.properties.kind === "temple-spire" || f.properties.kind === "chinese-shrine",
+  );
+
+  // Base disk — wide amber foundation
+  const base = new ScatterplotLayer<Feature<Point, HeritageFeatureProps>>({
+    id: "temple-spires-base",
+    data: spires,
+    pickable: true,
+    radiusUnits: "meters",
+    getPosition: (f) => f.geometry.coordinates as [number, number],
+    getRadius: (f) => f.properties.kind === "temple-spire" ? 14 : 8,
+    getFillColor: [251, 191, 36, 200],
+    getLineColor: [245, 158, 11, 255],
+    stroked: true,
+    lineWidthMinPixels: 1.5,
+  });
+
+  // Inner spire dot — bright, small, glowing
+  const spire = new ScatterplotLayer<Feature<Point, HeritageFeatureProps>>({
+    id: "temple-spires-tip",
+    data: spires,
+    pickable: false,
+    radiusUnits: "pixels",
+    getPosition: (f) => f.geometry.coordinates as [number, number],
+    getRadius: (f) => f.properties.kind === "temple-spire" ? 5 : 3,
+    getFillColor: [255, 255, 255, 240],
+    getLineColor: [251, 191, 36, 255],
+    stroked: true,
+    lineWidthMinPixels: 1.5,
+  });
+
+  return [base, spire];
+}
+
+/**
+ * Old town district boundary — hairline outline, warm amber fill at low
+ * opacity so buildings inside remain visible but the district reads as
+ * a distinct zone at all zoom levels.
+ */
+export function oldTownDistrictLayer(
+  collection: FeatureCollection<Polygon | MultiPolygon, HeritageFeatureProps>,
+) {
+  const districts = collection.features.filter(
+    (f) => f.properties.kind === "old-town-district",
+  );
+  if (!districts.length) return null;
+  return new GeoJsonLayer({
+    id: "old-town-district",
+    data: { type: "FeatureCollection", features: districts } as FeatureCollection,
+    pickable: true,
+    stroked: true,
+    filled: true,
+    getFillColor: [245, 158, 11, 18],   // very low opacity — just a haze
+    getLineColor: [245, 158, 11, 200],
+    getLineWidth: 2,
+    lineWidthUnits: "pixels",
+    lineWidthMinPixels: 1.5,
+  });
+}
+
+// ── NEWS PINS — geocoded headlines on the map ───────────────────────────
+// When a news item mentions a known place (market, temple, hospital …),
+// we pin it so the mayor can see "criminal activity at THIS market".
+
+import type { IntelligenceItem } from "@nst/shared";
+
+const NEWS_TAG_COLOR: Record<string, [number, number, number]> = {
+  EM: [239, 68, 68],    // emergency — red
+  PO: [251, 146, 60],   // police — orange
+  FU: [167, 139, 250],  // funeral — violet
+  IN: [56, 189, 248],   // infrastructure — sky
+  BZ: [245, 158, 11],   // business — amber
+  PU: [251, 113, 133],  // public health — pink
+  FE: [250, 204, 21],   // festival — yellow
+  HO: [52, 211, 153],   // honour — green
+};
+
+export function newsPinsLayer(items: IntelligenceItem[]) {
+  const pinned = items.filter((it) => it.lat != null && it.lng != null);
+  return new ScatterplotLayer<IntelligenceItem>({
+    id: "news-pins",
+    data: pinned,
+    getPosition: (it) => [it.lng!, it.lat!],
+    getRadius: (it) => {
+      // Emergency / police items get bigger pins
+      if (it.tags.includes("EM")) return 32;
+      if (it.tags.includes("PO")) return 26;
+      return 18;
+    },
+    radiusMinPixels: 5,
+    radiusMaxPixels: 14,
+    getFillColor: (it) => {
+      const tag = it.tags.find((t) => t in NEWS_TAG_COLOR);
+      const c = tag ? NEWS_TAG_COLOR[tag] : [148, 163, 184];
+      return [c[0], c[1], c[2], 230] as [number, number, number, number];
+    },
+    stroked: true,
+    getLineColor: [255, 255, 255, 240],
+    lineWidthMinPixels: 2,
+    pickable: true,
+    // Subtle pulse effect via radius animation would need extra work;
+    // for now the bright colour + white stroke makes them stand out.
+  });
+}
+
+// ── GISTDA (Thailand Geo-Informatics & Space Technology) layers ─────────
+
+import type { GistdaPoi, GistdaSolarBuilding, GistdaLandUse } from "@nst/shared";
+
+const GISTDA_POI_COLOR: Record<GistdaPoi["category"], [number, number, number]> = {
+  government: [56, 189, 248],   // sky-400
+  school: [167, 139, 250],      // violet
+  temple: [251, 191, 36],       // gold
+  hospital: [239, 68, 68],      // red
+  hotel: [245, 158, 11],        // amber
+  bank: [16, 185, 129],         // emerald
+  restaurant: [248, 113, 113],  // pink
+  shopping: [236, 72, 153],     // fuchsia
+  transport: [34, 211, 238],    // cyan
+  sport: [52, 211, 153],        // green
+  agency: [148, 163, 184],      // slate
+  other: [200, 200, 200],       // grey
+};
+
+export function gistdaPoiLayer(pois: GistdaPoi[]) {
+  return new ScatterplotLayer<GistdaPoi>({
+    id: "gistda-pois",
+    data: pois,
+    getPosition: (p) => [p.lng, p.lat],
+    getRadius: (p) => {
+      if (p.category === "hospital") return 28;
+      if (p.category === "temple" || p.category === "hotel") return 24;
+      if (p.category === "school" || p.category === "government") return 20;
+      return 14;
+    },
+    radiusMinPixels: 4,
+    radiusMaxPixels: 12,
+    getFillColor: (p) => {
+      const c = GISTDA_POI_COLOR[p.category] ?? [200, 200, 200];
+      return [c[0], c[1], c[2], 220] as [number, number, number, number];
+    },
+    stroked: true,
+    getLineColor: [10, 14, 20, 240],
+    lineWidthMinPixels: 1.5,
+    pickable: true,
+  });
+}
+
+/**
+ * Solar irradiance overlay from GISTDA LOD2 buildings.
+ * Each building is rendered as a vertical column whose height is proportional
+ * to solar potential (kWh/m²). Colour: blue → green → yellow → red.
+ */
+export function gistdaSolarLayer(buildings: GistdaSolarBuilding[]) {
+  return new ScatterplotLayer<GistdaSolarBuilding>({
+    id: "gistda-solar",
+    data: buildings,
+    getPosition: (b) => [b.lng, b.lat],
+    getRadius: (b) => Math.max(10, Math.min(b.area / 80, 60)),
+    radiusMinPixels: 3,
+    radiusMaxPixels: 20,
+    getFillColor: (b) => {
+      const irr = b.solarIrr;
+      // Blue (low) → green → yellow → red (high)
+      if (irr < 80) return [56, 189, 248, 200] as [number, number, number, number];
+      if (irr < 120) return [52, 211, 153, 210] as [number, number, number, number];
+      if (irr < 160) return [250, 204, 21, 220] as [number, number, number, number];
+      return [239, 68, 68, 230] as [number, number, number, number];
+    },
+    stroked: true,
+    getLineColor: [10, 14, 20, 200],
+    lineWidthMinPixels: 1,
+    pickable: true,
+  });
+}
+
+const LANDUSE_COLOR: Record<string, [number, number, number]> = {
+  residential: [210, 110, 65],   // warm terracotta
+  commercial:  [245, 158, 11],   // amber
+  industrial:  [148, 163, 184],  // slate
+  agricultural:[52, 211, 153],   // green
+  forest:      [16, 185, 129],   // emerald
+  water:       [56, 189, 248],   // sky
+  transport:   [167, 139, 250],  // violet
+  recreation:  [250, 204, 21],   // yellow
+  other:       [200, 200, 200],  // grey
+};
+
+export function gistdaLandUseLayer(parcels: GistdaLandUse[]) {
+  return new ScatterplotLayer<GistdaLandUse>({
+    id: "gistda-landuse",
+    data: parcels,
+    getPosition: (p) => [p.lng, p.lat],
+    getRadius: (p) => Math.max(12, Math.min(p.area / 200, 80)),
+    radiusMinPixels: 3,
+    radiusMaxPixels: 18,
+    getFillColor: (p) => {
+      const code = p.code.toLowerCase();
+      let key = "other";
+      if (code.includes("res") || code.includes("urb")) key = "residential";
+      else if (code.includes("com") || code.includes("biz")) key = "commercial";
+      else if (code.includes("ind")) key = "industrial";
+      else if (code.includes("agr") || code.includes("farm")) key = "agricultural";
+      else if (code.includes("for") || code.includes("wood")) key = "forest";
+      else if (code.includes("wat") || code.includes("riv")) key = "water";
+      else if (code.includes("trans") || code.includes("road")) key = "transport";
+      else if (code.includes("rec") || code.includes("park")) key = "recreation";
+      const c = LANDUSE_COLOR[key] ?? LANDUSE_COLOR.other;
+      return [c[0], c[1], c[2], 180] as [number, number, number, number];
+    },
+    stroked: true,
+    getLineColor: [255, 255, 255, 160],
+    lineWidthMinPixels: 1,
+    pickable: true,
+  });
+}
+
+// ── Isochrone layer ───────────────────────────────────────────────────────────
+
+const ISOCHRONE_MODE_COLOR: Record<string, [number, number, number, number]> = {
+  walk:                   [59,  130, 246, 60],
+  bicycle:                [16,  185, 129, 60],
+  drive:                  [245, 158, 11,  60],
+  approximated_transit:   [139, 92,  246, 60],
+};
+
+export function isochroneLayer(result: IsochroneResult | null) {
+  if (!result) return null;
+  const color = ISOCHRONE_MODE_COLOR[result.mode] ?? [59, 130, 246, 60];
+  const [r, g, b] = color;
+  // IsochroneResult.geometry is a structural Polygon/MultiPolygon union;
+  // cast to the geojson package's Geometry so deck.gl's data prop accepts it.
+  const geometry = result.geometry as unknown as Polygon | MultiPolygon;
+  return new GeoJsonLayer({
+    id: "isochrone-polygon",
+    data: {
+      type: "FeatureCollection" as const,
+      features: [{ type: "Feature" as const, geometry, properties: {} }],
+    },
+    filled: true,
+    stroked: true,
+    getFillColor: [r, g, b, 55],
+    getLineColor: [r, g, b, 200],
+    getLineWidth: 2,
+    lineWidthMinPixels: 1.5,
+    pickable: false,
+    updateTriggers: { getFillColor: [result.mode], getLineColor: [result.mode] },
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// YALA — circular-city signature, hydrology, Deep South security
+// ═══════════════════════════════════════════════════════════════════════
+
+interface RingRoadProps {
+  id: string;
+  name: string | null;
+  nameEn: string | null;
+  nameTh: string | null;
+  highway: string;
+  priority: number;
+  ring: boolean;
+}
+
+/**
+ * Ring roads (Wongwian) — Yala's defining signature. The concentric ring
+ * roads + radial spokes that fan out from the central roundabout. Rendered
+ * bright amber so the circular street grid pops; ring ways are thicker/whiter.
+ */
+export function ringRoadsLayer(collection: FeatureCollection<LineString, RingRoadProps>) {
+  return new GeoJsonLayer({
+    id: "ring-roads",
+    data: collection as unknown as FeatureCollection,
+    stroked: true,
+    filled: false,
+    pickable: true,
+    getLineColor: ((f: Feature<LineString, RingRoadProps>) =>
+      f.properties.ring
+        ? ([255, 240, 150, 255] as [number, number, number, number]) // ring — bright cream
+        : ([251, 191, 36, 220] as [number, number, number, number])) as unknown as [number, number, number, number],
+    getLineWidth: ((f: Feature<LineString, RingRoadProps>) => {
+      if (f.properties.ring) return 5;
+      return f.properties.priority >= 5 ? 4 : f.properties.priority >= 4 ? 3 : 2;
+    }) as unknown as number,
+    lineWidthUnits: "pixels",
+    lineWidthMinPixels: 1.5,
+    lineWidthMaxPixels: 7,
+    updateTriggers: { getLineColor: [], getLineWidth: [] },
+  });
+}
+
+/**
+ * Pattani River flood corridor — translucent blue buffer polygon around the
+ * river centreline. Reads as "the area that goes under when the river rises".
+ */
+export function riverBufferLayer(collection: FeatureCollection<Polygon | MultiPolygon, Record<string, unknown>>) {
+  return new GeoJsonLayer({
+    id: "river-buffer",
+    data: collection,
+    stroked: true,
+    filled: true,
+    pickable: true,
+    getFillColor: [56, 189, 248, 55],
+    getLineColor: [14, 165, 233, 180],
+    getLineWidth: 1.5,
+    lineWidthUnits: "pixels",
+    lineWidthMinPixels: 1,
+  });
+}
+
+// Rough centroid of a (multi)polygon — average of outer-ring vertices. Good
+// enough for placing a label inside an admin boundary.
+function polygonCentroid(geom: Polygon | MultiPolygon): [number, number] {
+  const rings = geom.type === "Polygon" ? [geom.coordinates[0]] : geom.coordinates.map((p) => p[0]);
+  let x = 0, y = 0, n = 0;
+  for (const ring of rings) {
+    for (const [lng, lat] of ring) { x += lng; y += lat; n++; }
+  }
+  return n ? [x / n, y / n] : [101.28, 6.54];
+}
+
+// ── Deep South conflict — AGGREGATE choropleth (never individual incidents) ──
+// Ethical-display rule from the Yala Data Bible: province/district shading only,
+// neutral framing, monthly aggregate. Shares = % of all Deep South conflict
+// incidents since 2004 (Deep South Watch lineage).
+const CONFLICT_SHARE: Record<string, number> = {
+  Narathiwat: 36,
+  Pattani: 33,
+  Yala: 28,
+  Songkhla: 3,
+};
+function conflictColor(share: number): [number, number, number, number] {
+  // muted red ramp by intensity (max ~36)
+  const t = Math.min(share / 36, 1);
+  return [120 + Math.round(135 * t), 30 + Math.round(10 * (1 - t)), 30, 70 + Math.round(120 * t)];
+}
+export function conflictChoroplethLayer(
+  collection: FeatureCollection<Polygon | MultiPolygon, Record<string, unknown>>,
+) {
+  const labelPoints = collection.features.map((f) => {
+    const name = String((f.properties as { name?: string })?.name ?? "");
+    const share = CONFLICT_SHARE[name] ?? 0;
+    return { name, share, position: polygonCentroid(f.geometry) };
+  });
+  return [
+    new GeoJsonLayer({
+      id: "conflict-choropleth",
+      data: collection,
+      stroked: true,
+      filled: true,
+      pickable: true,
+      getFillColor: (f) => conflictColor(CONFLICT_SHARE[String((f.properties as { name?: string })?.name ?? "")] ?? 0),
+      getLineColor: [220, 38, 38, 200],
+      getLineWidth: 1.5,
+      lineWidthUnits: "pixels",
+      lineWidthMinPixels: 1,
+    }),
+    new TextLayer({
+      id: "conflict-choropleth-labels",
+      data: labelPoints.filter((p) => p.share > 0),
+      getPosition: (p: { position: [number, number] }) => p.position,
+      getText: (p: { name: string; share: number }) => `${p.name}\n${p.share}%`,
+      getSize: 12,
+      getColor: [245, 245, 245, 235],
+      fontFamily: "IBM Plex Mono, monospace",
+      getTextAnchor: "middle",
+      getAlignmentBaseline: "center",
+      background: true,
+      getBackgroundColor: [10, 14, 20, 170],
+      backgroundPadding: [4, 2],
+    }),
+  ];
+}
+
+// ── MPI poverty — district choropleth (TPMAP) ───────────────────────────────
+const YALA_PROVINCE_MPI = 20.83; // % below the multidimensional poverty line
+function povertyColor(mpi: number): [number, number, number, number] {
+  const t = Math.min(mpi / 30, 1); // ramp to 30%
+  return [120 + Math.round(48 * t), 40, 130 + Math.round(40 * t), 60 + Math.round(120 * t)];
+}
+export function povertyChoroplethLayer(
+  collection: FeatureCollection<Polygon | MultiPolygon, Record<string, unknown>>,
+) {
+  return new GeoJsonLayer({
+    id: "poverty-choropleth",
+    data: collection,
+    stroked: true,
+    filled: true,
+    pickable: true,
+    // Per-district TPMAP rates are not yet wired; shade at the province MPI so
+    // the lens reads honestly. Uses properties.mpi if a future feed supplies it.
+    getFillColor: (f) => povertyColor(Number((f.properties as { mpi?: number })?.mpi ?? YALA_PROVINCE_MPI)),
+    getLineColor: [168, 85, 247, 200],
+    getLineWidth: 1.2,
+    lineWidthUnits: "pixels",
+    lineWidthMinPixels: 1,
+  });
+}
+
+// ── Flood gauges (river / canal water-level stations) ───────────────────────
+const GAUGE_COLOR: Record<FloodGauge["status"], [number, number, number]> = {
+  normal:  [52, 211, 153],  // green
+  watch:   [250, 204, 21],  // yellow
+  warning: [251, 146, 60],  // orange
+  flood:   [239, 68, 68],   // red
+  unknown: [148, 163, 184], // slate
+};
+
+export function floodGaugesLayer(gauges: FloodGauge[]) {
+  return new ScatterplotLayer<FloodGauge>({
+    id: "flood-gauges",
+    data: gauges,
+    getPosition: (g) => [g.lng, g.lat],
+    getRadius: (g) => (g.status === "flood" || g.status === "warning" ? 90 : 60),
+    radiusMinPixels: 6,
+    radiusMaxPixels: 18,
+    getFillColor: (g) => {
+      const c = GAUGE_COLOR[g.status] ?? GAUGE_COLOR.unknown;
+      return [c[0], c[1], c[2], 230] as [number, number, number, number];
+    },
+    stroked: true,
+    getLineColor: [10, 14, 20, 255],
+    lineWidthMinPixels: 1.5,
+    pickable: true,
+  });
+}
+
+// ── Bang Lang Dam status (single station, upstream) ─────────────────────────
+const DAM_COLOR: Record<DamStatus["status"], [number, number, number]> = {
+  low:      [56, 189, 248],   // sky
+  normal:   [52, 211, 153],   // green
+  high:     [251, 146, 60],   // orange
+  spilling: [239, 68, 68],    // red
+  unknown:  [148, 163, 184],  // slate
+};
+
+export function damStatusLayer(dams: DamStatus[]) {
+  return new ScatterplotLayer<DamStatus>({
+    id: "dam-status",
+    data: dams,
+    getPosition: (d) => [d.lng, d.lat],
+    getRadius: 140,
+    radiusMinPixels: 9,
+    radiusMaxPixels: 26,
+    getFillColor: (d) => {
+      const c = DAM_COLOR[d.status] ?? DAM_COLOR.unknown;
+      return [c[0], c[1], c[2], 230] as [number, number, number, number];
+    },
+    stroked: true,
+    getLineColor: [255, 255, 255, 230],
+    lineWidthMinPixels: 2.5,
+    pickable: true,
+  });
+}
+
+// ── Watershed upstream→city nodes (Tha Dee flow cascade) ───────────────────
+// Renders the upstream→city flow path the city's flood risk is built from:
+// the Tha Dee canal cascade คีรีวง → ลานสกา → city, plus the Thung Song SW
+// node. A flow line connects the Tha Dee nodes; dots are coloured by live
+// status; labels carry the Thai/EN name. Makes the cascade geographic, not
+// just tabular — managers see WHERE the water is coming from.
+
+interface WatershedMarker {
+  key: string;
+  name: string;
+  nameEn: string;
+  role: string;
+  river: string;
+  status: string;        // ZoneStatus label (flat for tooltip)
+  statusLabel: string;
+  rgb: [number, number, number];
+  isCity: boolean;
+  lng: number;
+  lat: number;
+  levelM: number | null;
+  toBankM: number | null;  // freeboard (positive) when below bank
+  rain24h: number | null;
+  soil: number | null;
+}
+
+function toMarker(s: ZoneSummary): WatershedMarker {
+  const rgb = ZONE_STATUS_RGB[s.status];
+  return {
+    key: s.zone.key,
+    name: s.zone.th,
+    nameEn: s.zone.en,
+    role: s.zone.role,
+    river: s.zone.river,
+    status: s.status,
+    statusLabel: ZONE_STATUS_LABEL[s.status],
+    rgb,
+    isCity: !!s.zone.isCity,
+    lng: s.zone.lng,
+    lat: s.zone.lat,
+    levelM: s.levelMsl,
+    toBankM: s.diffFromBank != null ? -s.diffFromBank : null,
+    rain24h: s.rain24h,
+    soil: s.soil,
+  };
+}
+
+export function watershedNodesLayer(summaries: ZoneSummary[]): Layer[] {
+  const markers = summaries.map(toMarker);
+  // Flow line through the Tha Dee nodes only (คีรีวง → ลานสกา → city), in order.
+  const flowNodes = summaries.filter((s) => s.zone.river.includes("ท่าดี"));
+  const flowPath = flowNodes.map((s) => [s.zone.lng, s.zone.lat] as [number, number]);
+
+  const layers: Layer[] = [];
+
+  if (flowPath.length >= 2) {
+    layers.push(
+      new PathLayer({
+        id: "watershed-flow",
+        data: [{ path: flowPath }],
+        getPath: (d: { path: [number, number][] }) => d.path,
+        getColor: [56, 189, 248, 200], // sky — the Tha Dee
+        getWidth: 3,
+        widthUnits: "pixels",
+        widthMinPixels: 2,
+        capRounded: true,
+        jointRounded: true,
+        parameters: { depthTest: false },
+        pickable: false,
+      }) as Layer,
+    );
+  }
+
+  layers.push(
+    new ScatterplotLayer<WatershedMarker>({
+      id: "watershed-nodes",
+      data: markers,
+      getPosition: (m) => [m.lng, m.lat],
+      getRadius: (m) => (m.isCity ? 140 : 95),
+      radiusMinPixels: 7,
+      radiusMaxPixels: 22,
+      getFillColor: (m) => [m.rgb[0], m.rgb[1], m.rgb[2], 235] as [number, number, number, number],
+      stroked: true,
+      getLineColor: (m) => (m.isCity ? [255, 255, 255, 255] : [10, 14, 20, 235]),
+      lineWidthUnits: "pixels",
+      getLineWidth: (m) => (m.isCity ? 3 : 1.5),
+      lineWidthMinPixels: 1.5,
+      pickable: true,
+    }) as Layer,
+  );
+
+  layers.push(
+    new TextLayer({
+      id: "watershed-node-labels",
+      data: markers,
+      getPosition: (m: WatershedMarker) => [m.lng, m.lat],
+      getText: (m: WatershedMarker) => `${m.name} ${m.nameEn}`,
+      getSize: 13,
+      getColor: [255, 255, 255, 230],
+      getPixelOffset: [0, -16],
+      getTextAnchor: "middle",
+      getAlignmentBaseline: "bottom",
+      billboard: true,
+      fontFamily: "'IBM Plex Sans Thai', 'IBM Plex Sans Condensed', sans-serif",
+      fontWeight: "bold",
+      getBackgroundColor: [10, 14, 20, 170],
+      background: true,
+      backgroundPadding: [4, 2],
+      parameters: { depthTest: false },
+      pickable: false,
+    }) as Layer,
+  );
+
+  return layers;
+}
+
+// ── Conflict incidents (ACLED / Deep South) — RED palette, sized by deaths ──
+const CONFLICT_COLOR: Record<ConflictIncident["eventType"], [number, number, number]> = {
+  "bombing-ied":     [220, 38, 38],    // red-600
+  shooting:          [239, 68, 68],    // red-500
+  "armed-clash":     [248, 113, 113],  // red-400
+  arson:             [251, 146, 60],   // orange — fire
+  "raid-arrest":     [252, 165, 165],  // red-300
+  abduction:         [185, 28, 28],    // red-700
+  "remote-violence": [153, 27, 27],    // red-800
+  other:             [254, 202, 202],  // red-200
+};
+
+export function conflictIncidentsLayer(incidents: ConflictIncident[]) {
+  return new ScatterplotLayer<ConflictIncident>({
+    id: "conflict-incidents",
+    data: incidents,
+    getPosition: (d) => [d.lng, d.lat],
+    // Radius scales with fatalities — 0 deaths still visible, mass-casualty large.
+    getRadius: (d) => 50 + Math.min(d.fatalities, 12) * 26,
+    radiusMinPixels: 5,
+    radiusMaxPixels: 28,
+    getFillColor: (d) => {
+      const c = CONFLICT_COLOR[d.eventType] ?? CONFLICT_COLOR.other;
+      return [c[0], c[1], c[2], 220] as [number, number, number, number];
+    },
+    stroked: true,
+    getLineColor: [10, 14, 20, 235],
+    lineWidthMinPixels: 1.5,
+    pickable: true,
+    updateTriggers: { getRadius: [], getFillColor: [] },
+  });
+}
+
+/**
+ * Security-tagged news pins — the subset of news items tagged SEC (insurgency /
+ * security) that carry a geocode. Distinct id from `news-pins` so both can show.
+ */
+export function securityNewsLayer(items: IntelligenceItem[]) {
+  const pinned = items.filter(
+    (it) => it.lat != null && it.lng != null && it.tags.includes("SEC"),
+  );
+  return new ScatterplotLayer<IntelligenceItem>({
+    id: "security-news",
+    data: pinned,
+    getPosition: (it) => [it.lng!, it.lat!],
+    getRadius: 26,
+    radiusMinPixels: 5,
+    radiusMaxPixels: 14,
+    getFillColor: [248, 113, 113, 230],
+    stroked: true,
+    getLineColor: [255, 255, 255, 240],
+    lineWidthMinPixels: 2,
+    pickable: true,
+  });
+}
+
+// ── AlphaEarth static GeoJSON layers (land cover + flood-prone) ─────────────
+// Files carry a per-feature `color` hex string; honour it directly so the
+// classification palette matches the upstream derivation.
+
+export function alphaEarthLandcoverLayer(
+  collection: FeatureCollection<Polygon | MultiPolygon, Record<string, unknown>>,
+) {
+  return new GeoJsonLayer({
+    id: "alphaearth-landcover",
+    data: collection,
+    stroked: true,
+    filled: true,
+    pickable: true,
+    getFillColor: (f) => {
+      const c = hexToRgb(String(f.properties?.color ?? "#34d399"));
+      return [c[0], c[1], c[2], 110] as [number, number, number, number];
+    },
+    getLineColor: (f) => {
+      const c = hexToRgb(String(f.properties?.color ?? "#34d399"));
+      return [c[0], c[1], c[2], 180] as [number, number, number, number];
+    },
+    getLineWidth: 1,
+    lineWidthUnits: "pixels",
+    lineWidthMinPixels: 0.5,
+  });
+}
+
+export function alphaEarthFloodProneLayer(
+  collection: FeatureCollection<Polygon | MultiPolygon, Record<string, unknown>>,
+) {
+  return new GeoJsonLayer({
+    id: "alphaearth-floodprone",
+    data: collection,
+    stroked: true,
+    filled: true,
+    pickable: true,
+    getFillColor: (f) => {
+      const c = hexToRgb(String(f.properties?.color ?? "#60a5fa"));
+      return [c[0], c[1], c[2], 120] as [number, number, number, number];
+    },
+    getLineColor: (f) => {
+      const c = hexToRgb(String(f.properties?.color ?? "#60a5fa"));
+      return [c[0], c[1], c[2], 200] as [number, number, number, number];
+    },
+    getLineWidth: 1.2,
+    lineWidthUnits: "pixels",
+    lineWidthMinPixels: 0.5,
+  });
+}

@@ -1,0 +1,169 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 640" role="img" font-family="'Noto Sans Thai','Sarabun','Tahoma',sans-serif">
+  <title>47 แหล่งข้อมูล — แยกตามหมวด</title>
+  <desc>Infographic of 47 data sources grouped into six colored category cards: air and air quality, flood and water, satellite, traffic, sea, and government and social. Each card lists source chips. A note states every source has a free plan or a fallback.</desc>
+
+  <rect width="1200" height="640" fill="#FAF8F1"/>
+
+  <!-- Title block -->
+  <text x="56" y="64" font-size="38" font-weight="800" fill="#2C2418">47 แหล่งข้อมูล — แยกตามหมวด</text>
+  <text x="58" y="96" font-size="19" fill="#9A8F80" font-family="'Inter',sans-serif">47 sources, by category.</text>
+  <rect x="58" y="110" width="120" height="7" rx="3.5" fill="#F1BE48"/>
+
+  <!-- ===== ROW 1 ===== -->
+
+  <!-- CARD 1 — อากาศ & คุณภาพอากาศ (teal) -->
+  <rect x="56" y="152" width="352" height="184" rx="18" fill="#FFFFFF" stroke="#DED9CE" stroke-width="2"/>
+  <rect x="56" y="152" width="352" height="6" rx="3" fill="#4A773C"/>
+  <g transform="translate(84,180)">
+    <rect x="0" y="6" width="40" height="40" rx="10" fill="#EEF3E6"/>
+    <g stroke="#4A773C" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="16" cy="22" r="6" fill="#E3EDDA"/>
+      <path d="M22 30 q8 -2 8 -8 q5 0 5 5 q4 0 4 4 q0 4 -4 4 H22"/>
+    </g>
+    <text x="52" y="22" font-size="22" font-weight="800" fill="#2C2418">อากาศ &amp; คุณภาพอากาศ</text>
+    <text x="52" y="42" font-size="12.5" fill="#9A8F80">Weather &amp; air quality</text>
+  </g>
+  <!-- chips -->
+  <g transform="translate(84,256)">
+    <rect x="0" y="0" width="132" height="34" rx="17" fill="#EEF3E6" stroke="#E3EDDA" stroke-width="1.5"/>
+    <text x="66" y="22" text-anchor="middle" font-size="14.5" font-weight="700" fill="#4A773C" font-family="'Inter',sans-serif">Open-Meteo</text>
+  </g>
+  <g transform="translate(228,256)">
+    <rect x="0" y="0" width="88" height="34" rx="17" fill="#EEF3E6" stroke="#E3EDDA" stroke-width="1.5"/>
+    <text x="44" y="22" text-anchor="middle" font-size="14.5" font-weight="700" fill="#4A773C" font-family="'Inter',sans-serif">AQICN</text>
+  </g>
+
+  <!-- CARD 2 — น้ำท่วม & น้ำ (blue) -->
+  <rect x="424" y="152" width="352" height="184" rx="18" fill="#FFFFFF" stroke="#DED9CE" stroke-width="2"/>
+  <rect x="424" y="152" width="352" height="6" rx="3" fill="#6E4A33"/>
+  <g transform="translate(452,180)">
+    <rect x="0" y="6" width="40" height="40" rx="10" fill="#F4EEE7"/>
+    <g stroke="#6E4A33" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M20 12 q9 11 9 18 a9 9 0 0 1 -18 0 q0 -7 9 -18 z" fill="#EBE2D9"/>
+    </g>
+    <text x="52" y="22" font-size="22" font-weight="800" fill="#2C2418">น้ำท่วม &amp; น้ำ</text>
+    <text x="52" y="42" font-size="12.5" fill="#9A8F80">Flood &amp; water</text>
+  </g>
+  <g transform="translate(452,256)">
+    <rect x="0" y="0" width="96" height="34" rx="17" fill="#F4EEE7" stroke="#EBE2D9" stroke-width="1.5"/>
+    <text x="48" y="22" text-anchor="middle" font-size="14.5" font-weight="700" fill="#6E4A33" font-family="'Inter',sans-serif">GloFAS</text>
+  </g>
+  <g transform="translate(560,256)">
+    <rect x="0" y="0" width="92" height="34" rx="17" fill="#F4EEE7" stroke="#EBE2D9" stroke-width="1.5"/>
+    <text x="46" y="22" text-anchor="middle" font-size="14.5" font-weight="700" fill="#6E4A33" font-family="'Inter',sans-serif">IMERG</text>
+  </g>
+  <g transform="translate(452,300)">
+    <rect x="0" y="0" width="116" height="34" rx="17" fill="#F4EEE7" stroke="#EBE2D9" stroke-width="1.5"/>
+    <text x="58" y="22" text-anchor="middle" font-size="14.5" font-weight="700" fill="#6E4A33">อ่างเก็บน้ำ</text>
+  </g>
+
+  <!-- CARD 3 — ดาวเทียม (violet) -->
+  <rect x="792" y="152" width="352" height="184" rx="18" fill="#FFFFFF" stroke="#DED9CE" stroke-width="2"/>
+  <rect x="792" y="152" width="352" height="6" rx="3" fill="#2F6B5A"/>
+  <g transform="translate(820,180)">
+    <rect x="0" y="6" width="40" height="40" rx="10" fill="#EEF3F0"/>
+    <g stroke="#2F6B5A" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="20" cy="26" r="6" fill="#DCE8E2"/>
+      <path d="M20 13 a13 13 0 0 1 13 13"/>
+      <path d="M20 18 a8 8 0 0 1 8 8"/>
+    </g>
+    <text x="52" y="22" font-size="22" font-weight="800" fill="#2C2418">ดาวเทียม</text>
+    <text x="52" y="42" font-size="12.5" fill="#9A8F80">Satellite</text>
+  </g>
+  <g transform="translate(820,256)">
+    <rect x="0" y="0" width="116" height="34" rx="17" fill="#EEF3F0" stroke="#DCE8E2" stroke-width="1.5"/>
+    <text x="58" y="22" text-anchor="middle" font-size="14.5" font-weight="700" fill="#2F6B5A" font-family="'Inter',sans-serif">NASA GIBS</text>
+  </g>
+  <g transform="translate(948,256)">
+    <rect x="0" y="0" width="100" height="34" rx="17" fill="#EEF3F0" stroke="#DCE8E2" stroke-width="1.5"/>
+    <text x="50" y="22" text-anchor="middle" font-size="14.5" font-weight="700" fill="#2F6B5A" font-family="'Inter',sans-serif">GISTDA</text>
+  </g>
+  <g transform="translate(820,300)">
+    <rect x="0" y="0" width="100" height="34" rx="17" fill="#EEF3F0" stroke="#DCE8E2" stroke-width="1.5"/>
+    <text x="50" y="22" text-anchor="middle" font-size="14.5" font-weight="700" fill="#2F6B5A" font-family="'Inter',sans-serif">POWER</text>
+  </g>
+
+  <!-- ===== ROW 2 ===== -->
+
+  <!-- CARD 4 — จราจร (amber) -->
+  <rect x="56" y="364" width="352" height="184" rx="18" fill="#FFFFFF" stroke="#DED9CE" stroke-width="2"/>
+  <rect x="56" y="364" width="352" height="6" rx="3" fill="#D6A12A"/>
+  <g transform="translate(84,392)">
+    <rect x="0" y="6" width="40" height="40" rx="10" fill="#FDF7E6"/>
+    <g stroke="#D6A12A" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="16" y="13" width="9" height="22" rx="4.5" fill="#FBEFCB"/>
+      <circle cx="20.5" cy="19" r="2" fill="#D6A12A" stroke="none"/>
+      <circle cx="20.5" cy="29" r="2" fill="#D6A12A" stroke="none"/>
+    </g>
+    <text x="52" y="22" font-size="22" font-weight="800" fill="#2C2418">จราจร</text>
+    <text x="52" y="42" font-size="12.5" fill="#9A8F80">Traffic</text>
+  </g>
+  <g transform="translate(84,468)">
+    <rect x="0" y="0" width="80" height="34" rx="17" fill="#FDF7E6" stroke="#FBEFCB" stroke-width="1.5"/>
+    <text x="40" y="22" text-anchor="middle" font-size="14.5" font-weight="700" fill="#8A5E1E" font-family="'Inter',sans-serif">iTIC</text>
+  </g>
+  <g transform="translate(176,468)">
+    <rect x="0" y="0" width="84" height="34" rx="17" fill="#FDF7E6" stroke="#FBEFCB" stroke-width="1.5"/>
+    <text x="42" y="22" text-anchor="middle" font-size="14.5" font-weight="700" fill="#8A5E1E" font-family="'Inter',sans-serif">CCTV</text>
+  </g>
+
+  <!-- CARD 5 — ทะเล (teal) -->
+  <rect x="424" y="364" width="352" height="184" rx="18" fill="#FFFFFF" stroke="#DED9CE" stroke-width="2"/>
+  <rect x="424" y="364" width="352" height="6" rx="3" fill="#4A773C"/>
+  <g transform="translate(452,392)">
+    <rect x="0" y="6" width="40" height="40" rx="10" fill="#EEF3E6"/>
+    <g stroke="#4A773C" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M10 30 q4 -5 8 0 t8 0" />
+      <path d="M10 24 q4 -5 8 0 t8 0" />
+      <path d="M10 18 q4 -5 8 0 t8 0" />
+    </g>
+    <text x="52" y="22" font-size="22" font-weight="800" fill="#2C2418">ทะเล</text>
+    <text x="52" y="42" font-size="12.5" fill="#9A8F80">Sea</text>
+  </g>
+  <g transform="translate(452,468)">
+    <rect x="0" y="0" width="72" height="34" rx="17" fill="#EEF3E6" stroke="#E3EDDA" stroke-width="1.5"/>
+    <text x="36" y="22" text-anchor="middle" font-size="14.5" font-weight="700" fill="#4A773C">คลื่น</text>
+  </g>
+  <g transform="translate(536,468)">
+    <rect x="0" y="0" width="100" height="34" rx="17" fill="#EEF3E6" stroke="#E3EDDA" stroke-width="1.5"/>
+    <text x="50" y="22" text-anchor="middle" font-size="14.5" font-weight="700" fill="#4A773C">AIS เรือ</text>
+  </g>
+  <g transform="translate(452,512)">
+    <rect x="0" y="0" width="128" height="34" rx="17" fill="#EEF3E6" stroke="#E3EDDA" stroke-width="1.5"/>
+    <text x="64" y="22" text-anchor="middle" font-size="14.5" font-weight="700" fill="#4A773C">น้ำขึ้นน้ำลง</text>
+  </g>
+
+  <!-- CARD 6 — ภาครัฐ & สังคม (green) -->
+  <rect x="792" y="364" width="352" height="184" rx="18" fill="#FFFFFF" stroke="#DED9CE" stroke-width="2"/>
+  <rect x="792" y="364" width="352" height="6" rx="3" fill="#7E8A3A"/>
+  <g transform="translate(820,392)">
+    <rect x="0" y="6" width="40" height="40" rx="10" fill="#EEF3E6"/>
+    <g stroke="#7E8A3A" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M20 12 l10 5 v3 H10 v-3 z" fill="#EDF0DC"/>
+      <path d="M13 22 v9 M20 22 v9 M27 22 v9"/>
+      <path d="M9 34 h22"/>
+    </g>
+    <text x="52" y="22" font-size="22" font-weight="800" fill="#2C2418">ภาครัฐ &amp; สังคม</text>
+    <text x="52" y="42" font-size="12.5" fill="#9A8F80">Government &amp; social</text>
+  </g>
+  <g transform="translate(820,468)">
+    <rect x="0" y="0" width="124" height="34" rx="17" fill="#EEF3E6" stroke="#EDF0DC" stroke-width="1.5"/>
+    <text x="62" y="22" text-anchor="middle" font-size="14.5" font-weight="700" fill="#5E6A24" font-family="'Inter',sans-serif">data.go.th</text>
+  </g>
+  <g transform="translate(956,468)">
+    <rect x="0" y="0" width="88" height="34" rx="17" fill="#EEF3E6" stroke="#EDF0DC" stroke-width="1.5"/>
+    <text x="44" y="22" text-anchor="middle" font-size="14.5" font-weight="700" fill="#5E6A24" font-family="'Inter',sans-serif">Traffy</text>
+  </g>
+  <g transform="translate(820,512)">
+    <rect x="0" y="0" width="104" height="34" rx="17" fill="#EEF3E6" stroke="#EDF0DC" stroke-width="1.5"/>
+    <text x="52" y="22" text-anchor="middle" font-size="14.5" font-weight="700" fill="#5E6A24" font-family="'Inter',sans-serif">Facebook</text>
+  </g>
+  <g transform="translate(936,512)">
+    <rect x="0" y="0" width="64" height="34" rx="17" fill="#EEF3E6" stroke="#EDF0DC" stroke-width="1.5"/>
+    <text x="32" y="22" text-anchor="middle" font-size="14.5" font-weight="700" fill="#5E6A24">ข่าว</text>
+  </g>
+
+  <!-- bottom promise pill -->
+  <rect x="56" y="582" width="1088" height="38" rx="19" fill="#241B11"/>
+  <text x="600" y="607" text-anchor="middle" font-size="17" font-weight="700" fill="#FFFFFF">ทุกแหล่งมีแผนฟรีหรือมีตัวสำรอง</text>
+</svg>

@@ -1,0 +1,23 @@
+{
+  "name": "nst-control-tower",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "pnpm --parallel -r dev",
+    "dev:web": "pnpm --filter @nst/web dev",
+    "dev:api": "pnpm --filter @nst/api dev",
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck",
+    "deploy:web": "pnpm --filter @nst/web build && pnpm --filter @nst/web deploy",
+    "deploy:api": "pnpm --filter @nst/api deploy"
+  },
+  "packageManager": "pnpm@10.33.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "@vitest/coverage-v8": "^4.1.7",
+    "vitest": "^4.1.7"
+  }
+}
