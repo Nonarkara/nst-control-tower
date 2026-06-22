@@ -104,17 +104,16 @@ test.describe("Layer palette — count badge suppression", () => {
   });
 });
 
-test.describe("MAR lens — panel headers", () => {
-  test("CoastalBrief, TidePanel and FisheryPanel render their PanelHeader eyebrows", async ({ page }) => {
+test.describe("FLOOD lens — panel headers", () => {
+  test("WaterPanel and UpstreamWatershed render their PanelHeader eyebrows", async ({ page }) => {
     await page.goto("/");
     await expect(page.locator(".map-host")).toBeVisible({ timeout: 20_000 });
 
-    // CoastalBrief, TidePanel, FisheryPanel are always rendered in the sidebar
+    // WaterPanel and UpstreamWatershed are always rendered in the sidebar
     // (not gated by a specific lens). PanelHeader renders its title immediately,
     // even during loading state — so no API data is required.
-    await expect(page.getByText(/SEA STATE/i).first()).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByText(/TIDAL PREDICTION/i).first()).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByText(/FISHERY CONDITIONS/i).first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText(/WATER MONITORING/i).first()).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText(/WATERSHED/i).first()).toBeVisible({ timeout: 10_000 });
   });
 });
 
