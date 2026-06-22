@@ -1,5 +1,5 @@
 /**
- * Pure PMCU (Pattaya / Municipality Operations) simulation helpers —
+ * Pure municipality-operations simulation helpers —
  * extracted from PmcuBrief.tsx for unit testing.
  *
  * These drive the PART MODELLED municipality operations panel: all output

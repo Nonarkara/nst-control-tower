@@ -23,8 +23,8 @@ interface Kpi {
 }
 
 export interface ProvincialKPIs {
-  cityPopulation?: { total: number; male: number; female: number; year: number } | null;
-  population: { total: number; male: number; female: number; year: number } | null;
+  cityPopulation?: { total: number; year: number } | null;
+  population: { total: number; year: number } | null;
   tourism: {
     year: number | null;
     totalVisitors: number | null;
@@ -87,14 +87,14 @@ export function ProvincialKPIs({ data, loading, ageMinutes, fallbackTier }: Prop
     kpis.push({
       label: "CITY POPULATION",
       value: fmtN(cityPopulation.total),
-      sub: `♂ ${fmtN(cityPopulation.male)} · ♀ ${fmtN(cityPopulation.female)} · เทศบาลนคร · ${cityPopulation.year}`,
+      sub: `เทศบาลนคร · DOPA ${cityPopulation.year}`,
     });
   }
   if (population) {
     kpis.push({
       label: cityPopulation ? "PROVINCE POP." : "POPULATION",
       value: fmtN(population.total),
-      sub: `♂ ${fmtN(population.male)} · ♀ ${fmtN(population.female)} · ${population.year}`,
+      sub: `23 อำเภอ · DOPA ${population.year}`,
     });
   }
 

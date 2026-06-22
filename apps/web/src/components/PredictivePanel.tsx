@@ -194,8 +194,7 @@ export function PredictivePanel({ apiBase, onMetricClick, onAlert, onForecastsLo
 
       {!loading && !error && !hasAnyData && (
         <div className="eyebrow mono" style={{ color: "var(--text-3)" }}>
-          No forecast data yet — Python service has not run.<br />
-          <span style={{ color: "var(--text-3)" }}>Deploy apps/forecast/ to Render to activate.</span>
+          Forecasts resume when the prediction service reports in.
         </div>
       )}
 

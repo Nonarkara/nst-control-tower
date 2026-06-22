@@ -126,7 +126,7 @@ export function Manual({ open, onClose }: Props) {
                 <ul className="manual-swatches">
                   <li><span className="sw" style={{ background: "var(--accent)" }}/> Electricity — amber (HV 115 kV thick, MV 22 kV thin)</li>
                   <li><span className="sw" style={{ background: "var(--data)" }}/> Water mains — cyan (main thick, lateral thin)</li>
-                  <li><span className="sw" style={{ background: "var(--good)" }}/> Storm drainage — emerald (flow → Centenary basin)</li>
+                  <li><span className="sw" style={{ background: "var(--good)" }}/> Storm drainage — emerald (flow → Pak Phanang estuary)</li>
                   <li><span className="sw" style={{ background: "rgb(34,211,238)" }}/> WiFi — cyan dot (green / amber / red by Mbps)</li>
                 </ul>
               </div>
@@ -189,7 +189,7 @@ export function Manual({ open, onClose }: Props) {
               <dl>
                 <dt>AQI</dt><dd>Air Quality Index (US EPA scale) — derived from PM2.5 + PM10.</dd>
                 <dt>PM2.5</dt><dd>Particulate matter ≤ 2.5 µm — the haze you breathe. WHO 24-hr guideline is 15 µg/m³.</dd>
-                <dt>iTIC</dt><dd>Intelligent Traffic Information Center / Longdo — live traffic events (Eastern Seaboard + national).</dd>
+                <dt>iTIC</dt><dd>Intelligent Traffic Information Center / Longdo — live traffic events (Nakhon Si Thammarat + national).</dd>
                 <dt>Traffy</dt><dd>Traffy Fondue — citizen complaint platform; Thailand's nationwide 311 channel.</dd>
                 <dt>NDVI</dt><dd>Normalized Difference Vegetation Index — satellite-derived greenness.</dd>
                 <dt>LST</dt><dd>Land Surface Temperature — satellite-derived ground temp; shows urban heat islands.</dd>

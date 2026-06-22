@@ -57,6 +57,23 @@ describe("SOURCE_CATALOG invariants", () => {
       expect(looksReasonable, `Bad apiPath for ${s.id}: ${s.apiPath}`).toBe(true);
     }
   });
+
+  it("no user-visible field references a wrong place (Chula/Bangkok/Yala/Deep South/etc.)", () => {
+    // This catalog is rendered verbatim to the Mayor of Nakhon Si Thammarat.
+    // Any wrong-city/wrong-institution string is a credibility-killing bug.
+    // We scrub only the human-readable fields (label, vendor, describe, docs);
+    // technical endpoint/apiPath URLs may legitimately contain vendor path
+    // segments (e.g. Traffy's national dump filename) and are excluded.
+    const forbidden =
+      /Chula|Chulalongkorn|PMCU|Siam Square|Samyan|Sam Yan|Chamchuri|Centenary|MBK|Henri Dunant|Pathum Wan|Hua Lamphong|Ratchadamri|\bBMA\b|Yala|Pattani|Betong|Bang Lang|Deep South|Narathiwat|Chonburi|Laem Chabang|Eastern Seaboard|Sukhumvit/i;
+    for (const s of SOURCE_CATALOG) {
+      const haystack = `${s.label} ${s.vendor} ${s.describe} ${s.docs ?? ""}`;
+      expect(
+        forbidden.test(haystack),
+        `Wrong-place reference in ${s.id}: "${haystack}"`,
+      ).toBe(false);
+    }
+  });
 });
 
 describe("SOURCE_CATALOG — live sources", () => {

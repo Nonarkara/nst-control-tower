@@ -16,17 +16,17 @@ interface Corridor {
   base: number;
 }
 const CORRIDORS: Corridor[] = [
-  { id: "sukhumvit",  name: "Sukhumvit Hwy",   base: 0.60 },
-  { id: "coastal",    name: "Coastal Road",     base: 0.50 },
-  { id: "klang",      name: "Klang Mueang Rd",  base: 0.45 },
-  { id: "phanat",     name: "Pha Nat Road",     base: 0.42 },
+  { id: "ratchadamnoen", name: "Ratchadamnoen Rd", base: 0.60 },
+  { id: "phatthanakan",  name: "Phatthanakan Rd",  base: 0.50 },
+  { id: "klang",         name: "Klang Mueang Rd",  base: 0.45 },
+  { id: "phanat",        name: "Pha Nat Road",     base: 0.42 },
 ];
 
 
 const PARKING_ZONES: ParkingZone[] = [
   { id: "P1", name: "Municipal Hall · North",   capacity: 320 },
   { id: "P2", name: "Market District · East",   capacity: 480 },
-  { id: "P3", name: "Coastal Park · West",      capacity: 260 },
+  { id: "P3", name: "Sanam Na Mueang · West",   capacity: 260 },
   { id: "P4", name: "Hospital Complex · South", capacity: 410 },
 ];
 
@@ -53,7 +53,7 @@ interface Development {
 }
 const DEVELOPMENTS: Development[] = [
   { id: "smart-city",    name: "Smart City Hub",       status: "in-progress", describe: "DEPA-backed IoT + open data infrastructure" },
-  { id: "flood-infra",   name: "Flood Retention Basin",status: "in-progress", describe: "Urban drainage upgrade · coastal flood mitigation" },
+  { id: "flood-infra",   name: "Flood Retention Basin",status: "in-progress", describe: "Urban drainage upgrade · Tha Dee canal flood mitigation" },
   { id: "digital-svc",   name: "Digital Services",     status: "open",        describe: "Online permits, payments, citizen reporting" },
   { id: "rail-corridor", name: "Rail Corridor Upgrade", status: "planned",     describe: "Southern Line modernisation — passenger + freight through NST city" },
 ];

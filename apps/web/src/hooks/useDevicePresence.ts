@@ -33,10 +33,11 @@ const EMPTY: DevicePresence = {
   err: null,
 };
 
-// Outer Chonburi Town Municipality bbox.
+// Nakhon Si Thammarat city + immediate surroundings bbox (matches campus
+// outerBounds). A device GPS fix inside this box renders the "you are here" pulse.
 const OUTER = {
-  minLng: 100.940, minLat: 13.320,
-  maxLng: 101.030, maxLat: 13.410,
+  minLng: 99.86, minLat: 8.36,
+  maxLng: 100.04, maxLat: 8.52,
 };
 const inOuterBox = (lng: number, lat: number) =>
   lng >= OUTER.minLng && lng <= OUTER.maxLng &&

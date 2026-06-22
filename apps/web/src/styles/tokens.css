@@ -1,23 +1,22 @@
 /* ═══════════════════════════════════════════════════════════════════════
-   Design DNA — Yala Control Tower (Deep South / เทศบาลนครยะลา)
+   Design DNA — Nakhon Si Thammarat Control Tower (เทศบาลนครนครศรีธรรมราช)
    ═══════════════════════════════════════════════════════════════════════
-   Place       → Yala, provincial capital of Thailand's Deep South — a
-                 planned CONCENTRIC-CIRCULAR city whose gold ring roads
-                 radiate from "Kilometre Zero." Malay-Muslim majority;
-                 a security- and flood-focused frontier capital.
+   Place       → Nakhon Si Thammarat, a Southern Thai provincial capital
+                 defined by recurrent severe flooding: Khao Luang runoff down
+                 the Tha Dee canal (คลองท่าดี) into the Old Town, and the Pak
+                 Phanang basin. A historic N–S Old Town axis along Ratchadamnoen.
    Typography  → IBM Plex Sans (body), IBM Plex Sans Condensed (display
                  labels), IBM Plex Mono (readouts), IBM Plex Sans Thai
                  (Thai script), Lora (editorial serif — headlines, prose).
    Color       → Stark blacks and off-whites. PETROL-TEAL primary accent —
-                 serious, governmental, regional to the Malay south, and
-                 deliberately distinct from any red-accented sibling city.
-                 GOLD as the secondary accent: it is the ring-road /
-                 Kilometre-Zero motif made literal. Deep blues for data.
-                 RED is held in reserve for genuine security alerts.
+                 serious, governmental, water-regional, calm. GOLD as the
+                 secondary accent for heritage / Old Town marks. Deep blues
+                 for data. RED reserved for genuine flood/safety alerts.
    Surface     → No rounding, no blur, no shadow. Honest surfaces.
    Grid        → Vignelli-standard 4 px grid. Tight, information-dense.
-   Heritage    → Bauhaus functionalism × Swiss typography × the concentric
-                 geometry of the city plan. Every element earns its place.
+   Heritage    → Bauhaus functionalism × Swiss typography. Dieter Rams:
+                 a tool, not decoration — every element earns its place, and
+                 the aesthetic exists to make the data legible to a human.
    ═══════════════════════════════════════════════════════════════════════ */
 
 :root {
@@ -56,8 +55,8 @@
      so the whole scale grows on a wall display and shrinks on a phone while
      staying legible. Floor: nothing renders below ~12px effective on a
      laptop. --size-body == 1rem (tracks the root). */
-  --size-eyebrow: 0.76rem;
-  --size-caption: 0.84rem;
+  --size-eyebrow: 0.80rem;
+  --size-caption: 0.88rem;
   --size-body:    1rem;
   --size-h3:      1.14rem;
   --size-h2:      1.4rem;
@@ -111,8 +110,11 @@
 
   --text:   #e6edf3;
   --text-1: #c9d1d9;
-  --text-2: #8b949e;
-  --text-3: #7d8590;
+  /* text-2/3 lifted from #8b949e/#7d8590 → better contrast on near-black so
+     metadata/eyebrows/captions don't blend into the background on a bright demo
+     screen, while keeping the brightness hierarchy (text > 1 > 2 > 3). */
+  --text-2: #9da7b3;
+  --text-3: #8b95a1;
   color-scheme: dark;
 }
 

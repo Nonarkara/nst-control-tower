@@ -298,9 +298,9 @@ export async function fetchFahfon(token: string): Promise<NormalizedFeed<FahfonR
 export interface ProvincialKPIs {
   // City municipality registered population (Tambon Sateng) — the unit the
   // dashboard actually governs; distinct from the far larger province figure.
-  cityPopulation: { total: number; male: number; female: number; year: number } | null;
+  cityPopulation: { total: number; year: number } | null;
   // Population (province)
-  population: { total: number; male: number; female: number; year: number } | null;
+  population: { total: number; year: number } | null;
   // Tourism
   tourism: {
     totalVisitors: number | null;
@@ -337,10 +337,12 @@ export async function fetchProvincialKPIs(_token: string): Promise<NormalizedFee
     const fetchedAt = new Date().toISOString();
 
     // City municipality registered population — DOPA 2019 (เทศบาลนครนครศรีธรรมราช).
-    const cityPopulation = { total: 102_152, male: 49_000, female: 53_152, year: 2019 };
+    // Sex split intentionally omitted: DOPA's clean NST split isn't surfaced here,
+    // and a synthesized male/female pair would be unearned precision.
+    const cityPopulation = { total: 102_152, year: 2019 };
 
     // Province registered population — DOPA 2022 (จังหวัดนครศรีธรรมราช, 23 districts).
-    const population = { total: 1_545_147, male: 762_000, female: 783_147, year: 2022 };
+    const population = { total: 1_545_147, year: 2022 };
 
     // Tourism — TAT/MOTS: Nakhon Si Thammarat received ~3.94M visitors in 2019
     // (fastest-growing tourism province in Thailand), receipts ≈ 2,642M THB.

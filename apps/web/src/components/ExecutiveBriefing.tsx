@@ -78,7 +78,7 @@ export function ExecutiveBriefing({
       {/* Header */}
       <PanelHeader
         title="EXECUTIVE BRIEF"
-        source="live-feeds"
+        source="live-feeds + compendium"
         ageMinutes={ageMinutes}
         fallbackTier={fallbackTier}
         actions={
@@ -148,7 +148,9 @@ export function ExecutiveBriefing({
       {/* Strategic initiatives */}
       {initiatives.length > 0 && (
         <div className="exec-briefing-section">
-          <span className="mono eyebrow" style={{ color: "var(--text-3)" }}>INITIATIVES</span>
+          <span className="mono eyebrow" style={{ color: "var(--text-3)" }}>
+            INITIATIVES <span style={{ color: "var(--text-3)", fontWeight: 400 }}>· INDICATIVE</span>
+          </span>
           <ul className="exec-briefing-initiatives" role="list">
             {initiatives.map((init) => (
               <li key={init.id} className="exec-briefing-initiative">
@@ -162,17 +164,12 @@ export function ExecutiveBriefing({
                     {init.status.toUpperCase().replace("-", " ")}
                   </span>
                 </div>
-                <div className="exec-briefing-progress-track" role="progressbar"
-                     aria-valuenow={init.progressPct} aria-valuemin={0} aria-valuemax={100}
-                     aria-label={`${init.name}: ${init.progressPct}% complete`}>
-                  <div className="exec-briefing-progress-fill"
-                       style={{
-                         width: `${init.progressPct}%`,
-                         background: STATUS_COLOR[init.status] ?? "var(--data)",
-                       }} />
-                </div>
+                {/* No fabricated %-complete bar: the Mayor runs these programmes and
+                    would catch invented precision. Show owner + target date only,
+                    with a qualitative status, until the Mayor's office supplies real
+                    progress figures. */}
                 <div className="mono" style={{ fontSize: "0.58rem", color: "var(--text-3)" }}>
-                  {init.progressPct}% · {init.owner} · {init.deadline}
+                  {init.owner} · target {init.deadline}
                 </div>
               </li>
             ))}

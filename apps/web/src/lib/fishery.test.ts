@@ -35,10 +35,10 @@ function tide(springTide = false): TideSnapshot {
   return { springTide, heightM: 1.0 };
 }
 
-// Use the Ang Sila oyster zone for most tests (waveThreshold=0.8, sstLimit=31)
-const ANGSILA = ZONES.find(z => z.id === "angsila")!;
+// Use the Tha Sala oyster zone for most tests (waveThreshold=0.8, sstLimit=31)
+const ANGSILA = ZONES.find(z => z.id === "thasala")!;
 const OFFSHORE = ZONES.find(z => z.id === "offshore")!;
-const BANGSAEN = ZONES.find(z => z.id === "bangsaen")!;
+const BANGSAEN = ZONES.find(z => z.id === "pakphanang")!;
 
 // ─── null marine ──────────────────────────────────────────────────────────
 
@@ -202,7 +202,7 @@ describe("ZONES configuration", () => {
     expect(OFFSHORE.waveThreshold).toBe(maxThreshold);
   });
 
-  it("shrimp zone (Bang Saen) has the lowest wave threshold — most sensitive", () => {
+  it("shrimp zone (Pak Phanang) has the lowest wave threshold — most sensitive", () => {
     const minThreshold = Math.min(...ZONES.map(z => z.waveThreshold));
     expect(BANGSAEN.waveThreshold).toBe(minThreshold);
   });
@@ -211,7 +211,7 @@ describe("ZONES configuration", () => {
 // ─── Zone-specific thresholds ──────────────────────────────────────────────
 
 describe("zoneStatus — zone-specific thresholds", () => {
-  it("a wave safe for offshore (2.0 m) still triggers caution for Ang Sila (threshold 0.8)", () => {
+  it("a wave safe for offshore (2.0 m) still triggers caution for Tha Sala (threshold 0.8)", () => {
     const onshore = zoneStatus(ANGSILA,  marine({ waveHeightM: 2.0 }), tide(), 0);
     const offshore = zoneStatus(OFFSHORE, marine({ waveHeightM: 2.0 }), tide(), 0);
     expect(onshore.level).not.toBe("go");   // definitely not safe for oysters

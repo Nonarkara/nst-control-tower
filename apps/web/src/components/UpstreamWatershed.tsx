@@ -12,10 +12,11 @@
  */
 
 import { useMemo } from "react";
-import type { WaterGauge, RainfallStation, EwsStation, FallbackTier } from "@nst/shared";
+import type { WaterGauge, RainfallStation, EwsStation, FloodGauge, FallbackTier } from "@nst/shared";
 import { PanelHeader } from "./PanelHeader";
 import {
   summarizeWatershed,
+  leadTimeToCity,
   ZONE_STATUS_COLOR,
   ZONE_STATUS_LABEL,
   type ZoneSummary,
@@ -25,6 +26,8 @@ interface Props {
   waterGauges: WaterGauge[];
   rainfall: RainfallStation[];
   ews?: EwsStation[];
+  /** GloFAS flood gauges — MODELLED proxy for zones with no live HII gauge/EWS. */
+  floodGauges?: FloodGauge[];
   ageMinutes?: number | null;
   fallbackTier?: FallbackTier;
 }
@@ -59,12 +62,21 @@ function ZoneRow({ s, isLast }: { s: ZoneSummary; isLast: boolean }) {
           <span className="eyebrow mono" style={{ color: "var(--text-3)" }}>{z.en}</span>
           <span className="eyebrow mono" style={{ color, marginLeft: "auto", fontWeight: 600 }}>
             {ZONE_STATUS_LABEL[s.status]}
+            {s.modelled && <span style={{ color: "var(--text-3)", fontWeight: 400 }}> ·model</span>}
           </span>
         </div>
 
         <div className="eyebrow mono" style={{ color: "var(--text-3)" }}>
           {z.role} · {z.river}
         </div>
+        {!z.isCity && (() => {
+          const lt = leadTimeToCity(z.key);
+          return lt ? (
+            <div className="eyebrow mono" style={{ color: "var(--text-3)" }}>
+              ≈ {lt.minH.toFixed(1)}–{lt.maxH.toFixed(1)} h to city (est.)
+            </div>
+          ) : null;
+        })()}
 
         {/* Live readings */}
         <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 2 }}>
@@ -110,13 +122,13 @@ function ZoneRow({ s, isLast }: { s: ZoneSummary; isLast: boolean }) {
   );
 }
 
-export function UpstreamWatershed({ waterGauges, rainfall, ews = [], ageMinutes, fallbackTier }: Props) {
+export function UpstreamWatershed({ waterGauges, rainfall, ews = [], floodGauges = [], ageMinutes, fallbackTier }: Props) {
   const summaries = useMemo(
-    () => summarizeWatershed(waterGauges, rainfall, ews),
-    [waterGauges, rainfall, ews],
+    () => summarizeWatershed(waterGauges, rainfall, ews, floodGauges),
+    [waterGauges, rainfall, ews, floodGauges],
   );
 
-  const hasAny = summaries.some((s) => s.gaugeCount > 0 || s.rain24h != null || s.soil != null);
+  const hasAny = summaries.some((s) => s.gaugeCount > 0 || s.rain24h != null || s.soil != null || s.modelled);
   // Worst upstream (non-city) status drives the "what's coming" line.
   const upstream = summaries.filter((s) => !s.zone.isCity);
   const upstreamAlert = upstream.find((s) => s.status === "flood" || s.status === "high");
@@ -152,7 +164,8 @@ export function UpstreamWatershed({ waterGauges, rainfall, ews = [], ageMinutes,
 
           <div className="eyebrow mono" style={{ color: "var(--text-3)", borderTop: "1px solid var(--line)", paddingTop: 6, lineHeight: 1.5 }}>
             Flow order along คลองท่าดี: Khao Luang → คีรีวง → ลานสกา → city.
-            Upstream rain & rises lead downtown by hours — the window to act.
+            Lead-time = channel distance ÷ a 1.5–3 m/s flood-wave celerity band
+            (estimate, not hydraulic routing) — the window to act.
           </div>
         </>
       )}

@@ -191,16 +191,6 @@ describe("buildTrafficSamples — OSM highway type mapping (full table)", () => 
     const roads = makeRoads([{ coords: [[100.98, 13.36], [100.99, 13.37]] }]);
     expect(buildTrafficSamples(roads, 8).every((s) => s.roadClass === "local")).toBe(true);
   });
-
-  it("Soi Chula residential road → campus-internal", () => {
-    // classifyOsm: name matches /Soi Chula/i + highway=residential → campus-internal
-    const roads = makeRoads([{
-      highway: "residential",
-      name: "Soi Chulalongkorn",
-      coords: [[100.98, 13.36], [100.99, 13.37]],
-    }]);
-    expect(buildTrafficSamples(roads, 8).every((s) => s.roadClass === "campus-internal")).toBe(true);
-  });
 });
 
 describe("buildTrafficSamples — overnight floor and campus class-hour boost", () => {

@@ -1,6 +1,21 @@
 import { describe, test, expect } from "vitest";
-import type { WaterGauge, RainfallStation, EwsStation } from "@nst/shared";
+import type { WaterGauge, RainfallStation, EwsStation, FloodGauge } from "@nst/shared";
 import { summarizeWatershed, summarizeZone, WATERSHED_ZONES } from "./watershed";
+
+function floodGauge(o: Partial<FloodGauge> = {}): FloodGauge {
+  return {
+    id: "fg",
+    name: "Tha Dee GloFAS",
+    lat: 8.3963,
+    lng: 99.9201,
+    levelM: null,
+    warningM: null,
+    status: "warning",
+    observedAt: "2026-06-21T08:00:00+07:00",
+    source: "glofas",
+    ...o,
+  };
+}
 
 function gauge(o: Partial<WaterGauge> = {}): WaterGauge {
   return {
@@ -137,6 +152,35 @@ describe("summarizeZone", () => {
     const s = summarizeZone(ZONE("thung-song"), [], [], []);
     expect(s.status).toBe("nodata");
     expect(s.gaugeCount).toBe(0);
+    expect(s.modelled).toBe(false);
+  });
+
+  test("city node falls back to a nearby GloFAS gauge (MODELLED) when no HII gauge/EWS", () => {
+    // No ThaiWater gauge or EWS in the city zone, but a GloFAS Tha Dee gauge sits
+    // on the node → status comes from the proxy and is flagged modelled, so the
+    // cascade's payoff node isn't a permanent NO DATA.
+    const s = summarizeZone(ZONE("city"), [], [], [], [floodGauge({ status: "warning" })]);
+    expect(s.status).toBe("high"); // warning → high
+    expect(s.modelled).toBe(true);
+    expect(s.gaugeCount).toBe(0);
+  });
+
+  test("a live HII gauge takes precedence over the GloFAS proxy (not modelled)", () => {
+    const s = summarizeZone(
+      ZONE("city"),
+      [gauge({ name: "บ้านนาป่า", amphoe: "เมืองนครศรีธรรมราช", situationLevel: 5 })],
+      [],
+      [],
+      [floodGauge({ status: "normal" })],
+    );
+    expect(s.status).toBe("flood"); // situation 5 → flood, from the real gauge
+    expect(s.modelled).toBe(false);
+  });
+
+  test("a far-away GloFAS gauge is not used as a proxy", () => {
+    const s = summarizeZone(ZONE("city"), [], [], [], [floodGauge({ lat: 7.0, lng: 100.5, status: "flood" })]);
+    expect(s.status).toBe("nodata");
+    expect(s.modelled).toBe(false);
   });
 });
 

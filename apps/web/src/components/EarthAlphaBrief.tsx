@@ -22,13 +22,16 @@ interface Props {
   fallbackTier?: FallbackTier;
 }
 
-const EARTH_LAYERS: Array<{ id: LayerId; label: string }> = [
-  { id: "satellite-imerg", label: "Rain" },
-  { id: "satellite-flood", label: "Flood" },
-  { id: "satellite-lst", label: "Heat" },
-  { id: "satellite-aerosol", label: "Haze" },
-  { id: "satellite-no2", label: "NO2" },
-  { id: "satellite-ndvi", label: "NDVI" },
+// Each EO layer paints the map by ONE measured satellite variable. The `what`
+// line is shown under the toggle so an operator knows what they're looking at and
+// why the layers differ — not just a cryptic acronym (Rams: make it understandable).
+const EARTH_LAYERS: Array<{ id: LayerId; label: string; what: string }> = [
+  { id: "satellite-imerg",   label: "Rain",  what: "NASA rainfall rate — where it's pouring now" },
+  { id: "satellite-flood",   label: "Flood", what: "MODIS standing water — recent inundation" },
+  { id: "satellite-lst",     label: "Heat",  what: "Land-surface temp — urban heat islands" },
+  { id: "satellite-aerosol", label: "Haze",  what: "Aerosol depth — haze / PM2.5 proxy" },
+  { id: "satellite-no2",     label: "NO₂",   what: "Tropospheric NO₂ — traffic + power plumes" },
+  { id: "satellite-ndvi",    label: "NDVI",  what: "Vegetation greenness — drought / crops" },
 ];
 
 const WORKFLOWS = [
@@ -163,7 +166,11 @@ export function EarthAlphaBrief({
         </div>
       </div>
 
-      <div className="layer-toggles" style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))" }}>
+      <div className="eyebrow mono" style={{ color: "var(--text-3)", lineHeight: 1.5, marginBottom: 2 }}>
+        Satellite earth-observation overlays (NASA GIBS). Each tints the whole map by
+        one measured signal — toggle one at a time to read it. Updates daily/sub-daily.
+      </div>
+      <div className="layer-toggles" style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 4 }}>
         {EARTH_LAYERS.map((l) => {
           const on = enabledLayers.has(l.id);
           return (
@@ -172,13 +179,16 @@ export function EarthAlphaBrief({
               className={`layer-toggle ${on ? "on" : "off"}`}
               onClick={() => onToggleLayer(l.id)}
               aria-pressed={on}
-              title={on ? `Disable ${l.label}` : `Enable ${l.label}`}
-              style={{ cursor: "pointer", textAlign: "left", width: "100%" }}
+              title={`${l.what} · ${on ? "tap to hide" : "tap to show"}`}
+              style={{ cursor: "pointer", textAlign: "left", width: "100%", flexDirection: "column", alignItems: "stretch", gap: 1 }}
             >
-              <span className="row">
-                <span>{l.label}</span>
+              <span className="row" style={{ justifyContent: "space-between", width: "100%" }}>
+                <span style={{ fontWeight: 600 }}>{l.label}</span>
+                <span className="mono caption" style={{ color: on ? "var(--accent)" : "var(--text-3)" }}>{on ? "ON" : "off"}</span>
               </span>
-              <span className="mono caption">{on ? "on" : "off"}</span>
+              <span className="eyebrow" style={{ color: "var(--text-3)", lineHeight: 1.3, whiteSpace: "normal", textTransform: "none", letterSpacing: 0 }}>
+                {l.what}
+              </span>
             </button>
           );
         })}

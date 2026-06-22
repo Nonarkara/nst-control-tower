@@ -303,7 +303,7 @@ export type LayerGroup = "municipality" | "security" | "maritime" | "mobility" |
 
 export const LAYER_GROUP_LABEL: Record<LayerGroup, string> = {
   municipality: "Municipality",
-  security:     "Deep South Security",
+  security:     "Security (legacy)",
   maritime:     "Maritime (legacy)",
   mobility:     "Mobility",
   incidents:    "Incidents",

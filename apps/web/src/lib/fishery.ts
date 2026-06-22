@@ -30,12 +30,16 @@ export interface FisheryZone {
   sstLimit: number;
 }
 
+// NST Gulf-of-Thailand coast, running north→south: Khanom · Sichon · Tha Sala ·
+// Mueang/Pak Nakhon · Pak Phanang estuary. Tha Sala is known for oyster culture,
+// Pak Phanang bay for shrimp aquaculture + blood-cockle beds; Sichon for artisanal
+// inshore fishing; the open Gulf for offshore trawlers.
 export const ZONES: FisheryZone[] = [
-  { id: "angsila",  nameTh: "อ่างศิลา",    nameEn: "Ang Sila oyster",  type: "oyster",    waveThreshold: 0.8, sstLimit: 31 },
-  { id: "bangsaen", nameTh: "บ้านแสน",     nameEn: "Bang Saen shrimp", type: "shrimp",    waveThreshold: 0.6, sstLimit: 32 },
-  { id: "bangphra", nameTh: "บางพระ",      nameEn: "Bang Phra mussel", type: "mussel",    waveThreshold: 0.9, sstLimit: 31 },
-  { id: "bay",      nameTh: "อ่าวชลบุรี", nameEn: "Chonburi Bay",    type: "artisanal", waveThreshold: 1.5, sstLimit: 34 },
-  { id: "offshore", nameTh: "เกาะสีชัง",   nameEn: "Koh Si Chang",    type: "offshore",  waveThreshold: 2.5, sstLimit: 35 },
+  { id: "thasala",     nameTh: "หอยนางรมท่าศาลา",  nameEn: "Tha Sala oyster",    type: "oyster",    waveThreshold: 0.8, sstLimit: 31 },
+  { id: "pakphanang",  nameTh: "กุ้งปากพนัง",       nameEn: "Pak Phanang shrimp", type: "shrimp",    waveThreshold: 0.6, sstLimit: 32 },
+  { id: "cockle",      nameTh: "หอยแครงปากพนัง",    nameEn: "Pak Phanang cockle", type: "mussel",    waveThreshold: 0.9, sstLimit: 31 },
+  { id: "sichon",      nameTh: "ประมงพื้นบ้านสิชล",  nameEn: "Sichon artisanal",   type: "artisanal", waveThreshold: 1.5, sstLimit: 34 },
+  { id: "offshore",    nameTh: "อ่าวไทยนอกฝั่ง",     nameEn: "Gulf offshore",      type: "offshore",  waveThreshold: 2.5, sstLimit: 35 },
 ];
 
 // Seasonal calendar — months when stock is most at risk or protected

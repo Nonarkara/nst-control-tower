@@ -110,7 +110,10 @@ export function signedDiffFromBank(
     if (text.includes("สูงกว่า") || text.includes("ล้น")) return Math.abs(m);
     if (text.includes("ต่ำกว่า")) return -Math.abs(m);
   }
-  return m; // direction unknown — pass through as-is
+  // Direction unknown: do NOT assume above-bank — a bare positive magnitude would
+  // render a false "X m OVERBANK" flood alarm on a dry canal. situationLevel (1-5)
+  // independently drives the real flood path, so return null (freeboard unknown).
+  return null;
 }
 
 function situation(raw: number | null | undefined): WaterGauge["situationLevel"] {

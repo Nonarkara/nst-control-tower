@@ -406,8 +406,8 @@ describe("fetchDatagoDatasets — curated fallback when CKAN is unreachable", ()
 describe("fetchProvincialKPIs — parallel CKAN fetch (isolated)", () => {
   type ProvincialKPIsFeed = {
     features: Array<{
-      cityPopulation: { total: number; male: number; female: number; year: number } | null;
-      population: { total: number; male: number; female: number; year: number } | null;
+      cityPopulation: { total: number; year: number } | null;
+      population: { total: number; year: number } | null;
       tourism: { totalVisitors: number | null; year: number | null } | null;
       hotel: { occupancyPct: number | null } | null;
       accidents: { incidents: number; year: number } | null;

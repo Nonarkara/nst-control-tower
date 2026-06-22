@@ -157,7 +157,11 @@ export function WorldStrip({ hostAqi, hostPm25, hostWeather, hostPulse, precipNo
               </div>
               <div className="pulse-cell">
                 <span className="lbl">MUNI BUS</span>
-                <span className="val mono">{hostPulse.shuttleLive}</span>
+                {/* Shuttle GPS feed not yet integrated — show the no-data convention
+                    ("—"), never a hard 0 that reads as "zero buses running". */}
+                <span className="val mono" style={hostPulse.shuttleLive === 0 ? { color: "var(--text-3)" } : undefined}>
+                  {hostPulse.shuttleLive > 0 ? hostPulse.shuttleLive : "—"}
+                </span>
               </div>
             </div>
           </div>

@@ -24,15 +24,15 @@ function gauge(overrides: Partial<WaterGauge> = {}): WaterGauge {
   };
 }
 
-function rain(rain24h: number | null): RainfallStation {
+function rain(rain24h: number | null, amphoe = "Mueang"): RainfallStation {
   return {
-    id: "r1",
+    id: `r-${amphoe}-${rain24h}`,
     name: "Rain Test",
     lat: 8.4,
     lng: 99.9,
     rain1h: null,
     rain24h,
-    amphoe: "Mueang",
+    amphoe,
     observedAt: "2026-06-21T08:00:00+07:00",
   };
 }
@@ -128,7 +128,7 @@ describe("computePosture", () => {
     expect(result.drivers).toContain("heavy rain now + gauges rising");
   });
 
-  test("weights the highest upland 24h rainfall across stations", () => {
+  test("rain24hMax is the province-wide observed max across stations", () => {
     const result = computePosture(
       [gauge({ situationLevel: 3 })],
       [rain(10), rain(95), rain(40)],
@@ -136,8 +136,39 @@ describe("computePosture", () => {
     );
 
     expect(result.rain24hMax).toBe(95);
-    // moderate river but very-heavy upland rain → at least standby/escalated
+    // no upland station → upland rain falls back to the all-station max → escalated
     expect(result.level).toBeGreaterThanOrEqual(2);
+  });
+
+  test("upland weighting: escalator follows the UPLAND gauge, not a wet downtown", () => {
+    // Downtown (Mueang) soaked at 200 mm, headwater (ลานสกา) only 95 mm.
+    // rain24hMax must reflect the province-wide max (200), but the LEADING signal
+    // that drives the ladder is the upland 95 mm — the claim the panel advertises.
+    const result = computePosture(
+      [gauge({ situationLevel: 1 })],
+      [rain(200, "Mueang"), rain(95, "ลานสกา")],
+      precip(),
+    );
+
+    expect(result.rain24hMax).toBe(200);
+    expect(result.uplandRain).toBe(95);
+    // upland 95 mm ≥ very-heavy(90) → +1 from base L1 → L2 STANDBY
+    expect(result.level).toBe(2);
+    expect(result.drivers.some((d) => d.startsWith("upland 95"))).toBe(true);
+  });
+
+  test("upland weighting: a dry headwater does NOT inherit a wet downtown's escalation", () => {
+    // Downtown 200 mm but upland (ลานสกา) bone-dry at 5 mm and river calm →
+    // the rainfall escalator should NOT fire off the downtown figure.
+    const result = computePosture(
+      [gauge({ situationLevel: 1 })],
+      [rain(200, "Mueang"), rain(5, "ลานสกา")],
+      precip(),
+    );
+
+    expect(result.rain24hMax).toBe(200);
+    expect(result.uplandRain).toBe(5);
+    expect(result.level).toBe(1); // no upland-driven escalation
   });
 
   test("clamps to the 1..5 range", () => {

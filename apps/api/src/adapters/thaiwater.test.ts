@@ -30,8 +30,10 @@ describe("signedDiffFromBank", () => {
     expect(signedDiffFromBank(undefined, null)).toBeNull();
   });
 
-  test("unknown direction text → passes magnitude through unchanged", () => {
-    expect(signedDiffFromBank(2.5, null)).toBe(2.5);
-    expect(signedDiffFromBank(2.5, "(ม.)")).toBe(2.5);
+  test("unknown direction text → null (no false overbank alarm)", () => {
+    // A bare positive magnitude with no direction must NOT read as above-bank;
+    // returning null avoids a false "X m OVERBANK" flood alarm on a dry canal.
+    expect(signedDiffFromBank(2.5, null)).toBeNull();
+    expect(signedDiffFromBank(2.5, "(ม.)")).toBeNull();
   });
 });

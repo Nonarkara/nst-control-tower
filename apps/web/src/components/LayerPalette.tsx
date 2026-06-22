@@ -33,6 +33,16 @@ interface Props {
 
 const GROUP_ORDER: LayerGroup[] = ["municipality", "maritime", "mobility", "incidents", "open-data", "environment", "imagery"];
 
+// Short, plain-language hint shown under a group header so an operator understands
+// what the (often similar-looking) layers are for and how they interact — Rams:
+// make it understandable. Only the satellite-heavy groups need one.
+const GROUP_HINT: Partial<Record<LayerGroup, string>> = {
+  imagery:
+    "Map backdrops + satellite washes. Pick ONE base (Esri HD / MODIS / VIIRS / terrain); the colour overlays (rain · heat · haze · NO₂ · NDVI) each tint the whole map — one at a time. Hover any layer for detail.",
+  environment:
+    "Flood, water & earth-observation layers — the city's flood story. Hover any layer for what it shows.",
+};
+
 export function LayerPalette({ lens, onLensChange, enabled, onToggleLayer, counts, statuses }: Props) {
   // group → list of layers (preserve declaration order within each group)
   const grouped = useMemo(() => {
@@ -104,6 +114,11 @@ export function LayerPalette({ lens, onLensChange, enabled, onToggleLayer, count
                   <span className="layer-group-meta mono">{on}/{list.length}</span>
                   <span className="layer-group-chevron mono">{isCollapsed ? "▸" : "▾"}</span>
                 </button>
+                {!isCollapsed && GROUP_HINT[g] && (
+                  <div className="caption" style={{ color: "var(--text-3)", lineHeight: 1.4, padding: "0 4px 7px" }}>
+                    {GROUP_HINT[g]}
+                  </div>
+                )}
                 {!isCollapsed && (
                   <div className="layer-toggles">
                     {list.map((l) => {

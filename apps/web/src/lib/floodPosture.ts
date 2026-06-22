@@ -82,6 +82,18 @@ export const RAIN_VERY_HEAVY = 90;
 // Soil moisture (%) at/above which an upland slope is flash-flood primed.
 export const SOIL_PRIMED = 85;
 
+// Khao Luang / Tha Dee headwater amphoe — rain here becomes the city's river rise
+// hours later, so these stations are the leading indicator (Iligan "Project Daloy"
+// lesson). Both Thai and romanised spellings, because HII rainfall reports English
+// amphoe ("Lan Saka District") while DWR EWS reports Thai ("ลานสกา").
+export const UPLAND_AMPHOE = [
+  "ลานสกา", "นบพิตำ", "พิปูน", "พรหมคีรี", "ทุ่งสง", "ช้างกลาง",
+  "Lan Saka", "Nopphitam", "Phipun", "Phrom Khiri", "Thung Song", "Chang Klang",
+];
+function isUpland(amphoe: string | undefined): boolean {
+  return amphoe != null && UPLAND_AMPHOE.some((a) => amphoe.includes(a));
+}
+
 // DWR EWS official status (0-3) → the alert level it justifies on the ladder.
 const EWS_STATUS_TO_LEVEL: Record<EwsStation["status"], Level> = { 0: 1, 1: 2, 2: 3, 3: 4 };
 
@@ -113,11 +125,18 @@ export function computePosture(
   const overbankCount = gauges.filter((g) => g.situationLevel >= 5).length;
   const risingCount = gauges.filter((g) => g.trend === "rising").length;
 
-  // Upland (key/headwater) stations lead the city — weight them (Iligan lesson).
-  const uplandRain = rainfall
-    .filter((r) => r.rain24h != null)
-    .reduce((m, r) => Math.max(m, r.rain24h ?? 0), 0);
-  const rain24hMax = uplandRain;
+  // Upland (headwater) stations lead the city: the composite escalator is driven
+  // by the worst UPLAND 24h rainfall, while rain24hMax keeps the genuine
+  // province-wide observed max for context/display. When no upland gauge reports,
+  // upland rain falls back to the all-station max so the escalator never silently
+  // reads 0 (precautionary bias — Cao 2024).
+  const withRain = rainfall.filter((r) => r.rain24h != null);
+  const rain24hMax = withRain.reduce((m, r) => Math.max(m, r.rain24h ?? 0), 0);
+  const uplandStations = withRain.filter((r) => isUpland(r.amphoe));
+  const hasUpland = uplandStations.length > 0;
+  const uplandRain = hasUpland
+    ? uplandStations.reduce((m, r) => Math.max(m, r.rain24h ?? 0), 0)
+    : rain24hMax;
 
   // 1. Base level from observed river state (the dominant decision input).
   let level = 1;
@@ -129,13 +148,15 @@ export function computePosture(
     drivers.push("river high (situation 4)");
   }
 
-  // 2. Composite forecast escalation (Okazaki-style: observed + forecast).
-  if (rain24hMax >= RAIN_VERY_HEAVY) {
+  // 2. Composite forecast escalation (Okazaki-style: observed + forecast),
+  //    driven by the LEADING upland rainfall signal.
+  const rainLabel = hasUpland ? "upland" : "rain";
+  if (uplandRain >= RAIN_VERY_HEAVY) {
     level += 1;
-    drivers.push(`${Math.round(rain24hMax)} mm/24h (หนักมาก)`);
-  } else if (rain24hMax >= RAIN_HEAVY && level < 2) {
+    drivers.push(`${rainLabel} ${Math.round(uplandRain)} mm/24h (หนักมาก)`);
+  } else if (uplandRain >= RAIN_HEAVY && level < 2) {
     level = 2;
-    drivers.push(`${Math.round(rain24hMax)} mm/24h (หนัก)`);
+    drivers.push(`${rainLabel} ${Math.round(uplandRain)} mm/24h (หนัก)`);
   }
 
   if (precip?.intensity === "heavy" && risingCount >= 1) {

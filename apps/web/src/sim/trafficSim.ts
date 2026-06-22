@@ -15,12 +15,8 @@ const OSM_HIGHWAY_CLASS: Record<string, RoadClass> = {
   service: "campus-internal",
 };
 
-function classifyOsm(highway: string | undefined, name: string | null): RoadClass {
+function classifyOsm(highway: string | undefined, _name: string | null): RoadClass {
   if (!highway) return "local";
-  // Anything inside campus (Soi Chula) defaults to campus-internal
-  if (name && /Soi Chula|จุฬา/i.test(name) && (highway === "residential" || highway === "service" || highway === "living_street")) {
-    return "campus-internal";
-  }
   return OSM_HIGHWAY_CLASS[highway] ?? "local";
 }
 

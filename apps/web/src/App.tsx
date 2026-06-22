@@ -626,7 +626,9 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
         title = `${pick("name") ?? ""} ${pick("nameEn") ?? ""}`.trim() || "Watershed node";
         const bits = [pick("statusLabel"), pick("role")].filter(Boolean);
         const toBank = (p as { toBankM?: number | null }).toBankM;
-        if (typeof toBank === "number") bits.push(`${toBank.toFixed(1)} m to bank`);
+        // toBankM = -diffFromBank: negative ⇒ above bank (overbank/flooding).
+        if (typeof toBank === "number")
+          bits.push(toBank < 0 ? `${Math.abs(toBank).toFixed(1)} m OVERBANK` : `${toBank.toFixed(1)} m to bank`);
         const rain = (p as { rain24h?: number | null }).rain24h;
         if (typeof rain === "number" && rain > 0) bits.push(`☔ ${Math.round(rain)} mm/24h`);
         const soil = (p as { soil?: number | null }).soil;
@@ -678,7 +680,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
       entry.layers.forEach((id) => next.add(id));
       return enforceLayerExclusivity(next, entry.layers.find((id) => exclusiveGroupOf(id)));
     });
-    if (entry.flyToCoast) flyTo(100.995, 13.352, 13.5);
+    if (entry.flyToCoast) flyTo(100.20, 8.35, 13.5); // Pak Phanang estuary (NST coast)
   }, [flyTo]);
 
   const handleForecastAlert = useCallback((metric: string) => {
@@ -1010,7 +1012,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
     // ── Watershed upstream→city cascade (Tha Dee flow nodes) ──────────────
     if (enabledLayers.has("watershed-nodes") && waterGauges.data.length > 0)
       out.push(...(watershedNodesLayer(
-        summarizeWatershed(waterGauges.data, waterRain.data, ewsStations.data),
+        summarizeWatershed(waterGauges.data, waterRain.data, ewsStations.data, floodGauges.data),
       ) as Layer[]));
     // ── Yala — flood gauges + Bang Lang Dam (API-backed) ──────────────────
     if (enabledLayers.has("flood-gauges") && floodGauges.data.length > 0)
@@ -1180,8 +1182,11 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
         systemStatus={systemHealth?.system.status ?? "unknown"}
       />
 
-      {/* Degraded system banner */}
-      {systemHealth && systemHealth.system.status !== "healthy" && (
+      {/* Critical system banner — full-width only when the system is genuinely
+          DOWN. A merely "degraded" state (peripheral feeds like markets/social/
+          GISTDA needing keys) is reported calmly by the TopBar status badge +
+          per-feed chips instead of a screen-dominating alarm over the world strip. */}
+      {systemHealth && systemHealth.system.status === "down" && (
         <div className={`system-banner banner-${systemHealth.system.status}`}>
           <span className="mono">
             SYSTEM {systemHealth.system.status.toUpperCase()} — {" "}
@@ -1259,7 +1264,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
             <div className="mobile-brief-actions">
               <button className="mono" onClick={() => setCatalogOpen(true)}>SOURCES · {ALL_LAYERS.length}</button>
               <button className="mono" onClick={() => setAtlasOpen(true)}>◷ ATLAS</button>
-              <button className="mono" onClick={() => setPlatformOpen(true)}>⌕ LEARN</button>
+              {/* ⌕ LEARN hidden until platform/* content is NST-localised (see TopBar). */}
             </div>
           </div>
         )}
@@ -1333,6 +1338,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
             waterGauges={waterGauges.data}
             rainfall={waterRain.data}
             ews={ewsStations.data}
+            floodGauges={floodGauges.data}
             ageMinutes={waterGauges.data.length > 0 ? waterGauges.ageMinutes : waterRain.ageMinutes}
             fallbackTier={waterGauges.data.length > 0
               ? (waterGauges.fallbackTier === "loading" ? undefined : waterGauges.fallbackTier)
@@ -1585,7 +1591,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
           onWeekendToggle={setIsWeekend}
         />
         <div className="bottom-stats">
-          <span>{buildings?.features.length ?? 0} BUILDINGS · {trafficSamples.length} ROADS · {layers.length} LAYERS</span>
+          <span>{buildings?.features.length ?? 0} BUILDINGS · {(roads?.features.length ?? 0).toLocaleString()} ROADS · {layers.length} LAYERS</span>
           <span>{civicPoints?.features.length ?? 0} CIVIC · {cctv.data.length} CCTV · {gistdaPois.data.length} GISTDA</span>
         </div>
       </div>

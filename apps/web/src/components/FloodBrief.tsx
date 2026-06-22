@@ -72,7 +72,7 @@ const SIT_COLOR: Record<number, string> = {
 };
 
 const SIT_LABEL: Record<number, string> = {
-  5: "น้ำล้นตลิ่ง FLOOD", 4: "น้ำมาก HIGH", 3: "ปกติ NORMAL", 2: "น้ำน้อย LOW", 1: "วิกฤติ DROUGHT",
+  5: "น้ำล้นตลิ่ง FLOOD", 4: "น้ำมาก HIGH", 3: "ปกติ NORMAL", 2: "น้ำน้อย LOW", 1: "ภัยแล้ง DROUGHT",
 };
 
 export function FloodBrief({ gauges, waterGauges = [], dam, precip, floodRiskFeatures, ageMinutes, fallbackTier }: Props) {
@@ -89,12 +89,21 @@ export function FloodBrief({ gauges, waterGauges = [], dam, precip, floodRiskFea
     return [...waterGauges].sort((a, b) => b.situationLevel - a.situationLevel)[0];
   }, [waterGauges]);
 
-  const exposedHouseholds = useMemo(() => {
-    if (!floodRiskFeatures?.length) return null;
-    return floodRiskFeatures.reduce((sum, f) => {
+  // Split city-municipality exposure from the province-wide basin total. Summing
+  // all 5 basin zones (~225k households) and showing it as "the city" is an
+  // impossibility a 102k-population municipality's mayor catches instantly — so the
+  // headline is the Old Town / city low-lying zone, with the basin total below it.
+  const { cityHouseholds, provinceHouseholds } = useMemo(() => {
+    if (!floodRiskFeatures?.length) return { cityHouseholds: null, provinceHouseholds: null };
+    const hh = (f: typeof floodRiskFeatures[number]) => {
       const h = Number(f.properties?.households ?? 0);
-      return sum + (Number.isFinite(h) ? h : 0);
-    }, 0);
+      return Number.isFinite(h) ? h : 0;
+    };
+    const cityFeature = floodRiskFeatures.find((f) => f.properties?.id === "old-town-city-sink");
+    return {
+      cityHouseholds: cityFeature ? hh(cityFeature) : null,
+      provinceHouseholds: floodRiskFeatures.reduce((sum, f) => sum + hh(f), 0),
+    };
   }, [floodRiskFeatures]);
 
   return (
@@ -190,16 +199,21 @@ export function FloodBrief({ gauges, waterGauges = [], dam, precip, floodRiskFea
         </div>
       </div>
 
-      {/* Household exposure */}
-      {exposedHouseholds != null && (
+      {/* Household exposure — city headline, basin total as context */}
+      {cityHouseholds != null && (
         <div style={{ marginTop: 10 }}>
-          <div className="eyebrow">FLOOD-RISK EXPOSURE</div>
+          <div className="eyebrow">FLOOD-RISK EXPOSURE · CITY</div>
           <div className="mono" style={{ fontSize: "1.0rem", color: "var(--warn)" }}>
-            ~{exposedHouseholds.toLocaleString()} households
+            ~{cityHouseholds.toLocaleString()} households
           </div>
           <div className="eyebrow mono" style={{ color: "var(--text-3)" }}>
-            across {floodRiskFeatures?.length ?? 0} riverside zones · reference
+            Old Town / city low-lying zone · reference
           </div>
+          {provinceHouseholds != null && (
+            <div className="eyebrow mono" style={{ color: "var(--text-3)", marginTop: 4 }}>
+              ~{provinceHouseholds.toLocaleString()} across {floodRiskFeatures?.length ?? 0} NST basin zones (provincial)
+            </div>
+          )}
         </div>
       )}
 

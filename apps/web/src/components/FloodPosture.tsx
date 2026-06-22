@@ -34,6 +34,7 @@ import type {
 } from "@nst/shared";
 import { PanelHeader } from "./PanelHeader";
 import { LADDER, computePosture, leadSignal, SOIL_PRIMED, type Level } from "../lib/floodPosture";
+import { leadTimeToCity, CELERITY_MIN_MS, CELERITY_MAX_MS } from "../lib/watershed";
 
 interface Props {
   waterGauges: WaterGauge[];
@@ -72,6 +73,9 @@ export function FloodPosture({ waterGauges, rainfall, ews = [], dam, precip, age
   const step = LADDER[posture.level];
   const lead = leadSignal(precip, posture.risingCount);
   const ewsStat = EWS_STATUS[posture.worstEwsStatus];
+  // Auditable lead-time estimate: how far ahead the Tha Dee source (คีรีวง) leads
+  // the city, from channel distance ÷ a labelled flood-wave celerity band.
+  const leadKW = leadTimeToCity("khiri-wong");
 
   return (
     <div className="col" style={{ gap: 8 }}>
@@ -80,6 +84,18 @@ export function FloodPosture({ waterGauges, rainfall, ews = [], dam, precip, age
         source="synthesis · jma/jaxa ladder"
         ageMinutes={ageMinutes}
         fallbackTier={fallbackTier}
+        actions={
+          <span
+            className="mono"
+            title="A derived guidance level computed from live feeds on the JMA/JAXA ladder — not a live gauge reading or an official order."
+            style={{
+              fontSize: "0.6rem", letterSpacing: "0.08em", fontWeight: 600,
+              color: "var(--warn)", border: "1px solid var(--warn)", padding: "1px 5px",
+            }}
+          >
+            MODELLED
+          </span>
+        }
       />
 
       {!hasData ? (
@@ -150,7 +166,9 @@ export function FloodPosture({ waterGauges, rainfall, ews = [], dam, precip, age
               <div className="eyebrow">LEAD SIGNAL</div>
               <div className="mono" style={{ fontSize: "0.82rem" }}>{lead}</div>
               <div className="eyebrow mono" style={{ color: "var(--text-3)" }}>
-                upland rain leads city by hours
+                {leadKW
+                  ? `คีรีวง → city ≈ ${leadKW.minH.toFixed(1)}–${leadKW.maxH.toFixed(1)} h (est. @ ${CELERITY_MIN_MS}–${CELERITY_MAX_MS} m/s)`
+                  : "upland rain leads city by hours"}
               </div>
             </div>
             <div style={{ flex: 1 }}>

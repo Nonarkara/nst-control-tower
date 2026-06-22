@@ -130,14 +130,19 @@ export function TopBar({ feeds, onOpenCatalog, catalogCount, viewMode, onCycleVi
         >
           ◷ ATLAS
         </button>
-        <button
-          onClick={onOpenPlatform}
-          className="kp-toggle"
-          aria-label="Open the Nakhon Si Thammarat Knowledge Platform — search, academy, AI concierge, archive"
-          title="Knowledge Platform — search · learn · ask AI · time-machine archive"
-        >
-          ⌕ LEARN
-        </button>
+        {/* ⌕ LEARN (Knowledge Platform) hidden until its glossary / lessons /
+            data-dictionary content is rewritten from the Yala/Deep-South fork to
+            NST. Re-enable by restoring this button once platform/* is NST-localised. */}
+        {false && (
+          <button
+            onClick={onOpenPlatform}
+            className="kp-toggle"
+            aria-label="Open the Nakhon Si Thammarat Knowledge Platform — search, academy, AI concierge, archive"
+            title="Knowledge Platform — search · learn · ask AI · time-machine archive"
+          >
+            ⌕ LEARN
+          </button>
+        )}
         {onFlip ? (
           <button
             onClick={onFlip}
