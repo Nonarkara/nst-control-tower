@@ -101,16 +101,6 @@ input:focus-visible,
   position: relative;
 }
 /* Bottom separator hairline */
-.topbar::after {
-  content: "";
-  position: absolute;
-  bottom: -1px;
-  left: 0;
-  right: 0;
-  height: 1px;
-  background: var(--data);
-  opacity: 0.9;
-}
 
 /* Brand cluster: logos in a single white panel, then the title stack. */
 .topbar .brand {
