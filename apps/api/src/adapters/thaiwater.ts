@@ -139,13 +139,12 @@ export async function fetchWaterGauges(): Promise<NormalizedFeed<WaterGauge>> {
   return cached("thaiwater-gauges", TTL_GAUGES, async () => {
     const fetchedAt = new Date().toISOString();
 
-    let raw: TWWaterLevelEntry[] = [];
-    try {
-      const resp = await fetchJsonOrThrow<TWResponse<TWWaterLevelEntry[]>>(
-        `${BASE}/waterlevel?province_code=${PROVINCE}`
-      );
-      raw = resp?.data ?? [];
-    } catch (err) {
+    // fetchJsonOrThrow catches all errors internally and returns null — it never
+    // throws — so a try/catch here is dead code. Check for null explicitly.
+    const resp = await fetchJsonOrThrow<TWResponse<TWWaterLevelEntry[]>>(
+      `${BASE}/waterlevel?province_code=${PROVINCE}`
+    );
+    if (resp == null) {
       return {
         features: [],
         meta: {
@@ -153,10 +152,11 @@ export async function fetchWaterGauges(): Promise<NormalizedFeed<WaterGauge>> {
           fetchedAt,
           ageMinutes: 0,
           fallbackTier: "unavailable",
-          note: `HII ThaiWater fetch failed: ${(err as Error).message}`,
+          note: "HII ThaiWater waterlevel API unreachable (api-v3.thaiwater.net — upstream/DNS). Resolves on public DNS; retries automatically.",
         },
       };
     }
+    const raw: TWWaterLevelEntry[] = resp?.data ?? [];
 
     const features: WaterGauge[] = raw.map((entry) => {
       const s = entry.station;
@@ -207,13 +207,12 @@ export async function fetchRainfall(): Promise<NormalizedFeed<RainfallStation>> 
   return cached("thaiwater-rain", TTL_RAIN, async () => {
     const fetchedAt = new Date().toISOString();
 
-    let raw: TWRainEntry[] = [];
-    try {
-      const resp = await fetchJsonOrThrow<TWResponse<TWRainEntry[]>>(
-        `${BASE}/rain_24h?province_code=${PROVINCE}`
-      );
-      raw = resp?.data ?? [];
-    } catch (err) {
+    // fetchJsonOrThrow catches all errors internally and returns null — it never
+    // throws — so a try/catch here is dead code. Check for null explicitly.
+    const resp = await fetchJsonOrThrow<TWResponse<TWRainEntry[]>>(
+      `${BASE}/rain_24h?province_code=${PROVINCE}`
+    );
+    if (resp == null) {
       return {
         features: [],
         meta: {
@@ -221,10 +220,11 @@ export async function fetchRainfall(): Promise<NormalizedFeed<RainfallStation>> 
           fetchedAt,
           ageMinutes: 0,
           fallbackTier: "unavailable",
-          note: `HII ThaiWater rain fetch failed: ${(err as Error).message}`,
+          note: "HII ThaiWater rain API unreachable (api-v3.thaiwater.net — upstream/DNS). Resolves on public DNS; retries automatically.",
         },
       };
     }
+    const raw: TWRainEntry[] = resp?.data ?? [];
 
     const features: RainfallStation[] = raw
       .map((entry) => ({

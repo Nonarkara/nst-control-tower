@@ -85,6 +85,15 @@ describe("adapterNameFor — known routes", () => {
   it("maps trends path correctly", () => {
     expect(adapterNameFor("/api/trends")).toBe("trends");
   });
+
+  it("maps flood/water sub-paths correctly", () => {
+    expect(adapterNameFor("/api/flood/gauges")).toBe("flood-gauges");
+    expect(adapterNameFor("/api/flood/dam")).toBe("flood-dam");
+    expect(adapterNameFor("/api/water/gauges")).toBe("thaiwater-gauges");
+    expect(adapterNameFor("/api/water/rain")).toBe("thaiwater-rain");
+    expect(adapterNameFor("/api/water/ews")).toBe("dwr-ews");
+    expect(adapterNameFor("/api/water/reservoirs-rid")).toBe("rid-reservoirs");
+  });
 });
 
 describe("adapterNameFor — non-matching paths", () => {

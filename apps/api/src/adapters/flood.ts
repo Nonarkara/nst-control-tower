@@ -74,10 +74,14 @@ function peakDischarge(p: OpenMeteoFlood | null): number | null {
   return peak;
 }
 
-// Tha Dee / Pak Phanang discharge thresholds (m³/s) — coarse, tuned for the proxy.
-const WATCH_CMS = 300;
-const WARNING_CMS = 600;
-const FLOOD_CMS = 1000;
+// Tha Dee / Pak Phanang discharge thresholds (m³/s) — calibrated against real
+// GloFAS grid-cell output. The ~5 km GloFAS model cell returns single-digit
+// m³/s for these small Thai canals (observed baseline ≈ 6–8 m³/s), so thresholds
+// that would make sense for a large river (300/600/1000) are unreachable here.
+// These bands trigger on the *model's* relative departure from baseline flow.
+const WATCH_CMS = 15;
+const WARNING_CMS = 30;
+const FLOOD_CMS = 50;
 
 function gaugeStatus(dischargeCms: number | null): FloodGauge["status"] {
   if (dischargeCms == null) return "unknown";

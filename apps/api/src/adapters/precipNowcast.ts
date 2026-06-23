@@ -1,8 +1,10 @@
 /**
  * Precipitation nowcast — 2-hour 15-min-interval rain forecast for the
- * campus centroid. Bangkok afternoon downpours are the #1 disruptor of
- * outdoor events and shuttle timing; this surfaces the next rain pulse
- * so leadership can re-time events or pre-position umbrellas.
+ * Nakhon Si Thammarat city centroid. Monsoon downpours on the Khao Luang
+ * massif are the #1 trigger of the Tha Dee / Pak Phanang flash-flood
+ * cascade; this surfaces the next rain pulse so municipal leadership can
+ * re-time outdoor events, pre-position pumps, or escalate the FloodPosture
+ * alert ladder.
  *
  * Source: Open-Meteo `minutely_15=precipitation,precipitation_probability`.
  * Free, no key, 15-min interval, ~24 h horizon (we only need 2 h).

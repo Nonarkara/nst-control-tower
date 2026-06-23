@@ -1,5 +1,5 @@
 const DEFAULT_TIMEOUT_MS = 25_000;
-const USER_AGENT = "ChulaControlTower/0.1 (+https://chula.nonarkara.org)";
+const USER_AGENT = "NSTControlTower/1.0 (+https://nst.nonarkara.org)";
 
 function mergeHeaders(base: Record<string, string>, init?: RequestInit): Headers {
   const h = new Headers(init?.headers);

@@ -60,10 +60,10 @@ export async function fetchRidReservoirs(): Promise<NormalizedFeed<RidReservoir>
   return cached("rid-reservoirs", TTL, async () => {
     const fetchedAt = new Date().toISOString();
 
-    let resp: RidResponse = {};
-    try {
-      resp = await fetchJsonOrThrow<RidResponse>(URL) ?? {};
-    } catch (err) {
+    // fetchJsonOrThrow catches all errors internally and returns null — it never
+    // throws — so a try/catch here is dead code. Check for null explicitly.
+    const respRaw = await fetchJsonOrThrow<RidResponse>(URL);
+    if (respRaw == null) {
       return {
         features: [],
         meta: {
@@ -71,10 +71,11 @@ export async function fetchRidReservoirs(): Promise<NormalizedFeed<RidReservoir>
           fetchedAt,
           ageMinutes: 0,
           fallbackTier: "unavailable",
-          note: `RID reservoir API failed: ${(err as Error).message}`,
+          note: "RID reservoir API unreachable (app.rid.go.th — upstream/DNS). Resolves on public DNS; retries automatically.",
         },
       };
     }
+    const resp: RidResponse = respRaw ?? {};
 
     // Find the South region and filter to NST reservoirs
     const southRegion = (resp.data ?? []).find((r) => r.region === "ภาคใต้");

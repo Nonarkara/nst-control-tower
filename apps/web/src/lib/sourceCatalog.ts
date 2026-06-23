@@ -60,6 +60,13 @@ export const API_PATH_TO_ADAPTER: Array<[RegExp, string]> = [
   [/\/api\/social\/facebook$/, "facebook"],
   [/\/api\/markets$/, "markets"],
   [/\/api\/maritime\/ais$/, "ais"],
+  // Flood / hydrology — the headline risk for NST
+  [/\/api\/flood\/gauges$/, "flood-gauges"],
+  [/\/api\/flood\/dam$/, "flood-dam"],
+  [/\/api\/water\/gauges$/, "thaiwater-gauges"],
+  [/\/api\/water\/rain$/, "thaiwater-rain"],
+  [/\/api\/water\/ews$/, "dwr-ews"],
+  [/\/api\/water\/reservoirs-rid$/, "rid-reservoirs"],
 ];
 
 /**
