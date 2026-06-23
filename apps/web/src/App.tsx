@@ -107,6 +107,7 @@ import { FlightsPanel } from "./components/FlightsPanel";
 // Each loads only on first open; subsequent opens are instant (module cached).
 const SourceCatalog = lazy(() => import("./components/SourceCatalog").then((m) => ({ default: m.SourceCatalog })));
 const Manual = lazy(() => import("./components/Manual").then((m) => ({ default: m.Manual })));
+const FloodKnowledge = lazy(() => import("./components/FloodKnowledge").then((m) => ({ default: m.FloodKnowledge })));
 const Whitepaper = lazy(() => import("./components/Whitepaper").then((m) => ({ default: m.Whitepaper })));
 const SheetsPanel = lazy(() => import("./components/SheetsPanel").then((m) => ({ default: m.SheetsPanel })));
 const SituationDigest = lazy(() => import("./components/SituationDigest").then((m) => ({ default: m.SituationDigest })));
@@ -318,6 +319,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
   );
   const [catalogOpen, setCatalogOpen] = useState(false);
   const [manualOpen, setManualOpen] = useState(false);
+  const [floodGuideOpen, setFloodGuideOpen] = useState(false);
   const [whitepaperOpen, setWhitepaperOpen] = useState(false);
   const [sheetsOpen, setSheetsOpen] = useState(false);
   const [atlasOpen, setAtlasOpen] = useState(false);
@@ -485,6 +487,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
       if (manualOpen) setManualOpen(false);
+      else if (floodGuideOpen) setFloodGuideOpen(false);
       else if (whitepaperOpen) setWhitepaperOpen(false);
       else if (catalogOpen) setCatalogOpen(false);
       else if (selectedIncident) setSelectedIncident(null);
@@ -492,7 +495,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [catalogOpen, selectedBuilding, selectedIncident, manualOpen, whitepaperOpen]);
+  }, [catalogOpen, selectedBuilding, selectedIncident, manualOpen, floodGuideOpen, whitepaperOpen]);
 
   // Lookup table for hover tooltips — keeps DeckGL declarative.
   const tooltipForPickMemo = useCallback((info: { layer?: { id?: string } | null; object?: unknown }) => {
@@ -1172,6 +1175,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
         viewMode={viewMode}
         onCycleViewMode={cycleViewMode}
         onOpenManual={useCallback(() => setManualOpen(true), [])}
+        onOpenFloodGuide={useCallback(() => setFloodGuideOpen(true), [])}
         onOpenWhitepaper={useCallback(() => setWhitepaperOpen(true), [])}
         onOpenAtlas={useCallback(() => setAtlasOpen(true), [])}
         onOpenPlatform={useCallback(() => setPlatformOpen(true), [])}
@@ -1602,6 +1606,9 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
       </Suspense>
       <Suspense fallback={null}>
         {manualOpen && <Manual open={manualOpen} onClose={() => setManualOpen(false)} />}
+      </Suspense>
+      <Suspense fallback={null}>
+        {floodGuideOpen && <FloodKnowledge open={floodGuideOpen} onClose={() => setFloodGuideOpen(false)} />}
       </Suspense>
       <Suspense fallback={null}>
         {atlasOpen && <AtlasView onClose={() => setAtlasOpen(false)} />}

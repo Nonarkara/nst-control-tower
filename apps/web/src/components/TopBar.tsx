@@ -20,6 +20,7 @@ interface Props {
   onOpenSheets: () => void;
   onOpenAtlas: () => void;
   onOpenPlatform: () => void;
+  onOpenFloodGuide: () => void;
   onFlip?: () => void;
   sheetsConfigured: boolean;
   academic: AcademicSnapshot | null;
@@ -34,7 +35,7 @@ const TEMPO_COLOR: Record<AcademicSnapshot["tempo"], string> = {
   peak: "var(--bad)",
 };
 
-export function TopBar({ feeds, onOpenCatalog, catalogCount, viewMode, onCycleViewMode, onOpenManual, onOpenWhitepaper, onOpenSheets, onOpenAtlas, onOpenPlatform, onFlip, sheetsConfigured, academic, systemStatus }: Props) {
+export function TopBar({ feeds, onOpenCatalog, catalogCount, viewMode, onCycleViewMode, onOpenManual, onOpenWhitepaper, onOpenSheets, onOpenAtlas, onOpenPlatform, onOpenFloodGuide, onFlip, sheetsConfigured, academic, systemStatus }: Props) {
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 1000);
@@ -129,6 +130,14 @@ export function TopBar({ feeds, onOpenCatalog, catalogCount, viewMode, onCycleVi
           title="Data Atlas — poverty, education, health, climate, economy outcomes + 200+ sources"
         >
           ◷ ATLAS
+        </button>
+        <button
+          onClick={onOpenFloodGuide}
+          className="flood-guide-toggle"
+          aria-label="Open Flood Knowledge — digital preventativeness guide synthesised from ASEAN-Japan Roundtable 2026"
+          title="Flood Knowledge — the nature of flooding, forecast systems, and what this dashboard monitors"
+        >
+          ≋ FLOOD
         </button>
         {/* ⌕ LEARN (Knowledge Platform) hidden until its glossary / lessons /
             data-dictionary content is rewritten from the Yala/Deep-South fork to
