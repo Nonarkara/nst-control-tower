@@ -100,8 +100,7 @@ input:focus-visible,
   background: var(--bg-1);
   position: relative;
 }
-/* Chonburi colour bars under topbar:
-   sea-blue first line + gold second line = seal palette in 2 hairlines. */
+/* Bottom separator hairline */
 .topbar::after {
   content: "";
   position: absolute;
@@ -112,33 +111,25 @@ input:focus-visible,
   background: var(--data);
   opacity: 0.9;
 }
-.topbar::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 2px;
-  background: var(--accent);
-  opacity: 0.6;
-}
 
-/* Brand cluster: SLIC + depa logos, then the title stack. */
+/* Brand cluster: logos in a single white panel, then the title stack. */
 .topbar .brand {
   display: flex;
   align-items: center;
   gap: var(--s-3);
+  background: #ffffff;
+  padding: 0 10px;
+  margin: 5px 0;
+  border-radius: 3px;
 }
-/* Logo containers — white background so logos with white BGs blend
-   cleanly on both dark and light themes. No shadow, no radius (DNA §11). */
 .topbar .brand .sponsor {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   height: 30px;
-  padding: 2px 5px;
-  background: #ffffff;
-  border: 1px solid rgba(255,255,255,0.18);
+  padding: 2px 3px;
+  background: transparent;
+  border: none;
   text-decoration: none;
   opacity: 0.90;
   transition: opacity 0.15s;
@@ -162,13 +153,12 @@ input:focus-visible,
 /* Axiom is a circular badge — same treatment */
 .topbar .brand .sponsor-axiom img { height: 28px; }
 
-/* Light mode: the white container disappears into the white topbar.
-   Reduce border so they read as frameless on white. */
-[data-theme="light"] .topbar .brand .sponsor {
-  background: #ffffff;
-  border-color: var(--line);
-  opacity: 1;
+/* Light mode: panel already matches the topbar; add a subtle border */
+[data-theme="light"] .topbar .brand {
+  background: rgba(0,0,0,0.04);
+  border: 1px solid var(--line);
 }
+[data-theme="light"] .topbar .brand .sponsor { opacity: 1; }
 .brand-wave {
   display: inline-block;
   /* Sea-blue wave — reads as the Gulf of Thailand */
