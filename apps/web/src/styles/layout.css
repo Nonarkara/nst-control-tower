@@ -3586,6 +3586,42 @@ input:focus-visible,
   color: var(--text-3);
 }
 
+/* Google Street View thumbnail inside the building card */
+.streetview-thumb {
+  position: relative;
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  overflow: hidden;
+  background: var(--bg-1);
+}
+.streetview-thumb img {
+  display: block;
+  width: 100%;
+  height: auto;
+  object-fit: cover;
+}
+.streetview-thumb--msg {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 14px 12px;
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+  color: var(--text-3);
+  justify-content: center;
+}
+.streetview-cred {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  padding: 2px 6px;
+  font-size: 0.58rem;
+  letter-spacing: 0.08em;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.6);
+}
+
 .building-card-sensors {
   list-style: none;
   padding: 0;

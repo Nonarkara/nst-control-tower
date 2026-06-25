@@ -385,6 +385,8 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
 
   // Selected building for the popup card.
   const [selectedBuilding, setSelectedBuilding] = useState<BuildingProperties | null>(null);
+  // [lng, lat] where the building was picked — feeds the Street View thumbnail.
+  const [selectedCoord, setSelectedCoord] = useState<[number, number] | null>(null);
   // Selected incident — drives the IncidentCard with its "Open report ↗" link.
   const [selectedIncident, setSelectedIncident] = useState<IncidentFeature | null>(null);
 
@@ -431,6 +433,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
       setSelectedBuilding(f.properties);
       const vs = viewStateRef.current;
       const [lng, lat] = info.coordinate ?? [vs.longitude, vs.latitude];
+      setSelectedCoord([lng, lat]);
       flyTo(lng, lat, Math.max(vs.zoom, 17));
     } else if ((info.layer?.id === "incidents-city-reports" || info.layer?.id === "incidents-itic") && info.object) {
       // Click an incident → open its card with a deep-link back to the report.
@@ -1494,6 +1497,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
             buildings={buildings}
             onSelect={(centroid, props) => {
               setSelectedBuilding(props);
+              setSelectedCoord([centroid[0], centroid[1]]);
               flyTo(centroid[0], centroid[1], 17.5);
             }}
           />
@@ -1520,6 +1524,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
           </div>
           <BuildingCard
             building={selectedBuilding}
+            coord={selectedCoord}
             onClose={() => setSelectedBuilding(null)}
           />
           <IncidentCard

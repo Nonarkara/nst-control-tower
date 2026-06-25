@@ -61,6 +61,10 @@ function unavailable<T>(source: string, note: string): NormalizedFeed<T> {
 
 const MISSING_KEY = "GOOGLE_MAPS_API_KEY not set — Google Maps Platform features disabled.";
 
+// Building centroids sit back from roads; Google's default 50 m snap often misses
+// them. A wider radius finds the nearest street-level pano for set-back buildings.
+const STREETVIEW_RADIUS_M = 200;
+
 // ── Geocoding ────────────────────────────────────────────────────────────────
 interface GeocodeApiResponse {
   status?: string;
@@ -222,7 +226,7 @@ export async function fetchStreetViewMeta(
 
   const url =
     `https://maps.googleapis.com/maps/api/streetview/metadata?location=${lat},${lng}` +
-    `&key=${opts.GOOGLE_MAPS_API_KEY}`;
+    `&radius=${STREETVIEW_RADIUS_M}&source=outdoor&key=${opts.GOOGLE_MAPS_API_KEY}`;
   const payload = await fetchJsonOrThrow<SvMetaApiResponse>(url);
 
   if (!payload) return unavailable(source, "Street View metadata unreachable.");
@@ -255,6 +259,7 @@ export function streetViewImageUrl(
   const fov = params.fov ?? 90;
   return (
     `https://maps.googleapis.com/maps/api/streetview?size=${size}` +
-    `&location=${params.lat},${params.lng}&heading=${heading}&pitch=${pitch}&fov=${fov}&key=${key}`
+    `&location=${params.lat},${params.lng}&heading=${heading}&pitch=${pitch}&fov=${fov}` +
+    `&radius=${STREETVIEW_RADIUS_M}&source=outdoor&return_error_code=true&key=${key}`
   );
 }

@@ -1,9 +1,12 @@
 import type { BuildingProperties } from "../map/layers";
 import { useTwinBuilding } from "../hooks/useTwinBuilding";
 import { API_BASE } from "../lib/apiBase";
+import { StreetViewThumb } from "./StreetViewThumb";
 
 interface Props {
   building: BuildingProperties | null;
+  /** [lng, lat] where the building was picked — drives the Street View thumbnail. */
+  coord?: [number, number] | null;
   onClose: () => void;
 }
 
@@ -12,7 +15,7 @@ interface Props {
  * Enhanced with digital-twin data: related sensors + live state from the twin store.
  * Closes on backdrop click or ESC (wired in App.tsx).
  */
-export function BuildingCard({ building, onClose }: Props) {
+export function BuildingCard({ building, coord, onClose }: Props) {
   if (!building) return null;
   const name = building.nameEn || building.name || building.nameTh || "Untitled building";
   const altName = building.nameTh && building.nameTh !== name ? building.nameTh : null;
@@ -66,6 +69,14 @@ export function BuildingCard({ building, onClose }: Props) {
         <dt>OSM</dt>
         <dd className="mono">{osmId}</dd>
       </dl>
+
+      {/* ── Ground truth: Google Street View at this location ── */}
+      {coord && (
+        <div className="building-card-section">
+          <span className="eyebrow mono">STREET VIEW</span>
+          <StreetViewThumb coord={coord} />
+        </div>
+      )}
 
       {/* ── Digital Twin: Related Sensors ── */}
       {sensors.length > 0 && (
