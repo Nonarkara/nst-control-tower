@@ -1266,9 +1266,9 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
               ))}
             </div>
             <div className="mobile-brief-actions">
+              <button className="mono flood-guide-toggle" onClick={() => setFloodGuideOpen(true)}>≋ FLOOD</button>
               <button className="mono" onClick={() => setCatalogOpen(true)}>SOURCES · {ALL_LAYERS.length}</button>
               <button className="mono" onClick={() => setAtlasOpen(true)}>◷ ATLAS</button>
-              {/* ⌕ LEARN hidden until platform/* content is NST-localised (see TopBar). */}
             </div>
           </div>
         )}

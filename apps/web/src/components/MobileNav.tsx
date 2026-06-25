@@ -6,9 +6,9 @@ interface Props {
 }
 
 const TABS: { id: MobilePanel; label: string; sub: string }[] = [
-  { id: "brief",  label: "BRIEF",  sub: "AQI · BRIEF" },
-  { id: "map",    label: "MAP",    sub: "twin" },
-  { id: "layers", label: "LAYERS", sub: "lens · news" },
+  { id: "brief",  label: "BRIEF",  sub: "WEATHER · DATA" },
+  { id: "map",    label: "MAP",    sub: "CITY · 3D" },
+  { id: "layers", label: "LAYERS", sub: "LENS · NEWS" },
 ];
 
 /**

@@ -2059,8 +2059,17 @@ input:focus-visible,
     height: 52px;
     gap: 8px;
     padding: 0 10px;
+    overflow: hidden;
   }
-  .shell.mobile .topbar .brand { flex: 1 1 auto; min-width: 0; }
+  .shell.mobile .topbar .brand {
+    flex: 1 1 auto;
+    min-width: 0;
+    background: transparent;
+    padding: 0;
+    margin: 0;
+    border-radius: 0;
+    gap: 8px;
+  }
   .shell.mobile .topbar .feeds { display: none; }
   .shell.mobile .live-count { display: none; }
   .shell.mobile .topbar .brand .sponsor-seal { height: 34px; padding: 2px 3px; }
@@ -2130,14 +2139,9 @@ input:focus-visible,
     border-top: 1px solid var(--line);
   }
   .shell.mobile .world-day-bar { width: 14px; height: 34px; }
-  /* Clocks: a 2-up grid of tappable tiles. */
-  .shell.mobile .world-partners {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 1px;
-    background: var(--line);
-    border-top: 1px solid var(--line);
-  }
+  /* Partner city clocks — low priority on a phone; hide them to keep FloodBrief
+     reachable without 480px of scroll debt. */
+  .shell.mobile .world-partners { display: none; }
   .shell.mobile .world-city {
     min-width: 0;
     min-height: 56px;
@@ -2157,7 +2161,7 @@ input:focus-visible,
     padding: 12px 14px;
     border-top: 1px solid var(--line);
   }
-  .shell.mobile .mobile-brief-feeds .feed-chip { font-size: 0.76rem; padding: 6px 9px; }
+  .shell.mobile .mobile-brief-feeds .feed-chip { font-size: 0.8rem; padding: 8px 12px; min-height: 38px; }
   .shell.mobile .mobile-brief-actions {
     display: flex;
     flex-wrap: wrap;
@@ -2167,8 +2171,8 @@ input:focus-visible,
   }
   .shell.mobile .mobile-brief-actions button {
     flex: 1 1 auto;
-    min-height: 44px;
-    font-size: 0.8rem;
+    min-height: 48px;
+    font-size: 0.85rem;
   }
 
   /* Map is the dominant area. */
@@ -2183,7 +2187,7 @@ input:focus-visible,
     position: fixed;
     z-index: 90;
     top: 52px;
-    bottom: 56px;
+    bottom: 62px;
     left: 0;
     right: 0;
     width: 100%;
@@ -2200,10 +2204,12 @@ input:focus-visible,
   .shell.mobile .left-bar::before,
   .shell.mobile .right-bar::before { width: 100%; height: 3px; top: 0; left: 0; bottom: auto; right: auto; }
 
-  /* Right rail stack: news first, then layers — both scroll inside the sheet. */
+  /* Right rail: Lens+Layers first (action-first), News below, Trends hidden
+     (low priority on a small screen — trends sparkline is a nice desktop detail). */
   .shell.mobile .right-bar { display: flex; flex-direction: column; }
+  .shell.mobile .right-trends { display: none; }
+  .shell.mobile .right-layers { order: -1; max-height: none; flex: 0 0 auto; }
   .shell.mobile .right-news { flex: 1 1 auto; }
-  .shell.mobile .right-layers { max-height: 50%; }
 
   /* Bottom bar compresses: ident hidden, hour rail stretches full width, stats stack. */
 	  .shell.mobile .bottom-bar { grid-template-columns: 1fr; }
@@ -2233,7 +2239,7 @@ input:focus-visible,
 	  }
 	}
 
-/* ── Mobile map-tab HUD: declutter the floating controls and clear the 56px
+/* ── Mobile map-tab HUD: declutter the floating controls and clear the 62px
    bottom nav. A second max-width:900px block so these win source-order ties
    without re-touching the tab-indented rules above. ── */
 @media (max-width: 900px) {
@@ -2243,9 +2249,9 @@ input:focus-visible,
   /* Keep: search (top), concierge (bottom), zoom + compass (bottom-right),
      all stacked above the bottom nav. */
   .shell.mobile .building-search { top: 8px; }
-  .shell.mobile .chatbox-closed { bottom: 64px; }
-  .shell.mobile .zoom-controls { bottom: 120px; right: 10px; }
-  .shell.mobile .map-compass { bottom: 198px; right: 10px; }
+  .shell.mobile .chatbox-closed { bottom: 70px; }
+  .shell.mobile .zoom-controls { bottom: 126px; right: 10px; }
+  .shell.mobile .map-compass { bottom: 204px; right: 10px; }
   /* Map-only HUD hides while a Brief/Layers sheet is up. */
   .shell.mobile.mobile-panel-brief .map-compass,
   .shell.mobile.mobile-panel-layers .map-compass,
@@ -2260,19 +2266,13 @@ input:focus-visible,
   left: 0;
   right: 0;
   z-index: 95;
-  height: 56px;
+  height: 62px;
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   background: var(--bg-1);
   border-top: 1px solid var(--line);
-}
-.mobile-nav::before {
-  content: "";
-  position: absolute;
-  top: 0; left: 0; right: 0;
-  height: 1px;
-  background: var(--accent);
-  opacity: 0.4;
+  /* safe area inset for notched phones */
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 .mobile-nav-btn {
   border: 0;
@@ -2283,35 +2283,38 @@ input:focus-visible,
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 2px;
-  padding: 0;
+  gap: 3px;
+  padding: 0 4px;
   cursor: pointer;
+  position: relative;
+  -webkit-tap-highlight-color: transparent;
 }
 .mobile-nav-btn:last-child { border-right: 0; }
 .mobile-nav-btn.active {
-  background: var(--bg-2);
+  background: color-mix(in srgb, var(--accent) 8%, var(--bg-1));
   color: var(--accent);
 }
-.mobile-nav-btn.active::after {
+/* Full-width top bar pointing toward the active panel's content */
+.mobile-nav-btn.active::before {
   content: "";
   position: absolute;
-  bottom: 0;
-  height: 2px;
-  width: 33.33%;
+  top: 0; left: 0; right: 0;
+  height: 3px;
   background: var(--accent);
+  border-radius: 0 0 2px 2px;
 }
 .mobile-nav-label {
-  font-size: 0.7rem;
+  font-size: 0.8rem;
   letter-spacing: 0.1em;
-  font-weight: 600;
+  font-weight: 700;
 }
 .mobile-nav-sub {
-  font-size: 0.71rem;
-  letter-spacing: 0.06em;
+  font-size: 0.72rem;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
   color: var(--text-3);
 }
-.mobile-nav-btn.active .mobile-nav-sub { color: var(--accent); opacity: 0.7; }
+.mobile-nav-btn.active .mobile-nav-sub { color: var(--accent); opacity: 0.75; }
 
 /* Lens explainer text — shows the long-form describe for the active lens */
 .lens-explainer {
