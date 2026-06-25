@@ -109,6 +109,30 @@ export const governanceModule: AtlasModule = {
       ],
       note: "Current vs 2027 targets for ITA and LPA scores. Source: NST Smart City Programme roadmap.",
     },
+    {
+      kind: "timeline",
+      title: "NST smart city milestones",
+      events: [
+        { date: "2019", label: "Flood early-warning mobile app — 60,000 citizen members", severity: "good" },
+        { date: "2023", label: "Traffy Fondue integrated — real-time citizen issue reporting", severity: "good" },
+        { date: "2024", label: "LPA 82/100 'Good' · ITA Grade A", severity: "good" },
+        { date: "2025", label: "DEPA Smart City grant — flood IoT sensors + open data platform", severity: "good" },
+        { date: "2026", label: "NST Control Tower launched — real-time digital twin dashboard", severity: "good" },
+        { date: "2027", label: "Target: ITA 92 · 20+ open datasets · 24 IoT flood sensors", severity: "neutral" },
+      ],
+      note: "From flood app to AI-assisted digital twin — NST's smart governance journey.",
+    },
+    {
+      kind: "bar",
+      title: "Digital citizen engagement",
+      data: [
+        { name: "Flood app members (k)", value: 60, color: "var(--data)" },
+        { name: "Traffy reports (hundreds)", value: 32, color: "var(--accent)" },
+        { name: "Facebook followers (k)", value: 45, color: "#3b82f6" },
+        { name: "Open datasets", value: 8, color: "var(--good)" },
+      ],
+      note: "Flood app: 60,000 members (UN Smart Governance award). Facebook @nakhoncity. DEPA open data. Traffy in hundreds.",
+    },
   ],
   meta: {
     source: "NST Municipal Data Source Bible — Governance (NACC ITAS, DLA LPA, DEPA, Traffy)",

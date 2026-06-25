@@ -6,6 +6,7 @@ import { educationModule } from "./education.js";
 import { healthModule } from "./health.js";
 import { climateModule } from "./climate.js";
 import { economyModule } from "./economy.js";
+import { infrastructureModule } from "./infrastructure.js";
 import { securityModule } from "./security.js";
 import { governanceModule } from "./governance.js";
 import { ATLAS_SOURCES } from "./sourceCatalog.js";
@@ -15,8 +16,8 @@ import { ATLAS_SOURCES } from "./sourceCatalog.js";
  * source catalogue, digitized from the NST Municipal Data Source Bible. Static
  * reference data, so it works identically on Node and Workers.
  *
- * Order = the narrative the dashboard tells: who we serve → money → outcomes →
- * the domains → governance strength.
+ * 10 modules. Order = the narrative the dashboard tells: who we serve → money →
+ * outcomes → the domains → governance strength.
  */
 export const ATLAS_MODULES: AtlasModule[] = [
   demographicsModule,
@@ -26,6 +27,7 @@ export const ATLAS_MODULES: AtlasModule[] = [
   healthModule,
   climateModule,
   economyModule,
+  infrastructureModule,
   securityModule,
   governanceModule,
 ];

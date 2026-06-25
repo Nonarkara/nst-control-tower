@@ -127,6 +127,26 @@ export const demographicsModule: AtlasModule = {
       ],
       note: "Slow growth from ≈1.53M (2015) to 1.55M (2022). Out-migration of working-age adults moderates growth.",
     },
+    {
+      kind: "hbar",
+      title: "Population by age group (province, 2022)",
+      unit: "persons",
+      data: [
+        { name: "Children 0–18", value: 250000, color: "var(--good)" },
+        { name: "Working age 19–59", value: 1088000, color: "var(--accent)" },
+        { name: "Elderly 60+", value: 207000, color: "var(--gold)" },
+      ],
+      note: "DOPA 2022 / NSO Elder Analysis. Out-migration of working-age adults accelerates aging ratio.",
+    },
+    {
+      kind: "pyramid",
+      title: "Age-sex pyramid (province, DOPA 2022 est.)",
+      unit: "persons",
+      bands: ["0–9", "10–19", "20–29", "30–39", "40–49", "50–59", "60–69", "70+"],
+      male:   [72000, 82000, 78000, 90000, 108000, 105000, 84000, 34000],
+      female: [71000, 84000, 86000, 95000, 118000, 115000, 91000, 39000],
+      note: "Estimated from DOPA 2022 aggregate (742,738 male / 802,409 female). Age bands approximate Thailand South demographic profile.",
+    },
   ],
   meta: {
     source: "NST Municipal Data Source Bible — Demographics (DOPA, NSO, MSDHS)",

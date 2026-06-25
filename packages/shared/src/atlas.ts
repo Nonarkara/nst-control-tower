@@ -1,7 +1,7 @@
 import type { SourceMeta } from "./types";
 
 /**
- * Yala Data Atlas — the contract that turns the "Municipal Data Source Bible"
+ * NST Data Atlas — the contract that turns the "Municipal Data Source Bible"
  * (200+ sources, ~145 hard outcome stats across 12 governance domains) into an
  * impressive, queryable visualization layer.
  *
@@ -127,5 +127,6 @@ export const ATLAS_MODULE_IDS = [
   "economy",
   "security",
   "governance",
+  "infrastructure",
 ] as const;
 export type AtlasModuleId = (typeof ATLAS_MODULE_IDS)[number];

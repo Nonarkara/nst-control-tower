@@ -318,7 +318,7 @@ app.get("/api/water/ews", async (c) => safeFeed(c, fetchEwsStations, "dwr-ews"))
 app.get("/api/water/reservoirs-rid", async (c) => safeFeed(c, fetchRidReservoirs, "rid-reservoirs"));
 app.get("/api/flights", async (c) => safeFeed(c, () => fetchFlights({ AIRLABS_API_KEY: c.env.AIRLABS_API_KEY }), "flights-nst"));
 
-// ── Yala Data Atlas — static outcome-data layer from the Municipal Data Bible ──
+// ── NST Data Atlas — static outcome-data layer from the Municipal Data Bible ──
 app.get("/api/atlas", (c) => {
   const snap = buildAtlasSnapshot();
   setMetaHeaders(c, snap);

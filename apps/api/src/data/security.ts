@@ -109,6 +109,32 @@ export const securityModule: AtlasModule = {
       ],
       note: "Unit varies per bar. Fire stations and hospitals are absolute counts; volunteers shown in hundreds.",
     },
+    {
+      kind: "bar",
+      title: "Major flood events by decade",
+      unit: "events declared",
+      data: [
+        { name: "1990s", value: 2, color: "var(--accent)" },
+        { name: "2000s", value: 3, color: "var(--gold)" },
+        { name: "2010s", value: 5, color: "#fb923c" },
+        { name: "2020s (partial)", value: 3, color: "var(--bad)" },
+      ],
+      note: "DDPM provincial disaster records. 2020s data through 2025 only — frequency accelerating with climate change.",
+    },
+    {
+      kind: "radar",
+      title: "Emergency response capacity score (1–10)",
+      max: 10,
+      note: "Qualitative assessment from DDPM capacity framework. Higher = better prepared.",
+      axes: [
+        { name: "Early warning", value: 7, note: "Flood app + EWS sensors" },
+        { name: "Evacuation", value: 6 },
+        { name: "Volunteer network", value: 8, note: "4,200 อปพร." },
+        { name: "Hospital capacity", value: 8, note: "Maharaj + City Hosp." },
+        { name: "Data & comms", value: 7, note: "Control Tower + Traffy" },
+        { name: "Flood barriers", value: 5 },
+      ],
+    },
   ],
   meta: {
     source: SOURCE,

@@ -66,7 +66,7 @@ export const fiscalModule: AtlasModule = {
       status: "alert",
       goodDirection: "up",
       source: SRC_DLA,
-      note: "NST City Municipality has not yet published a public budget breakdown dashboard (contrast: Yala which publishes via yaladashboard.com). Wire DLA/e-LAAS integration to populate.",
+      note: "NST City Municipality has not yet published a public budget breakdown dashboard (national best practice: top-quartile LAOs publish via DLA e-LAAS open portal). Priority integration target for 2027.",
     },
   ],
   charts: [
@@ -91,6 +91,18 @@ export const fiscalModule: AtlasModule = {
         { name: "Expenditure by function", value: 0, note: "Pending Budget Bureau feed" },
       ],
       note: "Zero bars indicate data gaps — not zero values. Wire e-LAAS/DLA API to populate. Priority: municipal annual budget, tax, and expenditure breakdown.",
+    },
+    {
+      kind: "hbar",
+      title: "Key budget commitments (M THB, 2024–25)",
+      unit: "M THB",
+      data: [
+        { name: "Maharaj Hospital allocation", value: 2800, color: "var(--good)" },
+        { name: "Flood reconstruction 2025 (est.)", value: 1200, color: "var(--bad)" },
+        { name: "Municipal road & drainage", value: 150, color: "var(--accent)" },
+        { name: "DEPA Smart City grant", value: 45, color: "var(--gold)" },
+      ],
+      note: "Actual e-LAAS municipal budget figures pending DLA integration. MOPH Maharaj allocation 2024; reconstruction from DDPM/NDPF estimates.",
     },
   ],
   meta: {

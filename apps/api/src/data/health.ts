@@ -120,6 +120,48 @@ export const healthModule: AtlasModule = {
       ],
       note: "Qualitative severity ranking from Data Source Bible. Not a standardised index.",
     },
+    {
+      kind: "hbar",
+      title: "NST hospital network — bed capacity by facility type",
+      unit: "beds",
+      data: [
+        { name: "Maharaj (regional)", value: 844, color: "var(--accent)" },
+        { name: "City Municipality Hosp.", value: 479, color: "var(--good)" },
+        { name: "Tha Sala Hospital", value: 120 },
+        { name: "Pak Phanang Hospital", value: 120 },
+        { name: "Sichon Hospital", value: 90 },
+        { name: "Nopphitam (community)", value: 30 },
+      ],
+      note: "NST Health Region 11 network. Maharaj is the primary referral for the lower south. Source: MOPH HIS 2024.",
+    },
+    {
+      kind: "grouped-bar",
+      title: "NST vs national health benchmarks",
+      note: "Sources: MOPH HDC 2023–24; WHO Thailand benchmarks.",
+      groups: [
+        {
+          label: "Beds / 10k pop",
+          values: [
+            { name: "NST", value: 8.6, color: "var(--accent)" },
+            { name: "National", value: 7.2 },
+          ],
+        },
+        {
+          label: "Dengue / 100k",
+          values: [
+            { name: "NST", value: 38, color: "var(--bad)" },
+            { name: "National", value: 22 },
+          ],
+        },
+        {
+          label: "COVID vacc. %",
+          values: [
+            { name: "NST", value: 82, color: "var(--accent)" },
+            { name: "National", value: 79 },
+          ],
+        },
+      ],
+    },
   ],
   meta: {
     source: SOURCE,
