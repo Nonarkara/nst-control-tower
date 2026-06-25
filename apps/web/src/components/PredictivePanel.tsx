@@ -132,6 +132,17 @@ export function PredictivePanel({ apiBase, onMetricClick, onAlert, onForecastsLo
   // Track which alert metrics have already been reported to avoid re-firing on polls
   const reportedAlerts = useRef<Set<string>>(new Set());
 
+  // Keep the latest callbacks in refs so the fetch effect can depend on `apiBase`
+  // ALONE. Callers pass inline arrow props (new identity every render); if those
+  // were in the effect deps, the effect would re-run — and re-fetch — on every
+  // parent re-render, hammering /api/twin/predictions until the rate limiter trips.
+  const onAlertRef = useRef(onAlert);
+  const onForecastsLoadedRef = useRef(onForecastsLoaded);
+  useEffect(() => {
+    onAlertRef.current = onAlert;
+    onForecastsLoadedRef.current = onForecastsLoaded;
+  });
+
   useEffect(() => {
     let active = true;
     const fetch_ = () => {
@@ -146,8 +157,9 @@ export function PredictivePanel({ apiBase, onMetricClick, onAlert, onForecastsLo
           setData(d);
           setLoading(false);
           setError(null);
-          onForecastsLoaded?.(d.forecasts);
+          onForecastsLoadedRef.current?.(d.forecasts);
           // Fire alert callbacks for newly-breached thresholds
+          const onAlert = onAlertRef.current;
           if (onAlert) {
             for (const fm of d.forecasts) {
               const isAlert = fm.horizon.length > 0 &&
@@ -166,7 +178,7 @@ export function PredictivePanel({ apiBase, onMetricClick, onAlert, onForecastsLo
     fetch_();
     const id = window.setInterval(fetch_, 5 * 60_000); // refresh every 5 min
     return () => { active = false; window.clearInterval(id); };
-  }, [apiBase, onAlert, onForecastsLoaded]);
+  }, [apiBase]);
 
   const hasAnyData = useMemo(
     () => data?.forecasts.some((f) => f.horizon.length > 0),
