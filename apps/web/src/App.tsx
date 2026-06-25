@@ -892,10 +892,10 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
     return buildTrafficSamples(roads, hour, { isWeekend });
   }, [roads, hour, isWeekend]);
 
-  // 3D Tiles pilot — must be called at top level (Rules of Hooks)
-  const tile3dLayer = useTile3DLayer({
+  // Photorealistic 3D Tiles (Google) — must be called at top level (Rules of Hooks)
+  const tile3d = useTile3DLayer({
     visible: enabledLayers.has("tile3d-buildings"),
-    tilesetUrl: "/geo/3d-tiles/tileset.json",
+    source: "google",
   });
 
   // Quantized zoom level — only changes when crossing the discrete thresholds
@@ -938,8 +938,8 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
       out.push(memoizedBuildingsLayer);
     if (enabledLayers.has("building-roofs") && memoizedRoofsLayer)
       out.push(memoizedRoofsLayer);
-    // 3D Tiles pilot — OGC-standard streaming buildings (replaces extruded GeoJSON when available)
-    if (tile3dLayer) out.push(tile3dLayer as Layer);
+    // Photorealistic 3D Tiles (Google) — textured glTF mesh streamed by deck.gl
+    if (tile3d.layer) out.push(tile3d.layer as Layer);
     if (enabledLayers.has("road-network") && roads)
       out.push(roadNetworkLayer(roads as unknown as FeatureCollection<LineString, ClassifiedRoadProps>) as Layer);
     if (enabledLayers.has("transit-lines") && transitLines)
@@ -1051,7 +1051,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
     conflictIncidents.data, floodGauges.data, damStatus.data,
     waterGauges.data, waterRain.data, ewsStations.data,
     presence.lng, presence.lat, presence.accuracyM,
-    tile3dLayer,
+    tile3d.layer,
   ]);
 
   // Feature counts — passed to LayerPalette so every toggle shows a number,

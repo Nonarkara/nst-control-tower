@@ -354,8 +354,8 @@ export const ALL_LAYERS: {
     describe: "Nakhon Si Thammarat City Municipality boundary (เทศบาลนครนครศรีธรรมราช)." },
   { id: "municipality-buildings", label: "Buildings (OSM + MS, 3D)",  swatch: "#0EA5E9", group: "municipality",
     describe: "20,877 building footprints — OSM/Bing named landmarks (hospitals, temples, hotels) plus Microsoft Building Footprints for the full fabric. Height from levels tag or 2-storey default. Colour-coded by type in 3D." },
-  { id: "tile3d-buildings",       label: "Buildings (3D Tiles)",       swatch: "#7DD3FC", group: "municipality",
-    describe: "Experimental OGC 3D Tiles stream for NST city centre. Toggle on to compare against the GeoJSON layer." },
+  { id: "tile3d-buildings",       label: "Photorealistic 3D (Google)", swatch: "#7DD3FC", group: "municipality",
+    describe: "Google Photorealistic 3D Tiles — real textured city mesh streamed via deck.gl. Full coverage over Bangkok and major metros; provincial towns may show coarse terrain only. Requires a Google Maps key." },
 
   // ─── Maritime (NEW) ────────────────────────────────────────────────────
   { id: "maritime-overlay",       label: "OpenSeaMap overlay",        swatch: "#22D3EE", group: "maritime",

@@ -1,44 +1,77 @@
-import { useEffect, useMemo, useState } from "react";
+import { useState, useCallback } from "react";
 import { Tile3DLayer } from "@deck.gl/geo-layers";
+import { Tiles3DLoader } from "@loaders.gl/3d-tiles";
+import { GOOGLE_MAPS_API_KEY } from "../lib/googleKey";
+
+/** Google Photorealistic 3D Tiles root. Key goes in the URL query (a CORS-simple
+ *  request — a custom header would trigger a preflight Google rejects in-browser).
+ *  loaders.gl propagates the key + session token to child tiles automatically. */
+const GOOGLE_3D_ROOT = "https://tile.googleapis.com/v1/3dtiles/root.json";
 
 interface Props {
   visible: boolean;
-  tilesetUrl?: string;
+  /** "google" → Google Photorealistic 3D Tiles; or an explicit tileset.json URL. */
+  source?: "google" | string;
 }
 
-export function useTile3DLayer({ visible, tilesetUrl }: Props) {
-  const [tilesetLoaded, setTilesetLoaded] = useState(false);
+interface Tile3DResult {
+  layer: Tile3DLayer | null;
+  /** Data attribution string Google requires us to display while tiles render. */
+  attribution: string;
+  /** True once the tileset metadata has loaded — drives the on-map badge. */
+  loaded: boolean;
+}
 
-  useEffect(() => {
-    if (!visible || !tilesetUrl) return;
-    setTilesetLoaded(false);
-  }, [visible, tilesetUrl]);
+/**
+ * Photorealistic 3D Tiles via deck.gl Tile3DLayer. For Google tiles the content
+ * is textured glTF, so we must NOT override fill/line colours — that would paint
+ * the photoreal mesh flat grey. We only collect the copyright string Google
+ * requires and surface it for an attribution badge.
+ *
+ * A fresh Tile3DLayer instance is created every render (the canonical deck.gl
+ * pattern — deck diffs by `id` and preserves the Tileset3D in internal state).
+ *
+ * Coverage: full photoreal mesh over Bangkok and major metros; provincial Thai
+ * towns may return only coarse terrain. Degrades gracefully (empty) when there
+ * is no key or no coverage.
+ */
+export function useTile3DLayer({ visible, source = "google" }: Props): Tile3DResult {
+  const [loaded, setLoaded] = useState(false);
+  const [attribution, setAttribution] = useState("");
 
-  // Memoize the layer instance so the reference is stable across renders —
-  // a new object every render would force deck.gl to re-diff all tile state.
-  return useMemo(() => {
-    if (!visible || !tilesetUrl) return null;
-    return new Tile3DLayer({
-      id: "tile-3d-layer",
-      data: tilesetUrl,
-      onTilesetLoad: (ts: unknown) => {
-        setTilesetLoaded(true);
-        if (import.meta.env.DEV) console.log("[Tile3DLayer] Tileset loaded", ts);
-      },
-      onTileLoad: (tile: unknown) => { void tile; },
-      onTileError: (err: unknown) => {
-        if (import.meta.env.DEV) console.error("[Tile3DLayer] Tile error", err);
-      },
-      getFillColor: [210, 215, 225, 235] as [number, number, number, number],
-      getLineColor: [180, 190, 210, 160] as [number, number, number, number],
-      pointSize: 1,
-      getPointColor: [255, 255, 255],
-      pickable: true,
-      opacity: 0.95,
-      // Higher MSE = fewer tiles loaded simultaneously → smoother panning.
-      maximumScreenSpaceError: 16,
-      _: { tilesetLoaded },
-    });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visible, tilesetUrl, tilesetLoaded]);
+  const isGoogle = source === "google";
+  const tilesetUrl = isGoogle
+    ? (GOOGLE_MAPS_API_KEY ? `${GOOGLE_3D_ROOT}?key=${GOOGLE_MAPS_API_KEY}` : "")
+    : source;
+
+  // Google sends per-tile data-provider credits in the copyright field; surface
+  // them so the attribution badge reflects the imagery actually on screen.
+  const onTilesetLoad = useCallback((tileset: { credits?: { html?: string } }) => {
+    setLoaded(true);
+    const html = tileset?.credits?.html ?? "";
+    const text = html.replace(/<[^>]*>/g, "").trim();
+    if (text) setAttribution(text);
+  }, []);
+
+  const layer = !visible || !tilesetUrl
+    ? null
+    : new Tile3DLayer({
+        id: isGoogle ? "google-3d-tiles" : "tile-3d-layer",
+        data: tilesetUrl,
+        loader: Tiles3DLoader,
+        onTilesetLoad,
+        onTileError: (err: unknown) => {
+          if (import.meta.env.DEV) console.error("[Tile3DLayer] tile error", err);
+        },
+        pickable: false,
+        opacity: 1,
+        // Higher MSE = fewer tiles in flight → smoother panning on big scenes.
+        maximumScreenSpaceError: 16,
+      });
+
+  return {
+    layer,
+    attribution: attribution || (isGoogle ? "Imagery © Google" : ""),
+    loaded,
+  };
 }
