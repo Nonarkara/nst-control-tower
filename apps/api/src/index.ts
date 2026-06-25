@@ -14,6 +14,13 @@ async function tryArchiveApi() {
 import { fetchWeather } from "./adapters/weather.js";
 import { fetchPrecipNowcast } from "./adapters/precipNowcast.js";
 import { fetchAirQuality, fetchAirQualityTrend } from "./adapters/airQuality.js";
+import {
+  fetchGoogleGeocode,
+  fetchGooglePlaces,
+  fetchGoogleAirQuality,
+  fetchStreetViewMeta,
+  streetViewImageUrl,
+} from "./adapters/google.js";
 import { fetchCctv } from "./adapters/cctv.js";
 import { fetchTrends } from "./adapters/trends.js";
 import { fetchExecutiveSnapshot, deriveAlerts } from "./adapters/executive.js";
@@ -37,7 +44,7 @@ import { fetchGistdaPoi, fetchGistdaSolar, fetchGistdaLandUse } from "./adapters
 import { fetchAqicnNst } from "./adapters/aqicn.js";
 import { fetchAir4Thai } from "./adapters/air4thai.js";
 import { fetchNasaEarth } from "./adapters/nasa-power.js";
-import { SOURCE_CATALOG } from "@nst/shared";
+import { SOURCE_CATALOG, CHONBURI } from "@nst/shared";
 import type { NormalizedFeed, AirQualityPoint, IncidentFeature, IntelligenceItem, ExecutiveSnapshot, MarketSnapshot } from "@nst/shared";
 import { recordAdapterSuccess, recordAdapterError, getAllHealth, getSystemStatus } from "./lib/health.js";
 import { getMqttStatus } from "./adapters/mqttBridge.js";
@@ -64,6 +71,7 @@ type Bindings = {
   SUPABASE_DATABASE_URL?: string;
   GEOAPIFY_API_KEY?: string;
   AIRLABS_API_KEY?: string;
+  GOOGLE_MAPS_API_KEY?: string;
 };
 
 const app = new Hono<{ Bindings: Bindings }>();
@@ -169,6 +177,7 @@ const API_KEY_REGISTRY: { env: keyof Bindings; label: string; powers: string; ge
   { env: "FACEBOOK_PAGE_TOKEN", label: "Facebook",  powers: "Municipal Facebook page posts",                        getAt: "https://developers.facebook.com/docs/pages-api" },
   { env: "DATA_GO_TH_TOKEN",  label: "data.go.th",  powers: "Thai open-data: reservoirs, disasters, provincial KPIs", getAt: "https://data.go.th" },
   { env: "AIRLABS_API_KEY",   label: "AirLabs",     powers: "NST airport FIDS — arrivals & departures (free: 1,000 req/month)", getAt: "https://airlabs.co" },
+  { env: "GOOGLE_MAPS_API_KEY", label: "Google Maps", powers: "Street View, Geocoding, Places, Air Quality (server-side); 3D tiles + traffic (client)", getAt: "https://console.cloud.google.com/apis/credentials" },
 ];
 
 app.get("/api/health/keys", (c) => {
@@ -317,6 +326,60 @@ app.get("/api/water/rain", async (c) => safeFeed(c, fetchRainfall, "thaiwater-ra
 app.get("/api/water/ews", async (c) => safeFeed(c, fetchEwsStations, "dwr-ews"));
 app.get("/api/water/reservoirs-rid", async (c) => safeFeed(c, fetchRidReservoirs, "rid-reservoirs"));
 app.get("/api/flights", async (c) => safeFeed(c, () => fetchFlights({ AIRLABS_API_KEY: c.env.AIRLABS_API_KEY }), "flights-nst"));
+
+// ── Google Maps Platform (server-side; key never reaches the browser) ──────────
+app.get("/api/google/geocode", async (c) =>
+  safeFeed(c, () => fetchGoogleGeocode(c.req.query("q") ?? "", { GOOGLE_MAPS_API_KEY: c.env.GOOGLE_MAPS_API_KEY }), "google-geocode"));
+app.get("/api/google/places", async (c) =>
+  safeFeed(c, () => fetchGooglePlaces(c.req.query("q") ?? "", { GOOGLE_MAPS_API_KEY: c.env.GOOGLE_MAPS_API_KEY }), "google-places"));
+app.get("/api/google/air-quality", async (c) => {
+  const [lng, lat] = CHONBURI.center;
+  const qLat = Number.parseFloat(c.req.query("lat") ?? "");
+  const qLng = Number.parseFloat(c.req.query("lng") ?? "");
+  return safeFeed(c, () => fetchGoogleAirQuality(
+    Number.isFinite(qLat) ? qLat : lat,
+    Number.isFinite(qLng) ? qLng : lng,
+    { GOOGLE_MAPS_API_KEY: c.env.GOOGLE_MAPS_API_KEY },
+  ), "google-air-quality");
+});
+app.get("/api/streetview/meta", async (c) => {
+  const [lng, lat] = CHONBURI.center;
+  const qLat = Number.parseFloat(c.req.query("lat") ?? "");
+  const qLng = Number.parseFloat(c.req.query("lng") ?? "");
+  return safeFeed(c, () => fetchStreetViewMeta(
+    Number.isFinite(qLat) ? qLat : lat,
+    Number.isFinite(qLng) ? qLng : lng,
+    { GOOGLE_MAPS_API_KEY: c.env.GOOGLE_MAPS_API_KEY },
+  ), "google-streetview");
+});
+// Image proxy — streams Street View Static bytes so the key stays server-side.
+app.get("/api/streetview", async (c) => {
+  const key = c.env.GOOGLE_MAPS_API_KEY;
+  if (!key) return c.json({ error: "GOOGLE_MAPS_API_KEY not set" }, 503);
+  const [lng, lat] = CHONBURI.center;
+  const qLat = Number.parseFloat(c.req.query("lat") ?? "");
+  const qLng = Number.parseFloat(c.req.query("lng") ?? "");
+  const num = (v: string | undefined): number | undefined => {
+    const n = Number.parseFloat(v ?? "");
+    return Number.isFinite(n) ? n : undefined;
+  };
+  const url = streetViewImageUrl(
+    {
+      lat: Number.isFinite(qLat) ? qLat : lat,
+      lng: Number.isFinite(qLng) ? qLng : lng,
+      heading: num(c.req.query("heading")),
+      pitch: num(c.req.query("pitch")),
+      fov: num(c.req.query("fov")),
+      size: c.req.query("size") ?? undefined,
+    },
+    key,
+  );
+  const upstream = await fetch(url);
+  if (!upstream.ok) return c.json({ error: `Street View ${upstream.status}` }, 502);
+  c.header("Content-Type", upstream.headers.get("content-type") ?? "image/jpeg");
+  c.header("Cache-Control", "public, max-age=86400");
+  return c.body(await upstream.arrayBuffer());
+});
 
 // ── NST Data Atlas — static outcome-data layer from the Municipal Data Bible ──
 app.get("/api/atlas", (c) => {

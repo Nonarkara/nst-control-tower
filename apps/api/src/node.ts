@@ -67,6 +67,7 @@ const env = {
   ACLED_EMAIL: process.env.ACLED_EMAIL,
   DATA_GO_TH_TOKEN: process.env.DATA_GO_TH_TOKEN,
   AIRLABS_API_KEY: process.env.AIRLABS_API_KEY,
+  GOOGLE_MAPS_API_KEY: process.env.GOOGLE_MAPS_API_KEY,
   MQTT_BROKER_URL: process.env.MQTT_BROKER_URL,
   MQTT_USERNAME: process.env.MQTT_USERNAME,
   MQTT_PASSWORD: process.env.MQTT_PASSWORD,
