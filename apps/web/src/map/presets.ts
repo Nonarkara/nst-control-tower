@@ -67,6 +67,8 @@ export type LayerId =
   | "satellite-lst"
   | "satellite-flood"
   | "satellite-terrain"
+  | "google-satellite"
+  | "google-traffic"
   // (legacy IDs kept as no-op for backward compat — empty rendering)
   | "campus-boundary"
   | "campus-buildings"
@@ -440,6 +442,10 @@ export const ALL_LAYERS: {
   // ─── Imagery ───────────────────────────────────────────────────────────
   { id: "satellite-esri",    label: "Satellite (Esri HD)",      swatch: "#60A5FA", group: "imagery",
     describe: "Esri World Imagery — high-res aerial / satellite mosaic. Good detail up to zoom 19." },
+  { id: "google-satellite",  label: "Satellite (Google HD)",    swatch: "#34D399", group: "imagery",
+    describe: "Google Maps satellite imagery via the Map Tiles API — often more recent and higher-res than Esri. Requires a Google Maps key." },
+  { id: "google-traffic",    label: "Live Traffic (Google)",    swatch: "#F87171", group: "imagery",
+    describe: "Google real-time traffic overlay (Map Tiles API). Dense over Bangkok and major corridors; provincial roads may show little flow data. Requires a Google Maps key." },
   { id: "satellite-terrain", label: "OpenTopoMap (zoom < 14)",  swatch: "#A3E635", group: "imagery",
     describe: "OpenTopoMap with contour lines and hillshade. Useful at regional zoom." },
   { id: "satellite-viirs-truecolor", label: "VIIRS true-color", swatch: "#A5F3FC", group: "imagery",
@@ -480,7 +486,9 @@ export const COMPUTED_LAYERS: ReadonlySet<LayerId> = new Set<LayerId>([
   "tile3d-buildings",
   "heritage-old-town",
   "heritage-temple-spires",
-  // All GIBS + Esri satellite rasters
+  // All GIBS + Esri + Google satellite rasters
+  "google-satellite",
+  "google-traffic",
   "satellite-esri",
   "satellite-true-color",
   "satellite-viirs-truecolor",

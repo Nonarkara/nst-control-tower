@@ -85,6 +85,8 @@ import {
   alphaEarthFloodProneLayer,
 } from "./map/layers";
 import { useTile3DLayer } from "./map/Tile3DLayer";
+import { useGoogleTileSession } from "./hooks/useGoogleTileSession";
+import { googleTileTemplate } from "./lib/googleTiles";
 import { ALL_LAYERS, LENSES, layerCanEnable, enforceLayerExclusivity, exclusiveGroupOf, type LayerId, type LensId, type MapViewState } from "./map/presets";
 
 import { TopBar } from "./components/TopBar";
@@ -901,6 +903,10 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
     source: "google",
   });
 
+  // Google Map Tiles sessions — minted lazily when the layer is first enabled.
+  const googleSatSession = useGoogleTileSession("satellite", enabledLayers.has("google-satellite"));
+  const googleTrafficSession = useGoogleTileSession("traffic", enabledLayers.has("google-traffic"));
+
   // Quantized zoom level — only changes when crossing the discrete thresholds
   // used for maxRoofs. Prevents the layers useMemo from firing on every zoom tick.
   const zoomBucket = viewState.zoom >= 16.5 ? 2 : viewState.zoom >= 15.2 ? 1 : 0;
@@ -1469,6 +1475,38 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
                     id="esri-world-imagery"
                     type="raster"
                     paint={{ "raster-opacity": 1 }}
+                    beforeId="labels-top"
+                  />
+                </Source>
+              )}
+              {enabledLayers.has("google-satellite") && googleSatSession && (
+                <Source
+                  id="google-satellite-src"
+                  type="raster"
+                  tiles={[googleTileTemplate(googleSatSession)]}
+                  tileSize={256}
+                  maxzoom={20}
+                >
+                  <MapLayer
+                    id="google-satellite-lyr"
+                    type="raster"
+                    paint={{ "raster-opacity": 1 }}
+                    beforeId="labels-top"
+                  />
+                </Source>
+              )}
+              {enabledLayers.has("google-traffic") && googleTrafficSession && (
+                <Source
+                  id="google-traffic-src"
+                  type="raster"
+                  tiles={[googleTileTemplate(googleTrafficSession)]}
+                  tileSize={256}
+                  maxzoom={20}
+                >
+                  <MapLayer
+                    id="google-traffic-lyr"
+                    type="raster"
+                    paint={{ "raster-opacity": 0.85 }}
                     beforeId="labels-top"
                   />
                 </Source>
