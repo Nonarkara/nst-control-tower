@@ -47,6 +47,10 @@ const LENS_DISC: Record<LensId, { family: "ink" | "blue" | "red" | "green" | "pu
   earth:         { family: "green",  glyph: "A" },
   vibes:         { family: "purple", glyph: "V" },
   intelligence:  { family: "purple", glyph: "I" },
+  // Legacy no-op lens ids — never rendered (absent from LENSES), kept only
+  // for compile safety. Entries exist solely to satisfy Record exhaustiveness.
+  security:      { family: "ink",    glyph: "X" },
+  poverty:       { family: "ink",    glyph: "X" },
 };
 
 // Short, plain-language hint shown under a group header so an operator understands
