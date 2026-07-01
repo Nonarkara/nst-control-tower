@@ -183,8 +183,8 @@ export function Whitepaper({ open, onClose }: Props) {
                 <ul className="manual-flow">
                   <li><strong>React 19 + Vite 6</strong> — fast refresh; vendor-split bundles (React · MapLibre · deck.gl) cache independently.</li>
                   <li><strong>deck.gl 9.3 + MapLibre GL</strong> — WebGL2 map with 3D building extrusion, heatmaps, AIS vessel trails, satellite tiles. GloFAS flood polygons rendered as fill layers.</li>
-                  <li><strong>IBM Plex</strong> (Sans, Mono, Condensed, Thai) + <strong>Lora</strong> serif — self-hosted, no external font requests.</li>
-                  <li><strong>Design DNA</strong> — Bauhaus functionalism × Swiss typography × East-Asian density. Teal accent, no rounding or shadow.</li>
+                  <li><strong>Inter</strong> (one neo-grotesque family, every weight) + <strong>IBM Plex Sans Thai</strong> for Thai script — self-hosted, no external font requests.</li>
+                  <li><strong>Design DNA</strong> — Dieter Rams × Bob Noorda/Massimo Vignelli (NYCTA Graphics Standards). Warm greyscale field, one signal accent, a closed 8-color route palette for wayfinding only — no rounding, blur, or shadow.</li>
                   <li><strong>Accessibility</strong> — WCAG 2.1 AA: focus rings, ARIA roles, modal focus traps, news ticker pause control, combobox building search.</li>
                 </ul>
               </div>

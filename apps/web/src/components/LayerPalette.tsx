@@ -33,6 +33,22 @@ interface Props {
 
 const GROUP_ORDER: LayerGroup[] = ["municipality", "maritime", "mobility", "incidents", "open-data", "environment", "imagery"];
 
+// Route-disc identity for each lens — the NYCTA trunk-line method (RAMS-x-NYCTA
+// §3.1): group the 9 lenses into ≤5 families by user mental model (strategic /
+// operational / hazard / environmental / reference), one hue per family, one
+// glyph per lens. The glyph is a stable address — never reassign once shipped.
+const LENS_DISC: Record<LensId, { family: "ink" | "blue" | "red" | "green" | "purple"; glyph: string }> = {
+  executive:     { family: "ink",    glyph: "E" },
+  operations:    { family: "blue",   glyph: "O" },
+  mobility:      { family: "blue",   glyph: "M" },
+  flood:         { family: "red",    glyph: "F" },
+  safety:        { family: "red",    glyph: "S" },
+  environment:   { family: "green",  glyph: "N" },
+  earth:         { family: "green",  glyph: "A" },
+  vibes:         { family: "purple", glyph: "V" },
+  intelligence:  { family: "purple", glyph: "I" },
+};
+
 // Short, plain-language hint shown under a group header so an operator understands
 // what the (often similar-looking) layers are for and how they interact — Rams:
 // make it understandable. Only the satellite-heavy groups need one.
@@ -72,18 +88,26 @@ export function LayerPalette({ lens, onLensChange, enabled, onToggleLayer, count
       <div>
         <div className="eyebrow" style={{ marginBottom: 6 }}>Lens</div>
         <div className="lens">
-          {LENSES.map((l) => (
-            <button
-              key={l.id}
-              onClick={() => onLensChange(l.id)}
-              aria-pressed={lens === l.id}
-              className={lens === l.id ? "active" : ""}
-              title={l.describe}
-              aria-label={l.describe}
-            >
-              {l.label}
-            </button>
-          ))}
+          {LENSES.map((l) => {
+            const disc = LENS_DISC[l.id];
+            return (
+              <button
+                key={l.id}
+                onClick={() => onLensChange(l.id)}
+                aria-pressed={lens === l.id}
+                className={lens === l.id ? "active" : ""}
+                title={l.describe}
+                aria-label={l.describe}
+              >
+                <span
+                  className={`rt-disc rt-disc--nav rt-disc--${disc.family}`}
+                  data-glyph={disc.glyph}
+                  aria-hidden="true"
+                />
+                {l.label}
+              </button>
+            );
+          })}
         </div>
         <div className="lens-explainer caption">
           {LENSES.find((l) => l.id === lens)?.describe}

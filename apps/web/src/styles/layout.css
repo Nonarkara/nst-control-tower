@@ -33,15 +33,13 @@
   z-index: 9998;
   max-width: min(560px, 92vw);
   padding: 8px 14px;
-  border-radius: 6px;
   text-align: center;
   font-size: 0.83rem;
   letter-spacing: 0.02em;
-  color: var(--text, #e6edf3);
-  background: var(--bg-2, #161b22);
-  border: 1px solid var(--line-2, #484f58);
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35);
-  animation: layer-toast-in 160ms ease-out;
+  color: var(--text);
+  background: var(--bg-2);
+  border: 1px solid var(--line-2);
+  animation: layer-toast-in 150ms ease-out;
 }
 @keyframes layer-toast-in {
   from { opacity: 0; transform: translate(-50%, 8px); }
@@ -467,6 +465,10 @@ input:focus-visible,
   border: 1px solid var(--line);
 }
 .lens button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
   border: 0;
   background: var(--bg-1);
   padding: 7px 4px;
@@ -478,11 +480,14 @@ input:focus-visible,
   min-height: 36px;
   transition: background 140ms ease, color 140ms ease;
 }
-.lens button:hover { color: var(--data); border: 0; }
+.lens button:hover { color: var(--text); border: 0; }
 .lens button.active {
-  /* Sea-blue active lens — white text on blue reads as the seal */
-  background: var(--data);
-  color: #ffffff;
+  /* Active lens reads by weight, not a recolored plate — the route-disc
+     already carries the lens's identity color (RAMS-x-NYCTA §4.3: show
+     selection on the label, never by dimming/recoloring the disc). */
+  background: var(--bg-2);
+  color: var(--text);
+  font-weight: 700;
   transition: none; /* active state is instantaneous */
 }
 
@@ -1980,7 +1985,7 @@ input:focus-visible,
 
 /* ── DeckGL tooltip — match panel aesthetic ── */
 .picker-tooltip {
-  background: rgba(10, 14, 20, 0.94);
+  background: color-mix(in srgb, var(--bg-1) 95%, transparent);
   border: 1px solid var(--line-2);
   border-left: 1px solid var(--accent);
   padding: 8px 16px; min-height: 40px;
@@ -1989,10 +1994,6 @@ input:focus-visible,
   color: var(--text);
   max-width: 280px;
   line-height: 1.35;
-}
-[data-theme="light"] .picker-tooltip {
-  background: rgba(255, 255, 255, 0.96);
-  color: #111315;
 }
 .picker-title { font-weight: 600; }
 .picker-sub {
@@ -2777,16 +2778,21 @@ input:focus-visible,
   color: var(--text-3);
 }
 
-/* Flood guide button (top bar) */
+/* Flood guide button (top bar) — identity carried by the route-disc, matching
+   the FLOOD lens's red address (RAMS-x-NYCTA: a glyph/color is a stable
+   address, never reassigned; "F = red" reads the same in the lens bar). */
 .flood-guide-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-family: var(--font-mono);
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  border: 1px solid var(--data);
-  color: var(--data);
+  border: 1px solid var(--line-2);
+  color: var(--text-1);
   padding: 4px 12px;
 }
-.flood-guide-toggle:hover { background: var(--data); color: var(--bg); border-color: var(--data); }
+.flood-guide-toggle:hover { background: var(--bg-2); color: var(--text); border-color: var(--line-2); }
 
 /* Flood Knowledge panel — extra elements */
 .fk-quote {
@@ -3815,8 +3821,8 @@ input:focus-visible,
   display: flex;
   align-items: center;
   gap: 6px;
-  padding-bottom: 5px;
-  border-bottom: 1px solid var(--border);
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--text);
   margin-bottom: 8px;
 }
 .panel-hdr > .eyebrow { flex: 1; }
@@ -3827,7 +3833,7 @@ input:focus-visible,
   color: var(--text-3);
   background: var(--bg-2);
   padding: 1px 4px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--line-2);
   white-space: nowrap;
   flex-shrink: 0;
 }
@@ -3859,9 +3865,8 @@ input:focus-visible,
 }
 
 .cctv-modal {
-  background: var(--panel-bg, #fff);
-  border: 1px solid var(--rule);
-  border-radius: 6px;
+  background: var(--bg-1);
+  border: 1px solid var(--line-2);
   width: min(480px, 94vw);
   max-height: 90vh;
   overflow-y: auto;
@@ -3874,19 +3879,19 @@ input:focus-visible,
   justify-content: space-between;
   align-items: flex-start;
   padding: 12px 14px 10px;
-  border-bottom: 1px solid var(--rule);
+  border-bottom: 1px solid var(--line-2);
 }
 
 .cctv-modal-title {
   margin: 2px 0 0;
   font-size: 0.85rem;
   font-weight: 600;
-  color: var(--ink);
+  color: var(--text);
 }
 
 .cctv-modal-coords {
   font-size: 0.65rem;
-  color: var(--ink-low);
+  color: var(--text-3);
   margin-top: 2px;
 }
 
@@ -3910,7 +3915,7 @@ input:focus-visible,
 .cctv-no-stream {
   padding: 32px 16px;
   font-size: 0.7rem;
-  color: var(--ink-low);
+  color: var(--text-3);
   letter-spacing: 0.08em;
 }
 
@@ -3943,7 +3948,7 @@ input:focus-visible,
 
 .cctv-modal-cv {
   padding: 10px 14px;
-  border-bottom: 1px solid var(--rule);
+  border-bottom: 1px solid var(--line-2);
 }
 
 .cctv-cv-row { margin: 4px 0 6px; }
@@ -3961,20 +3966,19 @@ input:focus-visible,
   display: flex;
   gap: 4px;
   font-size: 0.65rem;
-  background: var(--ground-soft);
-  border: 1px solid var(--rule);
-  border-radius: 3px;
+  background: var(--bg-2);
+  border: 1px solid var(--line-2);
   padding: 1px 5px;
 }
 
-.cctv-det-class { color: var(--ink); text-transform: capitalize; }
+.cctv-det-class { color: var(--text); text-transform: capitalize; }
 .cctv-det-conf  { font-size: 0.6rem; }
 
 .cctv-snap-link {
   display: inline-block;
   margin-top: 6px;
   font-size: 0.65rem;
-  color: var(--ink-mid);
+  color: var(--text-2);
   text-decoration: underline;
 }
 
@@ -3983,6 +3987,6 @@ input:focus-visible,
   display: flex;
   gap: 12px;
   font-size: 0.6rem;
-  color: var(--ink-low);
+  color: var(--text-3);
 }
 

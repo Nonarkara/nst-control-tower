@@ -1,6 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, memo } from "react";
 import DeckGL from "@deck.gl/react";
 import type { Layer, ControllerProps } from "@deck.gl/core";
+import { FlyToInterpolator } from "@deck.gl/core";
 import { Map as MapLibreMap, Source, Layer as MapLayer } from "react-map-gl/maplibre";
 import maplibregl from "maplibre-gl";
 import type { FeatureCollection, LineString, Point, Polygon, MultiPolygon } from "geojson";
@@ -92,7 +93,6 @@ import { ALL_LAYERS, LENSES, layerCanEnable, enforceLayerExclusivity, exclusiveG
 import { TopBar } from "./components/TopBar";
 import { MapCompass } from "./components/MapCompass";
 import { BuildingLegend } from "./components/BuildingLegend";
-import { HourRail } from "./components/HourRail";
 import { LayerPalette, type LayerStatus } from "./components/LayerPalette";
 import { KpiStrip } from "./components/KpiStrip";
 import { PmcuBrief } from "./components/PmcuBrief";
@@ -273,7 +273,6 @@ function escapeHtml(s: string): string {
 }
 
 const MemoTopBar = memo(TopBar);
-const MemoHourRail = memo(HourRail);
 const MemoLayerPalette = memo(LayerPalette);
 const MemoKpiStrip = memo(KpiStrip);
 const MemoPmcuBrief = memo(PmcuBrief);
@@ -306,9 +305,9 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
   const transitStations = useGeoJson<FeatureCollection<Point, StationProps>>("/geo/nst/transit-stations.geojson");
   const transitLines = useGeoJson<FeatureCollection<LineString, TransitLineProps>>("/geo/nst/transit-lines.geojson");
 
-  // Hour + weekend state for the traffic simulation
-  const [hour, setHour] = useState<number>(() => new Date().getHours());
-  const [isWeekend, setIsWeekend] = useState<boolean>(() => {
+  // Computed once at mount — feeds traffic simulation; no longer interactive
+  const [hour] = useState<number>(() => new Date().getHours());
+  const [isWeekend] = useState<boolean>(() => {
     const d = new Date().getDay();
     return d === 0 || d === 6;
   });
@@ -465,25 +464,22 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
     }
   }, [presence.lng, presence.lat, presence.insideArea, flyTo]);
 
-  // View mode cycles 2D → 3D (buildings extrude) → 3DS (substructure: buildings
-  // turn translucent, utilities drop to their burial depth). Camera follows.
-  type ViewMode = "2D" | "3D" | "3DS";
+  type ViewMode = "2D" | "3D";
   const [viewMode, setViewMode] = useState<ViewMode>("3D");
-  const is3D = viewMode === "3D" || viewMode === "3DS";
-  const isSubstructure = viewMode === "3DS";
+  const is3D = viewMode === "3D";
+  const isSubstructure = false;
 
   const cycleViewMode = useCallback(() => {
-    setViewMode((prevMode) => {
-      return prevMode === "2D" ? "3D" : prevMode === "3D" ? "3DS" : "2D";
-    });
+    setViewMode((prev) => (prev === "2D" ? "3D" : "2D"));
   }, []);
 
   useEffect(() => {
     setViewState((prev) => ({
       ...prev,
-      pitch: viewMode === "2D" ? 0 : viewMode === "3D" ? 60 : 72,
-      bearing: viewMode === "2D" ? 0 : viewMode === "3D" ? -18 : -28,
+      pitch: viewMode === "2D" ? 0 : 60,
+      bearing: viewMode === "2D" ? 0 : -18,
       transitionDuration: 700,
+      transitionInterpolator: new FlyToInterpolator(),
     }));
   }, [viewMode]);
 
@@ -1632,11 +1628,6 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
           <span className="pill pill-standard" title="UNDP-JTC Digital Twins for Cities (Jul 2025) · ADB Digital Twin Framework (May 2025)">DT·L2</span>
           <span className="bottom-standard mono">UNDP · ADB</span>
         </div>
-        <MemoHourRail          hour={hour}
-          isWeekend={isWeekend}
-          onHourChange={setHour}
-          onWeekendToggle={setIsWeekend}
-        />
         <div className="bottom-stats">
           <span>{buildings?.features.length ?? 0} BUILDINGS · {(roads?.features.length ?? 0).toLocaleString()} ROADS · {layers.length} LAYERS</span>
           <span>{civicPoints?.features.length ?? 0} CIVIC · {cctv.data.length} CCTV · {gistdaPois.data.length} GISTDA</span>

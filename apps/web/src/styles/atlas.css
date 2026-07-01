@@ -133,13 +133,17 @@
 .atlas-source-status.scrape { color: var(--text-2); border: 1px solid var(--line-2); }
 .atlas-source-status.planned { color: var(--text-3); border: 1px solid var(--line); }
 
-/* top-bar atlas toggle */
+/* top-bar atlas toggle — identity carried by the route-disc (RAMS-x-NYCTA
+   §2.3: enclosed = identity, so the button chrome itself stays neutral). */
 .atlas-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-family: var(--font-mono);
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  border: 1px solid var(--gold);
-  color: var(--gold);
+  border: 1px solid var(--line-2);
+  color: var(--text-1);
   padding: 4px 12px;
 }
-.atlas-toggle:hover { background: var(--gold); color: var(--bg); border-color: var(--gold); }
+.atlas-toggle:hover { background: var(--bg-2); color: var(--text); border-color: var(--line-2); }

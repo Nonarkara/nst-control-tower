@@ -93,7 +93,7 @@
 /* insights */
 .kp-insight { background: var(--bg-1); border: 1px solid var(--line); border-left: 2px solid var(--text-3); padding: var(--s-3) var(--s-4); margin-bottom: var(--s-3); }
 .kp-insight.critical { border-left-color: var(--bad); }
-.kp-insight.alert { border-left-color: #fb923c; }
+.kp-insight.alert { border-left-color: var(--warn); }
 .kp-insight.watch { border-left-color: var(--gold); }
 .kp-insight.info { border-left-color: var(--data); }
 .kp-insight-head { display: flex; gap: 10px; align-items: baseline; }

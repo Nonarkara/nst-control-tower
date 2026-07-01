@@ -78,19 +78,10 @@ importers:
       '@deck.gl/react':
         specifier: ^9.2.11
         version: 9.3.2(@deck.gl/core@9.3.2)(@deck.gl/widgets@9.3.2(@deck.gl/core@9.3.2)(@luma.gl/core@9.3.3))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
-      '@fontsource/ibm-plex-mono':
-        specifier: ^5.2.7
-        version: 5.2.7
-      '@fontsource/ibm-plex-sans':
-        specifier: ^5.2.8
-        version: 5.2.8
-      '@fontsource/ibm-plex-sans-condensed':
-        specifier: ^5.2.8
-        version: 5.2.8
       '@fontsource/ibm-plex-sans-thai':
         specifier: ^5.2.8
         version: 5.2.8
-      '@fontsource/lora':
+      '@fontsource/inter':
         specifier: ^5.2.8
         version: 5.2.8
       '@loaders.gl/3d-tiles':
@@ -838,20 +829,11 @@ packages:
   '@floating-ui/utils@0.2.11':
     resolution: {integrity: sha512-RiB/yIh78pcIxl6lLMG0CgBXAZ2Y0eVHqMPYugu+9U0AeT6YBeiJpf7lbdJNIugFP5SIjwNRgo4DhR1Qxi26Gg==}
 
-  '@fontsource/ibm-plex-mono@5.2.7':
-    resolution: {integrity: sha512-MKAb8qV+CaiMQn2B0dIi1OV3565NYzp3WN5b4oT6LTkk+F0jR6j0ZN+5BKJiIhffDC3rtBULsYZE65+0018z9w==}
-
-  '@fontsource/ibm-plex-sans-condensed@5.2.8':
-    resolution: {integrity: sha512-FpGhTq7Yja1E4fz3HKhjSJadNQCuE45e4YhznhsQ2FaReuv4lV+IrTTRJne2O35tXL4EP3lD7vb19rW6qG9iUw==}
-
   '@fontsource/ibm-plex-sans-thai@5.2.8':
     resolution: {integrity: sha512-pddJU1HCjtqbXRcyCnbEJ8UV8pQQuUo23Hxjvdwr0DBibtUra66MVsFMDP/Et/Su5P2VeQAgalACZOCEkWaReA==}
 
-  '@fontsource/ibm-plex-sans@5.2.8':
-    resolution: {integrity: sha512-eztSXjDhPhcpxNIiGTgMebdLP9qS4rWkysuE1V7c+DjOR0qiezaiDaTwQE7bTnG5HxAY/8M43XKDvs3cYq6ZYQ==}
-
-  '@fontsource/lora@5.2.8':
-    resolution: {integrity: sha512-AQlfsHw4TP1x/eb2IZ6VjQ70ctKa39m9JN9A4zlvDOeKYLrCs+GaYIEQ86Y6YfSPGHn01bErXkRcyktOW0LOPQ==}
+  '@fontsource/inter@5.2.8':
+    resolution: {integrity: sha512-P6r5WnJoKiNVV+zvW2xM13gNdFhAEpQ9dQJHt3naLvfg+LkF2ldgSLiF4T41lf1SQCM9QmkqPTn4TH568IRagg==}
 
   '@hono/node-server@1.19.14':
     resolution: {integrity: sha512-GwtvgtXxnWsucXvbQXkRgqksiH2Qed37H9xHZocE5sA3N8O8O8/8FA3uclQXxXVzc9XBZuEOMK7+r02FmSpHtw==}
@@ -3053,15 +3035,9 @@ snapshots:
 
   '@floating-ui/utils@0.2.11': {}
 
-  '@fontsource/ibm-plex-mono@5.2.7': {}
-
-  '@fontsource/ibm-plex-sans-condensed@5.2.8': {}
-
   '@fontsource/ibm-plex-sans-thai@5.2.8': {}
 
-  '@fontsource/ibm-plex-sans@5.2.8': {}
-
-  '@fontsource/lora@5.2.8': {}
+  '@fontsource/inter@5.2.8': {}
 
   '@hono/node-server@1.19.14(hono@4.12.18)':
     dependencies:

@@ -5,50 +5,69 @@
                  defined by recurrent severe flooding: Khao Luang runoff down
                  the Tha Dee canal (คลองท่าดี) into the Old Town, and the Pak
                  Phanang basin. A historic N–S Old Town axis along Ratchadamnoen.
-   Typography  → IBM Plex Sans (body), IBM Plex Sans Condensed (display
-                 labels), IBM Plex Mono (readouts), IBM Plex Sans Thai
-                 (Thai script), Lora (editorial serif — headlines, prose).
-   Color       → Stark blacks and off-whites. PETROL-TEAL primary accent —
-                 serious, governmental, water-regional, calm. GOLD as the
-                 secondary accent for heritage / Old Town marks. Deep blues
-                 for data. RED reserved for genuine flood/safety alerts.
-   Surface     → No rounding, no blur, no shadow. Honest surfaces.
-   Grid        → Vignelli-standard 4 px grid. Tight, information-dense.
-   Heritage    → Bauhaus functionalism × Swiss typography. Dieter Rams:
-                 a tool, not decoration — every element earns its place, and
-                 the aesthetic exists to make the data legible to a human.
+   Typography  → Inter, the neo-grotesque voice — one family for body,
+                 display, and tabular-numeral readouts (Rams DNA §2). IBM
+                 Plex Sans Thai fills Inter's one gap: Thai-script rendering.
+   Color       → Rams × NYCTA: a warm-neutral greyscale field (never pure
+                 black/white) plus ONE signal accent (a desaturated forest
+                 green — positive/live) and one negative (a muted brick red).
+                 A closed 8-color "route" palette rides on top, strictly
+                 ENCLOSED in discs/plates, for wayfinding only (which lens,
+                 which board) — it never bleeds into bare data color.
+   Surface     → No rounding, no blur, no shadow, no gradient. Honest surfaces.
+   Grid        → 4 px Vignelli grid. Tight, information-dense.
+   Heritage    → Dieter Rams × Bob Noorda/Massimo Vignelli (1970 NYCTA Graphics
+                 Standards Manual). "As little design as possible" governs the
+                 field; a coded, closed color system governs only navigation.
    ═══════════════════════════════════════════════════════════════════════ */
 
 :root {
-  /* ── Primary accent — petrol teal. Governmental, Malay-regional, calm. ── */
-  --accent:     #0d9488;
-  --accent-dim: #0f5f57;
+  /* ── The one signal accent — desaturated forest green. Positive / live /
+       primary action. Reproduction-standard hex — do not eyeball. ──────── */
+  --accent:     #1f6e43;
+  --accent-dim: #16512f;
 
-  /* ── Secondary accent — ring-road gold (Kilometre Zero, concentric plan) ── */
-  --gold:       #d97706;
-  --gold-dim:   #92400e;
+  /* ── Heritage / Old Town secondary mark — retuned warm + desaturated.
+       No longer used bare (that would be a second free accent); it now
+       only fills enclosed route-discs (see --rt-yellow) and legend swatches. ── */
+  --gold:       #8a5a1f;
+  --gold-dim:   #6b4517;
 
-  /* ── Functional data colours — load-bearing, identical across themes ── */
-  --data: #2563eb;   /* deep blue — links, data marks, information */
-  --good: #16a34a;   /* emerald — live, healthy, positive */
-  --warn: #d97706;   /* amber — caution, degraded (distinct from accent) */
-  --bad:  #dc2626;   /* red — alert, error (reserved for genuine alerts) */
-  --crit: #991b1b;   /* deep red — critical, danger */
-  --info: #6b7280;   /* neutral grey — informational, never decorative */
+  /* ── Functional signal colours — load-bearing, warm-desaturated, identical
+       role across themes. --good reuses the accent hue (Rams: the accent's
+       job *is* "positive/live" — one hue, one meaning). ──────────────────── */
+  --data: #3d5a73;   /* muted slate blue — links, informational marks */
+  --good: #1f6e43;   /* = accent — live, healthy, positive */
+  --warn: #8a5a1f;   /* muted amber — caution, degraded */
+  --bad:  #a23a26;   /* muted brick red — alert, error (never bright) */
+  --crit: #7a2c1c;   /* deeper brick red — critical, danger */
+  --info: #6f6c63;   /* = ink-2 — informational, never decorative */
 
-  /* ── Type system ─────────────────────────────────────────────────── */
+  /* ── Route palette — closed 8-color NYCTA trunk set. ENCLOSED USE ONLY:
+       a disc (small circle + white glyph) or a station-plate rule. Never
+       a bare word/icon. Fixed hexes — reproduction standard. ────────────── */
+  --rt-blue:   #0039A6;
+  --rt-orange: #FF6319;
+  --rt-green:  #00853F;
+  --rt-red:    #EE352E;
+  --rt-purple: #B933AD;
+  --rt-yellow: #FCCC0A;
+  --rt-grey:   #6D6E71;
+  --rt-brown:  #996633;
+  --rt-ink:    #191712;
+  --rt-glyph:      #fff;    /* glyph color on every disc except yellow */
+  --rt-glyph-dark: #191712; /* --rt-yellow's glyph exception */
+
+  /* ── Type system — one neo-grotesque family everywhere (Rams DNA §2.1/§8:
+       "no more than one type family"). Tabular figures keep columns aligned. ── */
   --font-sans:
-    "IBM Plex Sans", "IBM Plex Sans Thai",
+    "Inter", "IBM Plex Sans Thai",
     "Noto Sans Thai", system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-display:
-    "IBM Plex Sans Condensed", "IBM Plex Sans", "IBM Plex Sans Thai",
-    system-ui, sans-serif;
-  --font-serif:
-    "Lora", "Georgia", "Noto Serif", serif;
-  --font-mono:
-    "IBM Plex Mono", ui-monospace, "SF Mono", "Cascadia Code", monospace;
+  --font-display: var(--font-sans);
+  --font-serif:   var(--font-sans);
+  --font-mono:    var(--font-sans);
   --font-thai:
-    "IBM Plex Sans Thai", "IBM Plex Sans", "Noto Sans Thai", sans-serif;
+    "IBM Plex Sans Thai", "Noto Sans Thai", "Inter", sans-serif;
 
   /* ── Type scale ──────────────────────────────────────────────────────
      Sizes are in rem and scale with the fluid html root (see tokens below),
@@ -63,8 +82,9 @@
   --size-h1:      1.92rem;
   --size-display: 2.6rem;
 
-  /* Tight tracking compresses glyphs on tiny eyebrows — keep it gentle. */
-  --tracking-eyebrow: 0.07em;
+  /* Label tracking — the smaller the text, the wider the tracking (Rams
+     DNA §2.3, non-negotiable): 0.14–0.18em on 9–11px labels. */
+  --tracking-eyebrow: 0.14em;
 
   /* ── Responsive sidebar rail width ───────────────────────────────────
      Map must always dominate, so rails are clamped: narrow enough on a
@@ -98,53 +118,71 @@
   color-scheme: dark;
 }
 
-/* ── Dark theme (default) — near-black with blue undertone ───────────── */
+/* ── Dark theme (default) — warm near-black, never cool blue-grey
+     (Rams DNA §1.1 warmth rule) ───────────────────────────────────────── */
 :root,
 [data-theme="dark"] {
-  --bg:    #0a0e14;
-  --bg-1:  #0d1117;
-  --bg-2:  #161b22;
-  --bg-3:  #21262d;
-  --line:  #30363d;
-  --line-2:#484f58;
+  --bg:    #171310;
+  --bg-1:  #1d1812;
+  --bg-2:  #241e17;
+  --bg-3:  #2c251c;
+  --line:  #3a3226;
+  --line-2:#4d4535;
 
-  --text:   #e6edf3;
-  --text-1: #c9d1d9;
-  /* text-2/3 lifted from #8b949e/#7d8590 → better contrast on near-black so
-     metadata/eyebrows/captions don't blend into the background on a bright demo
-     screen, while keeping the brightness hierarchy (text > 1 > 2 > 3). */
-  --text-2: #9da7b3;
-  --text-3: #8b95a1;
+  --text:   #f2ede2;
+  --text-1: #cfc7b6;
+  --text-2: #a89f8c;
+  --text-3: #7d7666;
+
+  /* Signal colours lightened one step for legibility on a dark field —
+     same hue family as the light theme, so the accent stays one meaning. */
+  --accent:     #2f8a5c;
+  --accent-dim: #1f6e43;
+  --gold:       #b8823f;
+  --gold-dim:   #8a5a1f;
+  --data: #6b8caa;
+  --good: #2f8a5c;
+  --warn: #b8823f;
+  --bad:  #c2543c;
+  --crit: #8f3826;
+  --info: #a89f8c;
+
+  /* The "hub" route-disc (--rt-ink) is a warm near-black — invisible on an
+     already-near-black dark field. In dark mode, the hub disc flips to the
+     warm off-white with a dark glyph (mirrors --rt-yellow's own dark-glyph
+     exception), so it still reads as a distinct, neutral disc. */
+  --rt-ink: #f2ede2;
+  --rt-ink-glyph: #191712;
   color-scheme: dark;
 }
 
-/* ── Light theme ────────────────────────────────────────────────────────
-   Warm off-white (fafaf7), deep ink. Contrast >= 4.5:1.
-   Data accents darkened for legibility against white surfaces.
-*/
+/* ── Light theme — the manual's literal reproduction values: warm
+     off-white paper, warm near-black ink. Contrast >= 4.5:1. ──────────── */
 [data-theme="light"] {
-  --bg:    #fafaf7;
+  --bg:    #faf9f7;
   --bg-1:  #ffffff;
-  --bg-2:  #f3f3ef;
-  --bg-3:  #ebebe6;
-  --line:  #d8d8d0;
-  --line-2:#b6b6ad;
+  --bg-2:  #f3f2ee;
+  --bg-3:  #ebe9e3;
+  --line:  #e7e5dd;
+  --line-2:#d2cfc5;
 
-  --text:   #111315;
-  --text-1: #2c2f33;
-  --text-2: #56595e;
-  --text-3: #888c92;
+  --text:   #191712;
+  --text-1: #3d3a33;
+  --text-2: #6f6c63;
+  --text-3: #a9a59a;
 
-  --accent:     #0f766e;
-  --accent-dim: #115e59;
-  --gold:       #92400e;
-  --gold-dim:   #78350f;
-  --data: #1d4ed8;
-  --good: #15803d;
-  --warn: #92400e;
-  --bad:  #b91c1c;
-  --crit: #7f1d1d;
-  --info: #6e7781;
+  --accent:     #1f6e43;
+  --accent-dim: #16512f;
+  --gold:       #8a5a1f;
+  --gold-dim:   #6b4517;
+  --data: #3d5a73;
+  --good: #1f6e43;
+  --warn: #8a5a1f;
+  --bad:  #a23a26;
+  --crit: #7a2c1c;
+  --info: #6f6c63;
+  --rt-ink: #191712;
+  --rt-ink-glyph: #fff;
   color-scheme: light;
 }
 
@@ -170,7 +208,7 @@ body {
   font-family: var(--font-sans);
   font-size: var(--size-body);
   line-height: 1.5;
-  font-feature-settings: "ss03", "ss05", "cv11";
+  font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
@@ -181,7 +219,7 @@ body, #root {
   min-height: 100vh;
 }
 
-/* ── Headings — condensed sans for display, serif available ──────── */
+/* ── Headings — same grotesque as body; size + weight carry hierarchy ── */
 h1, h2, h3, h4 {
   font-family: var(--font-display);
   font-weight: 600;
@@ -193,7 +231,8 @@ h1 { font-size: var(--size-h1); }
 h2 { font-size: var(--size-h2); }
 h3 { font-size: var(--size-h3); }
 
-/* Editorial serif — use on news headlines, prose blocks */
+/* Formerly the editorial serif; now the same grotesque (Rams DNA: no
+   serifs, one type family only). Class kept — many call sites reference it. */
 .serif { font-family: var(--font-serif); }
 
 .eyebrow {
@@ -201,7 +240,7 @@ h3 { font-size: var(--size-h3); }
   text-transform: uppercase;
   letter-spacing: var(--tracking-eyebrow);
   color: var(--text-3);
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .caption {
@@ -212,8 +251,46 @@ h3 { font-size: var(--size-h3); }
 .mono {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
-  font-feature-settings: "ss01";
 }
+
+/* ── Route disc — the NYCTA identification atom. A solid circle with a
+   white glyph; the ONE enclosed way color carries meaning (RAMS-x-NYCTA §4).
+   Sizes per §4.2: nav 18–20px / header 32–36px / hero 56–72px. The glyph is
+   CSS-generated content (data-glyph + ::before) rather than a text child —
+   it's redundant with the button's own label, so it stays out of textContent/
+   accessible-name matching instead of duplicating the label ("F" + "FLOOD"
+   would otherwise read as "FFLOOD"). aria-hidden marks it decorative too. ── */
+.rt-disc {
+  flex: none;
+  border-radius: 50% !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-sans);
+  font-weight: 700;
+  color: var(--rt-glyph);
+  line-height: 1;
+}
+.rt-disc::before { content: attr(data-glyph); }
+.rt-disc--nav {
+  width: 19px;
+  height: 19px;
+  font-size: 10px;
+}
+.rt-disc--header {
+  width: 34px;
+  height: 34px;
+  font-size: 16px;
+}
+.rt-disc--ink { background: var(--rt-ink); color: var(--rt-ink-glyph); }
+.rt-disc--blue { background: var(--rt-blue); }
+.rt-disc--orange { background: var(--rt-orange); }
+.rt-disc--green { background: var(--rt-green); }
+.rt-disc--red { background: var(--rt-red); }
+.rt-disc--purple { background: var(--rt-purple); }
+.rt-disc--yellow { background: var(--rt-yellow); color: var(--rt-glyph-dark); }
+.rt-disc--grey { background: var(--rt-grey); }
+.rt-disc--brown { background: var(--rt-brown); }
 
 /* ── Buttons — no radius, crisp borders ─────────────────────────── */
 button {
@@ -227,8 +304,8 @@ button {
   letter-spacing: 0.01em;
   transition: color 0.12s, border-color 0.12s, background 0.12s;
 }
-button:hover { color: var(--text); border-color: var(--data); background: rgba(37, 99, 235, 0.1); }
-button:active { transform: scale(0.98); opacity: 0.8; }
+button:hover { color: var(--text); border-color: var(--data); background: color-mix(in srgb, var(--data) 10%, transparent); }
+button:active { opacity: 0.8; }
 button[aria-pressed="true"], button.active {
   color: #fff;
   background: var(--accent);
@@ -238,24 +315,22 @@ button[aria-pressed="true"], button.active {
 a { color: var(--data); text-decoration: none; }
 a:hover { text-decoration: underline; }
 
-/* ── Skeleton shimmer ──────────────────────────────────────────────── */
-@keyframes shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
-}
+/* ── Skeleton loading state — a flat pulse, not a gradient shimmer
+   (Rams DNA §6: the only sanctioned animation is a slow status pulse). ── */
+@keyframes skeleton-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
 .skeleton {
-  background: linear-gradient(90deg, var(--bg-1) 0%, var(--bg-2) 50%, var(--bg-1) 100%);
-  background-size: 200% 100%;
-  animation: shimmer 1.6s linear infinite;
+  background: var(--line);
+  animation: skeleton-pulse 1.6s ease-in-out infinite;
 }
 
-/* ── Scrollbar — minimal, dark ─────────────────────────────────────── */
+/* ── Scrollbar — minimal ─────────────────────────────────────── */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-thumb { background: var(--line); }
 ::-webkit-scrollbar-thumb:hover { background: var(--line-2); }
 ::-webkit-scrollbar-track { background: transparent; }
 
-/* ── Focus ring — petrol-teal accent ────────────────────────────────── */
+/* ── Selection & focus — accent border-darken, no glow (Rams DNA §1.4) ── */
+::selection { background: var(--accent); color: #fff; }
 :focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;

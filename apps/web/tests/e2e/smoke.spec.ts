@@ -74,17 +74,6 @@ test.describe("Source catalog modal", () => {
   });
 });
 
-test.describe("MODELLED chip on traffic hour rail", () => {
-  test("is visible and carries an accessible label", async ({ page }) => {
-    await page.goto("/");
-    await expect(page.locator(".map-host")).toBeVisible({ timeout: 20_000 });
-
-    const chip = page.getByLabel(/Modelled — not live sensor data/i);
-    await expect(chip).toBeVisible();
-    await expect(chip).toHaveText(/MODELLED/);
-  });
-});
-
 test.describe("Layer palette — count badge suppression", () => {
   test("Distance grid layer toggle does NOT show a numeric count badge", async ({ page }) => {
     await page.goto("/");
@@ -205,36 +194,6 @@ test.describe("PART MODELLED chip on municipality ops panel", () => {
     const chip = page.getByLabel(/Partly modelled data/i);
     await expect(chip).toBeVisible({ timeout: 15_000 });
     await expect(chip).toHaveText(/PART MODELLED/);
-  });
-});
-
-test.describe("HourRail — weekday/weekend toggle", () => {
-  test("Weekday and Weekend buttons toggle aria-pressed state correctly", async ({ page }) => {
-    await page.goto("/");
-    await expect(page.locator(".map-host")).toBeVisible({ timeout: 20_000 });
-
-    // HourRail is in the bottom bar — MODELLED chip confirms it's mounted
-    const modelled = page.getByLabel(/Modelled — not live sensor data/i);
-    await expect(modelled).toBeVisible({ timeout: 10_000 });
-
-    const weekdayBtn = page.getByRole("button", { name: /Show weekday traffic pattern/i });
-    const weekendBtn = page.getByRole("button", { name: /Show weekend traffic pattern/i });
-
-    // Establish a known state — the default tracks the real calendar day
-    // (weekend on Sat/Sun), so don't assume it. Click weekday first.
-    await weekdayBtn.click();
-    await expect(weekdayBtn).toHaveAttribute("aria-pressed", "true");
-    await expect(weekendBtn).toHaveAttribute("aria-pressed", "false");
-
-    // Switch to weekend
-    await weekendBtn.click();
-    await expect(weekendBtn).toHaveAttribute("aria-pressed", "true");
-    await expect(weekdayBtn).toHaveAttribute("aria-pressed", "false");
-
-    // Switch back
-    await weekdayBtn.click();
-    await expect(weekdayBtn).toHaveAttribute("aria-pressed", "true");
-    await expect(weekendBtn).toHaveAttribute("aria-pressed", "false");
   });
 });
 

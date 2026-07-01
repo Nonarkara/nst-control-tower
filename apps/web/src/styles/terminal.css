@@ -49,9 +49,9 @@
 }
 .term-panel-head h3 { font-size: var(--size-eyebrow); text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-1); font-family: var(--font-mono); font-weight: 600; }
 .term-panel-head .term-led { width: 7px; height: 7px; flex-shrink: 0; background: var(--text-3); }
-.term-led.live { background: var(--good); box-shadow: 0 0 6px var(--good); }
+.term-led.live { background: var(--good); }
 .term-led.warn { background: var(--gold); }
-.term-led.crit { background: var(--bad); box-shadow: 0 0 6px var(--bad); }
+.term-led.crit { background: var(--bad); }
 .term-panel-head .term-src { margin-left: auto; color: var(--text-3); font-size: 0.64rem; text-transform: uppercase; letter-spacing: 0.04em; }
 .term-panel-body { padding: var(--s-3); flex: 1; display: flex; flex-direction: column; gap: 8px; }
 
@@ -90,9 +90,11 @@
 /* loading */
 .term-load { color: var(--text-3); font-size: 0.8rem; }
 
-/* the geo dashboard's "flip to terminal" top-bar button */
+/* the geo dashboard's "flip to terminal" top-bar button — identity carried by
+   the route-disc, chrome stays neutral (RAMS-x-NYCTA §2.3). */
 .flip-toggle {
+  display: inline-flex; align-items: center; gap: 6px;
   font-family: var(--font-mono); letter-spacing: 0.06em; text-transform: uppercase;
-  border: 1px solid var(--gold); color: var(--gold); padding: 4px 12px;
+  border: 1px solid var(--line-2); color: var(--text-1); padding: 4px 12px;
 }
-.flip-toggle:hover { background: var(--gold); color: var(--bg); border-color: var(--gold); }
+.flip-toggle:hover { background: var(--bg-2); color: var(--text); border-color: var(--line-2); }

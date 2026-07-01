@@ -13,7 +13,7 @@ interface Props {
   feeds: FeedHealth[];
   onOpenCatalog: () => void;
   catalogCount: number;
-  viewMode: "2D" | "3D" | "3DS";
+  viewMode: "2D" | "3D";
   onCycleViewMode: () => void;
   onOpenManual: () => void;
   onOpenWhitepaper: () => void;
@@ -129,7 +129,8 @@ export function TopBar({ feeds, onOpenCatalog, catalogCount, viewMode, onCycleVi
           aria-label="Open the Nakhon Si Thammarat Data Atlas — outcome indicators, charts, and the full data-source catalog"
           title="Data Atlas — poverty, education, health, climate, economy outcomes + 200+ sources"
         >
-          ◷ ATLAS
+          <span className="rt-disc rt-disc--nav rt-disc--purple" data-glyph="L" aria-hidden="true" />
+          ATLAS
         </button>
         <button
           onClick={onOpenFloodGuide}
@@ -137,7 +138,8 @@ export function TopBar({ feeds, onOpenCatalog, catalogCount, viewMode, onCycleVi
           aria-label="Open Flood Knowledge — digital preventativeness guide synthesised from ASEAN-Japan Roundtable 2026"
           title="Flood Knowledge — the nature of flooding, forecast systems, and what this dashboard monitors"
         >
-          ≋ FLOOD
+          <span className="rt-disc rt-disc--nav rt-disc--red" data-glyph="F" aria-hidden="true" />
+          FLOOD
         </button>
         {/* ⌕ LEARN (Knowledge Platform) hidden until its glossary / lessons /
             data-dictionary content is rewritten from the Yala/Deep-South fork to
@@ -159,7 +161,8 @@ export function TopBar({ feeds, onOpenCatalog, catalogCount, viewMode, onCycleVi
             aria-label="Flip to the Watch Terminal — Bloomberg-style real-time + reference data"
             title="Flip to the Watch Terminal (System B)"
           >
-            ⇄ TERMINAL
+            <span className="rt-disc rt-disc--nav rt-disc--blue" data-glyph="T" aria-hidden="true" />
+            TERMINAL
           </button>
         ) : null}
         <button
@@ -181,14 +184,8 @@ export function TopBar({ feeds, onOpenCatalog, catalogCount, viewMode, onCycleVi
         <button
           onClick={onCycleViewMode}
           className={`mono dim-toggle vm-${viewMode}`}
-          aria-label={`View mode: ${viewMode}. Click to cycle 2D → 3D → 3D substructure`}
-          title={
-            viewMode === "2D"
-              ? "Tap → 3D · extrude buildings"
-              : viewMode === "3D"
-                ? "Tap → 3DS · transparent superstructure, show underground"
-                : "Tap → 2D · top-down"
-          }
+          aria-label={viewMode === "2D" ? "Switch to 3D view" : "Switch to 2D view"}
+          title={viewMode === "2D" ? "Switch to 3D · extrude buildings" : "Switch to 2D · top-down"}
         >
           {viewMode}
         </button>
