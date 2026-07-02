@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { type AcademicSnapshot, type FallbackTier, CHONBURI } from "@nst/shared";
 import { useTheme } from "../hooks/useTheme";
+import { useLocale } from "../hooks/useLocale";
 import { formatDate } from "../lib/time";
 
 interface FeedHealth {
@@ -43,6 +44,7 @@ export function TopBar({ feeds, onOpenCatalog, catalogCount, viewMode, onCycleVi
   }, []);
 
   const { theme, toggle } = useTheme();
+  const { locale, toggle: toggleLocale } = useLocale();
   const liveCount = feeds.filter((f) => f.tier === "live").length;
 
   return (
@@ -188,6 +190,15 @@ export function TopBar({ feeds, onOpenCatalog, catalogCount, viewMode, onCycleVi
           title={viewMode === "2D" ? "Switch to 3D · extrude buildings" : "Switch to 2D · top-down"}
         >
           {viewMode}
+        </button>
+        <button
+          onClick={toggleLocale}
+          className="mono lang-toggle"
+          aria-pressed={locale !== "en"}
+          aria-label={`Switch to ${locale === "en" ? "Thai" : "English"} interface`}
+          title={`Interface language: ${locale === "en" ? "English" : "ภาษาไทย"} — switch`}
+        >
+          {locale === "en" ? "TH" : "EN"}
         </button>
         <button
           onClick={toggle}

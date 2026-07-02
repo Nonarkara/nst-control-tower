@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useState } from "react";
 import App from "./App";
+import { LocaleProvider } from "./hooks/useLocale";
 
 /**
  * Top-level shell for the Yala Super Dashboard — flips between the two systems:
@@ -20,12 +21,15 @@ export function Root() {
   });
   useEffect(() => { try { localStorage.setItem(KEY, mode); } catch {} }, [mode]);
 
-  if (mode === "terminal") {
-    return (
-      <Suspense fallback={<div style={{ position: "fixed", inset: 0, background: "var(--bg)" }} />}>
-        <TerminalDashboard onFlip={() => setMode("geo")} />
-      </Suspense>
-    );
-  }
-  return <App onFlip={() => setMode("terminal")} />;
+  // Locale is app-wide (EN/TH/CN) so it wraps both systems — a language choice
+  // made in the geo control-tower carries into the Watch Terminal too.
+  const content = mode === "terminal" ? (
+    <Suspense fallback={<div style={{ position: "fixed", inset: 0, background: "var(--bg)" }} />}>
+      <TerminalDashboard onFlip={() => setMode("geo")} />
+    </Suspense>
+  ) : (
+    <App onFlip={() => setMode("terminal")} />
+  );
+
+  return <LocaleProvider>{content}</LocaleProvider>;
 }

@@ -300,3 +300,27 @@ test.describe("TopBar — theme toggle", () => {
     expect(newLabel).toContain(initialTheme!); // e.g. "Switch to dark theme" → initial was light
   });
 });
+test.describe("Language toggle (EN/TH)", () => {
+  test("switching to Thai localizes the FLOOD COMMAND panel and back", async ({ page }) => {
+    await page.goto("/");
+    await expect(page.locator(".map-host")).toBeVisible({ timeout: 20_000 });
+
+    // Default locale is English — the FLOOD COMMAND header reads in English.
+    await expect(page.getByText(/FLOOD COMMAND \/\/ GOD MODE/i)).toBeVisible({ timeout: 15_000 });
+
+    // Click the language toggle (offers "TH" while in EN mode).
+    const toThai = page.getByRole("button", { name: /Switch to Thai interface/i });
+    await expect(toThai).toBeVisible({ timeout: 10_000 });
+    await toThai.click();
+
+    // Panel title flips to Thai — this is the panel that was explicitly
+    // deferred as "not yet Thai-localized" in the flood-hardening commit.
+    await expect(page.getByText("ศูนย์บัญชาการน้ำท่วม")).toBeVisible({ timeout: 10_000 });
+
+    // Flip back to English.
+    const toEnglish = page.getByRole("button", { name: /Switch to English interface/i });
+    await toEnglish.click();
+    await expect(page.getByText(/FLOOD COMMAND \/\/ GOD MODE/i)).toBeVisible({ timeout: 10_000 });
+  });
+});
+
