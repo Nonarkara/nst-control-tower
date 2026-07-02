@@ -1320,6 +1320,35 @@ export function esriSatelliteLayer(opacity = 0.9) {
   });
 }
 
+/** Google Map Tiles (satellite / live-traffic overlay) via a minted session
+ *  token. `tileUrlTemplate` is the per-session 2dtiles URL from
+ *  googleTileTemplate(); deck.gl's TileLayer drives the {z}/{x}/{y} substitution
+ *  and BitmapLayer paints each fetched tile. Same proven pattern as the Esri +
+ *  GIBS deck.gl layers (MapLibre raster overlays don't paint in this
+ *  <DeckGL><Map> setup, so satellite imagery must ride deck.gl's canvas). */
+export function googleTilesLayer(tileUrlTemplate: string, opacity = 1, id = "google-tiles") {
+  return new TileLayer({
+    id,
+    data: tileUrlTemplate,
+    minZoom: 0,
+    maxZoom: 20,
+    tileSize: 256,
+    opacity,
+    renderSubLayers: (props) => {
+      const { boundingBox } = props.tile as unknown as {
+        boundingBox: [[number, number], [number, number]];
+      };
+      const [[w, s], [e, n]] = boundingBox;
+      return new BitmapLayer({
+        ...props,
+        data: undefined,
+        image: props.data as unknown as string,
+        bounds: [w, s, e, n],
+      });
+    },
+  });
+}
+
 /** OpenTopoMap terrain — for elevation/contour context. Lower max zoom (17). */
 export function openTopoTerrainLayer(opacity = 0.6) {
   return new TileLayer({

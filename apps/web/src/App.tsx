@@ -2,7 +2,7 @@ import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, memo
 import DeckGL from "@deck.gl/react";
 import type { Layer, ControllerProps } from "@deck.gl/core";
 import { FlyToInterpolator } from "@deck.gl/core";
-import { Map as MapLibreMap, Source, Layer as MapLayer } from "react-map-gl/maplibre";
+import { Map as MapLibreMap } from "react-map-gl/maplibre";
 import maplibregl from "maplibre-gl";
 import type { FeatureCollection, LineString, Point, Polygon, MultiPolygon } from "geojson";
 import { CHONBURI } from "@nst/shared";
@@ -43,6 +43,9 @@ import {
   devicePresenceLayer,
   himawariInfraredLayer,
   openTopoTerrainLayer,
+  esriSatelliteLayer,
+  gibsLayer,
+  googleTilesLayer,
   incidentLayer,
   trafficHeatmapLayer,
   transitStationsLayer,
@@ -161,17 +164,10 @@ import { useTheme } from "./hooks/useTheme";
  * them. Theme-aware: dark → carto dark + deep navy ocean tint;
  * light → carto positron-light + pale sky-blue ocean tint.
  */
-// Yesterday ISO date — GIBS tiles publish with ~24 h delay
-const GIBS_DATE = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-const GIBS_BASE = "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best";
-
-function gibsUrl(product: string, level: number, format: "jpg" | "png"): string {
-  return `${GIBS_BASE}/${product}/default/${GIBS_DATE}/GoogleMapsCompatible_Level${level}/{z}/{y}/{x}.${format}`;
-}
-
-// GIBS satellite layers rendered via MapLibre <Source>/<Layer> — MapLibre handles
-// raster tile stretching perfectly (proven by the carto basemap).
-// Deck.gl TileLayer is kept for Himawari and terrain only (no MapLibre equivalent).
+// GIBS satellite layer catalog — each product maps to a deck.gl gibsLayer()
+// (TileLayer + BitmapLayer) in the layers useMemo below. MapLibre raster
+// <Source> overlays don't paint in this <DeckGL><Map> setup, so GIBS rides
+// deck.gl's canvas alongside terrain/Himawari/Esri/Google.
 const GIBS_LAYERS: Array<{
   id: string;
   product: string;
@@ -191,22 +187,6 @@ const GIBS_LAYERS: Array<{
   // web-mercator (3857) map, so it's dropped. Flood is covered by the AlphaEarth
   // flood-prone layer + flood-risk polygons + river buffer + IMERG rainfall.
 ];
-
-// Pre-computed, stable references for the React-rendered <Source>/<Layer> props.
-// Without these, `tiles={[gibsUrl(...)]}` and `paint={{ "raster-opacity": ... }}`
-// allocate a new array + object on every render, forcing react-map-gl to deep-diff
-// raster sources on every map gesture.
-const GIBS_RENDER: Array<{
-  id: string;
-  tiles: readonly [string];
-  paint: { readonly "raster-opacity": number };
-  maxzoom: number;
-}> = GIBS_LAYERS.map((g) => ({
-  id: g.id,
-  tiles: [gibsUrl(g.product, g.level, g.format)] as const,
-  paint: { "raster-opacity": g.opacity } as const,
-  maxzoom: g.level,
-}));
 
 function basemapStyle(theme: "dark" | "light"): maplibregl.StyleSpecification {
   const baseSlug = theme === "dark" ? "dark_nolabels" : "light_nolabels";
@@ -1061,12 +1041,23 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
 
   const layers = useMemo<Layer[]>(() => {
     const out: Layer[] = [];
-    // Imagery first — renders beneath all vector data.
-    // ESRI and GIBS satellite layers are served via MapLibre <Source>/<Layer> below
-    // (ESRI first so GIBS colorize overlays render above it). Only Himawari (WMS)
-    // and terrain stay in deck.gl — they have no MapLibre equivalent.
+    // Imagery first — renders beneath all vector data. ALL satellite rasters
+    // ride deck.gl's TileLayer + BitmapLayer: MapLibre raster <Source> overlays
+    // don't paint in this <DeckGL><Map> setup (verified: 0 tile requests), so
+    // the proven deck.gl pattern (terrain/himawari) is used for every raster.
     if (enabledLayers.has("satellite-terrain")) out.push(openTopoTerrainLayer(0.6) as Layer);
     if (enabledLayers.has("satellite-himawari")) out.push(himawariInfraredLayer(0.55) as Layer);
+    if (enabledLayers.has("satellite-esri")) out.push(esriSatelliteLayer(1) as Layer);
+    for (const g of GIBS_LAYERS) {
+      if (enabledLayers.has(g.id as LayerId))
+        out.push(gibsLayer(g.product, undefined, g.opacity, { format: g.format, level: g.level as 6 | 7 | 8 | 9 }) as Layer);
+    }
+    // Google satellite/traffic need a minted session token (lazy); the layer is
+    // only added once the token resolves so we never request tiles unauthenticated.
+    if (enabledLayers.has("google-satellite") && googleSatSession)
+      out.push(googleTilesLayer(googleTileTemplate(googleSatSession), 1, "google-satellite") as Layer);
+    if (enabledLayers.has("google-traffic") && googleTrafficSession)
+      out.push(googleTilesLayer(googleTileTemplate(googleTrafficSession), 0.85, "google-traffic") as Layer);
     const showBoundaryFill =
       enabledLayers.has("municipality-boundary-fill") ||
       enabledLayers.has("municipality-boundary");
@@ -1201,6 +1192,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
     floodMarks, wrfGrid.data,
     presence.lng, presence.lat, presence.accuracyM,
     tile3d.layer, gpuHeatmapOk,
+    googleSatSession, googleTrafficSession,
   ]);
 
   // Street-flood scenario layer — composed OUTSIDE the big memo above so a
@@ -1652,79 +1644,14 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
               attributionControl={false}
               renderWorldCopies={false}
             >
-              {/* Satellite raster sources — all served via MapLibre for reliable
-                  tile stretching at any zoom. ESRI is mounted first so it inserts
-                  below labels-top first; GIBS colorize overlays mount after and
-                  therefore sit above ESRI in MapLibre's layer stack, making them
-                  visible as tinted overlays over the satellite base.
-                  `GIBS_RENDER` carries pre-built stable {tiles, paint} refs to
-                  avoid react-map-gl re-diffing raster sources on every gesture. */}
-              {enabledLayers.has("satellite-esri") && (
-                <Source
-                  id="esri-world-imagery-src"
-                  type="raster"
-                  tiles={["https://services.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"]}
-                  tileSize={256}
-                  maxzoom={19}
-                >
-                  <MapLayer
-                    id="esri-world-imagery"
-                    type="raster"
-                    paint={{ "raster-opacity": 1 }}
-                    beforeId="labels-top"
-                  />
-                </Source>
-              )}
-              {enabledLayers.has("google-satellite") && googleSatSession && (
-                <Source
-                  id="google-satellite-src"
-                  type="raster"
-                  tiles={[googleTileTemplate(googleSatSession)]}
-                  tileSize={256}
-                  maxzoom={20}
-                >
-                  <MapLayer
-                    id="google-satellite-lyr"
-                    type="raster"
-                    paint={{ "raster-opacity": 1 }}
-                    beforeId="labels-top"
-                  />
-                </Source>
-              )}
-              {enabledLayers.has("google-traffic") && googleTrafficSession && (
-                <Source
-                  id="google-traffic-src"
-                  type="raster"
-                  tiles={[googleTileTemplate(googleTrafficSession)]}
-                  tileSize={256}
-                  maxzoom={20}
-                >
-                  <MapLayer
-                    id="google-traffic-lyr"
-                    type="raster"
-                    paint={{ "raster-opacity": 0.85 }}
-                    beforeId="labels-top"
-                  />
-                </Source>
-              )}
-              {GIBS_RENDER.filter(g => enabledLayers.has(g.id as LayerId)).map(g => (
-                <Source
-                  key={g.id}
-                  id={`gibs-src-${g.id}`}
-                  type="raster"
-                  tiles={g.tiles as unknown as string[]}
-                  tileSize={256}
-                  minzoom={0}
-                  maxzoom={g.maxzoom}
-                >
-                  <MapLayer
-                    id={`gibs-lyr-${g.id}`}
-                    type="raster"
-                    paint={g.paint}
-                    beforeId="labels-top"
-                  />
-                </Source>
-              ))}
+              {/* All satellite raster layers (Esri, GIBS, Google satellite/traffic)
+                  are now deck.gl TileLayer + BitmapLayer — see the layers useMemo
+                  above. MapLibre raster <Source> overlays don't paint in this
+                  <DeckGL><Map> interleave (0 tile requests, verified), so they
+                  had to move to deck.gl's canvas. The Carto base + labels stay
+                  here in the MapLibre style spec (they render reliably as static
+                  style sources, unlike dynamically-added <Source> overlays). */}
+
             </MapLibreMap>
           </DeckGL>
           <BuildingSearch
@@ -1756,6 +1683,24 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
               <span className="coord-val" ref={coordRef}>—</span>
             </div>
           </div>
+          {/* Google Photorealistic 3D Tiles — attribution + honest coverage state.
+              Google requires attribution when its tiles render; over Nakhon Si
+              Thammarat there is no 3D mesh, so this badge tells the operator why
+              nothing appeared instead of leaving the toggle looking broken. */}
+          {enabledLayers.has("tile3d-buildings") && (
+            <div className="map-3d-badge mono" role="status" aria-live="polite">
+              {tile3d.loaded ? (
+                <>
+                  <span className="map-3d-attr">{tile3d.attribution}</span>
+                  <span className="map-3d-note">
+                    Photorealistic 3D covers Bangkok &amp; major metros — no mesh over Nakhon Si Thammarat yet.
+                  </span>
+                </>
+              ) : (
+                <span>Loading Google 3D tiles…</span>
+              )}
+            </div>
+          )}
           <BuildingCard
             building={selectedBuilding}
             coord={selectedCoord}
