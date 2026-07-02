@@ -135,7 +135,7 @@ export function trafficDensityFallbackLayer(data: HeatPoint[]) {
     },
     stroked: false,
     pickable: false,
-    parameters: { depthTest: false },
+    parameters: { depthWriteEnabled: false, depthCompare: "always" },
   });
 }
 
@@ -2017,7 +2017,7 @@ export function floodMarksLayer(collection: FeatureCollection<Point, FloodMarkPr
       getBackgroundColor: [10, 14, 20, 160],
       background: true,
       backgroundPadding: [3, 1],
-      parameters: { depthTest: false },
+      parameters: { depthWriteEnabled: false, depthCompare: "always" },
       pickable: false,
     }) as Layer,
   ];
@@ -2068,7 +2068,7 @@ export function streetFloodLayer(
     updateTriggers: { getFillColor: [scenarioLevelM] },
     stroked: false,
     pickable: true,
-    parameters: { depthTest: false },
+    parameters: { depthWriteEnabled: false, depthCompare: "always" },
   });
 }
 
@@ -2772,7 +2772,7 @@ export function flowDotsLayer(positions: [number, number][], color: [number, num
     getFillColor: [color[0], color[1], color[2], 235] as [number, number, number, number],
     stroked: false,
     pickable: false,
-    parameters: { depthTest: false },
+    parameters: { depthWriteEnabled: false, depthCompare: "always" },
   });
 }
 

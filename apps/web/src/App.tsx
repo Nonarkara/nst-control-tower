@@ -959,16 +959,16 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
   //     in the ScatterplotLayer fallback on the next frame instead of letting
   //     luma's shader-error output replace the mayor's dashboard.
   const [gpuHeatmapOk, setGpuHeatmapOk] = useState(true);
-  const handleDeviceInitialized = useCallback(
-    (device: { features?: { has: (f: string) => boolean } }) => {
-      try {
-        if (!device?.features?.has("float32-renderable-webgl")) setGpuHeatmapOk(false);
-      } catch {
-        // Leave optimistic — the onError fallback below still protects us.
-      }
-    },
-    [],
-  );
+  const handleDeviceInitialized = useCallback((device: unknown) => {
+    try {
+      // luma.gl Device.features is Set-like; typed structurally so we don't
+      // have to add @luma.gl/core as a direct dependency for one type.
+      const features = (device as { features?: { has(f: string): boolean } } | null)?.features;
+      if (features && !features.has("float32-renderable-webgl")) setGpuHeatmapOk(false);
+    } catch {
+      // Leave optimistic — the onError fallback below still protects us.
+    }
+  }, []);
   const handleDeckError = useCallback((error: Error, layer?: { id?: string }) => {
     const layerId = String(layer?.id ?? "");
     if (layerId.includes("heatmap") || /shader|compil/i.test(error.message)) {
