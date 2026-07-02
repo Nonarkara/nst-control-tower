@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { fetchPrecipNowcast } from "./precipNowcast";
+import { fetchPrecipNowcast, fetchZonePrecipNowcast } from "./precipNowcast";
 
 /**
  * Precipitation nowcast adapter contract tests.
@@ -19,7 +19,7 @@ const NOW_MS = new Date(NOW_ISO).getTime();
 const BANGKOK_OFFSET_MS = 7 * 60 * 60_000;
 
 /** Build a minutely_15 block with N 15-min steps starting from nowMs (Bangkok time). */
-function makeMinutely(mmValues: number[], probValues?: number[]) {
+function makeSeries(mmValues: number[], probValues?: number[]) {
   const times: string[] = [];
   const precipitation: number[] = [];
   const precipitation_probability: number[] = [];
@@ -34,7 +34,26 @@ function makeMinutely(mmValues: number[], probValues?: number[]) {
     precipitation.push(mmValues[i]);
     precipitation_probability.push(probValues?.[i] ?? 50);
   }
-  return { minutely_15: { time: times, precipitation, precipitation_probability } };
+  return { time: times, precipitation, precipitation_probability };
+}
+
+/**
+ * The adapter now makes ONE multi-location Open-Meteo call covering all 4
+ * WATERSHED_FORECAST_POINTS points (thung-song, khiri-wong, lan-saka, city —
+ * that order), which Open-Meteo answers with an ARRAY of 4 per-point objects.
+ * fetchPrecipNowcast() reads only the LAST ("city") entry, so these tests put
+ * the scenario under test there and leave the 3 upstream points flat/dry —
+ * matching what fetchZonePrecipNowcast's own tests exercise separately.
+ */
+function makeMinutely(mmValues: number[], probValues?: number[]) {
+  const citySeries = makeSeries(mmValues, probValues);
+  const drySeries = makeSeries(mmValues.map(() => 0));
+  return [
+    { minutely_15: drySeries },
+    { minutely_15: drySeries },
+    { minutely_15: drySeries },
+    { minutely_15: citySeries },
+  ];
 }
 
 describe("precipNowcast adapter", () => {
@@ -185,6 +204,69 @@ describe("precipNowcast adapter — unavailable fallback (isolated)", () => {
       new Response(JSON.stringify({ latitude: 13.36, longitude: 100.98 }), { status: 200 }),
     );
     const { fetchPrecipNowcast: fresh } = await import("./precipNowcast");
+    const feed = await fresh();
+    expect(feed.meta.fallbackTier).toBe("unavailable");
+    expect(feed.features).toHaveLength(0);
+    vi.restoreAllMocks();
+  });
+});
+
+describe("fetchZonePrecipNowcast — upstream watershed zones (isolated)", () => {
+  beforeEach(() => {
+    vi.setSystemTime(NOW_MS);
+  });
+
+  it("requests one multi-location call and returns the 3 upstream zones (city excluded)", async () => {
+    vi.resetModules();
+    let capturedUrl = "";
+    vi.spyOn(globalThis, "fetch").mockImplementation((url) => {
+      capturedUrl = String(url);
+      return Promise.resolve(
+        new Response(JSON.stringify(makeMinutely([0, 0, 0, 0, 0, 0, 0, 0])), { status: 200 }),
+      );
+    });
+    const { fetchZonePrecipNowcast: fresh } = await import("./precipNowcast");
+    const feed = await fresh();
+
+    // One call, 4 comma-joined coordinates — not 4 separate requests.
+    expect(capturedUrl).toMatch(/latitude=8\.175,8\.4338,8\.4012,8\.4364/);
+    expect(feed.features).toHaveLength(3);
+    expect(feed.features.map((f) => f.zoneKey).sort()).toEqual(
+      ["khiri-wong", "lan-saka", "thung-song"].sort(),
+    );
+    expect(feed.meta.fallbackTier).toBe("live");
+    vi.restoreAllMocks();
+  });
+
+  it("distinguishes rain per zone — a wet thung-song point doesn't leak into khiri-wong/lan-saka", async () => {
+    vi.resetModules();
+    const wetThungSong = makeSeries([0, 6, 4, 0, 0, 0, 0, 0]); // heavy
+    const dry = makeSeries([0, 0, 0, 0, 0, 0, 0, 0]);
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(
+        JSON.stringify([
+          { minutely_15: wetThungSong }, // thung-song
+          { minutely_15: dry },          // khiri-wong
+          { minutely_15: dry },          // lan-saka
+          { minutely_15: dry },          // city
+        ]),
+        { status: 200 },
+      ),
+    );
+    const { fetchZonePrecipNowcast: fresh } = await import("./precipNowcast");
+    const feed = await fresh();
+
+    const thungSong = feed.features.find((f) => f.zoneKey === "thung-song");
+    const khiriWong = feed.features.find((f) => f.zoneKey === "khiri-wong");
+    expect(thungSong?.intensity).toBe("heavy");
+    expect(khiriWong?.intensity).toBe("dry");
+    vi.restoreAllMocks();
+  });
+
+  it("returns unavailable tier when the API fails", async () => {
+    vi.resetModules();
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 500 }));
+    const { fetchZonePrecipNowcast: fresh } = await import("./precipNowcast");
     const feed = await fresh();
     expect(feed.meta.fallbackTier).toBe("unavailable");
     expect(feed.features).toHaveLength(0);

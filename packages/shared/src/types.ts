@@ -134,6 +134,41 @@ export interface PrecipNowcast {
   points: Array<{ at: string; mm: number; prob: number }>;
 }
 
+/** A PrecipNowcast for one upstream watershed zone — see WATERSHED_FORECAST_POINTS. */
+export interface ZonePrecipNowcast extends PrecipNowcast {
+  zoneKey: string;
+}
+
+/** One forecast day of WRF-ROMS 24-h rain, averaged over the NST windows
+ *  (HII model, ~3 km grid, tiservice.hii.or.th/opendata/wrf-roms). */
+export interface WrfRainDay {
+  /** 1–3 = today-ish..+2 (the run's day1/day2/day3 file). */
+  day: 1 | 2 | 3;
+  /** ISO date the 24-h total is valid for (run date + day − 1, UTC+7 framing). */
+  validDate: string;
+  /** Khao Luang–Tha Dee upstream catchment box. */
+  catchmentMeanMm: number;
+  catchmentMaxMm: number;
+  /** City + coastal lowland box. */
+  cityMeanMm: number;
+  cityMaxMm: number;
+}
+
+/** Compact province sub-grid of one WRF-ROMS forecast day, for map rendering.
+ *  Row-major from the NORTH-WEST corner (values[r*ncols+c]); cell centres at
+ *  (lngMin + (c+0.5)·cellDeg, latMax − (r+0.5)·cellDeg). */
+export interface WrfRainGrid {
+  day: 1 | 2 | 3;
+  validDate: string;
+  lngMin: number;
+  latMax: number;
+  cellDeg: number;
+  ncols: number;
+  nrows: number;
+  /** 24-h rain per cell (mm); −1 = model NODATA. */
+  valuesMm: number[];
+}
+
 export interface AcademicPhase {
   /** ISO date when this phase starts. */
   start: string;

@@ -197,6 +197,30 @@ test.describe("PART MODELLED chip on municipality ops panel", () => {
   });
 });
 
+test.describe("FLOOD COMMAND — God Mode scenario", () => {
+  test("panel renders and the PABUK preset produces an impact readout", async ({ page }) => {
+    await page.goto("/");
+    await expect(page.locator(".map-host")).toBeVisible({ timeout: 20_000 });
+
+    // Panel header confirms mount (left rail, always visible)
+    await expect(page.getByText(/FLOOD COMMAND \/\/ GOD MODE/i)).toBeVisible({ timeout: 15_000 });
+
+    // No impact readout while the scenario is off
+    await expect(page.locator(".fc-impact")).toHaveCount(0);
+
+    // Click the Pabuk preset — impact arithmetic appears once road levels load
+    await page.getByRole("button", { name: /PABUK 2019/ }).click();
+    const impact = page.locator(".fc-impact");
+    await expect(impact).toBeVisible({ timeout: 15_000 });
+    await expect(impact).toContainText(/% of surveyed streets under water/);
+    await expect(impact).toContainText(/historical marks/);
+
+    // OFF turns the readout back off
+    await page.getByRole("button", { name: /^OFF$/ }).click();
+    await expect(page.locator(".fc-impact")).toHaveCount(0);
+  });
+});
+
 test.describe("EO layer toggles", () => {
   test("clicking a satellite layer toggle flips its aria-pressed state", async ({ page }) => {
     await page.goto("/");

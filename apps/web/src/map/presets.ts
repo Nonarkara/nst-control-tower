@@ -40,6 +40,10 @@ export type LayerId =
   | "dam-status"
   | "river-buffer"
   | "watershed-nodes"
+  // NST — HII survey + WRF model
+  | "flood-marks"
+  | "street-flood-sim"
+  | "wrf-rain-grid"
   // Yala — circular-city signature + EO
   | "ring-roads"
   | "alphaearth-landcover"
@@ -150,7 +154,7 @@ export const LENSES: Lens[] = [
   {
     id: "flood",
     label: "FLOOD",
-    describe: "Flood — the headline risk. Pak Phanang + Tha Dee river corridors + buffer, the upstream→city watershed cascade (ทุ่งสง · คีรีวง · ลานสกา → city), river/canal gauges (GloFAS), Khao Luang runoff, hand-authored flood-risk polygons, IMERG rainfall + MODIS flood detection, AlphaEarth flood-prone land classification.",
+    describe: "Flood — the headline risk. Pak Phanang + Tha Dee river corridors + buffer, the upstream→city watershed cascade (ทุ่งสง · คีรีวง · ลานสกา → city), river/canal gauges (GloFAS), Khao Luang runoff, surveyed flood marks + street elevations (HII 2025) with the FLOOD COMMAND scenario, hand-authored flood-risk polygons, WRF-ROMS forecast rain.",
     // Esri imagery + the flood-prone fill as the single colorizer + flood
     // vectors (risk zones, river buffer, gauges). Tap IMERG rainfall to swap the
     // colorizer to live rain — it replaces the flood-prone fill, so the map never
@@ -163,6 +167,8 @@ export const LENSES: Lens[] = [
       "watershed-nodes",
       "flood-gauges",
       "dam-status",
+      "flood-marks",
+      "street-flood-sim",
       "flood-risk-zones",
       "alphaearth-floodprone",
     ],
@@ -216,13 +222,14 @@ export const LENSES: Lens[] = [
   {
     id: "safety",
     label: "SAF",
-    describe: "Safety — flood-risk zones, citizen reports (Traffy), iTIC, CCTV, waterways for drainage, hospitals + fire + police, MODIS flood detection.",
+    describe: "Safety — flood-risk zones, surveyed flood marks, citizen reports (Traffy), iTIC, CCTV, waterways for drainage, hospitals + fire + police, MODIS flood detection.",
     layers: [
       "municipality-boundary-line",
       "municipality-buildings",
       "civic-points",
       "waterways",
       "flood-risk-zones",
+      "flood-marks",
       "incidents-city-reports",
       "incidents-itic",
       "cctv-cameras",
@@ -399,7 +406,7 @@ export const ALL_LAYERS: {
   { id: "civic-points",      label: "Civic POIs (color-coded)", swatch: "#EF4444", group: "municipality",
     describe: "Hospitals (✚ red) · clinics (pink) · schools (🅢 violet) · police (P cyan) · fire stations (🜂 orange) · government (cerulean) · temples (卐 gold) · markets (▦ green) · post offices · substations · water works. Hover for name. From OSM province-wide." },
   { id: "waterways",         label: "Canals + rivers + drains",  swatch: "#0EA5E9", group: "municipality",
-    describe: "Hydrology network: rivers (sky blue, thick), canals (cerulean, medium), streams (pale sky, thin), drains/ditches (teal). Critical for flood-prevention planning + identifying drainage backbone." },
+    describe: "Hydrology network: rivers (sky blue, thick), canals (cerulean, medium), streams (pale sky, thin), drains/ditches (teal). Critical for flood-prevention planning + identifying drainage backbone. Line style is an ordinal proxy for conveyance capacity (river > canal > stream > drain/ditch) derived from OSM classification only — no width/condition/capacity survey data exists for these segments; treat as illustrative, not measured throughput." },
   { id: "fisheries",         label: "Fishing + aquaculture zones", swatch: "#FBBF24", group: "maritime",
     describe: "Coastal fishing economy: Pak Phanang basin · Gulf of Thailand artisanal · Sichon coast · Tha Sala fishing piers · NST province aquaculture zones. Click for boat count + yield." },
   { id: "flood-risk-zones",  label: "Coastal flood-risk zones",   swatch: "#EF4444", group: "environment",
@@ -434,6 +441,12 @@ export const ALL_LAYERS: {
     describe: "Google DeepMind AlphaEarth Foundations embeddings classified into land cover (rubber / oil-palm plantation vs forest vs built-up vs water) for the Nakhon Si Thammarat basin. Pre-computed from Earth Engine; ships as static GeoJSON." },
   { id: "alphaearth-floodprone", label: "AlphaEarth flood-prone", swatch: "#60A5FA", group: "environment",
     describe: "AlphaEarth + DEM-derived flood-prone / historically-inundated land classification around the Pak Phanang basin and the Tha Dee / Khao Luang runoff corridor." },
+  { id: "flood-marks",       label: "Flood marks (surveyed)",    swatch: "#EF4444", group: "environment",
+    describe: "Real surveyed high-water marks (HII MMS survey 2025, m MSL, cm accuracy) read off walls and poles in the city's eastern lowland — red = Tropical Storm Pabuk (Jan 2019, up to 2.12 m MSL), amber = ordinary flood season (up to 1.76 m). The ground truth every scenario is judged against." },
+  { id: "street-flood-sim",  label: "Street levels / flood scenario", swatch: "#3B82F6", group: "environment",
+    describe: "18,359 surveyed road elevations (HII MMS 2025, m MSL) across the city's eastern lowland — median street sits at just 1.49 m MSL. Alone: an elevation ramp (dark blue = lowest streets). With a scenario level from FLOOD COMMAND: colours by submergence depth. Static-level (bathtub) comparison — no flow routing or drainage dynamics; coverage is the HII survey area only." },
+  { id: "wrf-rain-grid",     label: "Forecast rain (WRF-ROMS)",  swatch: "#38BDF8", group: "environment",
+    describe: "HII's WRF-ROMS model 24-h rain forecast on a ~3 km grid — where tomorrow's water will land on the province. Day 1/2/3 selectable from FLOOD COMMAND. Model output (GFS-driven), not observation." },
 
   // ─── Old Town signature ────────────────────────────────────────────────────
   { id: "ring-roads",        label: "Old Town axis (Ratchadamnoen)", swatch: "#FBBF24", group: "municipality",
@@ -481,6 +494,7 @@ export const ALL_LAYERS: {
 export const COMPUTED_LAYERS: ReadonlySet<LayerId> = new Set<LayerId>([
   "distance-grid",
   "building-roofs",
+  "wrf-rain-grid", // one API grid feature — a count badge would read as "1" and mislead
   "cu-map-2015",
   "maritime-overlay",
   "tile3d-buildings",

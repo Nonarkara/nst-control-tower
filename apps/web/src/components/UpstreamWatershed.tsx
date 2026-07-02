@@ -12,7 +12,7 @@
  */
 
 import { useMemo } from "react";
-import type { WaterGauge, RainfallStation, EwsStation, FloodGauge, FallbackTier } from "@nst/shared";
+import type { WaterGauge, RainfallStation, EwsStation, FloodGauge, FallbackTier, ZonePrecipNowcast } from "@nst/shared";
 import { PanelHeader } from "./PanelHeader";
 import {
   summarizeWatershed,
@@ -28,11 +28,14 @@ interface Props {
   ews?: EwsStation[];
   /** GloFAS flood gauges — MODELLED proxy for zones with no live HII gauge/EWS. */
   floodGauges?: FloodGauge[];
+  /** Rain FORECAST (not observed) at the 3 upstream zones — city excluded,
+   *  already covered by the city-level forecast shown elsewhere. */
+  precipZones?: ZonePrecipNowcast[];
   ageMinutes?: number | null;
   fallbackTier?: FallbackTier;
 }
 
-function ZoneRow({ s, isLast }: { s: ZoneSummary; isLast: boolean }) {
+function ZoneRow({ s, isLast, precip }: { s: ZoneSummary; isLast: boolean; precip?: ZonePrecipNowcast }) {
   const color = ZONE_STATUS_COLOR[s.status];
   const z = s.zone;
 
@@ -106,6 +109,16 @@ function ZoneRow({ s, isLast }: { s: ZoneSummary; isLast: boolean }) {
               ☔ {Math.round(s.rain24h)} mm/24h
             </span>
           )}
+          {precip && precip.total2hMm > 0 && (
+            <span
+              className="eyebrow mono"
+              style={{ color: precip.intensity === "heavy" ? "var(--bad)" : precip.intensity === "moderate" ? "var(--warn)" : "var(--text-2)" }}
+              title="Forecast, not observed — Open-Meteo minutely_15"
+            >
+              ⇢ forecast +{precip.total2hMm}mm/2h
+              {precip.minutesToSignificant != null && ` · in ${precip.minutesToSignificant}min`}
+            </span>
+          )}
           {s.soil != null && (
             <span className="eyebrow mono" style={{ color: s.soil >= 85 ? "var(--warn)" : "var(--text-2)" }}>
               soil {Math.round(s.soil)}%
@@ -122,7 +135,7 @@ function ZoneRow({ s, isLast }: { s: ZoneSummary; isLast: boolean }) {
   );
 }
 
-export function UpstreamWatershed({ waterGauges, rainfall, ews = [], floodGauges = [], ageMinutes, fallbackTier }: Props) {
+export function UpstreamWatershed({ waterGauges, rainfall, ews = [], floodGauges = [], precipZones = [], ageMinutes, fallbackTier }: Props) {
   const summaries = useMemo(
     () => summarizeWatershed(waterGauges, rainfall, ews, floodGauges),
     [waterGauges, rainfall, ews, floodGauges],
@@ -158,7 +171,12 @@ export function UpstreamWatershed({ waterGauges, rainfall, ews = [], floodGauges
           {/* The cascade */}
           <div>
             {summaries.map((s, i) => (
-              <ZoneRow key={s.zone.key} s={s} isLast={i === summaries.length - 1} />
+              <ZoneRow
+                key={s.zone.key}
+                s={s}
+                isLast={i === summaries.length - 1}
+                precip={precipZones.find((p) => p.zoneKey === s.zone.key)}
+              />
             ))}
           </div>
 

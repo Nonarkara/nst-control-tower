@@ -15,6 +15,9 @@ import type {
   IntelligenceItem,
   MarketSnapshot,
   PrecipNowcast,
+  ZonePrecipNowcast,
+  WrfRainDay,
+  WrfRainGrid,
   WeatherSnapshot,
   GistdaPoi,
   GistdaSolarBuilding,
@@ -68,6 +71,7 @@ import {
   type StationProps,
   type TransitLineProps,
   type ClassifiedRoadProps,
+  trafficDensityFallbackLayer,
   gistdaPoiLayer,
   air4thaiLayer,
   gistdaSolarLayer,
@@ -77,6 +81,7 @@ import {
   riverBufferLayer,
   floodGaugesLayer,
   watershedNodesLayer,
+  thaDeeFlowPath,
   damStatusLayer,
   conflictIncidentsLayer,
   conflictChoroplethLayer,
@@ -84,6 +89,11 @@ import {
   securityNewsLayer,
   alphaEarthLandcoverLayer,
   alphaEarthFloodProneLayer,
+  floodMarksLayer,
+  streetFloodLayer,
+  wrfRainGridLayer,
+  type FloodMarkProps,
+  type RoadLevelProps,
 } from "./map/layers";
 import { useTile3DLayer } from "./map/Tile3DLayer";
 import { useGoogleTileSession } from "./hooks/useGoogleTileSession";
@@ -104,6 +114,7 @@ import { EarthAlphaBrief } from "./components/EarthAlphaBrief";
 import { FloodBrief } from "./components/FloodBrief";
 import { FloodPosture } from "./components/FloodPosture";
 import { UpstreamWatershed } from "./components/UpstreamWatershed";
+import { FloodCommand } from "./components/FloodCommand";
 import { FlightsPanel } from "./components/FlightsPanel";
 // Heavy modals — lazy-loaded so they're excluded from the initial bundle.
 // Each loads only on first open; subsequent opens are instant (module cached).
@@ -136,7 +147,8 @@ import { ChatBox } from "./components/ChatBox";
 import { PredictivePanel, METRIC_LAYER_MAP, METRIC_LABEL, type ForecastMetric } from "./components/PredictivePanel";
 import { ExecutiveBriefing } from "./components/ExecutiveBriefing";
 import { API_BASE } from "./lib/apiBase";
-import { summarizeWatershed } from "./lib/watershed";
+import { summarizeWatershed, isThaDeeZone, worstStatus, ZONE_STATUS_RGB } from "./lib/watershed";
+import { useFlowAnimation } from "./map/useFlowAnimation";
 import type { NasaEarthReadings, FacebookPost } from "@nst/shared";
 import { useDevicePresence } from "./hooks/useDevicePresence";
 import { useIsMobile } from "./hooks/useMediaQuery";
@@ -558,6 +570,31 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
         title = pick("name", "nameEn") ?? "data.go.th POI";
         sub = `${(p as { category?: string }).category ?? ""} · ${(p as { source?: string }).source ?? ""}`;
         break;
+      case "flood-marks": {
+        const set = (p as { set?: string }).set;
+        const z = (p as { z?: number }).z;
+        title = set === "pabuk" ? "High-water mark · Tropical Storm Pabuk (Jan 2019)" : "High-water mark · normal flood season";
+        sub = `${z?.toFixed(2) ?? "—"} m MSL · HII MMS survey 2025`;
+        break;
+      }
+      case "street-flood-sim": {
+        const z = (p as { z?: number }).z;
+        const level = scenarioLevelRef.current;
+        title = `Street level ${z?.toFixed(2) ?? "—"} m MSL`;
+        sub =
+          level != null && z != null
+            ? level > z
+              ? `≈ ${(level - z).toFixed(2)} m under water at scenario ${level.toFixed(2)} m`
+              : `dry at scenario ${level.toFixed(2)} m (${(z - level).toFixed(2)} m of freeboard)`
+            : "HII MMS survey 2025 · route " + ((p as { route?: number }).route ?? "—");
+        break;
+      }
+      case "wrf-rain-grid": {
+        const mm = (o as { mm?: number }).mm;
+        title = `${mm?.toFixed(1) ?? "—"} mm / 24 h forecast`;
+        sub = "WRF-ROMS model (HII) · ~3 km cell";
+        break;
+      }
       case "air4thai-stations": {
         const pm25 = (p as { pm25?: number | null }).pm25;
         const aqi = (p as { aqi?: number | null }).aqi;
@@ -766,6 +803,15 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
   const executive = useFeed<ExecutiveSnapshot>(`${API_BASE}/api/executive`, 15 * 60_000);
   const markets = useFeed<MarketSnapshot>(`${API_BASE}/api/markets`, 10 * 60_000);
   const precip = useFeed<PrecipNowcast>(`${API_BASE}/api/precip-nowcast`, 5 * 60_000);
+  const precipZones = useFeed<ZonePrecipNowcast>(`${API_BASE}/api/precip-nowcast/zones`, 5 * 60_000);
+  // FLOOD COMMAND scenario + WRF-ROMS model outlook (runs land twice a day).
+  const [scenarioLevel, setScenarioLevel] = useState<number | null>(null);
+  const [wrfDay, setWrfDay] = useState<1 | 2 | 3>(1);
+  const wrfOutlook = useFeed<WrfRainDay>(`${API_BASE}/api/wrf/rain-outlook`, 30 * 60_000);
+  const wrfGrid = useFeed<WrfRainGrid>(`${API_BASE}/api/wrf/rain-grid?day=${wrfDay}`, 30 * 60_000);
+  // Mirror for the (dependency-free) tooltip callback.
+  const scenarioLevelRef = useRef<number | null>(null);
+  scenarioLevelRef.current = scenarioLevel;
   const datago = useFeed<DatagoPoint>(`${API_BASE}/api/datago/points`, 30 * 60_000);
   const facebook = useFeed<FacebookPost>(`${API_BASE}/api/social/facebook`, 10 * 60_000);
   const reservoirs = useFeed<ReservoirStatus>(`${API_BASE}/api/datago/reservoirs`, 60 * 60_000);
@@ -828,6 +874,14 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
   );
   const alphaFloodProne = useGeoJson<FeatureCollection<Polygon | MultiPolygon, Record<string, unknown>>>(
     "/geo/nst/alphaearth/floodprone.geojson",
+  );
+  // HII 2025 MMS survey — flood marks + street elevations (m MSL); built by
+  // apps/web/scripts/build_hii_geo.py from the HII open-data shapefiles.
+  const floodMarks = useGeoJson<FeatureCollection<Point, FloodMarkProps>>(
+    "/geo/nst/hii/flood-marks.geojson",
+  );
+  const roadLevels = useGeoJson<FeatureCollection<Point, RoadLevelProps>>(
+    "/geo/nst/hii/road-levels.geojson",
   );
 
   // ── Yala live feeds (API; render nothing if the endpoint 404s) ────────────
@@ -893,10 +947,57 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
     return buildTrafficSamples(roads, hour, { isWeekend });
   }, [roads, hour, isWeekend]);
 
+  // ── Mobile-GPU resilience ────────────────────────────────────────────────
+  // deck.gl's HeatmapLayer needs float-texture render targets, and its KDE
+  // shaders fail to COMPILE outright on a range of Android drivers (observed
+  // in production: "traffic-heatmap-weights-transform-fragment" rejected on a
+  // phone, killing the whole map on the default OPS lens). Two guards:
+  //  1. proactive — when the device doesn't advertise float32 render support,
+  //     never construct the HeatmapLayer at all;
+  //  2. reactive — if any layer still throws (exotic driver quirks the feature
+  //     flags don't capture), Deck's onError flips the same switch, swapping
+  //     in the ScatterplotLayer fallback on the next frame instead of letting
+  //     luma's shader-error output replace the mayor's dashboard.
+  const [gpuHeatmapOk, setGpuHeatmapOk] = useState(true);
+  const handleDeviceInitialized = useCallback(
+    (device: { features?: { has: (f: string) => boolean } }) => {
+      try {
+        if (!device?.features?.has("float32-renderable-webgl")) setGpuHeatmapOk(false);
+      } catch {
+        // Leave optimistic — the onError fallback below still protects us.
+      }
+    },
+    [],
+  );
+  const handleDeckError = useCallback((error: Error, layer?: { id?: string }) => {
+    const layerId = String(layer?.id ?? "");
+    if (layerId.includes("heatmap") || /shader|compil/i.test(error.message)) {
+      setGpuHeatmapOk(false);
+    }
+    console.error("[deck.gl]", layerId, error);
+  }, []);
+
   // Photorealistic 3D Tiles (Google) — must be called at top level (Rules of Hooks)
   const tile3d = useTile3DLayer({
     visible: enabledLayers.has("tile3d-buildings"),
     source: "google",
+  });
+
+  // Watershed cascade summaries — the ONE canonical computation, shared by the
+  // static flow line/nodes (watershedNodesLayer, below) and the animated flow
+  // dots, so both always agree on current status.
+  const watershedSummaries = useMemo(
+    () => summarizeWatershed(waterGauges.data, waterRain.data, ewsStations.data, floodGauges.data),
+    [waterGauges.data, waterRain.data, ewsStations.data, floodGauges.data],
+  );
+  const thaDeeFlow = useMemo(() => thaDeeFlowPath(watershedSummaries), [watershedSummaries]);
+  // Dots reuse the cascade's real live status color (not a new invented
+  // signal) — flood-state cascade animates red, calm animates green/blue.
+  const thaDeeFlowColor = ZONE_STATUS_RGB[worstStatus(watershedSummaries.filter(isThaDeeZone))];
+  const flowAnim = useFlowAnimation({
+    visible: enabledLayers.has("watershed-nodes"),
+    flowPath: thaDeeFlow,
+    color: thaDeeFlowColor,
   });
 
   // Google Map Tiles sessions — minted lazily when the layer is first enabled.
@@ -949,7 +1050,8 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
       out.push(roadNetworkLayer(roads as unknown as FeatureCollection<LineString, ClassifiedRoadProps>) as Layer);
     if (enabledLayers.has("transit-lines") && transitLines)
       out.push(transitLinesLayer(transitLines) as Layer);
-    if (enabledLayers.has("traffic-heatmap") && trafficSamples.length > 0) out.push(trafficHeatmapLayer(trafficSamples) as Layer);
+    if (enabledLayers.has("traffic-heatmap") && trafficSamples.length > 0)
+      out.push((gpuHeatmapOk ? trafficHeatmapLayer(trafficSamples) : trafficDensityFallbackLayer(trafficSamples)) as Layer);
     if (enabledLayers.has("transit-stations") && transitStations) out.push(transitStationsLayer(transitStations) as Layer);
     if (enabledLayers.has("cctv-cameras")) out.push(cctvLayer(cctv.data) as Layer);
     if (enabledLayers.has("incidents-city-reports")) out.push(incidentLayer("incidents-city-reports", cityReports.data) as Layer);
@@ -997,6 +1099,13 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
     }
     // Flood-risk polygons
     if (enabledLayers.has("flood-risk-zones") && floodRisk) out.push(floodRiskLayer(floodRisk) as Layer);
+    // WRF-ROMS forecast-rain grid — a translucent wash; push before the
+    // vector flood layers so marks/gauges/streets stay readable above it.
+    if (enabledLayers.has("wrf-rain-grid") && wrfGrid.data.length > 0)
+      out.push(wrfRainGridLayer(wrfGrid.data[0]) as Layer);
+    // Surveyed high-water marks (HII 2025) — the ground truth.
+    if (enabledLayers.has("flood-marks") && floodMarks)
+      out.push(...(floodMarksLayer(floodMarks) as Layer[]));
 
     // ── Yala — circular-city signature + hydrology + EO ───────────────────
     // AlphaEarth EO polygons render beneath the vector signature layers.
@@ -1018,10 +1127,11 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
     if (enabledLayers.has("security-news") && news.data.length > 0)
       out.push(securityNewsLayer(news.data) as Layer);
     // ── Watershed upstream→city cascade (Tha Dee flow nodes) ──────────────
-    if (enabledLayers.has("watershed-nodes") && waterGauges.data.length > 0)
-      out.push(...(watershedNodesLayer(
-        summarizeWatershed(waterGauges.data, waterRain.data, ewsStations.data, floodGauges.data),
-      ) as Layer[]));
+    if (enabledLayers.has("watershed-nodes") && waterGauges.data.length > 0) {
+      out.push(...(watershedNodesLayer(watershedSummaries) as Layer[]));
+      // Animated low-fidelity flow dots — which way the water is going.
+      if (flowAnim.layer) out.push(flowAnim.layer as Layer);
+    }
     // ── Yala — flood gauges + Bang Lang Dam (API-backed) ──────────────────
     if (enabledLayers.has("flood-gauges") && floodGauges.data.length > 0)
       out.push(floodGaugesLayer(floodGauges.data) as Layer);
@@ -1055,9 +1165,28 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
     provinceBoundaries, districtBoundaries,
     conflictIncidents.data, floodGauges.data, damStatus.data,
     waterGauges.data, waterRain.data, ewsStations.data,
+    watershedSummaries, flowAnim.layer,
+    floodMarks, wrfGrid.data,
     presence.lng, presence.lat, presence.accuracyM,
-    tile3d.layer,
+    tile3d.layer, gpuHeatmapOk,
   ]);
+
+  // Street-flood scenario layer — composed OUTSIDE the big memo above so a
+  // slider drag re-colors only this one layer instead of rebuilding all ~30
+  // (same isolation reasoning as flowAnim/tile3d, but here the trigger is
+  // user input rather than an animation clock).
+  const streetFloodSimLayer = useMemo<Layer | null>(
+    () =>
+      enabledLayers.has("street-flood-sim") && roadLevels
+        ? (streetFloodLayer(roadLevels, scenarioLevel) as Layer)
+        : null,
+    [enabledLayers, roadLevels, scenarioLevel],
+  );
+  // Prepended so the 18k-dot street wash renders BENEATH marks/gauges/labels.
+  const allLayers = useMemo<Layer[]>(
+    () => (streetFloodSimLayer ? [streetFloodSimLayer, ...layers] : layers),
+    [layers, streetFloodSimLayer],
+  );
 
   // Feature counts — passed to LayerPalette so every toggle shows a number,
   // making it immediately obvious whether the layer has data or not.
@@ -1097,6 +1226,8 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
     "flood-gauges":           floodGauges.data.length,
     "dam-status":             damStatus.data.length,
     "watershed-nodes":        waterGauges.data.length > 0 ? 4 : 0,
+    "flood-marks":            floodMarks?.features.length ?? 0,
+    "street-flood-sim":       roadLevels?.features.length ?? 0,
   } as Record<string, number>), [
     campus, buildings, roads, transitStations, transitLines, civicPoints, waterways,
     fisheries, floodRisk, heritage, maritimePorts, maritimeFerries, maritimeNavAids,
@@ -1104,6 +1235,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
     air4thai.data, gistdaPois.data, gistdaSolar.data, gistdaLandUse.data, news.data,
     ringRoads, riverBuffer, alphaLandcover, alphaFloodProne,
     conflictIncidents.data, floodGauges.data, damStatus.data, waterGauges.data,
+    floodMarks, roadLevels,
   ]);
 
   // Feed health per map layer — drives the "needs key" pill in the palette and
@@ -1123,6 +1255,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
     "flood-gauges":           { tier: floodGauges.fallbackTier, note: floodGauges.note },
     "dam-status":             { tier: damStatus.fallbackTier, note: damStatus.note },
     "watershed-nodes":        { tier: waterGauges.fallbackTier, note: waterGauges.note },
+    "wrf-rain-grid":          { tier: wrfGrid.fallbackTier, note: wrfGrid.note },
   }), [
     cctv.fallbackTier, cctv.note,
     iticEvents.fallbackTier, iticEvents.note, cityReports.fallbackTier, cityReports.note,
@@ -1133,6 +1266,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
     conflictIncidents.fallbackTier, conflictIncidents.note,
     floodGauges.fallbackTier, floodGauges.note, damStatus.fallbackTier, damStatus.note,
     waterGauges.fallbackTier, waterGauges.note,
+    wrfGrid.fallbackTier, wrfGrid.note,
   ]);
 
   // Keep the toggle handler's view of feedback fresh without re-creating it.
@@ -1348,10 +1482,28 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
             rainfall={waterRain.data}
             ews={ewsStations.data}
             floodGauges={floodGauges.data}
+            precipZones={precipZones.data}
             ageMinutes={waterGauges.data.length > 0 ? waterGauges.ageMinutes : waterRain.ageMinutes}
             fallbackTier={waterGauges.data.length > 0
               ? (waterGauges.fallbackTier === "loading" ? undefined : waterGauges.fallbackTier)
               : (waterRain.fallbackTier === "loading" ? undefined : waterRain.fallbackTier)}
+          />
+        </div>
+        <div className="left-section left-section-divided">
+          <FloodCommand
+            scenarioLevel={scenarioLevel}
+            onScenarioChange={setScenarioLevel}
+            roadLevels={roadLevels}
+            floodMarks={floodMarks}
+            scenarioLayerOn={enabledLayers.has("street-flood-sim")}
+            wrfOutlook={wrfOutlook.data}
+            wrfDay={wrfDay}
+            onWrfDayChange={setWrfDay}
+            wrfLayerOn={enabledLayers.has("wrf-rain-grid")}
+            onToggleWrfLayer={() => onToggleLayer("wrf-rain-grid")}
+            ageMinutes={wrfOutlook.ageMinutes}
+            fallbackTier={wrfOutlook.fallbackTier === "loading" ? undefined : wrfOutlook.fallbackTier}
+            wrfNote={wrfOutlook.note}
           />
         </div>
         <div className="left-section left-section-divided">
@@ -1441,10 +1593,12 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
             // scrollZoom.speed: default 0.01 → one fast trackpad swipe jumps 5+ levels;
             // 0.004 is ~2.5× slower, still comfortable but safe.
             controller={{ minZoom: 8, maxZoom: 20, maxBounds: CHONBURI.outerBounds, scrollZoom: { speed: 0.004, smooth: false } } as ControllerProps & { minZoom?: number; maxZoom?: number }}
-            layers={layers}
+            layers={allLayers}
             getTooltip={tooltipForPickMemo}
             onClick={handleMapClick}
             onHover={handleMapHover}
+            onDeviceInitialized={handleDeviceInitialized}
+            onError={handleDeckError}
           >
             <MapLibreMap
               mapStyle={mapStyle}
@@ -1629,7 +1783,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
           <span className="bottom-standard mono">UNDP · ADB</span>
         </div>
         <div className="bottom-stats">
-          <span>{buildings?.features.length ?? 0} BUILDINGS · {(roads?.features.length ?? 0).toLocaleString()} ROADS · {layers.length} LAYERS</span>
+          <span>{buildings?.features.length ?? 0} BUILDINGS · {(roads?.features.length ?? 0).toLocaleString()} ROADS · {allLayers.length} LAYERS</span>
           <span>{civicPoints?.features.length ?? 0} CIVIC · {cctv.data.length} CCTV · {gistdaPois.data.length} GISTDA</span>
         </div>
       </div>

@@ -74,6 +74,30 @@ export const NST_PROVINCE_BBOX: [Coordinates, Coordinates] = [
   [100.35, 9.45], // NE
 ];
 
+export interface WatershedForecastPoint {
+  key: string;
+  lat: number;
+  lng: number;
+}
+
+/**
+ * Coordinates for the upstream→city rain-forecast query (Open-Meteo multi-location
+ * call from apps/api's precipNowcast adapter). Nakhon Si Thammarat city floods are
+ * fed from the Khao Luang massif via the Tha Dee canal: rain registers at these
+ * upstream points hours before it reaches downtown. Order is index-aligned across
+ * API and web consumers — do not reorder without updating both.
+ *
+ * This is the canonical source for these 4 coordinates. apps/web's richer
+ * `WatershedZone` records (lib/watershed.ts — Thai/English names, amphoe matchers,
+ * lead-time math) source their lat/lng from here so the two never drift apart.
+ */
+export const WATERSHED_FORECAST_POINTS: WatershedForecastPoint[] = [
+  { key: "thung-song", lat: 8.175, lng: 99.679 },   // ทุ่งสง — SW divide
+  { key: "khiri-wong", lat: 8.4338, lng: 99.7833 }, // คีรีวง — Tha Dee source, Khao Luang
+  { key: "lan-saka", lat: 8.4012, lng: 99.802 },    // ลานสกา — Tha Dee upper reach
+  { key: "city", lat: 8.4364, lng: 99.9631 },       // Old Town — matches NST.center
+];
+
 // Legacy aliases — keep stray YALA/CHONBURI/CHULA references building during migration.
 export const YALA = NST;
 export const CHONBURI = NST;

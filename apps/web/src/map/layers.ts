@@ -1,4 +1,4 @@
-import { GeoJsonLayer, IconLayer, PathLayer, TextLayer } from "@deck.gl/layers";
+import { GeoJsonLayer, GridCellLayer, IconLayer, PathLayer, TextLayer } from "@deck.gl/layers";
 import type { Layer } from "@deck.gl/core";
 import { HeatmapLayer } from "@deck.gl/aggregation-layers";
 import { ScatterplotLayer } from "@deck.gl/layers";
@@ -23,7 +23,7 @@ import {
   type BuildingProperties,
   type LandmarkKind,
 } from "../lib/building";
-import { ZONE_STATUS_RGB, ZONE_STATUS_LABEL, type ZoneSummary } from "../lib/watershed";
+import { ZONE_STATUS_RGB, ZONE_STATUS_LABEL, isThaDeeZone, type ZoneSummary } from "../lib/watershed";
 
 export interface CctvCamera {
   id: string;
@@ -105,6 +105,37 @@ export function trafficHeatmapLayer(data: HeatPoint[]) {
       [248, 113, 113, 235],
       [239, 68, 68, 255],
     ],
+  });
+}
+
+/**
+ * Mobile-safe substitute for trafficHeatmapLayer. deck.gl's HeatmapLayer
+ * renders its KDE through float textures whose shaders fail to compile on a
+ * range of Android GPU drivers (observed in production: fragment shader
+ * "traffic-heatmap-weights-transform" rejected on an ESSL 3.10 translation).
+ * When App.tsx detects a device without reliable float-target support — or
+ * catches a live shader error via Deck's onError — it renders this instead:
+ * plain weighted dots on the same samples, same warm palette. Lower-fi, but
+ * compiles everywhere a WebGL2 map can run at all.
+ */
+export function trafficDensityFallbackLayer(data: HeatPoint[]) {
+  return new ScatterplotLayer<HeatPoint>({
+    id: "traffic-heatmap", // same id — swaps in-place for the heatmap
+    data,
+    getPosition: (d) => d.position,
+    getRadius: (d) => 30 + d.weight * 90,
+    radiusMinPixels: 2,
+    radiusMaxPixels: 14,
+    getFillColor: (d) => {
+      const w = d.weight;
+      if (w >= 0.75) return [239, 68, 68, 180];
+      if (w >= 0.5) return [245, 158, 11, 150];
+      if (w >= 0.25) return [167, 139, 250, 120];
+      return [56, 189, 248, 90];
+    },
+    stroked: false,
+    pickable: false,
+    parameters: { depthTest: false },
   });
 }
 
@@ -856,42 +887,6 @@ export function districtBoundariesLayer(
     getLineWidth: 2,
     lineWidthMinPixels: 1.5,
     lineWidthMaxPixels: 3,
-  });
-}
-
-export function districtLabelsLayer(
-  collection: FeatureCollection<Polygon | MultiPolygon, DistrictProperties>,
-) {
-  // Compute centroids for labels
-  const labels = collection.features.map((f) => {
-    let cx = 0, cy = 0, n = 0;
-    const coords = f.geometry.type === "Polygon"
-      ? f.geometry.coordinates[0]
-      : f.geometry.coordinates[0][0];
-    for (const [x, y] of coords) { cx += x; cy += y; n++; }
-    return {
-      position: [cx / n, cy / n, 0] as [number, number, number],
-      text: `${f.properties.nameEn}`,
-      sub: f.properties.nameTh,
-    };
-  });
-  return new TextLayer({
-    id: "bangkok-district-labels",
-    data: labels,
-    getPosition: (d) => d.position,
-    getText: (d) => d.text,
-    getSize: 16,
-    getColor: [255, 255, 255, 200],
-    getAngle: 0,
-    getTextAnchor: "middle",
-    getAlignmentBaseline: "center",
-    billboard: true,
-    fontFamily: "'IBM Plex Sans Condensed', sans-serif",
-    fontWeight: "bold",
-    getBackgroundColor: [0, 0, 0, 120],
-    background: true,
-    parameters: { depthTest: false },
-    pickable: false,
   });
 }
 
@@ -1960,6 +1955,163 @@ export function floodRiskLayer(collection: FeatureCollection<Polygon | MultiPoly
   });
 }
 
+// ─── HII survey layers — flood marks + street elevation / flood scenario ────
+// Source: HII open data (data.hii.or.th) — 2025 MMS mobile-mapping survey of
+// Nakhon Si Thammarat, m above MSL, NCDC-referenced, cm accuracy. Converted
+// by apps/web/scripts/build_hii_geo.py into public/geo/nst/hii/*.geojson.
+
+export interface FloodMarkProps {
+  /** "normal" = ordinary flood-season marks · "pabuk" = Tropical Storm Pabuk (Jan 2019). */
+  set: "normal" | "pabuk";
+  /** Surveyed high-water height, m MSL. */
+  z: number;
+}
+
+export interface RoadLevelProps {
+  /** Surveyed road/ground elevation, m MSL. */
+  z: number;
+  /** Survey route id (1–12). */
+  route: number;
+}
+
+const MARK_COLOR: Record<FloodMarkProps["set"], [number, number, number]> = {
+  pabuk: [239, 68, 68],   // red — the storm benchmark
+  normal: [251, 191, 36], // amber — ordinary flood season
+};
+
+/** Surveyed high-water marks — real measured flood heights off walls/poles.
+ *  The ground truth every scenario level is judged against. */
+export function floodMarksLayer(collection: FeatureCollection<Point, FloodMarkProps>): Layer[] {
+  const feats = collection.features;
+  return [
+    new ScatterplotLayer<Feature<Point, FloodMarkProps>>({
+      id: "flood-marks",
+      data: feats,
+      getPosition: (f) => f.geometry.coordinates as [number, number],
+      getRadius: 26,
+      radiusMinPixels: 4,
+      radiusMaxPixels: 10,
+      getFillColor: (f) => {
+        const c = MARK_COLOR[f.properties.set] ?? MARK_COLOR.normal;
+        return [c[0], c[1], c[2], 235] as [number, number, number, number];
+      },
+      stroked: true,
+      getLineColor: [10, 14, 20, 235],
+      lineWidthMinPixels: 1,
+      pickable: true,
+    }) as Layer,
+    new TextLayer<Feature<Point, FloodMarkProps>>({
+      id: "flood-mark-labels",
+      // Label only the Pabuk marks (the benchmark set) — labelling all 83
+      // doubles most labels since the two sets share locations.
+      data: feats.filter((f) => f.properties.set === "pabuk"),
+      getPosition: (f) => f.geometry.coordinates as [number, number],
+      getText: (f) => `${f.properties.z.toFixed(2)} m`,
+      getSize: 11,
+      getColor: [255, 255, 255, 225],
+      getPixelOffset: [0, -12],
+      getTextAnchor: "middle",
+      getAlignmentBaseline: "bottom",
+      billboard: true,
+      fontFamily: "'Inter', 'IBM Plex Sans Thai', sans-serif",
+      getBackgroundColor: [10, 14, 20, 160],
+      background: true,
+      backgroundPadding: [3, 1],
+      parameters: { depthTest: false },
+      pickable: false,
+    }) as Layer,
+  ];
+}
+
+// Elevation ramp for the no-scenario topography reading: low/floodable roads
+// dark blue → high ground pale. Anchored to the survey's real distribution
+// (p10 1.15 m · median 1.49 m · p90 2.30 m · max 6.41 m MSL).
+function elevationRamp(z: number): [number, number, number, number] {
+  if (z < 1.2) return [30, 64, 175, 210];   // deep blue — the lowest tenth
+  if (z < 1.6) return [59, 130, 246, 190];  // blue — around the median
+  if (z < 2.4) return [125, 211, 252, 170]; // pale sky — upper half
+  return [226, 232, 240, 150];              // near-white — high ground
+}
+
+// Scenario coloring: depth below the scenario water level L.
+function scenarioColor(z: number, levelM: number): [number, number, number, number] {
+  const depth = levelM - z;
+  if (depth <= 0) return [74, 222, 128, 90];   // dry — faint green
+  if (depth < 0.3) return [251, 191, 36, 210]; // shallow — amber (passable w/ care)
+  if (depth < 0.8) return [249, 115, 22, 230]; // deep — orange (impassable for cars)
+  return [220, 38, 38, 240];                   // very deep — red
+}
+
+/**
+ * Street elevation / flood-scenario layer over the ~18 k surveyed road points.
+ * With no scenario level: an elevation ramp — read the city's real topography
+ * along its streets. With a level L (m MSL): a static-level ("bathtub")
+ * scenario — every point colored by submergence depth L − z. No flow routing;
+ * honesty text lives in the layer's presets `describe` + the FloodCommand
+ * panel caveat.
+ */
+export function streetFloodLayer(
+  collection: FeatureCollection<Point, RoadLevelProps>,
+  scenarioLevelM: number | null,
+) {
+  return new ScatterplotLayer<Feature<Point, RoadLevelProps>>({
+    id: "street-flood-sim",
+    data: collection.features,
+    getPosition: (f) => f.geometry.coordinates as [number, number],
+    getRadius: 14,
+    radiusMinPixels: 1.5,
+    radiusMaxPixels: 5,
+    getFillColor: (f) =>
+      scenarioLevelM == null
+        ? elevationRamp(f.properties.z)
+        : scenarioColor(f.properties.z, scenarioLevelM),
+    updateTriggers: { getFillColor: [scenarioLevelM] },
+    stroked: false,
+    pickable: true,
+    parameters: { depthTest: false },
+  });
+}
+
+/** WRF-ROMS 24-h forecast-rain cells over the province (~3 km, HII model).
+ *  Where the rain is going to fall — the water arriving at the watershed. */
+export function wrfRainGridLayer(grid: {
+  lngMin: number;
+  latMax: number;
+  cellDeg: number;
+  ncols: number;
+  nrows: number;
+  valuesMm: number[];
+}) {
+  const cells: { position: [number, number]; mm: number }[] = [];
+  for (let r = 0; r < grid.nrows; r++) {
+    for (let c = 0; c < grid.ncols; c++) {
+      const mm = grid.valuesMm[r * grid.ncols + c];
+      if (mm < 1) continue; // dry / NODATA cells stay invisible
+      cells.push({
+        // GridCellLayer takes the cell's SW corner.
+        position: [grid.lngMin + c * grid.cellDeg, grid.latMax - (r + 1) * grid.cellDeg],
+        mm,
+      });
+    }
+  }
+  const cellMeters = grid.cellDeg * 111_000;
+  return new GridCellLayer<{ position: [number, number]; mm: number }>({
+    id: "wrf-rain-grid",
+    data: cells,
+    getPosition: (d) => d.position,
+    cellSize: cellMeters,
+    extruded: false,
+    getFillColor: (d) => {
+      // TMD-style rain intensity ramp, translucent wash.
+      if (d.mm >= 90) return [153, 27, 27, 190];  // violent
+      if (d.mm >= 35) return [239, 68, 68, 170];  // heavy
+      if (d.mm >= 10) return [249, 115, 22, 140]; // moderate
+      return [56, 189, 248, 110];                 // light
+    },
+    pickable: true,
+  });
+}
+
 // ═══════════════════════════════════════════════════════════════════════
 // HERITAGE LAYERS — temples, old town, Chinese shrines
 // ═══════════════════════════════════════════════════════════════════════
@@ -2484,11 +2636,17 @@ function toMarker(s: ZoneSummary): WatershedMarker {
   };
 }
 
+/** The Tha Dee cascade flow path (Khiri Wong → Lan Saka → City), in flow order.
+ *  Shared by the static flow line below AND the animated flow dots
+ *  (map/useFlowAnimation.ts) — one source, so they can never draw a different
+ *  path from each other. */
+export function thaDeeFlowPath(summaries: ZoneSummary[]): [number, number][] {
+  return summaries.filter(isThaDeeZone).map((s) => [s.zone.lng, s.zone.lat] as [number, number]);
+}
+
 export function watershedNodesLayer(summaries: ZoneSummary[]): Layer[] {
   const markers = summaries.map(toMarker);
-  // Flow line through the Tha Dee nodes only (คีรีวง → ลานสกา → city), in order.
-  const flowNodes = summaries.filter((s) => s.zone.river.includes("ท่าดี"));
-  const flowPath = flowNodes.map((s) => [s.zone.lng, s.zone.lat] as [number, number]);
+  const flowPath = thaDeeFlowPath(summaries);
 
   const layers: Layer[] = [];
 
@@ -2540,7 +2698,7 @@ export function watershedNodesLayer(summaries: ZoneSummary[]): Layer[] {
       getTextAnchor: "middle",
       getAlignmentBaseline: "bottom",
       billboard: true,
-      fontFamily: "'IBM Plex Sans Thai', 'IBM Plex Sans Condensed', sans-serif",
+      fontFamily: "'Inter', 'IBM Plex Sans Thai', sans-serif",
       fontWeight: "bold",
       getBackgroundColor: [10, 14, 20, 170],
       background: true,
@@ -2551,6 +2709,71 @@ export function watershedNodesLayer(summaries: ZoneSummary[]): Layer[] {
   );
 
   return layers;
+}
+
+/** Linearly interpolates `dotCount` evenly-spaced dots along `path` at phase
+ *  `t` (0–1, wraps past either end) — the position engine behind the flow
+ *  animation. Pure and geometry-only (plain lng/lat distance, not geodesic —
+ *  fine at this fidelity for a ~15 km local corridor); unit-tested directly. */
+export function flowDotPositions(
+  path: [number, number][],
+  t: number,
+  dotCount: number,
+): [number, number][] {
+  if (path.length < 2 || dotCount < 1) return [];
+
+  const segLens: number[] = [];
+  let total = 0;
+  for (let i = 0; i < path.length - 1; i++) {
+    const [x1, y1] = path[i];
+    const [x2, y2] = path[i + 1];
+    const len = Math.hypot(x2 - x1, y2 - y1);
+    segLens.push(len);
+    total += len;
+  }
+  if (total === 0) return [];
+
+  const phase = ((t % 1) + 1) % 1; // normalize even for negative t
+  const positions: [number, number][] = [];
+
+  for (let d = 0; d < dotCount; d++) {
+    const along = (((phase + d / dotCount) % 1) * total);
+    let acc = 0;
+    let placed = false;
+    for (let i = 0; i < segLens.length; i++) {
+      const isLastSeg = i === segLens.length - 1;
+      if (along <= acc + segLens[i] || isLastSeg) {
+        const segT = segLens[i] === 0 ? 0 : Math.min(1, (along - acc) / segLens[i]);
+        const [x1, y1] = path[i];
+        const [x2, y2] = path[i + 1];
+        positions.push([x1 + (x2 - x1) * segT, y1 + (y2 - y1) * segT]);
+        placed = true;
+        break;
+      }
+      acc += segLens[i];
+    }
+    if (!placed) positions.push(path[path.length - 1]);
+  }
+  return positions;
+}
+
+/** Small moving dots along a flow path — the low-fidelity flow-direction cue
+ *  (RAMS-x-NYCTA-agnostic; this is map content, not UI chrome). Color is
+ *  passed in by the caller (map/useFlowAnimation.ts), which reuses the
+ *  cascade's real live status color rather than inventing a new signal. */
+export function flowDotsLayer(positions: [number, number][], color: [number, number, number]) {
+  return new ScatterplotLayer<[number, number]>({
+    id: "watershed-flow-dots",
+    data: positions,
+    getPosition: (d) => d,
+    getRadius: 55,
+    radiusMinPixels: 3,
+    radiusMaxPixels: 7,
+    getFillColor: [color[0], color[1], color[2], 235] as [number, number, number, number],
+    stroked: false,
+    pickable: false,
+    parameters: { depthTest: false },
+  });
 }
 
 // ── Conflict incidents (ACLED / Deep South) — RED palette, sized by deaths ──

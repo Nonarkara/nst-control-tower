@@ -12,7 +12,8 @@ async function tryArchiveApi() {
   }
 }
 import { fetchWeather } from "./adapters/weather.js";
-import { fetchPrecipNowcast } from "./adapters/precipNowcast.js";
+import { fetchPrecipNowcast, fetchZonePrecipNowcast } from "./adapters/precipNowcast.js";
+import { fetchWrfRainOutlook, fetchWrfRainGrid } from "./adapters/wrfRain.js";
 import { fetchAirQuality, fetchAirQualityTrend } from "./adapters/airQuality.js";
 import {
   fetchGoogleGeocode,
@@ -114,6 +115,9 @@ app.get("/", (c) =>
       "/api/news/stats",
       "/api/weather",
       "/api/precip-nowcast",
+      "/api/precip-nowcast/zones",
+      "/api/wrf/rain-outlook",
+      "/api/wrf/rain-grid",
       "/api/air-quality",
       "/api/air-quality/trend",
       "/api/air-quality/air4thai",
@@ -313,6 +317,13 @@ app.get("/api/news/stats", async (c) => {
 
 app.get("/api/weather", async (c) => safeFeed(c, fetchWeather, "weather"));
 app.get("/api/precip-nowcast", async (c) => safeFeed(c, fetchPrecipNowcast, "precip-nowcast"));
+app.get("/api/precip-nowcast/zones", async (c) => safeFeed(c, fetchZonePrecipNowcast, "precip-nowcast-zones"));
+app.get("/api/wrf/rain-outlook", async (c) => safeFeed(c, fetchWrfRainOutlook, "wrf-rain-outlook"));
+app.get("/api/wrf/rain-grid", async (c) => {
+  const raw = Number(c.req.query("day") ?? "1");
+  const day = (raw === 2 ? 2 : raw === 3 ? 3 : 1) as 1 | 2 | 3;
+  return safeFeed(c, () => fetchWrfRainGrid(day), "wrf-rain-grid");
+});
 app.get("/api/air-quality", async (c) => safeFeed(c, fetchAirQuality, "air-quality"));
 app.get("/api/air-quality/trend", async (c) => safeFeed(c, fetchAirQualityTrend, "air-quality-trend"));
 app.get("/api/air-quality/aqicn", async (c) => safeFeed(c, () => fetchAqicnNst({ AQICN_TOKEN: c.env.AQICN_TOKEN }), "aqicn"));

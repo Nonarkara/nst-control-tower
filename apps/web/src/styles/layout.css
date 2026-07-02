@@ -2794,6 +2794,83 @@ input:focus-visible,
 }
 .flood-guide-toggle:hover { background: var(--bg-2); color: var(--text); border-color: var(--line-2); }
 
+/* ── FLOOD COMMAND // GOD MODE panel ─────────────────────────────────── */
+.fc-presets {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+.fc-presets button {
+  flex: 1;
+  padding: 4px 6px;
+  font-size: 0.7rem;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+.fc-slider {
+  width: 100%;
+  accent-color: var(--accent);
+  height: 3px;
+}
+.fc-impact {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin-top: 4px;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+.fc-impact-sub {
+  font-size: 0.71rem;
+  font-weight: 400;
+  color: var(--text-2);
+  letter-spacing: 0.03em;
+}
+.fc-wrf-days {
+  display: flex;
+  gap: 4px;
+}
+.fc-wrf-day {
+  flex: 1;
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 3px;
+  padding: 5px 4px;
+}
+.fc-wrf-label { font-size: 0.66rem; color: var(--text-3); letter-spacing: 0.06em; }
+.fc-wrf-mm { font-size: 0.95rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+.fc-wrf-unit { font-size: 0.62rem; color: var(--text-3); }
+.fc-calendar {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.fc-cal-row {
+  display: grid;
+  grid-template-columns: 5.2em repeat(12, 1fr);
+  gap: 2px;
+  align-items: center;
+}
+.fc-cal-name {
+  font-size: 0.64rem;
+  color: var(--text-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.fc-cal-month {
+  font-size: 0.6rem;
+  color: var(--text-3);
+  text-align: center;
+}
+.fc-cal-month.now { color: var(--text); font-weight: 700; }
+.fc-cal-cell {
+  height: 9px;
+  opacity: 0.9;
+}
+.fc-cal-cell.now { outline: 1px solid var(--text); outline-offset: -1px; }
+
 /* Flood Knowledge panel — extra elements */
 .fk-quote {
   margin: 14px 0;

@@ -13,6 +13,17 @@
  */
 
 import type { WaterGauge, RainfallStation, EwsStation, FloodGauge } from "@nst/shared";
+import { WATERSHED_FORECAST_POINTS } from "@nst/shared";
+
+/** Looks up the canonical lat/lng for a zone key from the shared forecast-point
+ *  registry, so this file's coordinates never drift from what apps/api's
+ *  precipNowcast adapter queries. Throws at module load if a key is missing —
+ *  a build-time guarantee the two stay in sync, not a runtime possibility. */
+function forecastPoint(key: string): { lat: number; lng: number } {
+  const p = WATERSHED_FORECAST_POINTS.find((p) => p.key === key);
+  if (!p) throw new Error(`watershed.ts: no WATERSHED_FORECAST_POINTS entry for zone "${key}"`);
+  return { lat: p.lat, lng: p.lng };
+}
 
 export type ZoneStatus = "flood" | "high" | "watch" | "normal" | "nodata";
 
@@ -51,8 +62,7 @@ export const WATERSHED_ZONES: WatershedZone[] = [
     en: "Thung Song",
     role: "SW divide · feeds south",
     river: "คลองท่าเลา / ท่าโลน",
-    lat: 8.175,
-    lng: 99.679,
+    ...forecastPoint("thung-song"),
     amphoe: ["ทุ่งสง", "Thung Song"],
   },
   {
@@ -61,8 +71,7 @@ export const WATERSHED_ZONES: WatershedZone[] = [
     en: "Khiri Wong",
     role: "Tha Dee source · Khao Luang",
     river: "คลองท่าดี",
-    lat: 8.4338,
-    lng: 99.7833,
+    ...forecastPoint("khiri-wong"),
     amphoe: ["ลานสกา", "Lan Saka"],
     nameInclude: ["คีรีวง"],
   },
@@ -72,8 +81,7 @@ export const WATERSHED_ZONES: WatershedZone[] = [
     en: "Lan Saka",
     role: "Tha Dee upper reach",
     river: "คลองท่าดี",
-    lat: 8.4012,
-    lng: 99.802,
+    ...forecastPoint("lan-saka"),
     amphoe: ["ลานสกา", "Lan Saka"],
     nameExclude: ["คีรีวง"],
   },
@@ -85,8 +93,7 @@ export const WATERSHED_ZONES: WatershedZone[] = [
     river: "คลองท่าดี",
     // Old Town axis (matches NST.center in campus.ts) so the flow line terminates
     // downtown, not ~5 km SW of it.
-    lat: 8.4364,
-    lng: 99.9631,
+    ...forecastPoint("city"),
     amphoe: ["เมืองนครศรีธรรมราช", "Mueang Nakhon Si Thammarat"],
     nameInclude: ["ท่าดี", "นาป่า"],
     isCity: true,
@@ -154,7 +161,25 @@ export interface ZoneSummary {
   modelled: boolean;
 }
 
-const SEVERITY: Record<ZoneStatus, number> = { nodata: -1, normal: 0, watch: 1, high: 2, flood: 3 };
+export const SEVERITY: Record<ZoneStatus, number> = { nodata: -1, normal: 0, watch: 1, high: 2, flood: 3 };
+
+/** Zones on the Tha Dee cascade proper (excludes ทุ่งสง/Thung Song — a separate
+ *  SW divide feeding a different river). The one place this filter lives —
+ *  both the map's flow-path/line and the flow-dot animation's color derive
+ *  from it, so they can never silently diverge on "which zones are the
+ *  cascade". */
+export function isThaDeeZone(s: ZoneSummary): boolean {
+  return s.zone.river.includes("ท่าดี");
+}
+
+/** Worst (most severe) status among a list of zone summaries, or "nodata" for
+ *  an empty list. Generic — used for both UI text and map dot color. */
+export function worstStatus(summaries: ZoneSummary[]): ZoneStatus {
+  return summaries.reduce<ZoneStatus>(
+    (worst, s) => (SEVERITY[s.status] > SEVERITY[worst] ? s.status : worst),
+    "nodata",
+  );
+}
 
 function gaugeStatus(situation: number): ZoneStatus {
   if (situation >= 5) return "flood";
