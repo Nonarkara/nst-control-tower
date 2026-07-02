@@ -155,40 +155,61 @@ interface WrfRun {
 
 function runCandidates(now: Date): string[] {
   const fmt = (d: Date) => d.toISOString().slice(0, 10);
-  const today = fmt(now);
-  const yesterday = fmt(new Date(now.getTime() - 86_400_000));
-  const before = fmt(new Date(now.getTime() - 2 * 86_400_000));
-  // Newest first. Publication lags the run date by up to a day, so reach back 2.
-  return [
-    `${today}_12UTC`,
-    `${today}_00UTC`,
-    `${yesterday}_12UTC`,
-    `${yesterday}_00UTC`,
-    `${before}_12UTC`,
-    `${before}_00UTC`,
-  ];
+  // Newest first. Publication lags the run date — observed at 2 FULL DAYS in
+  // the wild (on Jul 3 the newest run was Jul 1 12UTC), so reach back 3; the
+  // panel displays the run's age honestly, so an old run degrades visibly
+  // rather than the feature dying while a still-useful run exists.
+  const out: string[] = [];
+  for (let back = 0; back <= 3; back++) {
+    const day = fmt(new Date(now.getTime() - back * 86_400_000));
+    out.push(`${day}_12UTC`, `${day}_00UTC`);
+  }
+  return out;
 }
+
+// Each day file is ~2–4 MB of ASCII; a missing run 404s instantly, so one
+// generous timeout covers both the probe and the download cases.
+const DAY_TIMEOUT_MS = 25_000;
+// A run older than this has no forecast value left (its day3 is in the past)
+// — don't stale-serve beyond it.
+const STALE_TTL_SECONDS = 3 * 86_400;
 
 function dayUrl(runId: string, day: number): string {
   return `${BASE}/${runId}_esri_rain24hr_d03_asc/esri_rain24hr_d03_day${day}.asc`;
 }
 
 async function fetchLatestRun(): Promise<WrfRun | null> {
-  return cached("wrf-rain-run", TTL_SECONDS, async () => {
-    const fetchedAt = new Date().toISOString();
-    for (const runId of runCandidates(new Date())) {
-      const day1 = await fetchTextOrNull(dayUrl(runId, 1));
-      if (!day1) continue;
-      const [day2, day3] = await Promise.all([
-        fetchTextOrNull(dayUrl(runId, 2)),
-        fetchTextOrNull(dayUrl(runId, 3)),
-      ]);
-      const days = [day1, day2, day3].map((t) => (t ? parseAscWindow(t) : null));
-      if (!days[0]) continue; // header/format surprise — try the next run
-      return { runId, fetchedAt, days };
-    }
-    return null;
-  });
+  try {
+    // Throws (not returns null) on total failure so cachedWithStale serves
+    // the LAST GOOD RUN instead of caching the outage for a whole TTL — a
+    // brief tiservice hiccup mid-flood must never blank the outlook for 6 h.
+    // serveStaleWhileRevalidate: run discovery can take tens of seconds
+    // (up to 8 sequential probes); never pin a request behind it when a
+    // previous run is in hand — answer stale, refresh in the background.
+    return await cached(
+      "wrf-rain-run",
+      TTL_SECONDS,
+      async () => {
+        const fetchedAt = new Date().toISOString();
+        for (const runId of runCandidates(new Date())) {
+          const day1 = await fetchTextOrNull(dayUrl(runId, 1), undefined, DAY_TIMEOUT_MS);
+          if (!day1) continue;
+          const [day2, day3] = await Promise.all([
+            fetchTextOrNull(dayUrl(runId, 2), undefined, DAY_TIMEOUT_MS),
+            fetchTextOrNull(dayUrl(runId, 3), undefined, DAY_TIMEOUT_MS),
+          ]);
+          const days = [day1, day2, day3].map((t) => (t ? parseAscWindow(t) : null));
+          if (!days[0]) continue; // header/format surprise — try the next run
+          return { runId, fetchedAt, days };
+        }
+        throw new Error("no reachable WRF-ROMS run");
+      },
+      STALE_TTL_SECONDS,
+      true,
+    );
+  } catch {
+    return null; // no cached run at all — callers report the unavailable tier
+  }
 }
 
 /** Valid date of a run's dayN file: run date + (n−1) days. */
@@ -222,6 +243,7 @@ export async function fetchWrfRainOutlook(): Promise<NormalizedFeed<WrfRainDay>>
     const city = windowStats(w, CITY);
     features.push({
       day,
+      runId: run.runId,
       validDate: validDate(run.runId, day),
       catchmentMeanMm: catchment.meanMm,
       catchmentMaxMm: catchment.maxMm,

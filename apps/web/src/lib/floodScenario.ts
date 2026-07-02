@@ -18,7 +18,10 @@ import type { FloodMarkProps, RoadLevelProps } from "../map/layers";
  *  Recompute if the source assets are regenerated. */
 export const SCENARIO_PRESETS = [
   { key: "normal", label: "NORMAL FLOOD", levelM: 1.24 },
-  { key: "pabuk", label: "PABUK 2019", levelM: 2.12 },
+  // "MAX" in the label on purpose — 2.12 m is the HIGHEST surveyed Pabuk
+  // mark (the Pabuk median was 1.66 m); presenting the max as "the Pabuk
+  // level" without saying so would overstate the typical footprint.
+  { key: "pabuk", label: "PABUK 2019 MAX", levelM: 2.12 },
 ] as const;
 
 export const SCENARIO_MIN_M = 0.8;

@@ -92,9 +92,33 @@ export async function cachedWithStale<T>(
   ttlSeconds: number,
   compute: () => Promise<T>,
   staleTtlSeconds: number = 86400,
+  /** Serve an EXPIRED entry immediately and refresh in the background — for
+   *  slow upstreams (e.g. the multi-candidate WRF run discovery) where
+   *  pinning a request for tens of seconds behind the refresh is worse than
+   *  momentarily-older data. */
+  serveStaleWhileRevalidate: boolean = false,
 ): Promise<T> {
   const entry = store.get(key);
   if (entry && Date.now() <= entry.expiresAt) return entry.data as T;
+
+  if (entry && serveStaleWhileRevalidate && !pending.has(key)) {
+    // Kick the refresh (deduplicated via `pending`) but answer NOW.
+    const refresh = compute()
+      .then((fresh) => {
+        setCache(key, fresh, ttlSeconds);
+        pending.delete(key);
+        return fresh;
+      })
+      .catch(() => {
+        pending.delete(key);
+        // Keep the stale entry alive so future reads still have it.
+        setCache(key, entry.data, staleTtlSeconds);
+        return entry.data as T;
+      });
+    pending.set(key, refresh as Promise<unknown>);
+    return entry.data as T;
+  }
+  if (entry && serveStaleWhileRevalidate) return entry.data as T; // refresh already in flight
 
   // Deduplicate: if a refresh is already in-flight, share it
   const inflight = pending.get(key);

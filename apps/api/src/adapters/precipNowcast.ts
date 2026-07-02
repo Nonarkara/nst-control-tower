@@ -88,8 +88,10 @@ function computeSnapshot(series: OpenMeteoMinutelySeries | undefined): PrecipNow
 
 interface AllZoneSnapshots {
   fetchedAt: string;
-  /** zoneKey -> snapshot, or null if that point's series was missing/malformed. */
-  byZone: Map<string, PrecipNowcast | null>;
+  /** zoneKey -> snapshot, or null if that point's series was missing/malformed.
+   *  A plain object (NOT a Map) on purpose: cached values are JSON-serialised
+   *  to disk by the Node persistence layer, and a Map would rehydrate as {}. */
+  byZone: Record<string, PrecipNowcast | null>;
 }
 
 // Single multi-point Open-Meteo call shared by both fetchPrecipNowcast (city)
@@ -105,20 +107,44 @@ async function fetchAllZoneSnapshots(): Promise<AllZoneSnapshots> {
       `&minutely_15=precipitation,precipitation_probability` +
       `&timezone=Asia%2FBangkok&forecast_minutely_15=24`;
     const payload = await fetchJsonOrThrow<OpenMeteoMinutelyResponse>(url);
+    // fetchJsonOrThrow returns null on network/HTTP failure (despite the
+    // name); throw here so cachedWithStale serves the previous good snapshot
+    // instead of caching an all-null outage for the whole TTL.
+    if (!payload) throw new Error("open-meteo minutely_15 unreachable");
     const perPoint = Array.isArray(payload) ? payload : [payload];
 
-    const byZone = new Map<string, PrecipNowcast | null>();
+    const byZone: Record<string, PrecipNowcast | null> = {};
     WATERSHED_FORECAST_POINTS.forEach((point, i) => {
-      byZone.set(point.key, computeSnapshot(perPoint[i]?.minutely_15));
+      byZone[point.key] = computeSnapshot(perPoint[i]?.minutely_15);
     });
 
     return { fetchedAt, byZone };
   });
 }
 
+// First-boot outage (throw + no stale to fall back on) → a calm unavailable
+// feed, not a 500 through safeFeed.
+async function snapshotsOrNull(): Promise<AllZoneSnapshots | null> {
+  try {
+    return await fetchAllZoneSnapshots();
+  } catch {
+    return null;
+  }
+}
+
+const UNAVAILABLE_META = () => ({
+  source: SOURCE,
+  fetchedAt: new Date().toISOString(),
+  ageMinutes: 0,
+  fallbackTier: "unavailable" as const,
+  note: "Open-Meteo minutely_15 unreachable and no cached snapshot yet",
+});
+
 export async function fetchPrecipNowcast(): Promise<NormalizedFeed<PrecipNowcast>> {
-  const { fetchedAt, byZone } = await fetchAllZoneSnapshots();
-  const city = byZone.get("city");
+  const snapshots = await snapshotsOrNull();
+  if (!snapshots) return { features: [], meta: UNAVAILABLE_META() };
+  const { fetchedAt, byZone } = snapshots;
+  const city = byZone["city"];
   if (!city) {
     return {
       features: [],
@@ -134,11 +160,13 @@ export async function fetchPrecipNowcast(): Promise<NormalizedFeed<PrecipNowcast
 /** Rain forecast at the 3 upstream watershed zones (city excluded — already
  *  covered by fetchPrecipNowcast). Feeds UpstreamWatershed's per-zone rows. */
 export async function fetchZonePrecipNowcast(): Promise<NormalizedFeed<ZonePrecipNowcast>> {
-  const { fetchedAt, byZone } = await fetchAllZoneSnapshots();
+  const snapshots = await snapshotsOrNull();
+  if (!snapshots) return { features: [], meta: UNAVAILABLE_META() };
+  const { fetchedAt, byZone } = snapshots;
   const features: ZonePrecipNowcast[] = [];
   for (const point of WATERSHED_FORECAST_POINTS) {
     if (point.key === "city") continue;
-    const snapshot = byZone.get(point.key);
+    const snapshot = byZone[point.key];
     if (snapshot) features.push({ ...snapshot, zoneKey: point.key });
   }
   return {

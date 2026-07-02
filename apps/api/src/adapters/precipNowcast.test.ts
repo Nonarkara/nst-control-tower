@@ -211,6 +211,36 @@ describe("precipNowcast adapter — unavailable fallback (isolated)", () => {
   });
 });
 
+describe("precipNowcast — stale fallback on upstream outage (isolated)", () => {
+  it("keeps serving the LAST GOOD SNAPSHOT when Open-Meteo dies after the cache expires", async () => {
+    vi.resetModules();
+    vi.setSystemTime(NOW_MS);
+    let upstreamDown = false;
+    vi.spyOn(globalThis, "fetch").mockImplementation(() =>
+      Promise.resolve(
+        upstreamDown
+          ? new Response(null, { status: 503 })
+          : new Response(JSON.stringify(makeMinutely([0, 6, 4, 0, 0, 0, 0, 0])), { status: 200 }),
+      ),
+    );
+    const { fetchPrecipNowcast: fresh, fetchZonePrecipNowcast: freshZones } = await import("./precipNowcast");
+
+    const first = await fresh();
+    expect(first.meta.fallbackTier).toBe("live");
+    expect(first.features[0].intensity).toBe("heavy");
+
+    // 31 minutes later (past the 30 min TTL) Open-Meteo is down mid-flood.
+    upstreamDown = true;
+    vi.setSystemTime(NOW_MS + 31 * 60_000);
+    const second = await fresh();
+    expect(second.meta.fallbackTier).toBe("live"); // stale good data, not a blank outage
+    expect(second.features[0].intensity).toBe("heavy");
+    const zones = await freshZones();
+    expect(zones.features).toHaveLength(3);
+    vi.restoreAllMocks();
+  });
+});
+
 describe("fetchZonePrecipNowcast — upstream watershed zones (isolated)", () => {
   beforeEach(() => {
     vi.setSystemTime(NOW_MS);

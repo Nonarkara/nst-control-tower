@@ -144,6 +144,10 @@ export interface ZonePrecipNowcast extends PrecipNowcast {
 export interface WrfRainDay {
   /** 1–3 = today-ish..+2 (the run's day1/day2/day3 file). */
   day: 1 | 2 | 3;
+  /** Model run id, e.g. "2026-07-01_12UTC" — publication can lag by days;
+   *  the UI derives and DISPLAYS the run's age from this so an old run is
+   *  never mistaken for a fresh 3-day outlook. */
+  runId: string;
   /** ISO date the 24-h total is valid for (run date + day − 1, UTC+7 framing). */
   validDate: string;
   /** Khao Luang–Tha Dee upstream catchment box. */

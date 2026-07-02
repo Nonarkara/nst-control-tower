@@ -93,9 +93,21 @@ export function useFeed<T>(path: string, pollMs: number): FeedState<T> & { refet
   const inflight = useRef<AbortController | null>(null);
   const runRef = useRef<() => Promise<void>>(async () => {});
   const failCount = useRef(0);
+  const pathRef = useRef(path);
 
   useEffect(() => {
     let cancelled = false;
+
+    // A DYNAMIC path (e.g. /api/wrf/rain-grid?day=2 after a D1→D2 switch)
+    // must start from its own cached/empty state. Without this reset the
+    // short-circuit below can match the PREVIOUS path's payload — the WRF
+    // grid serves all three days from one cached run, so day 1/2/3 share
+    // meta.fetchedAt and the day-1 grid would silently stay on screen.
+    if (pathRef.current !== path) {
+      pathRef.current = path;
+      failCount.current = 0;
+      setState(readLocal<T>(path) ?? emptyInitial<T>());
+    }
 
     const run = async () => {
       inflight.current?.abort();

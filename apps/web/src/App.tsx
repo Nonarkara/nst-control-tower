@@ -258,18 +258,42 @@ function normalizeProperties<T extends { features?: Array<{ properties?: object 
   return data;
 }
 
-function useGeoJson<T extends { features?: Array<{ properties?: object | null }> }>(path: string) {
+// One flaky-4G dropout must not silently disable a feature for the whole
+// session (a dead 2.1 MB road-levels fetch would kill the flood scenario
+// with no error and no retry). Attempts back off 2s → 8s → 20s, then give up.
+const GEO_RETRY_DELAYS_MS = [2_000, 8_000, 20_000];
+
+/** Fetch a static geo asset. Pass `null` to skip (lazy-gated heavy assets —
+ *  the fetch starts when the path becomes non-null and is cached by the
+ *  browser thereafter). Retries transient failures with backoff. */
+function useGeoJson<T extends { features?: Array<{ properties?: object | null }> }>(path: string | null) {
   const [data, setData] = useState<T | null>(null);
   useEffect(() => {
+    if (!path) return;
     const ctrl = new AbortController();
-    fetch(path, { signal: ctrl.signal })
-      .then((r) => r.json())
-      .then((j) => {
-        setData(normalizeProperties(j as T));
-      })
-      .catch(() => {});
+    let timer: ReturnType<typeof setTimeout> | null = null;
+
+    const attempt = (n: number) => {
+      fetch(path, { signal: ctrl.signal })
+        .then((r) => {
+          if (!r.ok) throw new Error(`HTTP ${r.status}`);
+          return r.json();
+        })
+        .then((j) => {
+          setData(normalizeProperties(j as T));
+        })
+        .catch((err: unknown) => {
+          if (err instanceof DOMException && err.name === "AbortError") return;
+          if (n < GEO_RETRY_DELAYS_MS.length) {
+            timer = setTimeout(() => attempt(n + 1), GEO_RETRY_DELAYS_MS[n]);
+          }
+        });
+    };
+    attempt(0);
+
     return () => {
       ctrl.abort();
+      if (timer) clearTimeout(timer);
     };
   }, [path]);
   return data;
@@ -836,12 +860,16 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
   );
   const maritime = { ports: maritimePorts, ferries: maritimeFerries, navAids: maritimeNavAids };
 
-  // Deep South province + Yala district boundaries — for aggregate choropleths.
+  // Deep South province + Yala district boundaries — for the LEGACY aggregate
+  // choropleths (conflict/poverty), which no NST lens uses. Lazy-gated: these
+  // two files are 4.3 MB — by far the heaviest geo assets — and fetching them
+  // on every boot for layers that can't currently be enabled was pure waste
+  // on a phone connection.
   const provinceBoundaries = useGeoJson<FeatureCollection<Polygon | MultiPolygon, Record<string, unknown>>>(
-    "/geo/nst/boundaries/provinces.geojson",
+    enabledLayers.has("conflict-choropleth") ? "/geo/nst/boundaries/provinces.geojson" : null,
   );
   const districtBoundaries = useGeoJson<FeatureCollection<Polygon | MultiPolygon, Record<string, unknown>>>(
-    "/geo/nst/boundaries/districts.geojson",
+    enabledLayers.has("poverty-choropleth") ? "/geo/nst/boundaries/districts.geojson" : null,
   );
 
   // Civic POIs + waterways — Yala municipal OSM extract.
@@ -880,8 +908,13 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
   const floodMarks = useGeoJson<FeatureCollection<Point, FloodMarkProps>>(
     "/geo/nst/hii/flood-marks.geojson",
   );
+  // 2.1 MB — the heaviest single asset. Lazy: fetched the first time the
+  // street layer is enabled (FLOOD lens) or a scenario is activated, then
+  // browser-cached. FloodCommand shows a loading line until it lands.
   const roadLevels = useGeoJson<FeatureCollection<Point, RoadLevelProps>>(
-    "/geo/nst/hii/road-levels.geojson",
+    enabledLayers.has("street-flood-sim") || scenarioLevel != null
+      ? "/geo/nst/hii/road-levels.geojson"
+      : null,
   );
 
   // ── Yala live feeds (API; render nothing if the endpoint 404s) ────────────
@@ -1127,11 +1160,10 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
     if (enabledLayers.has("security-news") && news.data.length > 0)
       out.push(securityNewsLayer(news.data) as Layer);
     // ── Watershed upstream→city cascade (Tha Dee flow nodes) ──────────────
-    if (enabledLayers.has("watershed-nodes") && waterGauges.data.length > 0) {
+    // (The animated flow dots are composed OUTSIDE this memo — see allLayers
+    // below — so their ~10 Hz layer swaps never rebuild this whole array.)
+    if (enabledLayers.has("watershed-nodes") && waterGauges.data.length > 0)
       out.push(...(watershedNodesLayer(watershedSummaries) as Layer[]));
-      // Animated low-fidelity flow dots — which way the water is going.
-      if (flowAnim.layer) out.push(flowAnim.layer as Layer);
-    }
     // ── Yala — flood gauges + Bang Lang Dam (API-backed) ──────────────────
     if (enabledLayers.has("flood-gauges") && floodGauges.data.length > 0)
       out.push(floodGaugesLayer(floodGauges.data) as Layer);
@@ -1165,7 +1197,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
     provinceBoundaries, districtBoundaries,
     conflictIncidents.data, floodGauges.data, damStatus.data,
     waterGauges.data, waterRain.data, ewsStations.data,
-    watershedSummaries, flowAnim.layer,
+    watershedSummaries,
     floodMarks, wrfGrid.data,
     presence.lng, presence.lat, presence.accuracyM,
     tile3d.layer, gpuHeatmapOk,
@@ -1182,11 +1214,21 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
         : null,
     [enabledLayers, roadLevels, scenarioLevel],
   );
-  // Prepended so the 18k-dot street wash renders BENEATH marks/gauges/labels.
-  const allLayers = useMemo<Layer[]>(
-    () => (streetFloodSimLayer ? [streetFloodSimLayer, ...layers] : layers),
-    [layers, streetFloodSimLayer],
-  );
+  // Fast-cadence layers are concatenated OUTSIDE the big memo above: the
+  // street wash PREPENDED (renders beneath marks/gauges/labels), the animated
+  // flow dots APPENDED (must draw above the cascade line). This concat is the
+  // ONLY work their updates cost — the ~30 builder calls above never re-run
+  // for a slider tick or an animation frame.
+  const allLayers = useMemo<Layer[]>(() => {
+    // flowAnim.layer is already null whenever watershed-nodes is disabled —
+    // the hook owns that gate.
+    if (!streetFloodSimLayer && !flowAnim.layer) return layers;
+    return [
+      ...(streetFloodSimLayer ? [streetFloodSimLayer] : []),
+      ...layers,
+      ...(flowAnim.layer ? [flowAnim.layer as Layer] : []),
+    ];
+  }, [layers, streetFloodSimLayer, flowAnim.layer]);
 
   // Feature counts — passed to LayerPalette so every toggle shows a number,
   // making it immediately obvious whether the layer has data or not.
@@ -1501,8 +1543,6 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
             onWrfDayChange={setWrfDay}
             wrfLayerOn={enabledLayers.has("wrf-rain-grid")}
             onToggleWrfLayer={() => onToggleLayer("wrf-rain-grid")}
-            ageMinutes={wrfOutlook.ageMinutes}
-            fallbackTier={wrfOutlook.fallbackTier === "loading" ? undefined : wrfOutlook.fallbackTier}
             wrfNote={wrfOutlook.note}
           />
         </div>
@@ -1599,6 +1639,12 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
             onHover={handleMapHover}
             onDeviceInitialized={handleDeviceInitialized}
             onError={handleDeckError}
+            // luma.gl's debugShaders default is "errors" — on a shader compile
+            // failure it injects a full-page "Copy source / Close" dump over
+            // the app, IN PRODUCTION (exactly what ate the dashboard on a
+            // phone GPU). Never show that to an operator: onError above
+            // handles recovery invisibly instead.
+            deviceProps={{ debugShaders: "never" }}
           >
             <MapLibreMap
               mapStyle={mapStyle}

@@ -126,6 +126,36 @@ describe("fetchWrfRainOutlook — run discovery + degradation (isolated)", () =>
     expect(feed.features).toHaveLength(0);
     vi.restoreAllMocks();
   });
+
+  it("keeps serving the LAST GOOD RUN when tiservice goes down after the cache expires", async () => {
+    // The mid-flood scenario: a run was fetched fine, then HII becomes
+    // unreachable exactly when the mayor needs the outlook. The adapter must
+    // fall back to the stale run (cachedWithStale), never cache the outage.
+    vi.resetModules();
+    let upstreamDown = false;
+    vi.spyOn(globalThis, "fetch").mockImplementation((url) => {
+      if (upstreamDown) return Promise.resolve(new Response(null, { status: 503 }));
+      return Promise.resolve(
+        String(url).includes("2026-07-02_12UTC")
+          ? new Response(syntheticAsc(() => 7), { status: 200 })
+          : new Response(null, { status: 404 }),
+      );
+    });
+    const { fetchWrfRainOutlook: fresh } = await import("./wrfRain");
+
+    const first = await fresh();
+    expect(first.meta.fallbackTier).toBe("live");
+    expect(first.meta.note).toContain("2026-07-02_12UTC");
+
+    // 7 hours later (past the 6 h TTL) the upstream is down.
+    upstreamDown = true;
+    vi.setSystemTime(new Date("2026-07-02T17:00:00Z"));
+    const second = await fresh();
+    expect(second.meta.fallbackTier).toBe("live");
+    expect(second.meta.note).toContain("2026-07-02_12UTC"); // the stale good run
+    expect(second.features[0].catchmentMeanMm).toBe(7);
+    vi.restoreAllMocks();
+  });
 });
 
 describe("fetchWrfRainGrid (isolated)", () => {

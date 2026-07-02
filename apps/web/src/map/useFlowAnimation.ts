@@ -3,10 +3,13 @@ import type { ScatterplotLayer } from "@deck.gl/layers";
 import { flowDotPositions, flowDotsLayer } from "./layers";
 
 const DOT_COUNT = 5;
-// Throttle React state updates well below screen refresh rate — a "low
-// fidelity" flow cue doesn't need 60fps, and this keeps the outer `layers`
-// useMemo (which this layer's reference sits in) from rebuilding too often.
-const UPDATE_INTERVAL_MS = 40; // ~25fps
+// Throttle React state updates hard — each tick re-renders App (memoized
+// children make that shallow, but it isn't free on a phone). At an 8 s lap,
+// 10 Hz still moves the dots ~1.2% of the path per step — visually smooth
+// for a "low fidelity" cue, and deck.gl interpolates nothing in between
+// anyway. rAF also self-suspends in background tabs, so an idle wall
+// display costs zero.
+const UPDATE_INTERVAL_MS = 100; // ~10fps
 
 // A fixed, fast playback pace chosen purely for legibility — NOT a scaled
 // version of the real flood-wave transit time. The actual physical transit
