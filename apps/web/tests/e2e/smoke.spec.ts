@@ -324,3 +324,33 @@ test.describe("Language toggle (EN/TH)", () => {
   });
 });
 
+test.describe("Map camera — programmatic flights", () => {
+  // Guards the uncontrolled-camera refactor: after switching DeckGL to
+  // initialViewState, a REPEATED command (same-shape object) was silently
+  // dropped by deck's deepEqual, so the +/− zoom buttons became single-shot.
+  // The fix stamps a monotonic nonce + syncs the live-camera mirror; this test
+  // fails loudly if either regresses. Reads the dev-only __mapCam probe.
+  test("repeated zoom-in clicks each advance the zoom (not single-shot)", async ({ page }) => {
+    await page.goto("/");
+    await expect(page.locator(".map-host")).toBeVisible({ timeout: 20_000 });
+
+    const zoomIn = page.getByRole("button", { name: /^Zoom in$/ });
+    await expect(zoomIn).toBeVisible({ timeout: 10_000 });
+
+    // First click seeds the probe with the commanded zoom.
+    await zoomIn.click();
+    const z1 = await page.evaluate(() => (window as unknown as { __mapCam?: { zoom: number } }).__mapCam?.zoom);
+    expect(z1).toBeGreaterThan(0);
+
+    // Two more clicks must each advance the commanded zoom — the exact behavior
+    // the regression broke (clicks 2+ were deep-equal no-ops).
+    await zoomIn.click();
+    const z2 = await page.evaluate(() => (window as unknown as { __mapCam?: { zoom: number } }).__mapCam?.zoom);
+    expect(z2).toBeGreaterThan(z1!);
+
+    await zoomIn.click();
+    const z3 = await page.evaluate(() => (window as unknown as { __mapCam?: { zoom: number } }).__mapCam?.zoom);
+    expect(z3).toBeGreaterThan(z2!);
+  });
+});
+

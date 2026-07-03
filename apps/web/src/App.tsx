@@ -1,7 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, memo } from "react";
 import DeckGL from "@deck.gl/react";
 import type { Layer, ControllerProps } from "@deck.gl/core";
-import { FlyToInterpolator } from "@deck.gl/core";
+import { FlyToInterpolator, LinearInterpolator } from "@deck.gl/core";
 import { Map as MapLibreMap } from "react-map-gl/maplibre";
 import maplibregl from "maplibre-gl";
 import type { FeatureCollection, LineString, Point, Polygon, MultiPolygon } from "geojson";
@@ -353,51 +353,100 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
   const online = useOnlineStatus();
   const [mobilePanel, setMobilePanel] = useState<MobilePanel>("map");
 
-  // Controlled map viewState — needed so building-search and click can fly the camera.
-  // Bounds = the whole province (outerBounds); minZoom 8 lets the map cover the full
-  // provincial extent, while still zooming in past 13 for the Old Town building fabric.
-  const [viewState, setViewState] = useState({
+  // ── Map camera: UNCONTROLLED (deck.gl owns the live camera) ─────────────
+  // `initialViewState` is the COMMAND channel — deck resets its internal camera
+  // only when this object's identity changes, so we set a fresh one solely for
+  // programmatic flights (building search, click-to-fly, compass, 2D/3D, GPS,
+  // zoom buttons). During an ordinary drag/zoom gesture deck moves the camera
+  // itself at native refresh with ZERO React round-trip — the previous
+  // controlled setup gated every frame behind a full App re-render, which was
+  // the finger-to-pixel lag. Bounds/min/max zoom are enforced on the
+  // `controller` prop, so the camera stays clamped without a controlled state.
+  const [initialViewState, setInitialViewState] = useState({
     ...CHONBURI.defaultView,
-    minZoom: 8,
-    maxZoom: 20,
     transitionDuration: 0,
-    maxBounds: CHONBURI.outerBounds,
   });
 
-  // Mirror viewState to a ref so high-frequency reads (click handler, deck.gl
-  // event callback) don't depend on stale React closures and don't force callback
-  // recreation on every pan/zoom frame.
-  const viewStateRef = useRef(viewState);
-  viewStateRef.current = viewState;
+  // Live camera mirror — updated synchronously (free, no re-render) on every
+  // onViewStateChange so click/flyTo handlers always read the true position.
+  const viewStateRef = useRef({ ...CHONBURI.defaultView });
+  const bucketOf = (zoom: number) => (zoom >= 16.5 ? 2 : zoom >= 15.2 ? 1 : 0);
 
-  // rAF-throttled viewState mirror — DeckGL fires onViewStateChange potentially
-  // many times per frame (high-refresh trackpads fire pointer events at 240 Hz+).
-  // We coalesce those into ONE React state update per animation frame so the
-  // ~1300-line App component re-renders at most 60 Hz, regardless of gesture rate.
-  // The ref stays current immediately so any synchronous reader sees the latest.
-  const pendingViewStateRef = useRef<typeof viewState | null>(null);
+  // The ONLY camera-derived values a render actually needs: the zoom LOD bucket
+  // (building roof density) and the compass bearing. We setState these only when
+  // they genuinely change — so a pure PAN produces no React re-render at all,
+  // and a zoom crosses a bucket only a handful of times. rAF-coalesced so a
+  // 240 Hz trackpad still can't exceed one check per frame.
+  const [observed, setObserved] = useState({
+    zoomBucket: bucketOf(CHONBURI.defaultView.zoom),
+    bearing: CHONBURI.defaultView.bearing,
+  });
+  const observedRef = useRef(observed);
+  observedRef.current = observed;
   const rafScheduledRef = useRef(false);
+  // Monotonic command sequence — stamped onto every programmatic initialViewState
+  // so deck's deepEqual(prev, next, 3) always differs and the flight is honored
+  // even when the target equals the last command (e.g. re-centering on the same
+  // landmark after a pan, or repeated +/− zoom clicks). Without it, deck silently
+  // drops a value-identical command.
+  const cmdSeqRef = useRef(0);
   const handleViewStateChange = useCallback(({ viewState: vs }: { viewState: Record<string, unknown> }) => {
     const longitude = vs.longitude as number;
     const latitude = vs.latitude as number;
     const zoom = vs.zoom as number;
     const pitch = vs.pitch as number;
     const bearing = vs.bearing as number;
-    const next = {
-      ...viewStateRef.current,
-      longitude, latitude, zoom, pitch, bearing,
-      transitionDuration: 0,
-    };
-    pendingViewStateRef.current = next;
-    viewStateRef.current = next;
+    // Free: keep the live-camera mirror current for synchronous readers.
+    viewStateRef.current = { longitude, latitude, zoom, pitch, bearing };
     if (rafScheduledRef.current) return;
     rafScheduledRef.current = true;
     requestAnimationFrame(() => {
       rafScheduledRef.current = false;
-      const pending = pendingViewStateRef.current;
-      pendingViewStateRef.current = null;
-      if (pending) setViewState(pending);
+      const cur = observedRef.current;
+      const nextBucket = bucketOf(viewStateRef.current.zoom);
+      const nextBearing = viewStateRef.current.bearing;
+      // Only re-render when an observer actually moved — a pan changes neither.
+      if (nextBucket !== cur.zoomBucket || Math.abs(nextBearing - cur.bearing) >= 0.5) {
+        setObserved({ zoomBucket: nextBucket, bearing: nextBearing });
+      }
     });
+  }, []);
+
+  /** Command a programmatic camera move — sets a fresh initialViewState (which
+   *  deck resets to) built from the LIVE camera so it preserves current
+   *  pitch/bearing/zoom unless overridden. */
+  const flyCamera = useCallback((patch: Partial<typeof CHONBURI.defaultView> & { transitionDuration?: number; transitionInterpolator?: unknown }) => {
+    const base = viewStateRef.current;
+    const next = {
+      longitude: patch.longitude ?? base.longitude,
+      latitude: patch.latitude ?? base.latitude,
+      zoom: patch.zoom ?? base.zoom,
+      pitch: patch.pitch ?? base.pitch,
+      bearing: patch.bearing ?? base.bearing,
+    };
+    // A programmatic initialViewState jump does NOT emit onViewStateChange (only
+    // interactive gestures and interpolated transitions do), so sync the live
+    // mirror to the commanded target here — otherwise chained commands (e.g.
+    // three +zoom clicks) would all read the same frozen starting camera.
+    viewStateRef.current = next;
+    // Dev/E2E-only: expose the commanded camera so a Playwright regression test
+    // can assert repeated flights (zoom buttons, re-centering) actually advance.
+    // Dead-code-eliminated from the production build (import.meta.env.DEV=false).
+    if (import.meta.env.DEV) (window as unknown as { __mapCam?: typeof next }).__mapCam = next;
+    cmdSeqRef.current += 1;
+    const duration = patch.transitionDuration ?? 0;
+    setInitialViewState({
+      ...next,
+      transitionDuration: duration,
+      // Glide, don't snap: any timed flight without an explicit interpolator
+      // gets a Linear one, so building-search / click-to-fly / zoom buttons
+      // ease into place like the 2D/3D toggle (which brings its own FlyTo).
+      // The transition also emits onViewStateChange, keeping the camera mirror
+      // fed frame-by-frame.
+      transitionInterpolator:
+        patch.transitionInterpolator ?? (duration > 0 ? new LinearInterpolator(["longitude", "latitude", "zoom", "pitch", "bearing"]) : undefined),
+      _cmd: cmdSeqRef.current, // forces deck's deepEqual to differ every command
+    } as unknown as typeof initialViewState);
   }, []);
 
   // Selected building for the popup card.
@@ -407,21 +456,15 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
   // Selected incident — drives the IncidentCard with its "Open report ↗" link.
   const [selectedIncident, setSelectedIncident] = useState<IncidentFeature | null>(null);
 
-  // Camera helpers
+  // Camera helpers — all command the uncontrolled camera via flyCamera.
   const flyTo = useCallback((longitude: number, latitude: number, zoom = 17) => {
-    setViewState((prev) => ({
-      ...prev,
-      longitude,
-      latitude,
-      zoom,
-      transitionDuration: 700,
-    }));
-  }, []);
+    flyCamera({ longitude, latitude, zoom, transitionDuration: 700 });
+  }, [flyCamera]);
 
   // Reset map rotation to true north (compass click).
   const resetNorth = useCallback(() => {
-    setViewState((prev) => ({ ...prev, bearing: 0, transitionDuration: 500 }));
-  }, []);
+    flyCamera({ bearing: 0, transitionDuration: 500 });
+  }, [flyCamera]);
 
   // Live lat/long readout under the cursor. Written imperatively to a DOM ref so
   // pointer-rate updates (60–240 Hz) never re-render the ~1300-line App. deck.gl
@@ -463,11 +506,8 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
   }, [flyTo]);
 
   const zoomBy = (delta: number) => {
-    setViewState((prev) => ({
-      ...prev,
-      zoom: Math.max(prev.minZoom ?? 3, Math.min(prev.maxZoom ?? 20, prev.zoom + delta)),
-      transitionDuration: 200,
-    }));
+    const z = Math.max(8, Math.min(20, viewStateRef.current.zoom + delta));
+    flyCamera({ zoom: z, transitionDuration: 200 });
   };
 
   // Device GPS presence — drives the on-map pulse + DeviceCheckIn panel.
@@ -490,14 +530,13 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
   }, []);
 
   useEffect(() => {
-    setViewState((prev) => ({
-      ...prev,
+    flyCamera({
       pitch: viewMode === "2D" ? 0 : 60,
       bearing: viewMode === "2D" ? 0 : -18,
       transitionDuration: 700,
       transitionInterpolator: new FlyToInterpolator(),
-    }));
-  }, [viewMode]);
+    });
+  }, [viewMode, flyCamera]);
 
   // ESC closes the topmost overlay.
   useEffect(() => {
@@ -1019,7 +1058,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
 
   // Quantized zoom level — only changes when crossing the discrete thresholds
   // used for maxRoofs. Prevents the layers useMemo from firing on every zoom tick.
-  const zoomBucket = viewState.zoom >= 16.5 ? 2 : viewState.zoom >= 15.2 ? 1 : 0;
+  const zoomBucket = observed.zoomBucket;
 
   // Pre-memoize the two largest layers (20,877 buildings each). The umbrella
   // `layers` memo below has ~40 deps including SWR feed polls — if any of those
@@ -1616,7 +1655,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
             {enabledLayers.size} layers are currently enabled. Use Clean aerial view to inspect satellite imagery without data overlays.
           </div>
           <DeckGL
-            viewState={viewState}
+            initialViewState={initialViewState}
             onViewStateChange={handleViewStateChange}
             // Controller options — minZoom/maxZoom live in MapStateProps which is not
             // re-exported by @deck.gl/core, so we extend ControllerProps locally.
@@ -1674,7 +1713,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
             <button onClick={() => zoomBy(-0.6)} aria-label="Zoom out" className="zoom-btn">−</button>
           </div>
           {/* Compass — reflects bearing, click resets to north */}
-          <MapCompass bearing={viewState.bearing} onResetNorth={resetNorth} />
+          <MapCompass bearing={observed.bearing} onResetNorth={resetNorth} />
           {/* Bottom-left HUD: building-type legend (when buildings are shown) + live coordinate readout */}
           <div className="map-hud-bl">
             {enabledLayers.has("municipality-buildings") && <BuildingLegend />}
