@@ -147,6 +147,11 @@ export function FloodAnalysisPanel({
   const rainfallSource = rainfallFallback === "unavailable" ? "open-meteo-archive" : "open-meteo-archive";
   const unosatSource = "UNOSAT Thailand 2021";
 
+  // PanelHeader's fallbackTier prop only understands FallbackTier — "loading" is a
+  // local pseudo-state for this panel's own render logic, not a real source health tier.
+  const panelFallbackTier = (t: FallbackTier | "loading" | null): FallbackTier | undefined =>
+    t === "loading" || t == null ? undefined : t;
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
       {/* ── Historical Rainfall ─────────────────────────────────────────── */}
@@ -154,7 +159,7 @@ export function FloodAnalysisPanel({
         <PanelHeader
           title="HISTORICAL RAINFALL · OPEN-METEO"
           ageMinutes={rainfallAge}
-          fallbackTier={rainfallFallback ?? undefined}
+          fallbackTier={panelFallbackTier(rainfallFallback)}
           source={rainfallSource}
         />
 
@@ -245,7 +250,7 @@ export function FloodAnalysisPanel({
           <PanelHeader
             title="UNOSAT 2021 POPULATION EXPOSURE"
             ageMinutes={unosatAge}
-            fallbackTier={unosatFallback ?? undefined}
+            fallbackTier={panelFallbackTier(unosatFallback)}
             source={unosatSource}
           />
           {/* National summary */}

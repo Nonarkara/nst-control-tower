@@ -172,7 +172,7 @@ export function CctvStreamModal({ camera, onClose, apiBase = "" }: Props) {
             {cvEvent.detections.length > 0 && (
               <ul className="cctv-det-list">
                 {cvEvent.detections.slice(0, 8).map((d, i) => (
-                  <li key={i} className="cctv-det-item mono">
+                  <li key={`${d.class}-${d.confidence}-${i}`} className="cctv-det-item mono">
                     <span className="cctv-det-class">{d.class}</span>
                     <span className="cctv-det-conf" style={{ color: "var(--ink-mid)" }}>
                       {Math.round(d.confidence * 100)}%

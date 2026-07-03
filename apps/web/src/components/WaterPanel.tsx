@@ -410,10 +410,13 @@ export function WaterPanel({
       />
 
       {/* Tab bar */}
-      <div style={{ display: "flex", gap: 4 }}>
+      <div role="tablist" style={{ display: "flex", gap: 4 }}>
         {TABS.map((t) => (
           <button
             key={t.id}
+            role="tab"
+            aria-selected={tab === t.id}
+            aria-controls={`water-panel-section-${t.id}`}
             onClick={() => setTab(t.id)}
             className="eyebrow mono"
             style={{
@@ -431,9 +434,9 @@ export function WaterPanel({
         ))}
       </div>
 
-      {tab === "gauges" && <GaugesSection gauges={waterGauges} />}
-      {tab === "reservoirs" && <ReservoirSection reservoirs={reservoirs} ridReservoirs={ridReservoirs} />}
-      {tab === "rain" && <RainfallSection rain={waterRain} />}
+      {tab === "gauges" && <div id="water-panel-section-gauges"><GaugesSection gauges={waterGauges} /></div>}
+      {tab === "reservoirs" && <div id="water-panel-section-reservoirs"><ReservoirSection reservoirs={reservoirs} ridReservoirs={ridReservoirs} /></div>}
+      {tab === "rain" && <div id="water-panel-section-rain"><RainfallSection rain={waterRain} /></div>}
     </div>
   );
 }

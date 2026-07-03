@@ -33,11 +33,11 @@ const STATUS_STYLE: Record<FlightFids["status"], { color: string; label: string 
 
 // Airline IATA → short colour code for the badge
 const AIRLINE_COLOR: Record<string, string> = {
-  FD: "#e8000d",  // AirAsia red
-  DD: "#f36f21",  // Nok Air orange
-  SL: "#f0af00",  // Lion Air yellow
-  TG: "#6a0dad",  // Thai purple
-  PG: "#003087",  // Bangkok Air navy
+  FD: "var(--airline-fd)",  // AirAsia red
+  DD: "var(--airline-dd)",  // Nok Air orange
+  SL: "var(--airline-sl)",  // Lion Air yellow
+  TG: "var(--airline-tg)",  // Thai purple
+  PG: "var(--airline-pg)",  // Bangkok Air navy
 };
 
 function fmtTime(iso: string | null | undefined): string {
@@ -74,7 +74,7 @@ function AirlineBadge({ iata }: { iata: string }) {
       className="mono"
       style={{
         background: bg,
-        color: "#fff",
+        color: "var(--on-brand)",
         padding: "1px 5px",
         fontSize: "0.6rem",
         letterSpacing: "0.05em",
@@ -218,12 +218,15 @@ export function FlightsPanel({ flights, loading, ageMinutes, fallbackTier, note 
 
       {/* Tab bar */}
       {(arrivals.length > 0 || departures.length > 0) && (
-        <div style={{ display: "flex", gap: 4 }}>
+        <div role="tablist" style={{ display: "flex", gap: 4 }}>
           {(["departures", "arrivals"] as Tab[]).map((t) => {
             const count = t === "arrivals" ? arrivals.length : departures.length;
             return (
               <button
                 key={t}
+                role="tab"
+                aria-selected={tab === t}
+                aria-controls={`flights-panel-section-${t}`}
                 onClick={() => setTab(t)}
                 className="eyebrow mono"
                 style={{
@@ -245,13 +248,13 @@ export function FlightsPanel({ flights, loading, ageMinutes, fallbackTier, note 
 
       {/* Flight rows */}
       {shown.length > 0 ? (
-        <div>
+        <div id={`flights-panel-section-${tab}`}>
           {shown.map((f) => (
             <FlightRow key={`${f.flightNumber}-${f.scheduledTime}`} f={f} />
           ))}
         </div>
       ) : flights.length > 0 ? (
-        <div className="eyebrow mono" style={{ color: "var(--text-3)" }}>
+        <div id={`flights-panel-section-${tab}`} className="eyebrow mono" style={{ color: "var(--text-3)" }}>
           No {tab} scheduled today.
         </div>
       ) : null}

@@ -115,6 +115,25 @@
   --tag-festival:  #fbbf24;   /* amber — celebration */
   --tag-health:    #f472b6;   /* pink — public health */
 
+  /* ── Airline brand colours (FlightsPanel FIDS badges) — fixed reproduction
+       hexes, not theme-dependent, same as the route palette above. ────────── */
+  --airline-fd: #e8000d;   /* Thai AirAsia red */
+  --airline-dd: #f36f21;   /* Nok Air orange */
+  --airline-sl: #f0af00;   /* Thai Lion Air yellow */
+  --airline-tg: #6a0dad;   /* Thai Airways purple */
+  --airline-pg: #003087;   /* Bangkok Airways navy */
+
+  /* ── Fixed light-on-dark glyph colour for badges on a saturated brand-color
+       background (mirrors --rt-glyph's role for route discs). ────────────── */
+  --on-brand: #fff;
+
+  /* ── Sparkline muted-line tokens (PredictivePanel non-alert confidence
+       band + p50 line) — near-white on dark, near-ink on light, so they
+       stay visible against --bg-1 in both themes. ─────────────────────── */
+  --spark-band: rgba(255, 255, 255, 0.06);
+  --spark-threshold: rgba(255, 255, 255, 0.15);
+  --spark-line: rgba(255, 255, 255, 0.55);
+
   color-scheme: dark;
 }
 
@@ -183,6 +202,12 @@
   --info: #6f6c63;
   --rt-ink: #191712;
   --rt-ink-glyph: #fff;
+
+  /* Light theme: flip the sparkline muted lines to near-ink-on-white so
+     they don't wash out against --bg-1 (#fff). Same opacities as dark. */
+  --spark-band: rgba(25, 23, 18, 0.06);
+  --spark-threshold: rgba(25, 23, 18, 0.15);
+  --spark-line: rgba(25, 23, 18, 0.55);
   color-scheme: light;
 }
 

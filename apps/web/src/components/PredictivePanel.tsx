@@ -101,13 +101,13 @@ function Sparkline({ points, alertThreshold }: { points: ForecastPoint[]; alertT
       {/* Confidence band */}
       <polygon
         points={bandPts}
-        fill={isAlert ? "rgba(245,158,11,0.12)" : "rgba(255,255,255,0.06)"}
+        fill={isAlert ? "rgba(245,158,11,0.12)" : "var(--spark-band)"}
       />
       {/* Threshold line */}
       {threshY >= PAD && threshY <= H - PAD && (
         <line
           x1={PAD} y1={threshY} x2={W - PAD} y2={threshY}
-          stroke={isAlert ? "var(--bad, #dc2626)" : "rgba(255,255,255,0.15)"}
+          stroke={isAlert ? "var(--bad, #dc2626)" : "var(--spark-threshold)"}
           strokeWidth={0.5}
           strokeDasharray="2,2"
         />
@@ -116,7 +116,7 @@ function Sparkline({ points, alertThreshold }: { points: ForecastPoint[]; alertT
       <polyline
         points={linePts}
         fill="none"
-        stroke={isAlert ? "var(--warn, #d97706)" : "rgba(255,255,255,0.55)"}
+        stroke={isAlert ? "var(--warn, #d97706)" : "var(--spark-line)"}
         strokeWidth={1.2}
         strokeLinejoin="round"
       />

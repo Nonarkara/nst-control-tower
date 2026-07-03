@@ -127,6 +127,7 @@ export function SheetsPanel({ open, onClose }: Props) {
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   placeholder="https://docs.google.com/spreadsheets/d/…/edit"
+                  aria-label="Google Sheets URL"
                   className="sheets-url-input"
                 />
                 <button

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { PanelHeader } from "./PanelHeader";
 
 /**
  * In-browser WiFi/network speed gauge.
@@ -44,6 +45,13 @@ function geolocate(): Promise<{ lng: number; lat: number } | null> {
       { maximumAge: 60_000, timeout: 6_000 },
     );
   });
+}
+
+/** Minutes elapsed since an ISO timestamp — same pattern as IncidentCard's minutesSince. */
+function minutesSince(iso: string): number {
+  const t = new Date(iso).getTime();
+  if (Number.isNaN(t)) return 0;
+  return Math.max(0, Math.round((Date.now() - t) / 60_000));
 }
 
 export function SpeedTestPanel() {
@@ -102,18 +110,22 @@ export function SpeedTestPanel() {
 
   return (
     <div className="speedtest-panel">
-      <div className="speedtest-head">
-        <span className="eyebrow mono">WiFi · speed test</span>
-        <button
-          type="button"
-          className="speedtest-go mono"
-          onClick={run}
-          disabled={running}
-          aria-label="Run a download-timing speed test"
-        >
-          {running ? "…" : "RUN"}
-        </button>
-      </div>
+      <PanelHeader
+        title="WIFI · SPEED TEST"
+        ageMinutes={last ? minutesSince(last.at) : null}
+        source="browser-timed"
+        actions={
+          <button
+            type="button"
+            className="speedtest-go mono"
+            onClick={run}
+            disabled={running}
+            aria-label="Run a download-timing speed test"
+          >
+            {running ? "…" : "RUN"}
+          </button>
+        }
+      />
       <div className="speedtest-row">
         <div className="speedtest-stat">
           <span className="lbl">DOWN</span>
