@@ -1,35 +1,29 @@
 /**
- * National Waterways Adapter — Thailand via Overpass API.
+ * National Waterways Adapter — Nakhon Si Thammarat province via Overpass API.
  *
- * Fetches rivers, canals, and streams across the full Thailand bbox from
- * OpenStreetMap via the Overpass API (https://overpass-api.de).
- *
- * Thailand bbox: [97.3°E, 5.6°N, 105.7°E, 20.5°N]
- * Split into 4 regional sub-queries to avoid Overpass timeouts on a
- * single large request. Results are cached for 7 days (waterways
- * change slowly).
+ * Fetches rivers, canals, and streams within the NST province bbox from
+ * OpenStreetMap via the Overpass API (https://overpass-api.de). Previously
+ * fetched all of Thailand via 5 nationwide sub-queries — nearly all of that
+ * data was discarded downstream by an NST-only dashboard, and it risked
+ * rate-limiting/timeouts against a shared free public instance. Results are
+ * cached for 7 days (waterways change slowly).
  *
  * Waterway types extracted:
  *   river, canal, stream, ditch, drain, natural=river, natural=stream
  */
 
-import type { NormalizedFeed } from "@nst/shared";
+import type { NormalizedFeed, WaterwayFeature } from "@nst/shared";
+import { NST_PROVINCE_BBOX } from "@nst/shared";
 import { cacheAgeMinutes, cachedWithStale as cached } from "../lib/cache.js";
 import { fetchJsonOrThrow } from "./common.js";
 
 // 7-day cache — waterways change slowly
 const TTL = 7 * 24 * 60 * 60;
 
-// Thailand bounding box (W, S, E, N)
-const TH_BBOX = { w: 97.3, s: 5.6, e: 105.7, n: 20.5 };
-
-// Regional sub-queries for parallel fetch (smaller bboxes = faster)
+// Nakhon Si Thammarat province bbox (W, S, E, N) — single region, no nationwide fan-out
+const [[NST_W, NST_S], [NST_E, NST_N]] = NST_PROVINCE_BBOX;
 const REGIONS = [
-  { name: "south",   bbox: { w: 98.4, s: 5.6,  e: 101.2, n: 11.5 } },
-  { name: "central", bbox: { w: 98.0, s: 11.0, e: 101.5, n: 18.0 } },
-  { name: "north",   bbox: { w: 97.3, s: 16.0, e: 100.8, n: 20.5 } },
-  { name: "east",    bbox: { w: 100.8,s: 10.5, e: 105.7, n: 18.0 } },
-  { name: "northeast", bbox: { w: 100.5, s: 13.5, e: 105.5, n: 18.0 } },
+  { name: "nst", bbox: { w: NST_W, s: NST_S, e: NST_E, n: NST_N } },
 ];
 
 // Overpass API response shapes
@@ -47,17 +41,6 @@ interface OverpassResponse {
   generator: string;
   osm3s: { timestamp_osm_base: string; copyright: string };
   elements: OverpassElement[];
-}
-
-export interface WaterwayFeature {
-  id: string;
-  osmId: number;
-  name: string;
-  nameTh: string | null;
-  waterwayType: string;
-  lat: number;
-  lng: number;
-  coordinates: Array<[number, number]>; // [lng, lat] pairs for PathLayer
 }
 
 function buildQuery(b: { w: number; s: number; e: number; n: number }): string {
@@ -140,8 +123,8 @@ export async function fetchNationalWaterways(): Promise<NormalizedFeed<WaterwayF
         ageMinutes: cacheAgeMinutes(fetchedAt),
         fallbackTier: unique.length > 0 ? "live" : "unavailable",
         note: unique.length === 0
-          ? "Overpass API returned no waterways — all regions timed out"
-          : `Thailand waterways from OSM: ${unique.length} rivers/canals/streams across ${REGIONS.length} regions`,
+          ? "Overpass API returned no waterways — request timed out"
+          : `NST province waterways from OSM: ${unique.length} rivers/canals/streams`,
       },
     };
   });

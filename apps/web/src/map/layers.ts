@@ -7,7 +7,8 @@ import { BitmapLayer } from "@deck.gl/layers";
 import type { Feature, FeatureCollection, Polygon, MultiPolygon, LineString, Point } from "geojson";
 import type {
   IncidentFeature,
-  CampusZoneProperties,
+  CampusZoneFeature,
+  CampusZoneCollection,
   AirQualityPoint,
   IsochroneResult,
   ConflictIncident,
@@ -60,10 +61,8 @@ const ZONE_COLORS: Record<string, [number, number, number]> = {
   perimeter: [14, 165, 233],
 };
 
-type ZoneFeature = Feature<Polygon | MultiPolygon, CampusZoneProperties>;
-
 export function campusBoundaryLayer(
-  collection: FeatureCollection<Polygon | MultiPolygon, CampusZoneProperties>,
+  collection: CampusZoneCollection,
   options: { extruded?: boolean; filled?: boolean; stroked?: boolean } = {},
 ) {
   return new GeoJsonLayer({
@@ -73,17 +72,17 @@ export function campusBoundaryLayer(
     filled: options.filled ?? true,
     pickable: true,
     extruded: options.extruded ?? false,
-    getFillColor: ((f: ZoneFeature) => {
+    getFillColor: ((f: CampusZoneFeature) => {
       const z = ZONE_COLORS[f.properties.zoneType] ?? [120, 120, 120];
       return [z[0], z[1], z[2], 38] as [number, number, number, number];
     }) as unknown as [number, number, number, number],
-    getLineColor: ((f: ZoneFeature) => {
+    getLineColor: ((f: CampusZoneFeature) => {
       const z = ZONE_COLORS[f.properties.zoneType] ?? [200, 200, 200];
       return [z[0], z[1], z[2], 200] as [number, number, number, number];
     }) as unknown as [number, number, number, number],
     getLineWidth: 1.5,
     lineWidthMinPixels: 1,
-    getElevation: ((f: ZoneFeature) => f.properties.height ?? 0) as unknown as number,
+    getElevation: ((f: CampusZoneFeature) => f.properties.height ?? 0) as unknown as number,
   });
 }
 
@@ -803,131 +802,6 @@ export function cctvLayer(cameras: CctvCamera[]) {
 
 // IconLayer reference, kept so 3D-extruded buildings + vehicle icons can be added later.
 export { IconLayer };
-
-// ─── Surrounding buildings (urban fabric ~1km around campus) ─────────────
-export interface SurroundingBuildingProperties {
-  id: string;
-  name: string | null;
-  nameEn: string | null;
-  nameTh: string | null;
-  building: string;
-  levels: number | null;
-  height: number | null;
-  operator: string | null;
-}
-
-function surroundingBuildingHeightMeters(props: SurroundingBuildingProperties): number {
-  if (props.height) return props.height;
-  if (props.levels) return props.levels * 3.2;
-  return 12;
-}
-
-export function surroundingBuildingsLayer(
-  collection: FeatureCollection<Polygon | MultiPolygon, SurroundingBuildingProperties>,
-  options: { extruded?: boolean; ghosted?: boolean } = {},
-) {
-  const extruded = options.extruded ?? false;
-  const ghosted = options.ghosted ?? false;
-  const fillAlpha = ghosted ? 28 : 0.85;
-  const lineAlpha = ghosted ? 90 : 180;
-
-  return new GeoJsonLayer({
-    id: "surrounding-buildings",
-    data: collection as unknown as FeatureCollection,
-    stroked: true,
-    filled: true,
-    pickable: true,
-    extruded,
-    material: extruded && !ghosted
-      ? { ambient: 0.5, diffuse: 0.6, shininess: 8, specularColor: [200, 200, 220] }
-      : false,
-    getFillColor: ((f: Feature<Polygon | MultiPolygon, SurroundingBuildingProperties>) => {
-      const h = surroundingBuildingHeightMeters(f.properties);
-      // Cooler palette than campus buildings so campus reads as the warm focus
-      if (h >= 100) return [160, 140, 200, ghosted ? fillAlpha : 200];
-      if (h >= 60) return [120, 130, 180, ghosted ? fillAlpha : 185];
-      if (h >= 35) return [90, 110, 150, ghosted ? fillAlpha : 170];
-      return [70, 90, 120, ghosted ? fillAlpha : 155];
-    }) as unknown as [number, number, number, number],
-    getLineColor: ((f: Feature<Polygon | MultiPolygon, SurroundingBuildingProperties>) =>
-      f.properties.name
-        ? ([140, 160, 200, lineAlpha] as [number, number, number, number])
-        : ([90, 110, 140, lineAlpha] as [number, number, number, number])) as unknown as [number, number, number, number],
-    getLineWidth: 0.6,
-    lineWidthMinPixels: 0.5,
-    getElevation: ((f: Feature<Polygon | MultiPolygon, SurroundingBuildingProperties>) =>
-      surroundingBuildingHeightMeters(f.properties)) as unknown as number,
-    opacity: ghosted ? 0.3 : 0.9,
-    updateTriggers: {
-      getFillColor: [extruded, ghosted],
-      getLineColor: [ghosted],
-    },
-  });
-}
-
-// ─── Bangkok district boundaries ─────────────────────────────────────────
-export interface DistrictProperties {
-  id: string;
-  nameTh: string;
-  nameEn: string;
-  code: string;
-  areaKm2: number;
-}
-
-export function districtBoundariesLayer(
-  collection: FeatureCollection<Polygon | MultiPolygon, DistrictProperties>,
-) {
-  return new GeoJsonLayer({
-    id: "bangkok-districts",
-    data: collection as unknown as FeatureCollection,
-    stroked: true,
-    filled: false,
-    pickable: true,
-    getLineColor: [255, 255, 255, 160],
-    getLineWidth: 2,
-    lineWidthMinPixels: 1.5,
-    lineWidthMaxPixels: 3,
-  });
-}
-
-// ─── Flood-prone areas ───────────────────────────────────────────────────
-export interface FloodAreaProperties {
-  id: string;
-  nameTh: string;
-  nameEn: string;
-  risk: "low" | "medium" | "high";
-  cause: string;
-  frequency: string;
-  lastMajor: string;
-}
-
-const FLOOD_COLORS: Record<FloodAreaProperties["risk"], [number, number, number, number]> = {
-  low:    [250, 204, 21, 70],
-  medium: [245, 158, 11, 90],
-  high:   [239, 68, 68, 110],
-};
-
-export function floodProneAreasLayer(
-  collection: FeatureCollection<Polygon | MultiPolygon, FloodAreaProperties>,
-) {
-  return new GeoJsonLayer({
-    id: "flood-prone-areas",
-    data: collection as unknown as FeatureCollection,
-    stroked: true,
-    filled: true,
-    pickable: true,
-    getFillColor: ((f: Feature<Polygon | MultiPolygon, FloodAreaProperties>) =>
-      FLOOD_COLORS[f.properties.risk] ?? [200, 200, 200, 60]) as unknown as [number, number, number, number],
-    getLineColor: ((f: Feature<Polygon | MultiPolygon, FloodAreaProperties>) => {
-      const c = FLOOD_COLORS[f.properties.risk] ?? [200, 200, 200, 60];
-      return [c[0], c[1], c[2], 200] as [number, number, number, number];
-    }) as unknown as [number, number, number, number],
-    getLineWidth: 1.5,
-    lineWidthMinPixels: 1,
-    getLineDashArray: [4, 3],
-    lineDashJustified: true,
-  });
-}
 
 // ─── Utility layers ──────────────────────────────────────────────────────
 // Electricity, water mains, storm drainage, WiFi survey. Geometry comes from
@@ -2915,32 +2789,27 @@ export function alphaEarthFloodProneLayer(
 // NATIONAL WATERWAYS + FLOOD ANALYSIS LAYERS
 // ═══════════════════════════════════════════════════════════════════════════
 
-import type { NationalWaterwaysFeed, FloodProneRecord, HiiTambonRisk, UnositTambonExposure } from "@nst/shared";
+import type { WaterwayFeature, FloodProneRecord, HiiTambonRisk, UnositTambonExposure } from "@nst/shared";
 
-// National waterways — GeoJsonLayer rendering the merged Thailand OSM waterways
-export function nationalWaterwaysLayer(collection: NationalWaterwaysFeed) {
-  return new GeoJsonLayer({
+const NATIONAL_WATERWAY_COLOR: Record<string, [number, number, number, number]> = {
+  river:  [14, 165, 233, 210],
+  canal:  [56,  189, 248, 185],
+  stream: [148, 163, 184, 150],
+  drain:  [13,  148, 136, 140],
+  ditch:  [13,  148, 136, 120],
+};
+
+// National waterways — PathLayer over the flat WaterwayFeature[] the adapter actually returns
+export function nationalWaterwaysLayer(features: WaterwayFeature[]) {
+  return new PathLayer<WaterwayFeature>({
     id: "national-waterways",
-    data: collection,
-    stroked: true,
-    filled: false,
-    getLineColor: (f) => {
-      const t = String(f.properties?.waterway ?? "stream").toLowerCase();
-      const WATERWAY_COLOR: Record<string, [number, number, number, number]> = {
-        river:  [14, 165, 233, 210],
-        canal:  [56,  189, 248, 185],
-        stream: [148, 163, 184, 150],
-        drain:  [13,  148, 136, 140],
-        ditch:  [13,  148, 136, 120],
-      };
-      return (WATERWAY_COLOR[t] ?? WATERWAY_COLOR.stream);
-    },
-    getLineWidth: (f) => {
-      const t = String(f.properties?.waterway ?? "stream").toLowerCase();
-      return t === "river" ? 4 : t === "canal" ? 2.5 : 1;
-    },
-    lineWidthUnits: "pixels",
-    lineWidthMinPixels: 1,
+    data: features,
+    getPath: (f) => f.coordinates,
+    getColor: (f) => (NATIONAL_WATERWAY_COLOR[f.waterwayType.toLowerCase()] ?? NATIONAL_WATERWAY_COLOR.stream),
+    getWidth: (f) => (f.waterwayType.toLowerCase() === "river" ? 4 : f.waterwayType.toLowerCase() === "canal" ? 2.5 : 1),
+    widthUnits: "pixels",
+    widthMinPixels: 1,
+    pickable: true,
   });
 }
 

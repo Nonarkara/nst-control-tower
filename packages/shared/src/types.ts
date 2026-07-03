@@ -76,22 +76,6 @@ export interface IncidentFeature {
   raw?: Record<string, unknown>;
 }
 
-// ---- Traffic ----
-
-export interface TrafficSample {
-  lat: number;
-  lng: number;
-  intensity: number;
-  roadClass: "arterial" | "collector" | "local" | "campus-internal";
-}
-
-export interface TrafficCorridor {
-  id: string;
-  name: string;
-  segments: Coordinates[];
-  roadClass: TrafficSample["roadClass"];
-}
-
 // ---- Environment ----
 
 export interface AirQualityPoint {
@@ -719,32 +703,19 @@ export interface FacebookPost {
 }
 
 // ── National Waterways ─────────────────────────────────────────────────────────
+// Flat shape as actually produced by apps/api/src/adapters/waterways.ts (OSM
+// Overpass rivers/canals/streams). Wrapped in the standard NormalizedFeed<T>
+// envelope like every other feed — there is no separate envelope type.
 
 export interface WaterwayFeature {
-  type: "Feature";
-  geometry: {
-    type: "LineString";
-    coordinates: [number, number][];
-  };
-  properties: {
-    osm_id: number;
-    name?: string;
-    name_en?: string;
-    waterway: string;
-    ref?: string;
-    maxspeed?: string;
-    width?: string;
-    /** "Thai Land" if within Thailand bbox */
-    region: string;
-    /** "overpass-osm" */
-    source: string;
-  };
-}
-
-export interface NationalWaterwaysFeed {
-  features: WaterwayFeature[];
-  total: number;
-  regions: string[];
+  id: string;
+  osmId: number;
+  name: string;
+  nameTh: string | null;
+  waterwayType: string;
+  lat: number;
+  lng: number;
+  coordinates: Array<[number, number]>; // [lng, lat] pairs, ordered for a PathLayer
 }
 
 // ── Historical Rainfall ─────────────────────────────────────────────────────────

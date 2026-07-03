@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { Tile3DLayer } from "@deck.gl/geo-layers";
 import { Tiles3DLoader } from "@loaders.gl/3d-tiles";
 import { GOOGLE_MAPS_API_KEY } from "../lib/googleKey";
@@ -28,8 +28,10 @@ interface Tile3DResult {
  * the photoreal mesh flat grey. We only collect the copyright string Google
  * requires and surface it for an attribution badge.
  *
- * A fresh Tile3DLayer instance is created every render (the canonical deck.gl
- * pattern — deck diffs by `id` and preserves the Tileset3D in internal state).
+ * The instance is memoized on its real inputs (visible/tilesetUrl/isGoogle) —
+ * `.layer` is a dependency of App.tsx's big `layers` useMemo, so a fresh object
+ * reference on every unrelated App render (any of its ~25 polling feeds ticking)
+ * would invalidate and rebuild that entire ~30-branch memo for no reason.
  *
  * Coverage: full photoreal mesh over Bangkok and major metros; provincial Thai
  * towns may return only coarse terrain. Degrades gracefully (empty) when there
@@ -53,21 +55,25 @@ export function useTile3DLayer({ visible, source = "google" }: Props): Tile3DRes
     if (text) setAttribution(text);
   }, []);
 
-  const layer = !visible || !tilesetUrl
-    ? null
-    : new Tile3DLayer({
-        id: isGoogle ? "google-3d-tiles" : "tile-3d-layer",
-        data: tilesetUrl,
-        loader: Tiles3DLoader,
-        onTilesetLoad,
-        onTileError: (err: unknown) => {
-          if (import.meta.env.DEV) console.error("[Tile3DLayer] tile error", err);
-        },
-        pickable: false,
-        opacity: 1,
-        // Higher MSE = fewer tiles in flight → smoother panning on big scenes.
-        maximumScreenSpaceError: 16,
-      });
+  const layer = useMemo(
+    () =>
+      !visible || !tilesetUrl
+        ? null
+        : new Tile3DLayer({
+            id: isGoogle ? "google-3d-tiles" : "tile-3d-layer",
+            data: tilesetUrl,
+            loader: Tiles3DLoader,
+            onTilesetLoad,
+            onTileError: (err: unknown) => {
+              if (import.meta.env.DEV) console.error("[Tile3DLayer] tile error", err);
+            },
+            pickable: false,
+            opacity: 1,
+            // Higher MSE = fewer tiles in flight → smoother panning on big scenes.
+            maximumScreenSpaceError: 16,
+          }),
+    [visible, tilesetUrl, isGoogle, onTilesetLoad]
+  );
 
   return {
     layer,

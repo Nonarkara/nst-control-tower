@@ -9,7 +9,7 @@ import { CHONBURI } from "@nst/shared";
 import type {
   AcademicSnapshot,
   AirQualityPoint,
-  CampusZoneProperties,
+  CampusZoneCollection,
   ExecutiveSnapshot,
   IncidentFeature,
   IntelligenceItem,
@@ -23,7 +23,6 @@ import type {
   GistdaSolarBuilding,
   GistdaLandUse,
   ConflictIncident,
-  SecurityStatus,
   FloodGauge,
   DamStatus,
   WaterGauge,
@@ -31,7 +30,7 @@ import type {
   EwsStation,
   RidReservoir,
   FlightFids,
-  NationalWaterwaysFeed,
+  WaterwayFeature,
   NationalFloodProneFeed,
   HistoricalRainfallRecord,
   UnositRecord,
@@ -315,9 +314,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
   // Municipal boundary — real Mueang Chon Buri District perimeter (OSM relation
   // 18997107). Replaces the forked chula-campus.geojson, which held Chulalongkorn
   // University (Bangkok) geometry and was invisible in the Chonburi viewport.
-  const campus = useGeoJson<FeatureCollection<Polygon | MultiPolygon, CampusZoneProperties>>(
-    "/geo/nst/boundary.geojson",
-  );
+  const campus = useGeoJson<CampusZoneCollection>("/geo/nst/boundary.geojson");
   const buildings = useGeoJson<FeatureCollection<Polygon | MultiPolygon, BuildingProperties>>(
     "/geo/nst/buildings.geojson",
   );
@@ -779,6 +776,10 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
   const handleForecastAlert = useCallback((metric: string) => {
     setForecastAlerts((prev) => prev.has(metric) ? prev : new Set([...prev, metric]));
   }, []);
+
+  const handleForecastsLoaded = useCallback((f: ForecastMetric[]) => {
+    setForecastMetrics(f);
+  }, []);
   // Transient toast — gives a layer toggle visible feedback when it would
   // otherwise render nothing (no features yet, or a feed that needs an API key).
   // Kills the "I clicked it and nothing happened" embarrassment.
@@ -955,9 +956,11 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
   const waterRain = useFeed<RainfallStation>(`${API_BASE}/api/water/rain`, 30 * 60_000);
   const ewsStations = useFeed<EwsStation>(`${API_BASE}/api/water/ews`, 15 * 60_000);
   const ridReservoirs = useFeed<RidReservoir>(`${API_BASE}/api/water/reservoirs-rid`, 60 * 60_000);
-  const nationalWaterways = useFeed<NationalWaterwaysFeed>(`${API_BASE}/api/water/national-waterways`, 7 * 24 * 60 * 60_000);
+  const nationalWaterways = useFeed<WaterwayFeature>(`${API_BASE}/api/water/national-waterways`, 7 * 24 * 60 * 60_000);
   const nationalFloodProne = useFeed<NationalFloodProneFeed>(`${API_BASE}/api/flood/national-prone`, 24 * 60 * 60_000);
-  const unosatExposure = useFeed<UnositRecord>(`${API_BASE}/api/flood/unosat-2021`, 30 * 24 * 60 * 60_000);
+  // NOTE: keep this under ~24.8 days (setInterval's 32-bit-ms ceiling — see
+  // useFeed's MAX_SAFE_INTERVAL_MS clamp) even though this is static 2021 data.
+  const unosatExposure = useFeed<UnositRecord>(`${API_BASE}/api/flood/unosat-2021`, 7 * 24 * 60 * 60_000);
   const historicalRainfall = useFeed<HistoricalRainfallRecord>(`${API_BASE}/api/rainfall/historical`, 24 * 60 * 60_000);
   const flights = useFeed<FlightFids>(`${API_BASE}/api/flights`, 90 * 60_000);
 
@@ -1153,9 +1156,9 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
     if (enabledLayers.has("civic-points") && civicPoints) out.push(civicPointsLayer(civicPoints) as Layer);
     // Waterways (canals + rivers + drains)
     if (enabledLayers.has("waterways") && waterways) out.push(waterwaysLayer(waterways) as Layer);
-    // National waterways (Thailand-wide from Overpass API)
+    // National waterways (NST province from Overpass API)
     if (enabledLayers.has("national-waterways") && nationalWaterways.data.length > 0)
-      out.push(nationalWaterwaysLayer(nationalWaterways.data[0]!) as Layer);
+      out.push(nationalWaterwaysLayer(nationalWaterways.data) as Layer);
     // National flood-prone areas (data.go.th + HII 17-yr dataset)
     if (enabledLayers.has("national-flood-prone") && nationalFloodProne.data.length > 0)
       out.push(nationalFloodProneLayer(nationalFloodProne.data[0]!.floodProne.records) as Layer);
@@ -1657,7 +1660,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
           <MemoPredictivePanel            apiBase={API_BASE}
             onMetricClick={handleForecastMetricClick}
             onAlert={handleForecastAlert}
-            onForecastsLoaded={(f) => setForecastMetrics(f)}
+            onForecastsLoaded={handleForecastsLoaded}
           />
         </div>
         <MemoPmcuBrief          hour={hour}
