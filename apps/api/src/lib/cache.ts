@@ -8,8 +8,28 @@ interface CacheEntry<T> {
 }
 
 const MAX_ENTRIES = 200;
+// When a background stale-while-revalidate refresh fails, we re-cache the
+// stale data with this SHORT cooldown instead of the full staleTtlSeconds.
+// Otherwise a permanently broken upstream (decommissioned endpoint, revoked
+// key) would re-stamp the same stale entry with a fresh ~24h expiry on every
+// failed attempt, and the outage becomes invisible (fast-path cache hit,
+// no error, no retry) for up to a full day, repeating forever.
+const STALE_REFRESH_RETRY_COOLDOWN_MS = 60_000;
+// Map iteration order = insertion order, and `Map.set()` on an EXISTING key
+// does NOT move it. We rely on that for LRU: every read and every write
+// deletes-then-re-inserts the key so it always lands at the "newest" end.
+// That makes `store.keys()` order genuinely oldest-used → newest-used, so
+// evictIfNeeded() below can just delete from the front.
 const store = new Map<string, CacheEntry<unknown>>();
 const pending = new Map<string, Promise<unknown>>();
+
+/** Move `key` to the "most recently used" end of the store, if present. */
+function touch(key: string): void {
+  const entry = store.get(key);
+  if (entry === undefined) return;
+  store.delete(key);
+  store.set(key, entry);
+}
 
 function evictIfNeeded() {
   if (store.size < MAX_ENTRIES) return;
@@ -23,6 +43,9 @@ function evictIfNeeded() {
 }
 
 export function setCache<T>(key: string, data: T, ttlSeconds: number): void {
+  // A write to an existing key counts as a "use" — drop the old slot first
+  // so the re-insert below lands at the MRU end instead of staying put.
+  store.delete(key);
   evictIfNeeded();
   store.set(key, { data, expiresAt: Date.now() + ttlSeconds * 1000 });
 }
@@ -34,6 +57,7 @@ export async function cached<T>(
 ): Promise<T> {
   const entry = store.get(key);
   if (entry && Date.now() <= entry.expiresAt) {
+    touch(key);
     return entry.data as T;
   }
   if (entry) store.delete(key);
@@ -99,7 +123,10 @@ export async function cachedWithStale<T>(
   serveStaleWhileRevalidate: boolean = false,
 ): Promise<T> {
   const entry = store.get(key);
-  if (entry && Date.now() <= entry.expiresAt) return entry.data as T;
+  if (entry && Date.now() <= entry.expiresAt) {
+    touch(key);
+    return entry.data as T;
+  }
 
   if (entry && serveStaleWhileRevalidate && !pending.has(key)) {
     // Kick the refresh (deduplicated via `pending`) but answer NOW.
@@ -111,8 +138,12 @@ export async function cachedWithStale<T>(
       })
       .catch(() => {
         pending.delete(key);
-        // Keep the stale entry alive so future reads still have it.
-        setCache(key, entry.data, staleTtlSeconds);
+        // Keep the stale entry alive so future reads still have it, but only
+        // for a short cooldown — NOT the full staleTtlSeconds. Re-stamping
+        // with staleTtlSeconds here would silently lock in a broken upstream
+        // for up to a full day; a short cooldown means the next request
+        // after ~60s triggers another background retry instead.
+        setCache(key, entry.data, STALE_REFRESH_RETRY_COOLDOWN_MS / 1000);
         return entry.data as T;
       });
     pending.set(key, refresh as Promise<unknown>);

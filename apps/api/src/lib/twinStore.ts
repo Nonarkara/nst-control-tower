@@ -1,17 +1,20 @@
 // Hybrid semantic twin store: PostgreSQL/PostGIS when available,
 // in-memory fallback for Cloudflare Workers or when DATABASE_URL is unset.
 
-export type TwinKind =
-  | "building"
-  | "sensor"
-  | "road"
-  | "reservoir"
-  | "vessel"
-  | "zone"
-  | "poi"
-  | "bridge"
-  | "ferry"
-  | "port";
+export const TWIN_KINDS = [
+  "building",
+  "sensor",
+  "road",
+  "reservoir",
+  "vessel",
+  "zone",
+  "poi",
+  "bridge",
+  "ferry",
+  "port",
+] as const;
+
+export type TwinKind = (typeof TWIN_KINDS)[number];
 
 export type TwinRelationPredicate =
   | "contains"

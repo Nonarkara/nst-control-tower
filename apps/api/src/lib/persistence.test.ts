@@ -28,11 +28,13 @@ vi.mock("./cache.js", () => ({
   cacheAgeMinutes: vi.fn().mockReturnValue(0),
 }));
 
-import { readFile } from "node:fs/promises";
-import { setCache } from "./cache.js";
+import { readFile, writeFile } from "node:fs/promises";
+import { setCache, snapshotCache } from "./cache.js";
 
 const mockedReadFile = readFile as ReturnType<typeof vi.fn>;
+const mockedWriteFile = writeFile as ReturnType<typeof vi.fn>;
 const mockedSetCache = setCache as ReturnType<typeof vi.fn>;
+const mockedSnapshotCache = snapshotCache as ReturnType<typeof vi.fn>;
 
 const FUTURE = Date.now() + 10 * 60 * 1000;   // 10 min from now
 const PAST   = Date.now() - 10 * 60 * 1000;   // 10 min ago
@@ -159,6 +161,47 @@ describe("stopCachePersistence", () => {
     vi.advanceTimersByTime(2000);
     // writeFile (from snapshotCache) should not have been called
     // (We check setCache instead since writeFile is mocked differently)
+    vi.useRealTimers();
+  });
+
+  it("skips an overlapping tick while a slow flush is still in flight", async () => {
+    vi.useFakeTimers();
+
+    // Make snapshotCache return a different object each call so the
+    // serialized payload changes and would not be short-circuited by the
+    // lastSerialized dedup check.
+    let call = 0;
+    mockedSnapshotCache.mockImplementation(() => ({ n: call++ }));
+
+    // First writeFile call hangs until we manually resolve it, simulating
+    // slow disk I/O. Subsequent calls resolve immediately.
+    const resolvers: { resolveFirstWrite: (() => void) | null } = { resolveFirstWrite: null };
+    const firstWriteGate = new Promise<void>((resolve) => {
+      resolvers.resolveFirstWrite = resolve;
+    });
+    mockedWriteFile.mockImplementationOnce(() => firstWriteGate as Promise<void>);
+    mockedWriteFile.mockResolvedValue(undefined);
+
+    const { enableCachePersistence, stopCachePersistence } = await import("./persistence.js");
+
+    enableCachePersistence(1000);
+
+    // First tick fires — starts a flush that hangs on writeFile.
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(mockedWriteFile).toHaveBeenCalledTimes(1);
+
+    // Second tick fires while the first flush is still pending — should be
+    // skipped entirely (no snapshot re-read, no second writeFile call).
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(mockedWriteFile).toHaveBeenCalledTimes(1);
+
+    // Let the first write finish, then a subsequent tick should flush again.
+    resolvers.resolveFirstWrite?.();
+    await vi.advanceTimersByTimeAsync(0); // let the finally{} run
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(mockedWriteFile).toHaveBeenCalledTimes(2);
+
+    stopCachePersistence();
     vi.useRealTimers();
   });
 });

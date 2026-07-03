@@ -11,6 +11,7 @@ import {
   getTwinState,
   getTwinStateLatest,
   twinSnapshot,
+  TWIN_KINDS,
   type TwinObject,
   type TwinKind,
   type TwinRelationPredicate,
@@ -46,14 +47,21 @@ twinApp.post("/objects", async (c) => {
   if (!body.id || !body.kind || !body.name) {
     return c.json({ error: "Required: id, kind, name" }, 400);
   }
+  if (!(TWIN_KINDS as readonly string[]).includes(body.kind)) {
+    return c.json({ error: `Invalid kind: must be one of ${TWIN_KINDS.join(", ")}` }, 400);
+  }
+  const { lat, lng } = body;
+  if (typeof lat !== "number" || !Number.isFinite(lat) || typeof lng !== "number" || !Number.isFinite(lng)) {
+    return c.json({ error: "Required: lat, lng (must be finite numbers)" }, 400);
+  }
   const obj = await upsertTwinObject({
     id: body.id,
     kind: body.kind as TwinKind,
     name: body.name,
     nameTh: body.nameTh,
     nameEn: body.nameEn,
-    lat: body.lat ?? 0,
-    lng: body.lng ?? 0,
+    lat,
+    lng,
     geom: body.geom,
     properties: body.properties ?? {},
     createdAt: body.createdAt ?? new Date().toISOString(),
@@ -112,12 +120,13 @@ twinApp.get("/state", async (c) => {
   const q = c.req.query();
   const objectId = q.objectId;
   if (!objectId) return c.json({ error: "Required query: objectId" }, 400);
+  const limit = q.limit ? Math.min(Math.max(parseInt(q.limit, 10) || 100, 1), 1000) : 100;
   const items = await getTwinState({
     objectId,
     metric: q.metric,
     since: q.since,
     until: q.until,
-    limit: q.limit ? parseInt(q.limit, 10) || 100 : 100,
+    limit,
   });
   return c.json({ items, count: items.length });
 });

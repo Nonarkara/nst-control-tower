@@ -17,6 +17,10 @@ import twinApp from "./twin.js";
  */
 
 vi.mock("../lib/twinStore.js", () => ({
+  TWIN_KINDS: [
+    "building", "sensor", "road", "reservoir", "vessel",
+    "zone", "poi", "bridge", "ferry", "port",
+  ] as const,
   findTwinObjects:    vi.fn().mockResolvedValue([]),
   getTwinObject:      vi.fn().mockResolvedValue(null),
   upsertTwinObject:   vi.fn().mockImplementation(async (o) => o),
@@ -96,6 +100,8 @@ describe("GET /objects/:id", () => {
 });
 
 describe("POST /objects", () => {
+  beforeEach(() => vi.clearAllMocks());
+
   it("returns 400 when required fields are missing", async () => {
     const res = await req("POST", "/objects", { id: "x" }); // missing kind, name
     expect(res.status).toBe(400);
@@ -107,6 +113,44 @@ describe("POST /objects", () => {
     expect(res.status).toBe(201);
     const json = await res.json() as { id: string };
     expect(json.id).toBe("new-1");
+  });
+
+  it("returns 400 when kind is not a valid TwinKind", async () => {
+    const payload = { id: "new-2", kind: "spaceship", name: "UFO", lat: 13.36, lng: 100.98 };
+    const res = await req("POST", "/objects", payload);
+    expect(res.status).toBe(400);
+  });
+
+  it("returns 400 when lat is missing", async () => {
+    const payload = { id: "new-3", kind: "building", name: "No Lat", lng: 100.98 };
+    const res = await req("POST", "/objects", payload);
+    expect(res.status).toBe(400);
+  });
+
+  it("returns 400 when lng is missing", async () => {
+    const payload = { id: "new-4", kind: "building", name: "No Lng", lat: 13.36 };
+    const res = await req("POST", "/objects", payload);
+    expect(res.status).toBe(400);
+  });
+
+  it("returns 400 when lat/lng are null", async () => {
+    const payload = { id: "new-5", kind: "building", name: "Null Coords", lat: null, lng: null };
+    const res = await req("POST", "/objects", payload);
+    expect(res.status).toBe(400);
+  });
+
+  it("returns 400 when lat/lng are non-finite (NaN via non-numeric string)", async () => {
+    const payload = { id: "new-6", kind: "building", name: "Bad Coords", lat: "north", lng: 100.98 };
+    const res = await req("POST", "/objects", payload);
+    expect(res.status).toBe(400);
+  });
+
+  it("does not silently default missing coordinates to (0,0)", async () => {
+    const { upsertTwinObject } = await import("../lib/twinStore.js") as unknown as
+      { upsertTwinObject: ReturnType<typeof vi.fn> };
+    const payload = { id: "new-7", kind: "building", name: "Missing Coords" };
+    await req("POST", "/objects", payload);
+    expect(upsertTwinObject).not.toHaveBeenCalled();
   });
 });
 
@@ -166,6 +210,8 @@ describe("GET /objects/:id/related", () => {
 // ─── State ────────────────────────────────────────────────────────────────────
 
 describe("GET /state", () => {
+  beforeEach(() => vi.clearAllMocks());
+
   it("returns 400 when objectId is missing", async () => {
     const res = await req("GET", "/state");
     expect(res.status).toBe(400);
@@ -176,6 +222,38 @@ describe("GET /state", () => {
     expect(res.status).toBe(200);
     const json = await res.json() as { items: unknown[]; count: number };
     expect(Array.isArray(json.items)).toBe(true);
+  });
+
+  it("defaults limit to 100 when not provided", async () => {
+    const { getTwinState } = await import("../lib/twinStore.js") as unknown as
+      { getTwinState: ReturnType<typeof vi.fn> };
+    await req("GET", "/state?objectId=city");
+    const call = getTwinState.mock.calls[0][0];
+    expect(call.limit).toBe(100);
+  });
+
+  it("caps limit at 1000 when a huge value is requested", async () => {
+    const { getTwinState } = await import("../lib/twinStore.js") as unknown as
+      { getTwinState: ReturnType<typeof vi.fn> };
+    await req("GET", "/state?objectId=city&limit=999999");
+    const call = getTwinState.mock.calls[0][0];
+    expect(call.limit).toBe(1000);
+  });
+
+  it("clamps a non-positive limit to at least 1 (never disables the LIMIT clause)", async () => {
+    const { getTwinState } = await import("../lib/twinStore.js") as unknown as
+      { getTwinState: ReturnType<typeof vi.fn> };
+    await req("GET", "/state?objectId=city&limit=-1");
+    const call = getTwinState.mock.calls[0][0];
+    expect(call.limit).toBeGreaterThanOrEqual(1);
+  });
+
+  it("clamps a zero limit to at least 1", async () => {
+    const { getTwinState } = await import("../lib/twinStore.js") as unknown as
+      { getTwinState: ReturnType<typeof vi.fn> };
+    await req("GET", "/state?objectId=city&limit=0");
+    const call = getTwinState.mock.calls[0][0];
+    expect(call.limit).toBeGreaterThanOrEqual(1);
   });
 });
 

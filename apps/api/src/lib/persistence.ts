@@ -36,9 +36,12 @@ export async function hydrateCacheFromDisk(): Promise<number> {
 
 let writeTimer: NodeJS.Timeout | null = null;
 let lastSerialized = "";
+let isFlushing = false;
 
 export function enableCachePersistence(intervalMs = 30_000): void {
   writeTimer = setInterval(async () => {
+    if (isFlushing) return; // previous flush still in flight — skip this tick
+    isFlushing = true;
     try {
       const serialized = JSON.stringify(snapshotCache());
       if (serialized === lastSerialized) return;
@@ -47,6 +50,8 @@ export function enableCachePersistence(intervalMs = 30_000): void {
       await writeFile(CACHE_FILE, serialized, "utf8");
     } catch (err) {
       console.error("[persistence] flush failed:", (err as Error).message);
+    } finally {
+      isFlushing = false;
     }
   }, intervalMs);
 }
