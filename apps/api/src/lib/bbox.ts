@@ -36,3 +36,21 @@ export function inMunicipality(lng: number, lat: number): boolean {
     lat <= OUTER_BBOX.maxLat
   );
 }
+
+// World-extent sanity check for user-supplied lat/lng query params. Route
+// handlers that parse ?lat=&lng= (rainfall/historical, google/air-quality,
+// streetview/meta) must call this before invoking an adapter — garbage
+// coordinates (e.g. lat=999) should never reach an upstream fetch, and for
+// the Google adapters an upstream call is a *billed* Google Maps Platform
+// request. This deliberately only checks world bounds (not FEED_BBOX /
+// OUTER_BBOX) so it doesn't reject legitimate out-of-province queries.
+export function isValidLatLng(lat: number, lng: number): boolean {
+  return (
+    Number.isFinite(lat) &&
+    Number.isFinite(lng) &&
+    lat >= -90 &&
+    lat <= 90 &&
+    lng >= -180 &&
+    lng <= 180
+  );
+}

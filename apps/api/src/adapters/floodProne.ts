@@ -64,8 +64,15 @@ interface DgfResponse {
   };
 }
 
+// Verified live against the CKAN resource (2026-07-03): this dataset contains
+// only 657 records TOTAL, and every one of them is province "อุทัยธานี" (Uthai
+// Thani) — there are zero Nakhon Si Thammarat rows to filter for. A `filters`
+// or `q` scoped to นครศรีธรรมราช would legitimately return 0 results, which
+// would silently break this feed rather than narrow it. So there is no
+// province-scoped query to add here; `limit` is capped at the dataset's actual
+// size (657) instead of a nationwide-sized 10000 headroom.
 async function fetchDataGoThFloodProne(): Promise<FloodProneRecord[]> {
-  const url = `${DATA_GO_TH_BASE}/datastore_search?resource_id=b8ada20e-a5ed-4344-a7f4-ab27329aac0e&limit=10000`;
+  const url = `${DATA_GO_TH_BASE}/datastore_search?resource_id=b8ada20e-a5ed-4344-a7f4-ab27329aac0e&limit=1000`;
   const data = await fetchJsonOrThrow<DgfResponse>(url);
 
   if (!data?.success || !data.result?.records) return [];
@@ -135,8 +142,21 @@ interface HiiResponse {
   };
 }
 
+// Verified live against the CKAN resource (2026-07-03): PROV_T is a distinct
+// queryable field and `filters={"PROV_T":"จ.นครศรีธรรมราช"}` reliably scopes
+// the nationwide 27,023-row dataset down to Nakhon Si Thammarat's 738 tambon
+// records (23 districts, matching the province's actual district count) — a
+// 97%+ reduction. `limit=2000` leaves headroom above that 738 without
+// reverting to a nationwide-sized fetch.
+const NST_PROV_T = "จ.นครศรีธรรมราช";
+
 async function fetchHiiFloodRisk(): Promise<HiiTambonRisk[]> {
-  const url = `${HII_BASE}/datastore_search?resource_id=50e6987b-c01f-4fd5-99e2-2bccf9f18268&limit=30000`;
+  const qs = new URLSearchParams({
+    resource_id: "50e6987b-c01f-4fd5-99e2-2bccf9f18268",
+    filters: JSON.stringify({ PROV_T: NST_PROV_T }),
+    limit: "2000",
+  });
+  const url = `${HII_BASE}/datastore_search?${qs.toString()}`;
   const data = await fetchJsonOrThrow<HiiResponse>(url);
 
   if (!data?.success || !data.result?.records) return [];

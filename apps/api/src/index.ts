@@ -29,6 +29,7 @@ import { fetchMarkets } from "./adapters/markets.js";
 import { chat, ChatError, type ChatMessage } from "./adapters/chat.js";
 import { fetchIsochrone } from "./adapters/isochrone.js";
 import { validateCvEvent, recordCvEvent, listCvEvents, cvEventStats, CvValidationError } from "./lib/cvEvents.js";
+import { isValidLatLng } from "./lib/bbox.js";
 import { fetchFloodGauges, fetchDamStatus } from "./adapters/flood.js";
 import { fetchWaterGauges, fetchRainfall } from "./adapters/thaiwater.js";
 import { fetchNationalWaterways } from "./adapters/waterways.js";
@@ -348,8 +349,13 @@ app.get("/api/water/national-waterways", async (c) => safeFeed(c, fetchNationalW
 app.get("/api/rainfall/historical", async (c) => {
   const qLat = parseFloat(c.req.query("lat") ?? "");
   const qLng = parseFloat(c.req.query("lng") ?? "");
-  const lat = Number.isFinite(qLat) ? qLat : 8.44;
-  const lng = Number.isFinite(qLng) ? qLng : 99.93;
+  const hasLat = Number.isFinite(qLat);
+  const hasLng = Number.isFinite(qLng);
+  if ((hasLat || hasLng) && !isValidLatLng(hasLat ? qLat : 8.44, hasLng ? qLng : 99.93)) {
+    return c.json({ error: "lat must be within -90..90 and lng within -180..180" }, 400);
+  }
+  const lat = hasLat ? qLat : 8.44;
+  const lng = hasLng ? qLng : 99.93;
   return safeFeed(c, () => fetchHistoricalRainfall({ lat, lng }), "historical-rainfall");
 });
 app.get("/api/flood/national-prone", async (c) => safeFeed(c, fetchNationalFloodProne, "national-flood-prone"));
@@ -365,9 +371,14 @@ app.get("/api/google/air-quality", async (c) => {
   const [lng, lat] = CHONBURI.center;
   const qLat = Number.parseFloat(c.req.query("lat") ?? "");
   const qLng = Number.parseFloat(c.req.query("lng") ?? "");
+  const hasLat = Number.isFinite(qLat);
+  const hasLng = Number.isFinite(qLng);
+  if ((hasLat || hasLng) && !isValidLatLng(hasLat ? qLat : lat, hasLng ? qLng : lng)) {
+    return c.json({ error: "lat must be within -90..90 and lng within -180..180" }, 400);
+  }
   return safeFeed(c, () => fetchGoogleAirQuality(
-    Number.isFinite(qLat) ? qLat : lat,
-    Number.isFinite(qLng) ? qLng : lng,
+    hasLat ? qLat : lat,
+    hasLng ? qLng : lng,
     { GOOGLE_MAPS_API_KEY: c.env.GOOGLE_MAPS_API_KEY },
   ), "google-air-quality");
 });
@@ -375,9 +386,14 @@ app.get("/api/streetview/meta", async (c) => {
   const [lng, lat] = CHONBURI.center;
   const qLat = Number.parseFloat(c.req.query("lat") ?? "");
   const qLng = Number.parseFloat(c.req.query("lng") ?? "");
+  const hasLat = Number.isFinite(qLat);
+  const hasLng = Number.isFinite(qLng);
+  if ((hasLat || hasLng) && !isValidLatLng(hasLat ? qLat : lat, hasLng ? qLng : lng)) {
+    return c.json({ error: "lat must be within -90..90 and lng within -180..180" }, 400);
+  }
   return safeFeed(c, () => fetchStreetViewMeta(
-    Number.isFinite(qLat) ? qLat : lat,
-    Number.isFinite(qLng) ? qLng : lng,
+    hasLat ? qLat : lat,
+    hasLng ? qLng : lng,
     { GOOGLE_MAPS_API_KEY: c.env.GOOGLE_MAPS_API_KEY },
   ), "google-streetview");
 });
