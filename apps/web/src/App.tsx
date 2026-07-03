@@ -31,6 +31,10 @@ import type {
   EwsStation,
   RidReservoir,
   FlightFids,
+  NationalWaterwaysFeed,
+  NationalFloodProneFeed,
+  HistoricalRainfallRecord,
+  UnositRecord,
 } from "@nst/shared";
 
 import { useFeed } from "./hooks/useFeed";
@@ -61,6 +65,10 @@ import {
   civicPointsLayer,
   waterwaysLayer,
   fisheriesLayer,
+  nationalWaterwaysLayer,
+  nationalFloodProneLayer,
+  hiiTambonRiskLayer,
+  unosatExposureLayer,
   floodRiskLayer,
   templeSpiresLayer,
   oldTownDistrictLayer,
@@ -115,6 +123,7 @@ import { WaterPanel, type ReservoirStatus } from "./components/WaterPanel";
 import { ProvincialKPIs, type ProvincialKPIs as ProvincialKPIsType } from "./components/ProvincialKPIs";
 import { EarthAlphaBrief } from "./components/EarthAlphaBrief";
 import { FloodBrief } from "./components/FloodBrief";
+import { FloodAnalysisPanel } from "./components/FloodAnalysisPanel";
 import { FloodPosture } from "./components/FloodPosture";
 import { UpstreamWatershed } from "./components/UpstreamWatershed";
 import { FloodCommand } from "./components/FloodCommand";
@@ -946,6 +955,10 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
   const waterRain = useFeed<RainfallStation>(`${API_BASE}/api/water/rain`, 30 * 60_000);
   const ewsStations = useFeed<EwsStation>(`${API_BASE}/api/water/ews`, 15 * 60_000);
   const ridReservoirs = useFeed<RidReservoir>(`${API_BASE}/api/water/reservoirs-rid`, 60 * 60_000);
+  const nationalWaterways = useFeed<NationalWaterwaysFeed>(`${API_BASE}/api/water/national-waterways`, 7 * 24 * 60 * 60_000);
+  const nationalFloodProne = useFeed<NationalFloodProneFeed>(`${API_BASE}/api/flood/national-prone`, 24 * 60 * 60_000);
+  const unosatExposure = useFeed<UnositRecord>(`${API_BASE}/api/flood/unosat-2021`, 30 * 24 * 60 * 60_000);
+  const historicalRainfall = useFeed<HistoricalRainfallRecord>(`${API_BASE}/api/rainfall/historical`, 24 * 60 * 60_000);
   const flights = useFeed<FlightFids>(`${API_BASE}/api/flights`, 90 * 60_000);
 
   const worldWeather = useWorldWeather();
@@ -1140,6 +1153,18 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
     if (enabledLayers.has("civic-points") && civicPoints) out.push(civicPointsLayer(civicPoints) as Layer);
     // Waterways (canals + rivers + drains)
     if (enabledLayers.has("waterways") && waterways) out.push(waterwaysLayer(waterways) as Layer);
+    // National waterways (Thailand-wide from Overpass API)
+    if (enabledLayers.has("national-waterways") && nationalWaterways.data.length > 0)
+      out.push(nationalWaterwaysLayer(nationalWaterways.data[0]!) as Layer);
+    // National flood-prone areas (data.go.th + HII 17-yr dataset)
+    if (enabledLayers.has("national-flood-prone") && nationalFloodProne.data.length > 0)
+      out.push(nationalFloodProneLayer(nationalFloodProne.data[0]!.floodProne.records) as Layer);
+    // HII tambon risk (17-year frequency)
+    if (enabledLayers.has("hii-tambon-risk") && nationalFloodProne.data.length > 0)
+      out.push(hiiTambonRiskLayer(nationalFloodProne.data[0]!.hiiRisk.records) as Layer);
+    // UNOSAT 2021 population exposure
+    if (enabledLayers.has("unosat-2021-exposure") && unosatExposure.data.length > 0)
+      out.push(unosatExposureLayer(unosatExposure.data[0]!.tambonRecords) as Layer);
     // Fishing zones
     if (enabledLayers.has("fisheries") && fisheries) out.push(fisheriesLayer(fisheries) as Layer);
     // Heritage: explicit toggles so operators can remove these overlays for a clean aerial view.
@@ -1575,6 +1600,17 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
             wrfLayerOn={enabledLayers.has("wrf-rain-grid")}
             onToggleWrfLayer={() => onToggleLayer("wrf-rain-grid")}
             wrfNote={wrfOutlook.note}
+          />
+        </div>
+        <div className="left-section left-section-divided">
+          <FloodAnalysisPanel
+            rainfall={historicalRainfall.data[0] ?? null}
+            rainfallAge={historicalRainfall.ageMinutes}
+            rainfallFallback={historicalRainfall.fallbackTier}
+            floodProne={nationalFloodProne.data[0] ?? null}
+            unosat={unosatExposure.data[0] ?? null}
+            unosatAge={unosatExposure.ageMinutes}
+            unosatFallback={unosatExposure.fallbackTier}
           />
         </div>
         <div className="left-section left-section-divided">

@@ -31,6 +31,10 @@ import { fetchIsochrone } from "./adapters/isochrone.js";
 import { validateCvEvent, recordCvEvent, listCvEvents, cvEventStats, CvValidationError } from "./lib/cvEvents.js";
 import { fetchFloodGauges, fetchDamStatus } from "./adapters/flood.js";
 import { fetchWaterGauges, fetchRainfall } from "./adapters/thaiwater.js";
+import { fetchNationalWaterways } from "./adapters/waterways.js";
+import { fetchHistoricalRainfall } from "./adapters/historicalRain.js";
+import { fetchNationalFloodProne } from "./adapters/floodProne.js";
+import { fetchUnosit2021Exposure } from "./adapters/unosatExposure.js";
 import { fetchEwsStations } from "./adapters/dwrEws.js";
 import { fetchRidReservoirs } from "./adapters/rid.js";
 import { fetchFlights } from "./adapters/flights.js";
@@ -127,6 +131,10 @@ app.get("/", (c) =>
       "/api/executive",
       "/api/flood/gauges",
       "/api/flood/dam",
+      "/api/flood/national-prone",
+      "/api/flood/unosat-2021",
+      "/api/water/national-waterways",
+      "/api/rainfall/historical",
       "/api/datago/points",
       "/api/datago/datasets",
       "/api/datago/reservoirs",
@@ -336,6 +344,16 @@ app.get("/api/water/gauges", async (c) => safeFeed(c, fetchWaterGauges, "thaiwat
 app.get("/api/water/rain", async (c) => safeFeed(c, fetchRainfall, "thaiwater-rain"));
 app.get("/api/water/ews", async (c) => safeFeed(c, fetchEwsStations, "dwr-ews"));
 app.get("/api/water/reservoirs-rid", async (c) => safeFeed(c, fetchRidReservoirs, "rid-reservoirs"));
+app.get("/api/water/national-waterways", async (c) => safeFeed(c, fetchNationalWaterways, "national-waterways"));
+app.get("/api/rainfall/historical", async (c) => {
+  const qLat = parseFloat(c.req.query("lat") ?? "");
+  const qLng = parseFloat(c.req.query("lng") ?? "");
+  const lat = Number.isFinite(qLat) ? qLat : 8.44;
+  const lng = Number.isFinite(qLng) ? qLng : 99.93;
+  return safeFeed(c, () => fetchHistoricalRainfall({ lat, lng }), "historical-rainfall");
+});
+app.get("/api/flood/national-prone", async (c) => safeFeed(c, fetchNationalFloodProne, "national-flood-prone"));
+app.get("/api/flood/unosat-2021", async (c) => safeFeed(c, fetchUnosit2021Exposure, "unosat-2021-exposure"));
 app.get("/api/flights", async (c) => safeFeed(c, () => fetchFlights({ AIRLABS_API_KEY: c.env.AIRLABS_API_KEY }), "flights-nst"));
 
 // ── Google Maps Platform (server-side; key never reaches the browser) ──────────

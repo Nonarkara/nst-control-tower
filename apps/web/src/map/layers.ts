@@ -2910,3 +2910,121 @@ export function alphaEarthFloodProneLayer(
     lineWidthMinPixels: 0.5,
   });
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// NATIONAL WATERWAYS + FLOOD ANALYSIS LAYERS
+// ═══════════════════════════════════════════════════════════════════════════
+
+import type { NationalWaterwaysFeed, FloodProneRecord, HiiTambonRisk, UnositTambonExposure } from "@nst/shared";
+
+// National waterways — GeoJsonLayer rendering the merged Thailand OSM waterways
+export function nationalWaterwaysLayer(collection: NationalWaterwaysFeed) {
+  return new GeoJsonLayer({
+    id: "national-waterways",
+    data: collection,
+    stroked: true,
+    filled: false,
+    getLineColor: (f) => {
+      const t = String(f.properties?.waterway ?? "stream").toLowerCase();
+      const WATERWAY_COLOR: Record<string, [number, number, number, number]> = {
+        river:  [14, 165, 233, 210],
+        canal:  [56,  189, 248, 185],
+        stream: [148, 163, 184, 150],
+        drain:  [13,  148, 136, 140],
+        ditch:  [13,  148, 136, 120],
+      };
+      return (WATERWAY_COLOR[t] ?? WATERWAY_COLOR.stream);
+    },
+    getLineWidth: (f) => {
+      const t = String(f.properties?.waterway ?? "stream").toLowerCase();
+      return t === "river" ? 4 : t === "canal" ? 2.5 : 1;
+    },
+    lineWidthUnits: "pixels",
+    lineWidthMinPixels: 1,
+  });
+}
+
+// National flood-prone scatterplot — data.go.th provincial flood-prone points
+const FLOOD_PRONE_COLOR: Record<number, [number, number, number, number]> = {
+  1: [239, 68,  68,  200],  // high risk (red)
+  2: [251, 146, 60,  180],  // medium risk (amber)
+  3: [250, 204, 21,  160],  // low risk (yellow)
+};
+
+export function nationalFloodProneLayer(records: FloodProneRecord[]) {
+  return new ScatterplotLayer<FloodProneRecord>({
+    id: "national-flood-prone",
+    data: records,
+    getPosition: (r) => [r.lng, r.lat],
+    getRadius: (r) => (r.riskLevel === 1 ? 120 : r.riskLevel === 2 ? 90 : 60),
+    radiusMinPixels: 4,
+    radiusMaxPixels: 14,
+    getFillColor: (r) =>
+      (FLOOD_PRONE_COLOR[r.riskLevel] ?? FLOOD_PRONE_COLOR[3]),
+    stroked: true,
+    getLineColor: [10, 14, 20, 200],
+    lineWidthMinPixels: 1,
+    pickable: true,
+  });
+}
+
+// HII tambon risk scatterplot — 17-year flood frequency
+const HII_RISK_COLOR: Record<number, [number, number, number, number]> = {
+  1: [239, 68,  68,  210],  // high risk (red)
+  2: [251, 146, 60,  190],  // medium risk (amber)
+  3: [250, 204, 21,  170],  // low risk (yellow)
+};
+
+export function hiiTambonRiskLayer(records: HiiTambonRisk[]) {
+  return new ScatterplotLayer<HiiTambonRisk>({
+    id: "hii-tambon-risk",
+    data: records,
+    getPosition: (r) => [r.centroid[0], r.centroid[1]],
+    getRadius: (r) => {
+      if (r.count17yr >= 7) return 150;
+      if (r.count17yr >= 4) return 110;
+      if (r.count17yr >= 1) return 80;
+      return 50;
+    },
+    radiusMinPixels: 3,
+    radiusMaxPixels: 16,
+    getFillColor: (r) =>
+      (HII_RISK_COLOR[r.riskLevel] ?? HII_RISK_COLOR[3]),
+    stroked: true,
+    getLineColor: [10, 14, 20, 200],
+    lineWidthMinPixels: 1,
+    pickable: true,
+  });
+}
+
+// UNOSAT 2021 population exposure scatterplot
+const UNOSAT_SEVERITY_COLOR: Record<string, [number, number, number, number]> = {
+  extreme: [239, 68,  68,  220],
+  high:    [251, 146, 60,  200],
+  medium:  [250, 204, 21,  180],
+  low:     [52,  211, 153, 160],
+};
+
+export function unosatExposureLayer(records: UnositTambonExposure[]) {
+  return new ScatterplotLayer<UnositTambonExposure>({
+    id: "unosat-2021-exposure",
+    data: records,
+    getPosition: (r) => [r.centroid[0], r.centroid[1]],
+    getRadius: (r) => {
+      const pop = r.populationExposed;
+      if (pop >= 25_000) return 180;
+      if (pop >= 15_000) return 140;
+      if (pop >= 8_000)  return 100;
+      if (pop >= 3_000)  return 70;
+      return 50;
+    },
+    radiusMinPixels: 4,
+    radiusMaxPixels: 20,
+    getFillColor: (r) =>
+      (UNOSAT_SEVERITY_COLOR[r.severity] ?? UNOSAT_SEVERITY_COLOR.low),
+    stroked: true,
+    getLineColor: [10, 14, 20, 220],
+    lineWidthMinPixels: 1.5,
+    pickable: true,
+  });
+}

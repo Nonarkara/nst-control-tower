@@ -717,3 +717,175 @@ export interface FacebookPost {
   comments?: number;
   shares?: number;
 }
+
+// ── National Waterways ─────────────────────────────────────────────────────────
+
+export interface WaterwayFeature {
+  type: "Feature";
+  geometry: {
+    type: "LineString";
+    coordinates: [number, number][];
+  };
+  properties: {
+    osm_id: number;
+    name?: string;
+    name_en?: string;
+    waterway: string;
+    ref?: string;
+    maxspeed?: string;
+    width?: string;
+    /** "Thai Land" if within Thailand bbox */
+    region: string;
+    /** "overpass-osm" */
+    source: string;
+  };
+}
+
+export interface NationalWaterwaysFeed {
+  features: WaterwayFeature[];
+  total: number;
+  regions: string[];
+}
+
+// ── Historical Rainfall ─────────────────────────────────────────────────────────
+
+export interface AnnualRainfallSummary {
+  year: number;
+  totalMm: number;
+  maxDailyMm: number | null;
+  heavyRainDays: number; // days ≥ 35 mm
+  veryHeavyRainDays: number; // days ≥ 70 mm
+  months: number[]; // monthly totals Jan–Dec
+}
+
+export interface MonthlyRainfallNormals {
+  month: number; // 1–12
+  avgMm: number | null;
+  maxMm: number | null;
+  yearOfMax: number | null;
+  recordMaxDailyMm: number | null;
+}
+
+export interface HistoricalRainfallRecord {
+  lat: number;
+  lng: number;
+  locationLabel: string;
+  periodYears: number;
+  startYear: number;
+  endYear: number;
+  annualSummaries: AnnualRainfallSummary[];
+  monthlyNormals: MonthlyRainfallNormals[];
+  overallMaxDailyMm: number | null;
+  overallMaxDailyDate: string | null;
+  overallMaxDailyStation: string;
+  wetSeasonAvgMm: number | null; // May–Oct
+  drySeasonAvgMm: number | null; // Nov–Apr
+}
+
+// ── National Flood-Prone Areas ─────────────────────────────────────────────────
+
+export interface FloodProneRecord {
+  _id: number;
+  lat: number;
+  lng: number;
+  province: string;
+  district: string;
+  subdistrict: string;
+  riskLevel: number;   // 1=high 2=medium 3=low (inverse)
+  riskLabel: string;   // "ความเสี่ยงสูง" | "ความเสี่ยงปานกลาง" | "ความเสี่ยงต่ำ"
+  hazardType: string;
+  centroid: [number, number];
+}
+
+export interface HiiTambonRisk {
+  geocode: number;
+  month: number;
+  tambonT: string;
+  tambonE: string;
+  amphoeCode: number;
+  amphoeT: string;
+  amphoeE: string;
+  provCode: number;
+  provT: string;
+  provE: string;
+  count17yr: number;
+  criteria: string;
+  risk: string;
+  riskLevel: number; // 1=high 2=medium 3=low
+  centroid: [number, number];
+}
+
+export interface FloodProneAreaSummary {
+  source: "data.go.th";
+  fetchedAt: string;
+  totalRecords: number;
+  byRiskLevel: Record<string, number>;
+  byProvince: Record<string, number>;
+  records: FloodProneRecord[];
+}
+
+export interface HiiRiskSummary {
+  source: "hii-17yr-risk";
+  fetchedAt: string;
+  totalTambonRecords: number;
+  byRisk: Record<string, number>;
+  byProvince: Record<string, number>;
+  highRiskTambons: HiiTambonRisk[];
+  records: HiiTambonRisk[];
+}
+
+export interface NationalFloodProneFeed {
+  floodProne: FloodProneAreaSummary;
+  hiiRisk: HiiRiskSummary;
+  meta: SourceMeta;
+}
+
+// ── UNOSAT 2021 Population Exposure ──────────────────────────────────────────
+
+export interface UnositTambonExposure {
+  geocode: number;
+  tambonT: string;
+  tambonE: string;
+  amphoeT: string;
+  amphoeE: string;
+  provCode: number;
+  provT: string;
+  provE: string;
+  populationExposed: number;
+  floodedAreaKm2: number | null;
+  householdsAffected: number;
+  severity: "extreme" | "high" | "medium" | "low";
+  analysisDate: string;
+  centroid: [number, number];
+  sources: string[];
+}
+
+export interface UnositProvincialSummary {
+  provCode: number;
+  provT: string;
+  provE: string;
+  totalPopExposed: number;
+  totalFloodedKm2: number | null;
+  totalHouseholds: number;
+  tambonCount: number;
+  severityScore: number;
+  satelliteDate: string;
+}
+
+export interface UnositNationalSummary {
+  totalPopExposed: number;
+  totalFloodedKm2: number | null;
+  totalHouseholds: number;
+  provincesCovered: number;
+  eventStartDate: string;
+  eventEndDate: string;
+  satelliteSource: string;
+  topProvinces: UnositProvincialSummary[];
+  tambonRecords: UnositTambonExposure[];
+}
+
+export interface UnositRecord {
+  national: UnositNationalSummary;
+  provincialSummaries: UnositProvincialSummary[];
+  tambonRecords: UnositTambonExposure[];
+}

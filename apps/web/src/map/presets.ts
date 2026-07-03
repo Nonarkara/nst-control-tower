@@ -29,6 +29,11 @@ export type LayerId =
   // Marine + risk
   | "fisheries"
   | "flood-risk-zones"
+  // National waterways + flood analysis
+  | "national-waterways"
+  | "national-flood-prone"
+  | "hii-tambon-risk"
+  | "unosat-2021-exposure"
   // Yala — Deep South security
   | "conflict-incidents"
   | "conflict-choropleth"
@@ -171,6 +176,10 @@ export const LENSES: Lens[] = [
       "street-flood-sim",
       "flood-risk-zones",
       "alphaearth-floodprone",
+      "national-waterways",
+      "national-flood-prone",
+      "hii-tambon-risk",
+      "unosat-2021-exposure",
     ],
   },
   {
@@ -447,6 +456,16 @@ export const ALL_LAYERS: {
     describe: "18,359 surveyed road elevations (HII MMS 2025, m MSL) across the city's eastern lowland — median street sits at just 1.49 m MSL. Alone: an elevation ramp (dark blue = lowest streets). With a scenario level from FLOOD COMMAND: colours by submergence depth. Static-level (bathtub) comparison — no flow routing or drainage dynamics; coverage is the HII survey area only." },
   { id: "wrf-rain-grid",     label: "Forecast rain (WRF-ROMS)",  swatch: "#38BDF8", group: "environment",
     describe: "HII's WRF-ROMS model 24-h rain forecast on a ~3 km grid — where tomorrow's water will land on the province. Day 1/2/3 selectable from FLOOD COMMAND. Model output (GFS-driven), not observation." },
+
+  // ─── National waterways + flood analysis ───────────────────────────────────
+  { id: "national-waterways",  label: "Thailand waterways (national)", swatch: "#0EA5E9", group: "environment",
+    describe: "Thailand-wide river, canal, and stream network from OpenStreetMap via Overpass API — five regional sub-queries merged and cached 7 days. Critical for basin-scale flood routing analysis beyond the NST city boundary." },
+  { id: "national-flood-prone", label: "Flood-prone areas (national)", swatch: "#EF4444", group: "environment",
+    describe: "National flood-prone areas from data.go.th + 17-year HII tambon-level flood frequency dataset (จำนวนครั้งที่ท่วมในรอบ 17 ปี). Colour: red = extreme (≥7 events/17yr), amber = high (4–6), yellow = medium (1–3), green = low. Source: Hydro-Informatics Institute (HII)." },
+  { id: "hii-tambon-risk",     label: "HII tambon flood risk (17-yr)", swatch: "#F97316", group: "environment",
+    describe: "Tambon-level flood risk derived from HII's 17-year historical flood frequency dataset — จำนวนครั้งที่ท่วมในรอบ 17 ปี per subdistrict across Thailand. Source: Hydro-Informatics Institute." },
+  { id: "unosat-2021-exposure", label: "UNOSAT 2021 population exposure", swatch: "#EC4899", group: "environment",
+    describe: "UNOSAT satellite-derived flood extent + population exposure for the 2021 Thailand Southwest monsoon floods (Jul–Dec 2021). Shows tambon-level exposed population and flooded area km². Source: UNITAR-UNOSAT / Copernicus EMS Thailand Flood Analysis." },
 
   // ─── Old Town signature ────────────────────────────────────────────────────
   { id: "ring-roads",        label: "Old Town axis (Ratchadamnoen)", swatch: "#FBBF24", group: "municipality",
