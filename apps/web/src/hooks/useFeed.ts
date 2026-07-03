@@ -16,6 +16,11 @@ const STORAGE_PREFIX = "nst:feed:";
 const MAX_CACHE_AGE_MS = 24 * 60 * 60 * 1000;
 const UNAVAILABLE_AFTER_FAILS = 3;
 const REQUEST_TIMEOUT_MS = 10_000;
+// setTimeout/setInterval delays are stored as a 32-bit signed int internally;
+// a delay above this clamps to ~0 in most engines, firing (and re-firing) almost
+// immediately instead of waiting — a caller passing e.g. a 30-day pollMs would
+// silently hammer its endpoint every tick instead of once a month.
+const MAX_SAFE_INTERVAL_MS = 2_147_483_647;
 
 function storageKey(path: string): string {
   return `${STORAGE_PREFIX}${path}`;
@@ -163,7 +168,7 @@ export function useFeed<T>(path: string, pollMs: number): FeedState<T> & { refet
     runRef.current = run;
 
     run();
-    const id = setInterval(run, pollMs);
+    const id = setInterval(run, Math.min(pollMs, MAX_SAFE_INTERVAL_MS));
     return () => {
       cancelled = true;
       clearInterval(id);
