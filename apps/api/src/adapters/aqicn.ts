@@ -122,31 +122,46 @@ export async function fetchAqicnNst(
     };
   }
 
-  return cached("aqicn-nst", TTL_SECONDS, async () => {
-    const [lng, lat] = CHONBURI.center;
-    const station = await fetchAqicnByGeo({ AQICN_TOKEN: token }, lat, lng);
+  // First-boot outage (throw + no stale to fall back on) → a calm unavailable
+  // feed, not a 500 through safeFeed.
+  try {
+    return await cached("aqicn-nst", TTL_SECONDS, async () => {
+      const [lng, lat] = CHONBURI.center;
+      const station = await fetchAqicnByGeo({ AQICN_TOKEN: token }, lat, lng);
 
-    if (!station) {
+      if (!station) {
+        return {
+          features: [],
+          meta: {
+            source: "aqicn",
+            fetchedAt,
+            ageMinutes: 0,
+            fallbackTier: "unavailable" as const,
+            note: "AQICN returned no station data for Nakhon Si Thammarat — upstream may be down",
+          },
+        };
+      }
+
       return {
-        features: [],
+        features: [station],
         meta: {
-          source: "aqicn",
+          source: `aqicn:${station.station}`,
           fetchedAt,
-          ageMinutes: 0,
-          fallbackTier: "unavailable" as const,
-          note: "AQICN returned no station data for Nakhon Si Thammarat — upstream may be down",
+          ageMinutes: cacheAgeMinutes(fetchedAt),
+          fallbackTier: "live" as const,
         },
       };
-    }
-
+    });
+  } catch {
     return {
-      features: [station],
+      features: [],
       meta: {
-        source: `aqicn:${station.station}`,
+        source: "aqicn",
         fetchedAt,
-        ageMinutes: cacheAgeMinutes(fetchedAt),
-        fallbackTier: "live" as const,
+        ageMinutes: 0,
+        fallbackTier: "unavailable",
+        note: "AQICN request failed",
       },
     };
-  });
+  }
 }

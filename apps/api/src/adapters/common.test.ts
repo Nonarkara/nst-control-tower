@@ -25,34 +25,30 @@ describe("fetchJsonOrThrow", () => {
     expect(result).toEqual({ key: "value" });
   });
 
-  it("returns null on non-OK status", async () => {
+  it("throws on non-OK status", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
       new Response("Not Found", { status: 404 }),
     );
-    const result = await fetchJsonOrThrow("https://example.com/api");
-    expect(result).toBeNull();
+    await expect(fetchJsonOrThrow("https://example.com/api")).rejects.toThrow(/non-OK 404/);
   });
 
-  it("returns null on 500 error", async () => {
+  it("throws on 500 error", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
       new Response(null, { status: 500 }),
     );
-    const result = await fetchJsonOrThrow("https://example.com/api");
-    expect(result).toBeNull();
+    await expect(fetchJsonOrThrow("https://example.com/api")).rejects.toThrow(/non-OK 500/);
   });
 
-  it("returns null on network error (fetch throws)", async () => {
+  it("throws on network error (fetch throws)", async () => {
     vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("Network error"));
-    const result = await fetchJsonOrThrow("https://example.com/api");
-    expect(result).toBeNull();
+    await expect(fetchJsonOrThrow("https://example.com/api")).rejects.toThrow(/Network error/);
   });
 
-  it("returns null on abort (timeout)", async () => {
+  it("throws on abort (timeout)", async () => {
     vi.spyOn(globalThis, "fetch").mockRejectedValue(
       Object.assign(new Error("Aborted"), { name: "AbortError" }),
     );
-    const result = await fetchJsonOrThrow("https://example.com/api");
-    expect(result).toBeNull();
+    await expect(fetchJsonOrThrow("https://example.com/api")).rejects.toThrow(/Aborted/);
   });
 
   it("passes through custom init options (method, headers)", async () => {
@@ -98,7 +94,7 @@ describe("fetchJsonOrThrow", () => {
     expect(capturedHeaders?.get("accept")).toBe("text/csv");
   });
 
-  it("retries on 429 and eventually returns null after max attempts", async () => {
+  it("retries on 429 and eventually throws after max attempts", async () => {
     vi.useFakeTimers();
     let callCount = 0;
     vi.spyOn(globalThis, "fetch").mockImplementation(() => {
@@ -107,25 +103,23 @@ describe("fetchJsonOrThrow", () => {
     });
 
     const promise = fetchJsonOrThrow("https://example.com/api");
+    const assertion = expect(promise).rejects.toThrow(/rate-limited, gave up/);
 
     // Attempt 1 gets 429, increments attempt, waits 2^1 = 2s
     await vi.runAllTimersAsync();
-
-    const result = await promise;
-    expect(result).toBeNull();
+    await assertion;
     // Should have tried 3 times (attempt 0, 1, 2 — exhausting the while loop)
     expect(callCount).toBe(3);
 
     vi.useRealTimers();
   });
 
-  it("returns null when response body is malformed JSON (res.json() throws)", async () => {
+  it("throws when response body is malformed JSON (res.json() throws)", async () => {
     // Response with 200 OK but invalid JSON body — res.json() will throw
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
       new Response("not-valid-json{{{", { status: 200 }),
     );
-    const result = await fetchJsonOrThrow("https://example.com/api");
-    expect(result).toBeNull();
+    await expect(fetchJsonOrThrow("https://example.com/api")).rejects.toThrow(/fetchJsonOrThrow error/);
   });
 
   it("adds user-agent header in Node.js environment (navigator is undefined)", async () => {

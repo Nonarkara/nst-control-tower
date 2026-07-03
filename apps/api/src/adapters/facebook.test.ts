@@ -156,7 +156,8 @@ describe("facebook adapter — happy-path parsing (isolated)", () => {
     };
 
     const feed = await fresh({ FACEBOOK_PAGE_ID: "111", FACEBOOK_PAGE_TOKEN: "tok" });
-    // fetchJsonOrThrow returns null on 500 → payload is null → posts=[]
+    // fetchJsonOrThrow throws on 500; the outer catch turns a cold-start
+    // failure (no stale cache to fall back on) into a calm unavailable feed.
     expect(feed.meta.fallbackTier).toBe("unavailable");
     expect(feed.features).toHaveLength(0);
     vi.restoreAllMocks();

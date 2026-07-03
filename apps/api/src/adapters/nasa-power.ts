@@ -70,7 +70,7 @@ function latestDate(rec: Record<string, number> | undefined): string {
   return "unknown";
 }
 
-export async function fetchNasaEarth(): Promise<NormalizedFeed<NasaEarthReadings>> {
+async function fetchNasaEarthInner(): Promise<NormalizedFeed<NasaEarthReadings>> {
   return cached("nasa-power-earth", TTL_SECONDS, async () => {
     const fetchedAt = new Date().toISOString();
     const [lng, lat] = CHONBURI.center;
@@ -121,4 +121,24 @@ export async function fetchNasaEarth(): Promise<NormalizedFeed<NasaEarthReadings
       },
     };
   });
+}
+
+// First-boot outage (throw + no stale to fall back on) → a calm unavailable
+// feed, not a 500 through safeFeed.
+export async function fetchNasaEarth(): Promise<NormalizedFeed<NasaEarthReadings>> {
+  try {
+    return await fetchNasaEarthInner();
+  } catch {
+    const fetchedAt = new Date().toISOString();
+    return {
+      features: [],
+      meta: {
+        source: "nasa-power-merra2",
+        fetchedAt,
+        ageMinutes: 0,
+        fallbackTier: "unavailable",
+        note: "NASA POWER request failed",
+      },
+    };
+  }
 }

@@ -50,7 +50,7 @@ interface GraphResponse {
   error?: { message?: string; code?: number };
 }
 
-export async function fetchFacebookPosts(env: {
+async function fetchFacebookPostsInner(env: {
   FACEBOOK_PAGE_ID?: string;
   FACEBOOK_PAGE_TOKEN?: string;
 }): Promise<NormalizedFeed<FacebookPost>> {
@@ -100,4 +100,27 @@ export async function fetchFacebookPosts(env: {
       },
     };
   });
+}
+
+// First-boot outage (throw + no stale to fall back on) → a calm unavailable
+// feed, not a 500 through safeFeed.
+export async function fetchFacebookPosts(env: {
+  FACEBOOK_PAGE_ID?: string;
+  FACEBOOK_PAGE_TOKEN?: string;
+}): Promise<NormalizedFeed<FacebookPost>> {
+  try {
+    return await fetchFacebookPostsInner(env);
+  } catch {
+    const fetchedAt = new Date().toISOString();
+    return {
+      features: [],
+      meta: {
+        source: "facebook-page",
+        fetchedAt,
+        ageMinutes: 0,
+        fallbackTier: "unavailable",
+        note: "Graph API request failed",
+      },
+    };
+  }
 }

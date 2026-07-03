@@ -85,7 +85,7 @@ function arcgisQuery(
   return `${PORTAL}/${service}/MapServer/${layer}/query?${params}`;
 }
 
-export async function fetchGistdaPoi(): Promise<NormalizedFeed<GistdaPoi>> {
+async function fetchGistdaPoiInner(): Promise<NormalizedFeed<GistdaPoi>> {
   return cached("gistda-poi", 3600 * 6, async () => {
     const fetchedAt = new Date().toISOString();
     const [lng0, lat0] = CHONBURI.center;
@@ -141,7 +141,18 @@ export async function fetchGistdaPoi(): Promise<NormalizedFeed<GistdaPoi>> {
   });
 }
 
-export async function fetchGistdaSolar(month?: number): Promise<NormalizedFeed<GistdaSolarBuilding>> {
+// First-boot outage (throw + no stale to fall back on) → a calm unavailable
+// feed, not a 500 through safeFeed.
+export async function fetchGistdaPoi(): Promise<NormalizedFeed<GistdaPoi>> {
+  try {
+    return await fetchGistdaPoiInner();
+  } catch {
+    const fetchedAt = new Date().toISOString();
+    return { features: [], meta: { source: "gistda-poi", fetchedAt, ageMinutes: 0, fallbackTier: "unavailable", note: "GISTDA request failed" } };
+  }
+}
+
+async function fetchGistdaSolarInner(month?: number): Promise<NormalizedFeed<GistdaSolarBuilding>> {
   // Default to current month
   const m = month ?? new Date().getMonth() + 1;
   const monthStr = String(m).padStart(2, "0");
@@ -202,6 +213,17 @@ export async function fetchGistdaSolar(month?: number): Promise<NormalizedFeed<G
   });
 }
 
+// First-boot outage (throw + no stale to fall back on) → a calm unavailable
+// feed, not a 500 through safeFeed.
+export async function fetchGistdaSolar(month?: number): Promise<NormalizedFeed<GistdaSolarBuilding>> {
+  try {
+    return await fetchGistdaSolarInner(month);
+  } catch {
+    const fetchedAt = new Date().toISOString();
+    return { features: [], meta: { source: "gistda-solar", fetchedAt, ageMinutes: 0, fallbackTier: "unavailable", note: "GISTDA request failed" } };
+  }
+}
+
 // ── GISTDA Land Use / Land Cover ────────────────────────────────────────
 
 export interface GistdaLandUse {
@@ -214,7 +236,7 @@ export interface GistdaLandUse {
   lng: number;
 }
 
-export async function fetchGistdaLandUse(): Promise<NormalizedFeed<GistdaLandUse>> {
+async function fetchGistdaLandUseInner(): Promise<NormalizedFeed<GistdaLandUse>> {
   return cached("gistda-landuse", 3600 * 12, async () => {
     const fetchedAt = new Date().toISOString();
     const [lng0, lat0] = CHONBURI.center;
@@ -263,4 +285,15 @@ export async function fetchGistdaLandUse(): Promise<NormalizedFeed<GistdaLandUse
       },
     };
   });
+}
+
+// First-boot outage (throw + no stale to fall back on) → a calm unavailable
+// feed, not a 500 through safeFeed.
+export async function fetchGistdaLandUse(): Promise<NormalizedFeed<GistdaLandUse>> {
+  try {
+    return await fetchGistdaLandUseInner();
+  } catch {
+    const fetchedAt = new Date().toISOString();
+    return { features: [], meta: { source: "gistda-landuse", fetchedAt, ageMinutes: 0, fallbackTier: "unavailable", note: "GISTDA request failed" } };
+  }
 }

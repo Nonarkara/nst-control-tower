@@ -14,8 +14,9 @@
  * Thammarat ones (areaTH/nameTH name match on "นครศรีธรรมราช" OR inside the
  * NST-province bbox).
  *
- * No key, no fallback-to-unavailable needed — if upstream is down we return an
- * empty "scenario" feed and the caller keeps last-good cache.
+ * No key needed. On upstream failure, fetchJsonOrThrow rejects; cachedWithStale
+ * serves the last-good cache if one exists, or the outer catch below returns an
+ * empty "scenario" feed on a cold start with nothing cached yet.
  */
 
 import type { AirQualityPoint, NormalizedFeed } from "@nst/shared";
@@ -90,7 +91,7 @@ function observedAt(s: Air4ThaiStation, fallback: string): string {
   return fallback;
 }
 
-export async function fetchAir4Thai(): Promise<NormalizedFeed<AirQualityPoint>> {
+async function fetchAir4ThaiInner(): Promise<NormalizedFeed<AirQualityPoint>> {
   return cached("air4thai-nst", TTL_SECONDS, async () => {
     const fetchedAt = new Date().toISOString();
     const payload = await fetchJsonOrThrow<Air4ThaiResp>(ENDPOINT);
@@ -126,4 +127,23 @@ export async function fetchAir4Thai(): Promise<NormalizedFeed<AirQualityPoint>> 
       },
     };
   });
+}
+
+// First-boot outage (throw + no stale to fall back on) → a calm scenario
+// feed, not a 500 through safeFeed.
+export async function fetchAir4Thai(): Promise<NormalizedFeed<AirQualityPoint>> {
+  try {
+    return await fetchAir4ThaiInner();
+  } catch {
+    const fetchedAt = new Date().toISOString();
+    return {
+      features: [],
+      meta: {
+        source: "air4thai-pcd",
+        fetchedAt,
+        ageMinutes: cacheAgeMinutes(fetchedAt),
+        fallbackTier: "scenario",
+      },
+    };
+  }
 }

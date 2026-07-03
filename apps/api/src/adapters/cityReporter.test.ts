@@ -8,23 +8,23 @@ import { fetchCityReports } from "./cityReporter";
  * URL-capture test is FIRST — subsequent tests use the cached result.
  */
 
-// Inside FEED_BBOX (lng 100.85–101.55, lat 5.60–6.70)
-const CHONBURI_LNG = 101.2831;
-const CHONBURI_LAT = 6.5425;
+// Inside NST_PROVINCE_BBOX (lng 99.30–100.35, lat 7.80–9.45) — NST Old Town / city center
+const NST_LNG = 99.9631;
+const NST_LAT = 8.4364;
 
-// Outside FEED_BBOX (north of Yala)
-const OUTSIDE_LNG = 100.00;
-const OUTSIDE_LAT = 13.00;
+// Outside NST_PROVINCE_BBOX (Bangkok, well north of the province)
+const OUTSIDE_LNG = 100.50;
+const OUTSIDE_LAT = 13.75;
 
 function makeReport(overrides: Record<string, unknown> = {}) {
   return {
     ticket_id: "TEST-001",
     type: "ถนน",          // road → construction category
     state: "new",
-    latitude: CHONBURI_LAT,
-    longitude: CHONBURI_LNG,
-    address: "ยะลา",
-    org: "เทศบาลนครยะลา",
+    latitude: NST_LAT,
+    longitude: NST_LNG,
+    address: "นครศรีธรรมราช",
+    org: "เทศบาลนครนครศรีธรรมราช",
     timestamp: new Date().toISOString(),
     description: "Road pothole reported",
     ...overrides,
@@ -36,7 +36,7 @@ describe("city reporter adapter (Traffy Fondue)", () => {
     vi.restoreAllMocks();
   });
 
-  it("requests the Traffy Fondue search endpoint with Yala keyword", async () => {
+  it("requests the Traffy Fondue search endpoint with no non-functional keyword param", async () => {
     // FIRST test — cache miss.
     let capturedUrl = "";
     vi.spyOn(globalThis, "fetch").mockImplementation((url) => {
@@ -48,7 +48,7 @@ describe("city reporter adapter (Traffy Fondue)", () => {
     await fetchCityReports();
 
     expect(capturedUrl).toContain("traffy.in.th");
-    expect(capturedUrl).toContain("ยะลา"); // Thai keyword in query
+    expect(capturedUrl).not.toContain("keyword"); // param verified to have no server-side filtering effect
   });
 
   it("returns NormalizedFeed with live tier when items are in bbox", async () => {
@@ -95,13 +95,13 @@ describe("city reporter adapter — scenario fallback (isolated)", () => {
 });
 
 describe("city reporter adapter — bbox filtering (isolated)", () => {
-  it("excludes reports outside the Yala province bbox", async () => {
+  it("excludes reports outside the NST province bbox", async () => {
     vi.resetModules();
-    const insideReport = makeReport({ latitude: CHONBURI_LAT, longitude: CHONBURI_LNG, ticket_id: "IN-001" });
+    const insideReport = makeReport({ latitude: NST_LAT, longitude: NST_LNG, ticket_id: "IN-001" });
     const outsideReport = makeReport({
       latitude: OUTSIDE_LAT,
       longitude: OUTSIDE_LNG,
-      org: "", address: "Bangkok",   // no Yala org-match either
+      org: "", address: "Bangkok",   // no NST org-match either
       ticket_id: "OUT-001",
     });
 
@@ -120,14 +120,14 @@ describe("city reporter adapter — bbox filtering (isolated)", () => {
     vi.restoreAllMocks();
   });
 
-  it("accepts out-of-bbox reports when org/address matches ยะลา", async () => {
+  it("accepts out-of-bbox reports when org/address matches นครศรีธรรมราช", async () => {
     vi.resetModules();
-    // Coordinates outside bbox but address includes ยะลา
+    // Coordinates outside bbox but address includes นครศรีธรรมราช
     const orgMatchReport = makeReport({
       latitude: OUTSIDE_LAT,
       longitude: OUTSIDE_LNG,
-      org: "สาขายะลา",
-      address: "ยะลา 95000",
+      org: "สาขานครศรีธรรมราช",
+      address: "นครศรีธรรมราช 80000",
       ticket_id: "ORG-001",
     });
 
@@ -151,9 +151,9 @@ describe("city reporter adapter — bbox filtering (isolated)", () => {
       ticket_id: "COORDS-001",
       type: "ถนน",
       state: "new",
-      coords: ["101.2831", "6.5425"],  // [lng, lat] as strings
-      address: "ยะลา",
-      org: "เทศบาลนครยะลา",
+      coords: ["99.9631", "8.4364"],  // [lng, lat] as strings
+      address: "นครศรีธรรมราช",
+      org: "เทศบาลนครนครศรีธรรมราช",
       timestamp: new Date().toISOString(),
     };
 
@@ -168,8 +168,8 @@ describe("city reporter adapter — bbox filtering (isolated)", () => {
 
     const feature = feed.features.find((f) => f.id === "traffy-COORDS-001");
     expect(feature).toBeDefined();
-    expect(feature!.lng).toBeCloseTo(101.2831, 3);
-    expect(feature!.lat).toBeCloseTo(6.5425, 3);
+    expect(feature!.lng).toBeCloseTo(99.9631, 3);
+    expect(feature!.lat).toBeCloseTo(8.4364, 3);
     vi.restoreAllMocks();
   });
 

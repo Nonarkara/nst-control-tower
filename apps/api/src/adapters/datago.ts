@@ -121,7 +121,10 @@ export async function fetchDatagoDatasets(): Promise<NormalizedFeed<DatagoDatase
     interface CkanResult {
       result?: { results?: Array<{ id?: string; title?: string; organization?: { title?: string }; notes?: string; tags?: Array<{ name?: string }>; metadata_modified?: string; num_resources?: number; name?: string }> };
     }
-    const live = await fetchJsonOrThrow<CkanResult>(ckanUrl);
+    // Best-effort: a live-search failure should fall back to the curated
+    // index below, not fail the whole feed — catch locally rather than
+    // letting fetchJsonOrThrow's rejection propagate.
+    const live = await fetchJsonOrThrow<CkanResult>(ckanUrl).catch(() => null);
     let combined = [...CURATED_DATASETS];
     if (live?.result?.results) {
       const liveSet: DatagoDataset[] = live.result.results

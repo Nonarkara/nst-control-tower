@@ -118,7 +118,7 @@ function mapEntry(e: AirLabsEntry, direction: FlightFids["direction"]): FlightFi
 
 // ---- Main fetch ----
 
-export async function fetchFlights(env: { AIRLABS_API_KEY?: string }): Promise<NormalizedFeed<FlightFids>> {
+async function fetchFlightsInner(env: { AIRLABS_API_KEY?: string }): Promise<NormalizedFeed<FlightFids>> {
   return cached("flights-nst", TTL, async () => {
     const fetchedAt = new Date().toISOString();
 
@@ -141,6 +141,15 @@ export async function fetchFlights(env: { AIRLABS_API_KEY?: string }): Promise<N
       fetchJsonOrThrow<AirLabsResponse>(`${BASE}?arr_iata=${NST_IATA}&api_key=${key}`),
       fetchJsonOrThrow<AirLabsResponse>(`${BASE}?dep_iata=${NST_IATA}&api_key=${key}`),
     ]);
+
+    // allSettled isolates per-call failures, so compute() would otherwise never
+    // reject even when BOTH calls genuinely failed (network/HTTP error) — throw in
+    // that case so cachedWithStale's stale-if-error fallback can serve the last-good
+    // schedule. A fulfilled-but-empty result (a quiet airport with zero flights
+    // today) is NOT an outage — that stays a normal "unavailable, zero flights" resolve.
+    if (arrResp.status === "rejected" && depResp.status === "rejected") {
+      throw new Error("AirLabs arrivals and departures both failed — rate limit or upstream outage");
+    }
 
     // Surface API-level errors
     const firstResp = arrResp.status === "fulfilled" ? arrResp.value : null;
@@ -179,4 +188,24 @@ export async function fetchFlights(env: { AIRLABS_API_KEY?: string }): Promise<N
       },
     };
   });
+}
+
+// First-boot outage (throw + no stale to fall back on) → a calm unavailable
+// feed, not a 500 through safeFeed.
+export async function fetchFlights(env: { AIRLABS_API_KEY?: string }): Promise<NormalizedFeed<FlightFids>> {
+  try {
+    return await fetchFlightsInner(env);
+  } catch {
+    const fetchedAt = new Date().toISOString();
+    return {
+      features: [],
+      meta: {
+        source: "airlabs-fids",
+        fetchedAt,
+        ageMinutes: 0,
+        fallbackTier: "unavailable",
+        note: "AirLabs arrivals and departures both failed",
+      },
+    };
+  }
 }

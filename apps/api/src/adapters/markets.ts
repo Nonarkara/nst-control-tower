@@ -89,7 +89,7 @@ async function fetchFredSeries(id: string, name: string, group: MarketTick["grou
   };
 }
 
-export async function fetchMarkets(env: {
+async function fetchMarketsInner(env: {
   FMP_API_KEY?: string;
   FRED_API_KEY?: string;
 }): Promise<NormalizedFeed<MarketSnapshot>> {
@@ -123,6 +123,14 @@ export async function fetchMarkets(env: {
       .map((r) => r.value)
       .filter((t): t is MarketTick => t !== null);
 
+    // allSettled isolates per-symbol failures, so compute() would otherwise never
+    // reject even when EVERY call genuinely failed (network/HTTP error) — throw in
+    // that case so cachedWithStale's stale-if-error fallback can serve the last-good
+    // snapshot. A fulfilled-but-unparseable result (FRED's "." missing-data sentinel)
+    // is NOT an outage — that stays a normal "unavailable, zero ticks" resolve.
+    const allRequestsFailed = settled.length > 0 && settled.every((r) => r.status === "rejected");
+    if (allRequestsFailed) throw new Error("FMP/FRED requests all failed — rate limit or upstream outage");
+
     const thbUsd = ticks.find((t) => t.symbol === "DEXTHUS")?.value ?? null;
     const jpyUsd = ticks.find((t) => t.symbol === "DEXJPUS")?.value ?? null;
     const cnyUsd = ticks.find((t) => t.symbol === "DEXCHUS")?.value ?? null;
@@ -141,8 +149,31 @@ export async function fetchMarkets(env: {
         fetchedAt,
         ageMinutes: cacheAgeMinutes(fetchedAt),
         fallbackTier: ticks.length > 0 ? "live" as const : "unavailable" as const,
-        ...(ticks.length === 0 ? { note: "FMP/FRED returned no ticks — rate limit or upstream outage" } : {}),
+        ...(ticks.length === 0 ? { note: "FMP/FRED returned no usable ticks (missing-data sentinels filtered)" } : {}),
       },
     };
   });
+}
+
+// First-boot outage (throw + no stale to fall back on) → a calm unavailable
+// feed, not a 500 through safeFeed.
+export async function fetchMarkets(env: {
+  FMP_API_KEY?: string;
+  FRED_API_KEY?: string;
+}): Promise<NormalizedFeed<MarketSnapshot>> {
+  try {
+    return await fetchMarketsInner(env);
+  } catch {
+    const fetchedAt = new Date().toISOString();
+    return {
+      features: [],
+      meta: {
+        source: "markets-fmp-fred",
+        fetchedAt,
+        ageMinutes: 0,
+        fallbackTier: "unavailable",
+        note: "FMP/FRED returned no ticks — rate limit or upstream outage",
+      },
+    };
+  }
 }

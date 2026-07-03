@@ -6,12 +6,11 @@ import { fetchJsonOrThrow } from "./common.js";
 // Traffy Fondue is the de facto public citizen-report feed for Bangkok.
 // City Reporter v2 (bots/city-reporter-v2) writes to the same shape.
 
-// Traffy search filtered to Yala. The `keyword=ยะลา` parameter narrows
-// the API result set server-side so we download ~200 items instead of 2000.
-// Client-side bbox + org filters still run as a secondary pass in case the
-// keyword match misses location-only tickets (no org tag).
-const ENDPOINT =
-  "https://publicapi.traffy.in.th/share/teamchadchart/search?limit=500&keyword=ยะลา";
+// Traffy Fondue's `keyword` search param does not actually filter server-side
+// (verified live: identical result sets regardless of keyword value) — this
+// endpoint always returns the latest `limit` tickets nationwide. Relevance is
+// determined entirely by the client-side bbox + org/address checks below.
+const ENDPOINT = "https://publicapi.traffy.in.th/share/teamchadchart/search?limit=500";
 
 const TTL_SECONDS = 300; // 5 min
 
@@ -82,7 +81,7 @@ function inferSeverity(category: IncidentCategory, description?: string): Incide
   return "low";
 }
 
-export async function fetchCityReports(): Promise<NormalizedFeed<IncidentFeature>> {
+async function fetchCityReportsInner(): Promise<NormalizedFeed<IncidentFeature>> {
   return cached("city-reports", TTL_SECONDS, async () => {
     const fetchedAt = new Date().toISOString();
     const payload = await fetchJsonOrThrow<TraffyRaw[] | { results?: TraffyRaw[] }>(ENDPOINT);
@@ -94,10 +93,10 @@ export async function fetchCityReports(): Promise<NormalizedFeed<IncidentFeature
       const coords = parseCoords(r);
       if (!coords) continue;
       const [lng, lat] = coords;
-      // Accept if inside Yala-province bbox OR if org/address mentions Yala
+      // Accept if inside the Nakhon Si Thammarat province bbox OR if org/address names it
       const inArea = inBbox(lng, lat);
-      const orgMatch = (r.org ?? r.address ?? "").includes("ยะลา") ||
-                       (r.org ?? r.address ?? "").toLowerCase().includes("yala");
+      const orgText = r.org ?? r.address ?? "";
+      const orgMatch = orgText.includes("นครศรีธรรมราช") || orgText.toLowerCase().includes("nakhon si thammarat");
       if (!inArea && !orgMatch) continue;
 
       const { category, title } = mapCategory(r.type);
@@ -131,4 +130,23 @@ export async function fetchCityReports(): Promise<NormalizedFeed<IncidentFeature
       },
     };
   });
+}
+
+// First-boot outage (throw + no stale to fall back on) → a calm scenario
+// feed, not a 500 through safeFeed.
+export async function fetchCityReports(): Promise<NormalizedFeed<IncidentFeature>> {
+  try {
+    return await fetchCityReportsInner();
+  } catch {
+    const fetchedAt = new Date().toISOString();
+    return {
+      features: [],
+      meta: {
+        source: "traffy-fondue",
+        fetchedAt,
+        ageMinutes: cacheAgeMinutes(fetchedAt),
+        fallbackTier: "scenario",
+      },
+    };
+  }
 }

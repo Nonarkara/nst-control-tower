@@ -34,7 +34,7 @@ function num(v: string | number | undefined): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
-export async function fetchCctv(): Promise<NormalizedFeed<CctvCamera>> {
+async function fetchCctvInner(): Promise<NormalizedFeed<CctvCamera>> {
   return cached("cctv-longdo", TTL_SECONDS, async () => {
     const fetchedAt = new Date().toISOString();
     const payload = await fetchJsonOrThrow<{ cameras?: LongdoCamera[] } | LongdoCamera[]>(ENDPOINT);
@@ -69,4 +69,23 @@ export async function fetchCctv(): Promise<NormalizedFeed<CctvCamera>> {
       },
     };
   });
+}
+
+// First-boot outage (throw + no stale to fall back on) → a calm scenario
+// feed, not a 500 through safeFeed.
+export async function fetchCctv(): Promise<NormalizedFeed<CctvCamera>> {
+  try {
+    return await fetchCctvInner();
+  } catch {
+    const fetchedAt = new Date().toISOString();
+    return {
+      features: [],
+      meta: {
+        source: "longdo-cameras",
+        fetchedAt,
+        ageMinutes: cacheAgeMinutes(fetchedAt),
+        fallbackTier: "scenario",
+      },
+    };
+  }
 }

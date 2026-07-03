@@ -33,7 +33,7 @@ const WEATHER_CODE: Record<number, string> = {
   95: "Thunderstorm",
 };
 
-export async function fetchWeather(): Promise<NormalizedFeed<WeatherSnapshot>> {
+async function fetchWeatherInner(): Promise<NormalizedFeed<WeatherSnapshot>> {
   return cached("weather", TTL_SECONDS, async () => {
     const fetchedAt = new Date().toISOString();
     const [lng, lat] = CHONBURI.center;
@@ -65,4 +65,23 @@ export async function fetchWeather(): Promise<NormalizedFeed<WeatherSnapshot>> {
       },
     };
   });
+}
+
+// First-boot outage (throw + no stale to fall back on) → a calm scenario
+// feed, not a 500 through safeFeed.
+export async function fetchWeather(): Promise<NormalizedFeed<WeatherSnapshot>> {
+  try {
+    return await fetchWeatherInner();
+  } catch {
+    const fetchedAt = new Date().toISOString();
+    return {
+      features: [],
+      meta: {
+        source: "open-meteo",
+        fetchedAt,
+        ageMinutes: cacheAgeMinutes(fetchedAt),
+        fallbackTier: "scenario",
+      },
+    };
+  }
 }

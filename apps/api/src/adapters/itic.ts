@@ -47,7 +47,7 @@ function classify(typeCode: number, severity: number): { category: IncidentFeatu
   return { category, severity: sev };
 }
 
-export async function fetchItic(): Promise<NormalizedFeed<IncidentFeature>> {
+async function fetchIticInner(): Promise<NormalizedFeed<IncidentFeature>> {
   return cached("itic", TTL_SECONDS, async () => {
     const fetchedAt = new Date().toISOString();
     const payload = await fetchJsonOrThrow<{ events?: LongdoEvent[] } | LongdoEvent[]>(EVENT_URL);
@@ -89,4 +89,23 @@ export async function fetchItic(): Promise<NormalizedFeed<IncidentFeature>> {
       },
     };
   });
+}
+
+// First-boot outage (throw + no stale to fall back on) → a calm scenario
+// feed, not a 500 through safeFeed.
+export async function fetchItic(): Promise<NormalizedFeed<IncidentFeature>> {
+  try {
+    return await fetchIticInner();
+  } catch {
+    const fetchedAt = new Date().toISOString();
+    return {
+      features: [],
+      meta: {
+        source: "itic-longdo",
+        fetchedAt,
+        ageMinutes: cacheAgeMinutes(fetchedAt),
+        fallbackTier: "scenario",
+      },
+    };
+  }
 }
