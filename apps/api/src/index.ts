@@ -31,6 +31,7 @@ import { fetchIsochrone } from "./adapters/isochrone.js";
 import { validateCvEvent, recordCvEvent, listCvEvents, cvEventStats, CvValidationError } from "./lib/cvEvents.js";
 import { isValidLatLng } from "./lib/bbox.js";
 import { fetchFloodGauges, fetchDamStatus } from "./adapters/flood.js";
+import { fetchSouthernFloodRisk, fetchSouthernRiverCascade } from "./adapters/flooddash.js";
 import { fetchWaterGauges, fetchRainfall } from "./adapters/thaiwater.js";
 import { fetchNationalWaterways } from "./adapters/waterways.js";
 import { fetchHistoricalRainfall } from "./adapters/historicalRain.js";
@@ -134,6 +135,8 @@ app.get("/", (c) =>
       "/api/flood/dam",
       "/api/flood/national-prone",
       "/api/flood/unosat-2021",
+      "/api/flood/south/risk",
+      "/api/flood/south/rivers",
       "/api/water/national-waterways",
       "/api/rainfall/historical",
       "/api/datago/points",
@@ -360,6 +363,8 @@ app.get("/api/rainfall/historical", async (c) => {
 });
 app.get("/api/flood/national-prone", async (c) => safeFeed(c, fetchNationalFloodProne, "national-flood-prone"));
 app.get("/api/flood/unosat-2021", async (c) => safeFeed(c, fetchUnosit2021Exposure, "unosat-2021-exposure"));
+app.get("/api/flood/south/risk", async (c) => safeFeed(c, fetchSouthernFloodRisk, "flooddash-south-risk"));
+app.get("/api/flood/south/rivers", async (c) => safeFeed(c, fetchSouthernRiverCascade, "flooddash-south-rivers"));
 app.get("/api/flights", async (c) => safeFeed(c, () => fetchFlights({ AIRLABS_API_KEY: c.env.AIRLABS_API_KEY }), "flights-nst"));
 
 // ── Google Maps Platform (server-side; key never reaches the browser) ──────────

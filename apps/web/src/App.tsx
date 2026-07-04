@@ -34,6 +34,8 @@ import type {
   NationalFloodProneFeed,
   HistoricalRainfallRecord,
   UnositRecord,
+  SouthernFloodRiskFeed,
+  SouthernRiverCascadeFeed,
 } from "@nst/shared";
 
 import { useFeed } from "./hooks/useFeed";
@@ -102,6 +104,8 @@ import {
   floodMarksLayer,
   streetFloodLayer,
   wrfRainGridLayer,
+  southProvinceWatchLayer,
+  southRiverCascadeLayer,
   type FloodMarkProps,
   type RoadLevelProps,
 } from "./map/layers";
@@ -124,6 +128,7 @@ import { EarthAlphaBrief } from "./components/EarthAlphaBrief";
 import { FloodBrief } from "./components/FloodBrief";
 import { FloodAnalysisPanel } from "./components/FloodAnalysisPanel";
 import { FloodPosture } from "./components/FloodPosture";
+import { SouthernFloodIntel } from "./components/SouthernFloodIntel";
 import { UpstreamWatershed } from "./components/UpstreamWatershed";
 import { FloodCommand } from "./components/FloodCommand";
 import { FlightsPanel } from "./components/FlightsPanel";
@@ -962,6 +967,8 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
   // useFeed's MAX_SAFE_INTERVAL_MS clamp) even though this is static 2021 data.
   const unosatExposure = useFeed<UnositRecord>(`${API_BASE}/api/flood/unosat-2021`, 7 * 24 * 60 * 60_000);
   const historicalRainfall = useFeed<HistoricalRainfallRecord>(`${API_BASE}/api/rainfall/historical`, 24 * 60 * 60_000);
+  const southernRisk = useFeed<SouthernFloodRiskFeed>(`${API_BASE}/api/flood/south/risk`, 5 * 60_000);
+  const southernRivers = useFeed<SouthernRiverCascadeFeed>(`${API_BASE}/api/flood/south/rivers`, 3 * 60 * 60_000);
   const flights = useFeed<FlightFids>(`${API_BASE}/api/flights`, 90 * 60_000);
 
   const worldWeather = useWorldWeather();
@@ -1227,6 +1234,10 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
       out.push(floodGaugesLayer(floodGauges.data) as Layer);
     if (enabledLayers.has("dam-status") && damStatus.data.length > 0)
       out.push(damStatusLayer(damStatus.data) as Layer);
+    if (enabledLayers.has("south-province-watch") && southernRisk.data[0]?.provinces.length)
+      out.push(southProvinceWatchLayer(southernRisk.data[0].provinces) as Layer);
+    if (enabledLayers.has("south-river-cascade") && southernRivers.data[0]?.reaches.length)
+      out.push(...southRiverCascadeLayer(southernRivers.data[0].reaches));
 
     // Distance grid (1·5·10 km)
     if (enabledLayers.has("distance-grid")) {
@@ -1255,6 +1266,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
     provinceBoundaries, districtBoundaries,
     conflictIncidents.data, floodGauges.data, damStatus.data,
     waterGauges.data, waterRain.data, ewsStations.data,
+    southernRisk.data, southernRivers.data,
     watershedSummaries,
     floodMarks, wrfGrid.data,
     presence.lng, presence.lat, presence.accuracyM,
@@ -1588,6 +1600,17 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
             fallbackTier={waterGauges.data.length > 0
               ? (waterGauges.fallbackTier === "loading" ? undefined : waterGauges.fallbackTier)
               : (waterRain.fallbackTier === "loading" ? undefined : waterRain.fallbackTier)}
+          />
+        </div>
+        <div className="left-section left-section-divided">
+          <SouthernFloodIntel
+            risk={southernRisk.data[0] ?? null}
+            rivers={southernRivers.data[0] ?? null}
+            ageMinutes={southernRisk.ageMinutes ?? southernRivers.ageMinutes}
+            fallbackTier={
+              southernRisk.fallbackTier === "loading" ? undefined
+              : southernRisk.fallbackTier ?? (southernRivers.fallbackTier === "loading" ? undefined : southernRivers.fallbackTier)
+            }
           />
         </div>
         <div className="left-section left-section-divided">

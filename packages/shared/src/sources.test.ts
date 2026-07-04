@@ -66,7 +66,12 @@ describe("SOURCE_CATALOG invariants", () => {
     // segments (e.g. Traffy's national dump filename) and are excluded.
     const forbidden =
       /Chula|Chulalongkorn|PMCU|Siam Square|Samyan|Sam Yan|Chamchuri|Centenary|MBK|Henri Dunant|Pathum Wan|Hua Lamphong|Ratchadamri|\bBMA\b|Yala|Pattani|Betong|Bang Lang|Deep South|Narathiwat|Chonburi|Laem Chabang|Eastern Seaboard|Sukhumvit/i;
+    // Southern-Thailand-wide flood analytics (flooddash-south-*) legitimately
+    // names peninsula provinces/rivers — Hat Yai, Pattani, etc. — as the actual
+    // subject of the feature, not an accidental fork-leftover reference.
+    const scopedException = /^flooddash-south-/;
     for (const s of SOURCE_CATALOG) {
+      if (scopedException.test(s.id)) continue;
       const haystack = `${s.label} ${s.vendor} ${s.describe} ${s.docs ?? ""}`;
       expect(
         forbidden.test(haystack),

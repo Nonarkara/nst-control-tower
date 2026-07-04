@@ -14,6 +14,10 @@ import type {
   ConflictIncident,
   FloodGauge,
   DamStatus,
+  ProvinceWatchScore,
+  SouthernRiverReach,
+  FloodWatchBand,
+  RiverDischargeBand,
 } from "@nst/shared";
 import type { HeatPoint } from "../sim/trafficSim";
 import {
@@ -2896,4 +2900,62 @@ export function unosatExposureLayer(records: UnositTambonExposure[]) {
     lineWidthMinPixels: 1.5,
     pickable: true,
   });
+}
+
+// ── Flooddash southern province watch scores ─────────────────────────────────
+const WATCH_BAND_RGB: Record<FloodWatchBand, [number, number, number]> = {
+  normal:   [52, 211, 153],
+  watch:    [56, 189, 248],
+  elevated: [251, 146, 60],
+  high:     [239, 68, 68],
+};
+
+export function southProvinceWatchLayer(provinces: ProvinceWatchScore[]) {
+  const data = provinces.filter((p) => p.band !== "normal");
+  return new ScatterplotLayer<ProvinceWatchScore>({
+    id: "south-province-watch",
+    data,
+    getPosition: (p) => [p.lng, p.lat],
+    getRadius: (p) => 60 + p.score * 2,
+    radiusMinPixels: 8,
+    radiusMaxPixels: 28,
+    getFillColor: (p) => {
+      const c = WATCH_BAND_RGB[p.band] ?? WATCH_BAND_RGB.watch;
+      return [c[0], c[1], c[2], 210] as [number, number, number, number];
+    },
+    stroked: true,
+    getLineColor: [10, 14, 20, 230],
+    lineWidthMinPixels: 1.5,
+    pickable: true,
+  });
+}
+
+// ── Flooddash southern GloFAS river reaches ──────────────────────────────────
+const DISCHARGE_BAND_RGB: Record<RiverDischargeBand, [number, number, number]> = {
+  normal:    [52, 211, 153],
+  watch:     [250, 204, 21],
+  warning:   [251, 146, 60],
+  emergency: [239, 68, 68],
+  unknown:   [148, 163, 184],
+};
+
+export function southRiverCascadeLayer(reaches: SouthernRiverReach[]): Layer[] {
+  return [
+    new ScatterplotLayer<SouthernRiverReach>({
+      id: "south-river-cascade",
+      data: reaches,
+      getPosition: (r) => [r.lng, r.lat],
+      getRadius: 110,
+      radiusMinPixels: 7,
+      radiusMaxPixels: 22,
+      getFillColor: (r) => {
+        const c = DISCHARGE_BAND_RGB[r.band] ?? DISCHARGE_BAND_RGB.unknown;
+        return [c[0], c[1], c[2], 230] as [number, number, number, number];
+      },
+      stroked: true,
+      getLineColor: [255, 255, 255, 220],
+      lineWidthMinPixels: 2,
+      pickable: true,
+    }) as Layer,
+  ];
 }

@@ -49,6 +49,9 @@ export type LayerId =
   | "flood-marks"
   | "street-flood-sim"
   | "wrf-rain-grid"
+  // Flooddash southern analytics
+  | "south-province-watch"
+  | "south-river-cascade"
   // Yala — circular-city signature + EO
   | "ring-roads"
   | "alphaearth-landcover"
@@ -180,6 +183,8 @@ export const LENSES: Lens[] = [
       "national-flood-prone",
       "hii-tambon-risk",
       "unosat-2021-exposure",
+      "south-province-watch",
+      "south-river-cascade",
     ],
   },
   {
@@ -466,6 +471,10 @@ export const ALL_LAYERS: {
     describe: "Tambon-level flood risk derived from HII's 17-year historical flood frequency dataset — จำนวนครั้งที่ท่วมในรอบ 17 ปี per subdistrict across Thailand. Source: Hydro-Informatics Institute." },
   { id: "unosat-2021-exposure", label: "UNOSAT 2021 population exposure", swatch: "#EC4899", group: "environment",
     describe: "UNOSAT satellite-derived flood extent + population exposure for the 2021 Thailand Southwest monsoon floods (Jul–Dec 2021). Shows tambon-level exposed population and flooded area km². Source: UNITAR-UNOSAT / Copernicus EMS Thailand Flood Analysis." },
+  { id: "south-province-watch", label: "Southern province watch (Flooddash)", swatch: "#F97316", group: "environment",
+    describe: "Province-level flood watch scores for all 16 southern provinces — water 50% · rain 30% · forecast 20%. Sized/coloured by band (watch / elevated / critical). Ported from Flooddash risk engine." },
+  { id: "south-river-cascade", label: "Southern GloFAS rivers (Flooddash)", swatch: "#38BDF8", group: "environment",
+    describe: "GloFAS river discharge at Hat Yai (U-Taphao), Tapi, Pattani, Tha Dee, and Pak Phanang — per-basin thresholds from Flooddash connected-waterways model." },
 
   // ─── Old Town signature ────────────────────────────────────────────────────
   { id: "ring-roads",        label: "Old Town axis (Ratchadamnoen)", swatch: "#FBBF24", group: "municipality",

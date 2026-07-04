@@ -860,3 +860,79 @@ export interface UnositRecord {
   provincialSummaries: UnositProvincialSummary[];
   tambonRecords: UnositTambonExposure[];
 }
+
+// ---- Flooddash southern analytics (ported from ~/Flooddash) ----
+
+/** Province watch band — heuristic from live water + rain + forecast, not a prediction. */
+export type FloodWatchBand = "normal" | "watch" | "elevated" | "high";
+
+/** Per-province watch score from Flooddash risk engine (water 50% · rain 30% · forecast 20%). */
+export interface ProvinceWatchScore {
+  provinceCode: string;
+  provinceTh: string;
+  provinceEn: string;
+  score: number;
+  band: FloodWatchBand;
+  waterScore: number;
+  rainScore: number;
+  forecastScore: number;
+  stationsL4: number;
+  stationsL5: number;
+  maxRain24h: number | null;
+  maxRainStation: string | null;
+  fc48h: number | null;
+  lat: number;
+  lng: number;
+  topWaterStations: Array<{ name: string; level: number }>;
+}
+
+export interface SouthernRiskSummary {
+  regionalBand: FloodWatchBand;
+  bandCounts: Record<FloodWatchBand, number>;
+  bySituationLevel: Record<string, number>;
+  worstRain: { provinceTh: string; mm: number } | null;
+  methodEn: string;
+  methodTh: string;
+}
+
+export interface SouthernFloodRiskFeed {
+  summary: SouthernRiskSummary;
+  provinces: ProvinceWatchScore[];
+}
+
+export type RiverDischargeBand = "normal" | "watch" | "warning" | "emergency" | "unknown";
+
+/** GloFAS river reach with live discharge — southern basins + NST Tha Dee / Pak Phanang. */
+export interface SouthernRiverReach {
+  id: string;
+  nameTh: string;
+  nameEn: string;
+  basinTh: string;
+  basinEn: string;
+  lat: number;
+  lng: number;
+  discharge: number | null;
+  forecastPeak: number | null;
+  forecastPeakDay: number | null;
+  band: RiverDischargeBand;
+  peakBand: RiverDischargeBand;
+  trend: "rising" | "falling" | "stable" | "unknown";
+  thresholds: { watch: number; warning: number; emergency: number };
+  noteTh: string;
+  noteEn: string;
+  observedAt: string | null;
+}
+
+export interface SouthernRiverLink {
+  fromId: string;
+  toId: string;
+  lagDays: number;
+  path: [number, number][];
+}
+
+export interface SouthernRiverCascadeFeed {
+  reaches: SouthernRiverReach[];
+  links: SouthernRiverLink[];
+  methodEn: string;
+  methodTh: string;
+}

@@ -79,9 +79,16 @@ function peakDischarge(p: OpenMeteoFlood | null): number | null {
 // m³/s for these small Thai canals (observed baseline ≈ 6–8 m³/s), so thresholds
 // that would make sense for a large river (300/600/1000) are unreachable here.
 // These bands trigger on the *model's* relative departure from baseline flow.
-const WATCH_CMS = 15;
-const WARNING_CMS = 30;
-const FLOOD_CMS = 50;
+// Also used by flooddash.ts southern cascade for tha_dee_nst / pak_phanang reaches.
+export const NST_CANAL_GLOFAS_THRESHOLDS = {
+  watch: 15,
+  warning: 30,
+  emergency: 50,
+} as const;
+
+const WATCH_CMS = NST_CANAL_GLOFAS_THRESHOLDS.watch;
+const WARNING_CMS = NST_CANAL_GLOFAS_THRESHOLDS.warning;
+const FLOOD_CMS = NST_CANAL_GLOFAS_THRESHOLDS.emergency;
 
 function gaugeStatus(dischargeCms: number | null): FloodGauge["status"] {
   if (dischargeCms == null) return "unknown";

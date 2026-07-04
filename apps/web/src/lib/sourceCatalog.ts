@@ -71,6 +71,8 @@ export const API_PATH_TO_ADAPTER: Array<[RegExp, string]> = [
   // without these, the SOURCES modal showed no warning chip for degraded adapters.
   [/\/api\/air-quality\/air4thai$/, "air4thai"],
   [/\/api\/flood\/national-prone$/, "national-flood-prone"],
+  [/\/api\/flood\/south\/risk$/, "flooddash-south-risk"],
+  [/\/api\/flood\/south\/rivers$/, "flooddash-south-rivers"],
   [/\/api\/flood\/unosat-2021$/, "unosat-2021-exposure"],
   [/\/api\/water\/national-waterways$/, "national-waterways"],
   [/\/api\/rainfall\/historical$/, "historical-rainfall"],
