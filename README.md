@@ -1,157 +1,245 @@
 <div align="center">
 
-# Yala Smart City · ยะลา สมาร์ทซิตี้
-### Dr Non's Yala Super Dashboard — แดชบอร์ดเมืองอัจฉริยะ เทศบาลนครยะลา
+# Nakhon Si Thammarat Smart City Dashboard
+### เทศบาลนครนครศรีธรรมราช — Municipal Control Tower
 
-**A free, open-source, real-time intelligence dashboard for Yala City Municipality, in Thailand's Deep South.**
+**A free, open-source, real-time intelligence dashboard for Nakhon Si Thammarat City
+Municipality, Southern Thailand — built flood-first, because flooding is the city's
+defining risk.**
 
 [![React 19](https://img.shields.io/badge/Web-React%2019%20+%20Vite-blue)](https://react.dev)
 [![deck.gl](https://img.shields.io/badge/Map-deck.gl%209%20+%20MapLibre-blue)](https://deck.gl)
-[![Hono](https://img.shields.io/badge/API-Hono-orange)](https://hono.dev)
-[![Tests](https://img.shields.io/badge/tests-521%20passing-2DAA9E)](#proof)
+[![Hono](https://img.shields.io/badge/API-Hono%20%2F%20Cloudflare%20Workers-orange)](https://hono.dev)
+[![Tests](https://img.shields.io/badge/tests-1%2C168%20passing-2DAA9E)](#proof)
 [![License: MIT](https://img.shields.io/badge/license-MIT-1A1A1A)](LICENSE)
 
 **[🇹🇭 อ่านภาษาไทย → README.th.md](README.th.md)** · 🇬🇧 English (this page)
 
 </div>
 
-> **How to read this repo.** The *pictures* are in Thai, for residents and officials. The
-> *words* (this README, the docs, the code) are in English, because that is what machines and
-> developers read most reliably. So scroll for the story, read for the detail.
-
-![Overview — real data, one screen, a decision](docs/story/00-overview.svg)
-
----
-
-## The story in four pictures
-
-Four questions a non-technical person asks — answered with one diagram each. Captions in English; the diagrams themselves are in Thai.
-
-### 1 · Why does this exist? — ทำไม
-The whole city used to live in scattered files, PDFs, and chat threads across many agencies.
-By the time anyone assembled the picture, the moment had passed. In the Deep South — floods,
-safety, the local economy — "knowing late" is not an option.
-
-![Why](docs/story/01-why.svg)
-
-### 2 · How does it work? — ทำงานยังไง
-Every source is pulled by an **adapter**, reshaped into one common **NormalizedFeed**, written
-into a live **digital twin** of the city, and rendered on the **dashboard**. It runs itself,
-24/7, refreshing every 2–30 minutes.
-
-![How](docs/story/02-how.svg)
-
-### 3 · How do we know it's real? — พิสูจน์ <a id="proof"></a>
-Not a slideshow. **15,148** tappable buildings, **47** connected sources, **live** auto-refreshing
-feeds, **521** automated tests passing, **3** mobile pages, fully **open source**. Every number
-traces back to running code.
-
-![Proof](docs/story/03-proof.svg)
-
-### 4 · Who benefits, and why does it last? — ใครได้อะไร
-The mayor, officials, citizens, and partners (depa et al.) each **give** something and **get**
-something. Because everyone is paid back, the loop sustains itself — it is not a one-off demo.
-
-![People](docs/story/04-people.svg)
-
----
-
-## More chapters
-
-The same picture-story continues — each a single clean diagram, Thai labels, captions in English.
-All live in [`docs/story/`](docs/story/); the visual style is defined in [`docs/STYLE.md`](docs/STYLE.md).
-
-**The 3D city map** — แผนที่เมือง 3 มิติ · 2D/3D, buildings coloured by type, compass, live coordinates, tap-to-add-data.
-![Map](docs/story/05-map.svg)
-
-**One city, many lenses** — เมืองเดียว หลายมุมมอง · EXEC · OPS · MOB · MAR · ENV · EAR · SAF · VIB · INT.
-![Lenses](docs/story/06-lenses.svg)
-
-**Map-first mobile** — ใช้บนมือถือ · three clean, thumb-friendly pages: Map · Brief · Layers.
-![Mobile](docs/story/07-mobile.svg)
-
-**Digital twin** — แฝดดิจิทัล · every building has a stable id and can hold data (sensors, reports, type).
-![Digital twin](docs/story/08-twin.svg)
-
-**47 data sources, by category** — แหล่งข้อมูล · weather, flood, satellite, traffic, maritime, gov & social.
-![Sources](docs/story/09-sources.svg)
-
-**Graceful degradation** — ความทนทาน · live → cache → modelled → unavailable. The screen never goes blank.
-![Resilience](docs/story/10-resilience.svg)
-
-**Trust & transparency** — เชื่อใจได้ · public data only, no secrets, open source, every number traceable.
-![Trust](docs/story/11-trust.svg)
-
-**Fork it for your city** — ทำเมืองของคุณได้ · clone → set your city → deploy.
-![Fork](docs/story/12-fork.svg)
-
-**Architecture (for developers)** — สถาปัตยกรรม · a pnpm monorepo: `apps/api` · `apps/web` · `packages/shared`.
-![Architecture](docs/story/13-architecture.svg)
-
 ---
 
 ## What is this? <a id="what"></a>
 
-Yala Smart City is a **municipal "control tower"**: it folds dozens of live data feeds —
-weather, air quality, flood & river discharge, traffic incidents, maritime/coastal data,
-satellite earth-observation, citizen reports, and government open data — onto a single 3D map
-of the city, and answers the only question that matters during a busy day:
-**"What do I need to do right now?"**
+NST sits at the foot of Khao Luang (1,835 m, the South's highest peak). Three watershed
+systems drain off the mountain, through the Old Town, into the Pak Phanang basin — the
+same geography that flooded under Tropical Storm Pabuk in 2019. This dashboard exists to
+answer one question fast, during the hours that matter: **"What is happening right now,
+and where do I send help?"**
 
-It is a sibling of [`chonburi-control-tower`](https://github.com/Nonarkara/chonburi-control-tower)
-— the same engine, re-pointed at Yala (เทศบาลนครยะลา) in Thailand's Deep South.
+It folds dozens of live data feeds — river discharge, rainfall, satellite flood extent,
+air quality, traffic, citizen reports, maritime AIS, government open data — onto a single
+3D map of the city, and adds a flood **scenario simulator** so an operator can test "what
+happens at water level X" against real surveyed street elevations before it happens.
 
-## Features <a id="features"></a>
+**This is not a demo.** Every number on screen traces back to a real upstream source or is
+explicitly labeled as modelled/scenario — see [Data honesty](#honesty) below.
 
-- **3D city map** — all 15,148 OSM building footprints, extruded. Toggle **2D / 3D / 3D-substructure**.
-- **Color by type** — buildings tint by category (hospital, temple, school, market…) with an on-map legend; untyped footprints stay neutral. Per-building data can be attached via the digital-twin API.
-- **Compass + live coordinates** — a needle that resets north, and a lat/long readout under the cursor.
-- **Lenses** — one city, many views: `EXEC · OPS · MOB · MAR · ENV · EAR · SAF · VIB · INT`.
-- **Map-first mobile** — three clean, thumb-friendly pages: **Map · Brief · Layers**.
-- **Graceful degradation** — every feed reports its freshness tier (live → cache → modelled → unavailable). The dashboard never goes blank; it tells you how stale a number is.
-- **No secrets in the repo** — all keys are environment variables; the source is safe to read.
+## Proof <a id="proof"></a>
+
+| | |
+|---|---|
+| **1,927** | tappable 3D building footprints |
+| **70** | cataloged data sources (27 live today) |
+| **1,168** | automated unit tests, plus 18 Playwright E2E smoke tests |
+| **9** | map lenses — one city, many views |
+| **0** | secrets in the repo — every key is an environment variable |
+
+## System architecture <a id="architecture"></a>
+
+A pnpm monorepo, three workspaces:
+
+```
+apps/api/         Hono API on Cloudflare Workers — one adapter per data source
+apps/web/         React 19 + Vite + deck.gl + MapLibre — the dashboard itself
+packages/shared/  Shared TypeScript types + region config (types.ts, sources.ts, campus.ts)
+```
+
+```mermaid
+flowchart LR
+    subgraph Upstream["Upstream data sources"]
+        HII["HII ThaiWater<br/>river + rain gauges"]
+        OM["Open-Meteo<br/>forecast · GloFAS flood"]
+        GISTDA["GISTDA<br/>satellite · POIs"]
+        GOV["Traffy · iTIC · data.go.th<br/>citizen + government"]
+        SAT["NASA · UNOSAT<br/>earth observation"]
+    end
+
+    subgraph API["apps/api — Hono on Cloudflare Workers"]
+        Adapters["Adapters<br/>(one per source)"]
+        Cache["In-memory cache<br/>TTL + stale-while-revalidate"]
+        Twin["Digital twin store<br/>(buildings + live state)"]
+    end
+
+    subgraph Web["apps/web — React + deck.gl"]
+        Hooks["useFeed() hooks<br/>poll + localStorage fallback"]
+        Panels["Panels<br/>(PanelHeader + freshness tier)"]
+        Map["3D map<br/>lenses → layers"]
+    end
+
+    Upstream --> Adapters --> Cache --> Hooks --> Panels
+    Cache --> Twin --> Map
+    Hooks --> Map
+
+    Operator(["Municipal operator / Mayor"]) --> Web
+```
+
+**The adapter pattern.** Every upstream source gets exactly one adapter in
+`apps/api/src/adapters/<name>.ts`. An adapter fetches (with a timeout), reshapes the
+payload into typed `features`, stamps a `meta` block describing freshness, and — this is
+the part that matters — **throws on genuine failure** instead of silently returning empty
+data, so the cache layer's stale-while-revalidate logic can serve the last known-good
+value instead of a fabricated "nothing's wrong" response.
+
+## The data contract — `NormalizedFeed<T>` <a id="data-structure"></a>
+
+Every one of the 70 cataloged sources — river gauges, satellite imagery, citizen reports,
+market data — is reshaped into **the same envelope** before it ever reaches a UI panel.
+This is the single most important design decision in the codebase: a panel never has to
+know or care what upstream API produced its data.
+
+```mermaid
+classDiagram
+    class NormalizedFeed~T~ {
+        +features: T[]
+        +meta: SourceMeta
+    }
+    class SourceMeta {
+        +source: string
+        +fetchedAt: string
+        +ageMinutes: number
+        +fallbackTier: FallbackTier
+        +note?: string
+    }
+    class FallbackTier {
+        <<enumeration>>
+        live
+        database
+        cache
+        scenario
+        reference
+        unavailable
+    }
+    NormalizedFeed --> SourceMeta : meta
+    SourceMeta --> FallbackTier : fallbackTier
+
+    class FloodGauge
+    class AirQualityPoint
+    class IncidentFeature
+    class ProvinceWatchScore
+    NormalizedFeed ..> FloodGauge : T =
+    NormalizedFeed ..> AirQualityPoint : T =
+    NormalizedFeed ..> IncidentFeature : T =
+    NormalizedFeed ..> ProvinceWatchScore : T =
+```
+
+One feed's round trip, end to end:
+
+```mermaid
+sequenceDiagram
+    participant U as Upstream API
+    participant A as Adapter
+    participant C as Cache (stale-while-revalidate)
+    participant R as Hono route
+    participant H as useFeed() hook
+    participant P as Panel
+
+    R->>A: safeFeed(fetchXxx)
+    A->>C: cachedWithStale(key, ttl, compute)
+    alt cache hit, still fresh
+        C-->>A: cached data
+    else expired or empty
+        A->>U: fetch (25s timeout)
+        alt upstream OK
+            U-->>A: payload
+            A->>A: reshape → NormalizedFeed<T>
+            A->>C: store fresh
+        else upstream fails
+            A--xC: throws
+            C->>C: serve last-good stale value,<br/>or a calm "unavailable"/"scenario"<br/>feed on a true cold start
+        end
+    end
+    C-->>R: NormalizedFeed<T>
+    R-->>H: JSON response
+    H->>H: poll, retry+backoff,<br/>persist to localStorage
+    H-->>P: {data, ageMinutes, fallbackTier}
+    P->>P: PanelHeader shows source +<br/>age + freshness colour
+```
+
+## Data honesty: real vs. simulated <a id="honesty"></a>
+
+Every data point on screen carries a `fallbackTier`, and the UI always shows it — nothing
+simulated is ever presented as if it were live.
+
+| Tier | Meaning |
+|---|---|
+| `live` | Real sensor/API data, fetched within the adapter's TTL |
+| `database` | Persisted in the digital twin's Postgres store — authoritative record |
+| `cache` | Last good value, served from browser localStorage while a refresh is in flight |
+| `reference` | Historical/statistical dataset (e.g. 17-year satellite flood-frequency) — not live-updating |
+| `scenario` | Model output — e.g. the flood "bathtub" simulator, a forecast rain grid |
+| `unavailable` | Upstream is down and there's no stale cache — shown as an honest error, never faked |
+
+## Lenses — one city, many views <a id="lenses"></a>
+
+| Lens | Purpose |
+|---|---|
+| **EXEC** | Strategic overview — municipal boundary, city-scale KPIs |
+| **OPS** | Day-to-day operations — every building in 3D, traffic, incidents, CCTV |
+| **FLOOD** | The headline risk — river gauges, surveyed flood marks, the scenario simulator, satellite flood exposure, and southern-region watch scores |
+| **MOB** | Mobility & dispatch — road network, transit, traffic heatmap |
+| **ENV** | Environment — flood-risk zones, waterways, land cover, air quality, solar potential |
+| **EAR** | Earth observation — satellite rain, heat, vegetation |
+| **SAF** | Safety — flood zones, citizen reports, hospitals/fire/police |
+| **VIB** | Presentation mode — clean true-color satellite for briefings |
+| **INT** | Forecast intelligence — rain/flood outlook layers |
+
+## The southern-region flood layer <a id="flooddash"></a>
+
+Beyond NST-local monitoring, the **FLOOD** lens also carries peninsula-wide situational
+awareness: a watch score for all 14 southern provinces (water level 50% · rainfall 30% ·
+forecast 20%) and a GloFAS river-discharge cascade across five key reaches (Hat Yai, Tapi,
+Pattani, Tha Dee, Pak Phanang). This logic is a direct, verified port of an independent
+flood-monitoring engine, re-scoped to run against the same live upstream sources with no
+external server dependency.
 
 ## Quick start <a id="quickstart"></a>
 
 ```bash
 pnpm install
-pnpm dev                 # all workspaces
+pnpm dev                    # all workspaces
 # or individually:
-pnpm --filter web dev    # frontend  → http://localhost:5173
-pnpm --filter api dev    # API       → http://localhost:3000
+pnpm --filter web dev       # frontend → http://localhost:5173
+pnpm --filter api dev       # API     → http://localhost:3000 (wrangler dev)
 ```
-
-Useful checks:
 
 ```bash
-pnpm tsc --noEmit                       # type check
-pnpm --filter @yala/web test            # 521 web unit tests
-pnpm --filter @yala/web test:e2e        # Playwright smoke tests
+pnpm tsc --noEmit                    # type-check the whole repo
+pnpm --filter @nst/shared test       # 40 tests
+pnpm --filter @nst/api test          # 554 tests
+pnpm --filter @nst/web test          # 574 tests
+pnpm --filter @nst/web test:e2e      # 18 Playwright smoke tests
 ```
 
-## Architecture <a id="architecture"></a>
+CI (`.github/workflows/test.yml`) runs type-check + unit + E2E on every PR; deploy to
+Cloudflare Pages/Workers runs only after the Test workflow passes.
 
-A pnpm monorepo:
+## Fork it for your city <a id="fork"></a>
 
-| Workspace | What it is |
-|---|---|
-| `apps/api/` | **Hono** API — data adapters, each returning a typed `NormalizedFeed<T>`; the digital-twin store. |
-| `apps/web/` | **React 19 + Vite + deck.gl + MapLibre** dashboard — lenses, map layers, panels. |
-| `packages/shared/` | Shared TypeScript types + utilities (`types.ts`, `locale.ts`). |
+This engine is geography-agnostic. To re-point it at another municipality:
+
+1. **Region config** — `packages/shared/src/campus.ts` (center, bounds, name).
+2. **Buildings** — drop your city's OSM building GeoJSON at `apps/web/public/geo/<city>/`.
+3. **Source catalog** — trim or extend `packages/shared/src/sources.ts`.
+4. **Health mapping** — update `API_PATH_TO_ADAPTER` in `apps/web/src/lib/sourceCatalog.ts`
+   so the SOURCES modal can track health for any new routes.
 
 Deeper notes: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) ·
 [`docs/DATA-SOURCES.md`](docs/DATA-SOURCES.md) · conventions in [`CLAUDE.md`](CLAUDE.md).
 
-## Fork it for your city <a id="fork"></a>
-
-This is built to be re-pointed. Clone it, swap the campus config (center, bounds, building
-GeoJSON, source catalog), and you have a control tower for *your* municipality. Yala, Chonburi,
-and a university campus already run on this same engine. See
-[`docs/DATA-SOURCES.md`](docs/DATA-SOURCES.md#fork-it-for-your-city).
-
 ## License & credits
 
-MIT. Built by **Dr Non Arkaraprasertkul** ([nonarkara.org](https://nonarkara.org)) for the
-[SLIC Index](https://github.com/Nonarkara/SLIC-Index) smart-city programme, with depa and
-partners. Data belongs to its respective providers (NASA, GISTDA, Open-Meteo, data.go.th,
-OpenStreetMap, and others — see the in-app SOURCES catalog).
+MIT — see [`LICENSE`](LICENSE). Data belongs to its respective providers: HII
+(Hydro-Informatics Institute), Open-Meteo, GISTDA, NASA, UNOSAT/UNITAR, data.go.th,
+Traffy Fondue, OpenStreetMap, and others — see the in-app SOURCES catalog for the full,
+current list with live health status.
