@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { cached, cachedWithStale, setCache, cacheAgeMinutes, snapshotCache } from "./cache";
 
 function nextKey(prefix: string): string {
@@ -207,5 +207,47 @@ describe("cache: setCache + snapshotCache", () => {
       expect(snap[key]).toBeUndefined();
       resolve();
     }, 5));
+  });
+});
+
+// Regression coverage for a bug seen live in production: a Promise.all of two
+// upstream fetches never settled inside a Cloudflare Workers isolate even
+// though each individual fetch has its own AbortController timeout — the
+// caller hung indefinitely because cachedWithStale's cold-start path had no
+// safety net of its own (unlike cached(), which already raced a 60s timeout).
+describe("cache: hang safety (compute() that never settles)", () => {
+  it("cached() rejects with a timeout instead of hanging forever", async () => {
+    vi.useFakeTimers();
+    const key = nextKey("hang-cached");
+    const compute = () => new Promise<never>(() => {}); // never settles
+
+    const promise = cached(key, 60, compute);
+    const assertion = expect(promise).rejects.toThrow(/Cache compute timeout/);
+    await vi.advanceTimersByTimeAsync(60_000);
+    await assertion;
+
+    vi.useRealTimers();
+  });
+
+  it("cachedWithStale() on a cold start (no stale entry) rejects with a timeout instead of hanging forever", async () => {
+    vi.useFakeTimers();
+    const key = nextKey("hang-stale-cold");
+    const compute = () => new Promise<never>(() => {}); // never settles
+
+    const promise = cachedWithStale(key, 60, compute);
+    const assertion = expect(promise).rejects.toThrow(/Cache compute timeout/);
+    await vi.advanceTimersByTimeAsync(60_000);
+    await assertion;
+
+    vi.useRealTimers();
+  });
+
+  it("cachedWithStale() with a stale entry still serves it promptly even if the background refresh never settles", async () => {
+    const key = nextKey("hang-stale-serve");
+    setCache(key, { value: "stale-but-good" }, -1); // already-expired stale entry
+    const compute = () => new Promise<never>(() => {}); // background refresh never settles
+
+    const result = await cachedWithStale(key, 60, compute, 86400, true);
+    expect(result).toEqual({ value: "stale-but-good" });
   });
 });

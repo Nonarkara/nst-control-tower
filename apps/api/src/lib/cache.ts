@@ -15,6 +15,12 @@ const MAX_ENTRIES = 200;
 // failed attempt, and the outage becomes invisible (fast-path cache hit,
 // no error, no retry) for up to a full day, repeating forever.
 const STALE_REFRESH_RETRY_COOLDOWN_MS = 60_000;
+// Safety net for any compute() that hangs forever (seen in production: a
+// Promise.all of two upstream fetches never settled inside a Cloudflare
+// Workers isolate even though each individual fetch has its own 25s
+// AbortController timeout in common.ts — cause unconfirmed, but a cold-start
+// caller must never be left hanging indefinitely regardless of why).
+const COMPUTE_TIMEOUT_MS = 60_000;
 // Map iteration order = insertion order, and `Map.set()` on an EXISTING key
 // does NOT move it. We rely on that for LRU: every read and every write
 // deletes-then-re-inserts the key so it always lands at the "newest" end.
@@ -50,6 +56,31 @@ export function setCache<T>(key: string, data: T, ttlSeconds: number): void {
   store.set(key, { data, expiresAt: Date.now() + ttlSeconds * 1000 });
 }
 
+/**
+ * Guarantees `promise` settles within COMPUTE_TIMEOUT_MS regardless of what
+ * compute() does internally — a hung upstream fetch must never leave a
+ * caller (or a `pending` dedup entry) waiting forever.
+ */
+function raceAgainstHang<T>(promise: Promise<T>, key: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      pending.delete(key);
+      reject(new Error(`Cache compute timeout for ${key}`));
+    }, COMPUTE_TIMEOUT_MS);
+  });
+  const clearTimer = () => {
+    if (timer) {
+      clearTimeout(timer);
+      timer = null;
+    }
+  };
+  return Promise.race([
+    promise.then((v) => { clearTimer(); return v; }).catch((e) => { clearTimer(); throw e; }),
+    timeout,
+  ]);
+}
+
 export async function cached<T>(
   key: string,
   ttlSeconds: number,
@@ -77,24 +108,7 @@ export async function cached<T>(
     });
 
   pending.set(key, promise);
-
-  // Safety: if compute hangs forever, don't leak beyond 60 s
-  let timer: ReturnType<typeof setTimeout> | null = null;
-  const timeout = new Promise<never>((_, reject) => {
-    timer = setTimeout(() => {
-      pending.delete(key);
-      reject(new Error(`Cache compute timeout for ${key}`));
-    }, 60_000);
-  });
-
-  const clearTimer = () => {
-    if (timer) {
-      clearTimeout(timer);
-      timer = null;
-    }
-  };
-
-  return Promise.race([promise.then((v) => { clearTimer(); return v; }).catch((e) => { clearTimer(); throw e; }), timeout]);
+  return raceAgainstHang(promise, key);
 }
 
 export function cacheAgeMinutes(fetchedAt: string): number {
@@ -179,7 +193,7 @@ export async function cachedWithStale<T>(
     });
 
   pending.set(key, promise as Promise<unknown>);
-  return promise;
+  return raceAgainstHang(promise, key);
 }
 
 /**
