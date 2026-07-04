@@ -60,10 +60,13 @@ export async function fetchRidReservoirs(): Promise<NormalizedFeed<RidReservoir>
   return cached("rid-reservoirs", TTL, async () => {
     const fetchedAt = new Date().toISOString();
 
-    // fetchJsonOrThrow catches all errors internally and returns null — it never
-    // throws — so a try/catch here is dead code. Check for null explicitly.
-    const respRaw = await fetchJsonOrThrow<RidResponse>(URL);
-    if (respRaw == null) {
+    // fetchJsonOrThrow throws on non-OK / network / DNS failure. On a cold start
+    // (no stale cache), cachedWithStale re-throws, so catch here to return a calm
+    // unavailable feed instead of a 500 through safeFeed.
+    let respRaw: RidResponse | null = null;
+    try {
+      respRaw = await fetchJsonOrThrow<RidResponse>(URL);
+    } catch {
       return {
         features: [],
         meta: {

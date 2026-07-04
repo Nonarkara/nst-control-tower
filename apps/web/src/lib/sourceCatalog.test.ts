@@ -94,6 +94,19 @@ describe("adapterNameFor — known routes", () => {
     expect(adapterNameFor("/api/water/ews")).toBe("dwr-ews");
     expect(adapterNameFor("/api/water/reservoirs-rid")).toBe("rid-reservoirs");
   });
+
+  it("maps previously-unmapped live routes (health-coverage gap fix)", () => {
+    expect(adapterNameFor("/api/air-quality/air4thai")).toBe("air4thai");
+    expect(adapterNameFor("/api/flood/national-prone")).toBe("national-flood-prone");
+    expect(adapterNameFor("/api/flood/unosat-2021")).toBe("unosat-2021-exposure");
+    expect(adapterNameFor("/api/water/national-waterways")).toBe("national-waterways");
+    expect(adapterNameFor("/api/rainfall/historical")).toBe("historical-rainfall");
+    expect(adapterNameFor("/api/flights")).toBe("flights-nst");
+    expect(adapterNameFor("/api/wrf/rain-outlook")).toBe("wrf-rain-outlook");
+    expect(adapterNameFor("/api/wrf/rain-grid")).toBe("wrf-rain-grid");
+    expect(adapterNameFor("/api/precip-nowcast/zones")).toBe("precip-nowcast-zones");
+    expect(adapterNameFor("/api/executive")).toBe("executive");
+  });
 });
 
 describe("adapterNameFor — non-matching paths", () => {

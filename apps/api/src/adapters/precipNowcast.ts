@@ -107,10 +107,9 @@ async function fetchAllZoneSnapshots(): Promise<AllZoneSnapshots> {
       `&minutely_15=precipitation,precipitation_probability` +
       `&timezone=Asia%2FBangkok&forecast_minutely_15=24`;
     const payload = await fetchJsonOrThrow<OpenMeteoMinutelyResponse>(url);
-    // fetchJsonOrThrow returns null on network/HTTP failure (despite the
-    // name); throw here so cachedWithStale serves the previous good snapshot
-    // instead of caching an all-null outage for the whole TTL.
-    if (!payload) throw new Error("open-meteo minutely_15 unreachable");
+    // fetchJsonOrThrow throws on network/HTTP failure; cachedWithStale serves
+    // the previous good snapshot if one exists. The outer snapshotsOrNull()
+    // wrapper catches the cold-start re-throw to return a calm unavailable feed.
     const perPoint = Array.isArray(payload) ? payload : [payload];
 
     const byZone: Record<string, PrecipNowcast | null> = {};

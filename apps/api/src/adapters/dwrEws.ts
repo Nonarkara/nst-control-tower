@@ -98,9 +98,10 @@ export async function fetchEwsStations(): Promise<NormalizedFeed<EwsStation>> {
       };
     }
 
-    // fetchJsonOrThrow returns null on non-OK / unparseable / DNS failure —
-    // distinguish "upstream unreachable" from a genuinely empty NST result.
-    if (raw == null) {
+    // fetchJsonOrThrow throws on non-OK / network / DNS failure; the try/catch
+    // above handles that. A non-null raw that isn't an array means upstream
+    // returned malformed data — treat it as empty.
+    if (raw == null || !Array.isArray(raw)) {
       return {
         features: [],
         meta: {
@@ -112,7 +113,6 @@ export async function fetchEwsStations(): Promise<NormalizedFeed<EwsStation>> {
         },
       };
     }
-    if (!Array.isArray(raw)) raw = [];
 
     const features: EwsStation[] = raw
       .filter((s) => String(s.province ?? "").includes(PROVINCE_TH))

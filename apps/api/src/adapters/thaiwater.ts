@@ -139,12 +139,15 @@ export async function fetchWaterGauges(): Promise<NormalizedFeed<WaterGauge>> {
   return cached("thaiwater-gauges", TTL_GAUGES, async () => {
     const fetchedAt = new Date().toISOString();
 
-    // fetchJsonOrThrow catches all errors internally and returns null — it never
-    // throws — so a try/catch here is dead code. Check for null explicitly.
-    const resp = await fetchJsonOrThrow<TWResponse<TWWaterLevelEntry[]>>(
-      `${BASE}/waterlevel?province_code=${PROVINCE}`
-    );
-    if (resp == null) {
+    // fetchJsonOrThrow throws on non-OK / network / DNS failure. On a cold start
+    // (no stale cache), cachedWithStale re-throws, so catch here to return a calm
+    // unavailable feed instead of a 500 through safeFeed.
+    let resp: TWResponse<TWWaterLevelEntry[]> | null = null;
+    try {
+      resp = await fetchJsonOrThrow<TWResponse<TWWaterLevelEntry[]>>(
+        `${BASE}/waterlevel?province_code=${PROVINCE}`
+      );
+    } catch {
       return {
         features: [],
         meta: {
@@ -207,12 +210,15 @@ export async function fetchRainfall(): Promise<NormalizedFeed<RainfallStation>> 
   return cached("thaiwater-rain", TTL_RAIN, async () => {
     const fetchedAt = new Date().toISOString();
 
-    // fetchJsonOrThrow catches all errors internally and returns null — it never
-    // throws — so a try/catch here is dead code. Check for null explicitly.
-    const resp = await fetchJsonOrThrow<TWResponse<TWRainEntry[]>>(
-      `${BASE}/rain_24h?province_code=${PROVINCE}`
-    );
-    if (resp == null) {
+    // fetchJsonOrThrow throws on non-OK / network / DNS failure. On a cold start
+    // (no stale cache), cachedWithStale re-throws, so catch here to return a calm
+    // unavailable feed instead of a 500 through safeFeed.
+    let resp: TWResponse<TWRainEntry[]> | null = null;
+    try {
+      resp = await fetchJsonOrThrow<TWResponse<TWRainEntry[]>>(
+        `${BASE}/rain_24h?province_code=${PROVINCE}`
+      );
+    } catch {
       return {
         features: [],
         meta: {

@@ -681,6 +681,105 @@ export const SOURCE_CATALOG: SourceEntry[] = [
     docs: "https://www.gistda.or.th",
   },
 
+  // ── Operational adapters wired in index.ts but not yet in the catalog ──────
+
+  // WRF-ROMS regional rain forecast (HII model)
+  {
+    id: "wrf-roms-rain",
+    label: "WRF-ROMS rain forecast (HII ~3 km grid)",
+    vendor: "Hydro-Informatics Institute (HII)",
+    category: "environment",
+    status: "live",
+    apiPath: "/api/wrf/rain-outlook",
+    pollSeconds: 1800,
+    describe: "HII's Weather Research and Forecasting regional model — 3-day rain outlook averaged over the Khao Luang–Tha Dee catchment and city/coastal boxes, plus a province sub-grid for map rendering. Runs land twice daily.",
+    docs: "https://tiservice.hii.or.th/opendata/wrf-roms",
+  },
+  {
+    id: "wrf-roms-rain-grid",
+    label: "WRF-ROMS rain grid (map overlay)",
+    vendor: "Hydro-Informatics Institute (HII)",
+    category: "environment",
+    status: "live",
+    apiPath: "/api/wrf/rain-grid",
+    pollSeconds: 1800,
+    describe: "Compact province sub-grid (per-day) from the WRF-ROMS run for deck.gl grid-layer rendering on the INT lens. Day 1/2/3 selectable.",
+  },
+  // NST airport FIDS (AirLabs)
+  {
+    id: "airlabs-flights",
+    label: "NST Airport FIDS (AirLabs)",
+    vendor: "AirLabs",
+    category: "mobility",
+    status: "live",
+    endpoint: "https://airlabs.co/api/v9/schedules.json",
+    apiPath: "/api/flights",
+    keyEnv: "AIRLABS_API_KEY",
+    pollSeconds: 5400,
+    describe: "Live arrivals & departures at Nakhon Si Thammarat Airport (NST). Free tier: 1,000 req/month.",
+    docs: "https://airlabs.co",
+  },
+  // Historical rainfall (Open-Meteo Archive API)
+  {
+    id: "historical-rainfall",
+    label: "Historical rainfall (Open-Meteo Archive)",
+    vendor: "Open-Meteo (ERA5 reanalysis)",
+    category: "environment",
+    status: "live",
+    endpoint: "https://archive-api.open-meteo.com/v1/archive",
+    apiPath: "/api/rainfall/historical",
+    pollSeconds: 86400,
+    describe: "17-year daily rainfall at any lat/lng — annual summaries, monthly normals, wet/dry season baselines. Drives the seasonal flood-risk calendar. ERA5 reanalysis, no key.",
+    docs: "https://open-meteo.com/en/docs/historical-weather-api",
+  },
+  // National waterways (OSM Overpass)
+  {
+    id: "national-waterways",
+    label: "National waterways (OSM Overpass)",
+    vendor: "OpenStreetMap",
+    category: "environment",
+    status: "live",
+    endpoint: "https://overpass-api.de/api/interpreter",
+    apiPath: "/api/water/national-waterways",
+    pollSeconds: 604800,
+    describe: "Rivers, canals, and streams from OSM Overpass for the NST province — rendered as PathLayer on the FLOOD lens. Static; refreshed weekly.",
+    docs: "https://overpass-api.de",
+  },
+  // National flood-prone areas (data.go.th + HII)
+  {
+    id: "national-flood-prone",
+    label: "National flood-prone areas (data.go.th + HII)",
+    vendor: "DGA + HII",
+    category: "environment",
+    status: "live",
+    apiPath: "/api/flood/national-prone",
+    pollSeconds: 86400,
+    describe: "Flood-prone area records from data.go.th CKAN + HII 17-year tambon risk model. Province-filtered to NST. Drives the SAF lens flood-risk polygons.",
+    docs: "https://data.go.th",
+  },
+  // UNOSAT 2021 flood exposure
+  {
+    id: "unosat-2021-exposure",
+    label: "UNOSAT 2021 flood population exposure",
+    vendor: "UNOSAT (UNITAR)",
+    category: "environment",
+    status: "live",
+    apiPath: "/api/flood/unosat-2021",
+    pollSeconds: 604800,
+    describe: "Satellite-derived flood extent + population exposure from the December 2021 NST flood event. Tambon-level severity scoring. Static reference; refreshed weekly.",
+    docs: "https://unosat.org",
+  },
+  // MQTT bridge (if configured)
+  {
+    id: "mqtt-bridge",
+    label: "MQTT telemetry bridge",
+    vendor: "Internal (MQTT broker)",
+    category: "infrastructure",
+    status: "ready",
+    apiPath: "/api/health/detailed",
+    describe: "Optional MQTT broker bridge for IoT sensor telemetry (water level, rain, soil moisture). Status surfaced in the health endpoint's mqtt section. Requires broker URL in env.",
+  },
+
 ];
 
 export function sourcesByStatus(status: SourceStatus) {

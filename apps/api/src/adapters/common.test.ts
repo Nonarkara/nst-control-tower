@@ -133,7 +133,7 @@ describe("fetchJsonOrThrow", () => {
 
     // In Node.js test environment, navigator is undefined → user-agent is added
     if (typeof navigator === "undefined") {
-      expect(capturedHeaders?.get("user-agent")).toMatch(/ChulaControlTower|chula/i);
+      expect(capturedHeaders?.get("user-agent")).toMatch(/NSTControlTower|nst/i);
     }
     // In Workers environment, user-agent is suppressed — test is a no-op there
   });
