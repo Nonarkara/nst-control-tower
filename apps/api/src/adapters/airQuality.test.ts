@@ -79,6 +79,21 @@ describe("airQualityTrend adapter", () => {
     expect(feed.meta.fallbackTier).toBe("scenario");
     expect(feed.features).toHaveLength(0);
   });
+
+  it("returns 'scenario' tier when upstream throws on a cold start", async () => {
+    vi.resetModules();
+    vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("Network error"));
+    const { fetchAirQualityTrend: fresh } = await import("./airQuality.js") as unknown as {
+      fetchAirQualityTrend: typeof fetchAirQualityTrend;
+    };
+
+    const feed = await fresh();
+
+    expect(feed.meta.fallbackTier).toBe("scenario");
+    expect(feed.meta.source).toBe("open-meteo-air-quality-trend");
+    expect(feed.features).toHaveLength(0);
+    vi.restoreAllMocks();
+  });
 });
 
 // ─── Happy-path response parsing (isolated via resetModules) ─────────────────

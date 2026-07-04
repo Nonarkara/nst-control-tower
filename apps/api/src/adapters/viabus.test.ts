@@ -7,7 +7,7 @@ import * as common from "./common.js";
  *   - No token → null (never fetches)
  *   - Token present + valid response → vehicle array
  *   - Empty vehicles array → null (caller falls back to scenario)
- *   - Network failure → null (fetchJsonOrThrow already swallows it)
+ *   - Network failure → null (fetchJsonOrThrow throws; adapter catches it)
  */
 
 // We mock fetchJsonOrThrow so no real network traffic is made.
@@ -86,8 +86,8 @@ describe("fetchViabusCuShuttle — response handling", () => {
     expect(result).toBeNull();
   });
 
-  it("returns null when fetchJsonOrThrow returns null (network error)", async () => {
-    mockedFetchJson.mockResolvedValueOnce(null);
+  it("returns null when fetchJsonOrThrow throws (network error)", async () => {
+    mockedFetchJson.mockRejectedValueOnce(new Error("Network error"));
     const result = await fetchViabusCuShuttle({ VIABUS_TOKEN: "tok" });
     expect(result).toBeNull();
   });

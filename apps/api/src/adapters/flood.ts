@@ -91,7 +91,7 @@ function gaugeStatus(dischargeCms: number | null): FloodGauge["status"] {
   return "normal";
 }
 
-export async function fetchFloodGauges(): Promise<NormalizedFeed<FloodGauge>> {
+async function fetchFloodGaugesInner(): Promise<NormalizedFeed<FloodGauge>> {
   return cached("flood-gauges", TTL_SECONDS, async () => {
     const fetchedAt = new Date().toISOString();
     const [river, basin] = await Promise.all([
@@ -180,7 +180,7 @@ function damStatusFromDischarge(latest: number | null, peak: number | null): Dam
   return "low";
 }
 
-export async function fetchDamStatus(): Promise<NormalizedFeed<DamStatus>> {
+async function fetchDamStatusInner(): Promise<NormalizedFeed<DamStatus>> {
   return cached("dam-status", TTL_SECONDS, async () => {
     const fetchedAt = new Date().toISOString();
     // NST has no regulating dam — track Khao Luang runoff via the Tha Dee
@@ -242,4 +242,66 @@ export async function fetchDamStatus(): Promise<NormalizedFeed<DamStatus>> {
       },
     };
   });
+}
+
+// First-boot outage (throw + no stale to fall back on) → a calm scenario
+// feed, not a 500 through safeFeed.
+export async function fetchFloodGauges(): Promise<NormalizedFeed<FloodGauge>> {
+  try {
+    return await fetchFloodGaugesInner();
+  } catch {
+    const fetchedAt = new Date().toISOString();
+    return {
+      features: [
+        {
+          id: "gauge-tha-dee-nst",
+          name: THA_DEE.name,
+          lat: THA_DEE.lat,
+          lng: THA_DEE.lng,
+          levelM: null,
+          warningM: null,
+          status: "unknown" as const,
+          observedAt: fetchedAt,
+          source: "scenario (open-meteo flood unreachable)",
+        },
+      ],
+      meta: {
+        source: "open-meteo-flood",
+        fetchedAt,
+        ageMinutes: 0,
+        fallbackTier: "scenario" as const,
+        note: "Open-Meteo flood API unreachable (cold start, no cached snapshot). Showing placeholder gauge.",
+      },
+    };
+  }
+}
+
+export async function fetchDamStatus(): Promise<NormalizedFeed<DamStatus>> {
+  try {
+    return await fetchDamStatusInner();
+  } catch {
+    const fetchedAt = new Date().toISOString();
+    return {
+      features: [
+        {
+          id: "runoff-khao-luang",
+          name: "Khao Luang runoff / upstream discharge",
+          lat: THA_DEE.lat,
+          lng: THA_DEE.lng,
+          storagePct: null,
+          outflowCms: null,
+          status: "unknown" as const,
+          observedAt: fetchedAt,
+          source: "scenario (open-meteo flood unreachable)",
+        },
+      ],
+      meta: {
+        source: "open-meteo-flood",
+        fetchedAt,
+        ageMinutes: 0,
+        fallbackTier: "scenario" as const,
+        note: "NST has no regulating dam; Open-Meteo Khao Luang runoff proxy unreachable (cold start, no cached snapshot).",
+      },
+    };
+  }
 }

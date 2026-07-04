@@ -36,7 +36,7 @@ function aqiCategory(aqi: number): AirQualityPoint["category"] {
   return "hazardous";
 }
 
-export async function fetchAirQuality(): Promise<NormalizedFeed<AirQualityPoint>> {
+async function fetchAirQualityInner(): Promise<NormalizedFeed<AirQualityPoint>> {
   return cached("air-quality", TTL_SECONDS, async () => {
     const fetchedAt = new Date().toISOString();
     const [lng, lat] = CHONBURI.center;
@@ -68,7 +68,7 @@ export async function fetchAirQuality(): Promise<NormalizedFeed<AirQualityPoint>
   });
 }
 
-export async function fetchAirQualityTrend(): Promise<NormalizedFeed<AirQualityTrend>> {
+async function fetchAirQualityTrendInner(): Promise<NormalizedFeed<AirQualityTrend>> {
   return cached("air-quality-trend", TTL_SECONDS, async () => {
     const fetchedAt = new Date().toISOString();
     const [lng, lat] = CHONBURI.center;
@@ -109,4 +109,40 @@ export async function fetchAirQualityTrend(): Promise<NormalizedFeed<AirQualityT
       },
     };
   });
+}
+
+// First-boot outage (throw + no stale to fall back on) → a calm scenario
+// feed, not a 500 through safeFeed.
+export async function fetchAirQuality(): Promise<NormalizedFeed<AirQualityPoint>> {
+  try {
+    return await fetchAirQualityInner();
+  } catch {
+    const fetchedAt = new Date().toISOString();
+    return {
+      features: [],
+      meta: {
+        source: "open-meteo-air-quality",
+        fetchedAt,
+        ageMinutes: 0,
+        fallbackTier: "scenario",
+      },
+    };
+  }
+}
+
+export async function fetchAirQualityTrend(): Promise<NormalizedFeed<AirQualityTrend>> {
+  try {
+    return await fetchAirQualityTrendInner();
+  } catch {
+    const fetchedAt = new Date().toISOString();
+    return {
+      features: [],
+      meta: {
+        source: "open-meteo-air-quality-trend",
+        fetchedAt,
+        ageMinutes: 0,
+        fallbackTier: "scenario",
+      },
+    };
+  }
 }

@@ -176,7 +176,7 @@ export interface HistoricalRainfallQuery {
   endDate?: string;
 }
 
-export async function fetchHistoricalRainfall(
+async function fetchHistoricalRainfallInner(
   query: HistoricalRainfallQuery
 ): Promise<NormalizedFeed<HistoricalRainfallRecord>> {
   const { lat, lng, locationLabel = `${lat.toFixed(2)}°N ${lng.toFixed(2)}°E` } = query;
@@ -281,4 +281,26 @@ export async function fetchHistoricalRainfall(
       },
     };
   });
+}
+
+// First-boot outage (throw + no stale to fall back on) → a calm unavailable
+// feed, not a 500 through safeFeed.
+export async function fetchHistoricalRainfall(
+  query: HistoricalRainfallQuery
+): Promise<NormalizedFeed<HistoricalRainfallRecord>> {
+  try {
+    return await fetchHistoricalRainfallInner(query);
+  } catch {
+    const fetchedAt = new Date().toISOString();
+    return {
+      features: [],
+      meta: {
+        source: "open-meteo-archive",
+        fetchedAt,
+        ageMinutes: 0,
+        fallbackTier: "unavailable",
+        note: "Open-Meteo Archive unreachable (archive-api.open-meteo.com — upstream/DNS). Resolves on public DNS; retries automatically.",
+      },
+    };
+  }
 }

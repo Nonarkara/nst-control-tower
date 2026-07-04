@@ -49,9 +49,13 @@ export async function fetchViabusCuShuttle(env: {
   const base = env.VIABUS_BASE_URL || DEFAULT_BASE;
 
   const url = `${base.replace(/\/$/, "")}/v1/operators/${OPERATOR_SLUG}/vehicles`;
-  const payload = await fetchJsonOrThrow<{ vehicles?: ViabusVehicle[] }>(url, {
-    headers: { authorization: `Bearer ${token}` },
-  });
-  if (!payload?.vehicles || payload.vehicles.length === 0) return null;
-  return payload.vehicles;
+  try {
+    const payload = await fetchJsonOrThrow<{ vehicles?: ViabusVehicle[] }>(url, {
+      headers: { authorization: `Bearer ${token}` },
+    });
+    if (!payload?.vehicles || payload.vehicles.length === 0) return null;
+    return payload.vehicles;
+  } catch {
+    return null;
+  }
 }
