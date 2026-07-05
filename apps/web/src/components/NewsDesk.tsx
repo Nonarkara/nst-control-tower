@@ -94,13 +94,13 @@ export function NewsDesk({ items, loading, ageMinutes, onRefresh }: Props) {
           </a>
         ))}
         {visible.length === 0 && (
-          <div className="caption" style={{ marginTop: 8, color: "var(--text-3)" }}>
+          <div className="caption" style={{ marginTop: 8, color: "var(--ink-low)" }}>
             No headlines yet — refreshes every 3 min.
           </div>
         )}
       </div>
       {actionable.length > 0 && (
-        <div className="eyebrow mono" style={{ marginTop: 8, color: "var(--text-3)" }}>
+        <div className="eyebrow mono" style={{ marginTop: 8, color: "var(--ink-low)" }}>
           ACTION LEGEND:&nbsp;
           ▲EM emergency · ✚FU funeral · ◆PO police · ★HO honour · ✦FE festival · ▣IN infra · ◢BZ business · ✚PU health
         </div>

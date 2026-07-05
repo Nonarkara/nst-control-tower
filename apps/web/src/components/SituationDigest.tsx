@@ -77,10 +77,10 @@ export function SituationDigest({ nasaReadings, avgSolarIrrKWh, forecastAlerts, 
         >
           {hasAlerts ? "▲ SITUATION ALERT" : "SITUATION DIGEST"}
         </span>
-        <span className="eyebrow mono" style={{ color: "var(--text-3)" }}>INT · LIVE</span>
+        <span className="eyebrow mono" style={{ color: "var(--ink-low)" }}>INT · LIVE</span>
       </div>
       {lines.map((line) => (
-        <div key={line} className="eyebrow mono" style={{ color: "var(--text-2)", lineHeight: 1.4 }}>
+        <div key={line} className="eyebrow mono" style={{ color: "var(--ink-3)", lineHeight: 1.4 }}>
           {line}
         </div>
       ))}

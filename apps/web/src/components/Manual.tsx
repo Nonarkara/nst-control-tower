@@ -164,7 +164,7 @@ export function Manual({ open, onClose }: Props) {
                   <li><span className="sw" style={{ background: "var(--good)" }}/> Live — fresh from upstream</li>
                   <li><span className="sw" style={{ background: "var(--accent)" }}/> Cache — served from a recent fetch</li>
                   <li><span className="sw" style={{ background: "var(--bad)" }}/> Unavailable — upstream errored</li>
-                  <li><span className="sw" style={{ background: "var(--text-3)" }}/> Loading — first fetch in flight</li>
+                  <li><span className="sw" style={{ background: "var(--ink-low)" }}/> Loading — first fetch in flight</li>
                 </ul>
               </div>
             </div>

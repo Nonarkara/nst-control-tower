@@ -41,7 +41,7 @@ export function MarketsTicker({ snapshot, loading }: Props) {
       <div className="markets-ticker">
         <span className="markets-ticker-tag mono">MARKETS</span>
         <div className="markets-ticker-track markets-ticker-empty">
-          <span className="caption" style={{ color: "var(--text-3)" }}>Markets unavailable · retrying…</span>
+          <span className="caption" style={{ color: "var(--ink-low)" }}>Markets unavailable · retrying…</span>
         </div>
       </div>
     );

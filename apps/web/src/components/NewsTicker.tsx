@@ -37,7 +37,7 @@ export function NewsTicker({ items, loading }: Props) {
       <div className="news-ticker">
         <span className="news-ticker-tag mono">LIVE · NEWS</span>
         <div className="news-ticker-track news-ticker-empty">
-          <span className="caption" style={{ color: "var(--text-3)" }}>No headlines available · retrying…</span>
+          <span className="caption" style={{ color: "var(--ink-low)" }}>No headlines available · retrying…</span>
         </div>
       </div>
     );

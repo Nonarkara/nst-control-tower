@@ -62,20 +62,20 @@ function ZoneRow({ s, isLast, precip }: { s: ZoneSummary; isLast: boolean; preci
           <span className="mono" style={{ fontSize: "0.8rem", fontWeight: z.isCity ? 700 : 600 }}>
             {z.th}
           </span>
-          <span className="eyebrow mono" style={{ color: "var(--text-3)" }}>{z.en}</span>
+          <span className="eyebrow mono" style={{ color: "var(--ink-low)" }}>{z.en}</span>
           <span className="eyebrow mono" style={{ color, marginLeft: "auto", fontWeight: 600 }}>
             {ZONE_STATUS_LABEL[s.status]}
-            {s.modelled && <span style={{ color: "var(--text-3)", fontWeight: 400 }}> ·model</span>}
+            {s.modelled && <span style={{ color: "var(--ink-low)", fontWeight: 400 }}> ·model</span>}
           </span>
         </div>
 
-        <div className="eyebrow mono" style={{ color: "var(--text-3)" }}>
+        <div className="eyebrow mono" style={{ color: "var(--ink-low)" }}>
           {z.role} · {z.river}
         </div>
         {!z.isCity && (() => {
           const lt = leadTimeToCity(z.key);
           return lt ? (
-            <div className="eyebrow mono" style={{ color: "var(--text-3)" }}>
+            <div className="eyebrow mono" style={{ color: "var(--ink-low)" }}>
               ≈ {lt.minH.toFixed(1)}–{lt.maxH.toFixed(1)} h to city (est.)
             </div>
           ) : null;
@@ -84,20 +84,20 @@ function ZoneRow({ s, isLast, precip }: { s: ZoneSummary; isLast: boolean; preci
         {/* Live readings */}
         <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 2 }}>
           {s.gaugeCount > 0 && (
-            <span className="eyebrow mono" style={{ color: "var(--text-2)" }}>
+            <span className="eyebrow mono" style={{ color: "var(--ink-3)" }}>
               {s.gaugeCount} gauge{s.gaugeCount > 1 ? "s" : ""}
               {s.rising ? " ↑" : ""}
             </span>
           )}
           {s.levelMsl != null && (
-            <span className="eyebrow mono" style={{ color: "var(--text-2)" }}>
+            <span className="eyebrow mono" style={{ color: "var(--ink-3)" }}>
               {s.levelMsl.toFixed(1)} m
             </span>
           )}
           {s.diffFromBank != null && (
             <span
               className="eyebrow mono"
-              style={{ color: s.diffFromBank > 0 ? "var(--bad)" : "var(--text-2)" }}
+              style={{ color: s.diffFromBank > 0 ? "var(--bad)" : "var(--ink-3)" }}
             >
               {s.diffFromBank > 0
                 ? `${s.diffFromBank.toFixed(1)} m OVERBANK`
@@ -105,14 +105,14 @@ function ZoneRow({ s, isLast, precip }: { s: ZoneSummary; isLast: boolean; preci
             </span>
           )}
           {s.rain24h != null && s.rain24h > 0 && (
-            <span className="eyebrow mono" style={{ color: s.rain24h >= 90 ? "var(--bad)" : s.rain24h >= 35 ? "var(--warn)" : "var(--text-2)" }}>
+            <span className="eyebrow mono" style={{ color: s.rain24h >= 90 ? "var(--bad)" : s.rain24h >= 35 ? "var(--warn)" : "var(--ink-3)" }}>
               ☔ {Math.round(s.rain24h)} mm/24h
             </span>
           )}
           {precip && precip.total2hMm > 0 && (
             <span
               className="eyebrow mono"
-              style={{ color: precip.intensity === "heavy" ? "var(--bad)" : precip.intensity === "moderate" ? "var(--warn)" : "var(--text-2)" }}
+              style={{ color: precip.intensity === "heavy" ? "var(--bad)" : precip.intensity === "moderate" ? "var(--warn)" : "var(--ink-3)" }}
               title="Forecast, not observed — Open-Meteo minutely_15"
             >
               ⇢ forecast +{precip.total2hMm}mm/2h
@@ -120,13 +120,13 @@ function ZoneRow({ s, isLast, precip }: { s: ZoneSummary; isLast: boolean; preci
             </span>
           )}
           {s.soil != null && (
-            <span className="eyebrow mono" style={{ color: s.soil >= 85 ? "var(--warn)" : "var(--text-2)" }}>
+            <span className="eyebrow mono" style={{ color: s.soil >= 85 ? "var(--warn)" : "var(--ink-3)" }}>
               soil {Math.round(s.soil)}%
             </span>
           )}
         </div>
         {s.topStation && (
-          <div className="eyebrow mono" style={{ color: "var(--text-3)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          <div className="eyebrow mono" style={{ color: "var(--ink-low)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {s.topStation}
           </div>
         )}
@@ -156,13 +156,13 @@ export function UpstreamWatershed({ waterGauges, rainfall, ews = [], floodGauges
       />
 
       {!hasAny ? (
-        <div className="eyebrow mono" style={{ color: "var(--text-3)" }}>
+        <div className="eyebrow mono" style={{ color: "var(--ink-low)" }}>
           Awaiting upstream gauge + rainfall feeds.
         </div>
       ) : (
         <>
           {/* What's coming — the lead-time headline */}
-          <div className="eyebrow mono" style={{ color: upstreamAlert ? "var(--warn)" : "var(--text-3)", lineHeight: 1.4 }}>
+          <div className="eyebrow mono" style={{ color: upstreamAlert ? "var(--warn)" : "var(--ink-low)", lineHeight: 1.4 }}>
             {upstreamAlert
               ? `▲ ${upstreamAlert.zone.th} ${ZONE_STATUS_LABEL[upstreamAlert.status].split(" ")[0]} upstream — heading for the city via ${upstreamAlert.zone.river}`
               : "Upstream calm — Tha Dee headwaters within banks"}
@@ -180,7 +180,7 @@ export function UpstreamWatershed({ waterGauges, rainfall, ews = [], floodGauges
             ))}
           </div>
 
-          <div className="eyebrow mono" style={{ color: "var(--text-3)", borderTop: "1px solid var(--line)", paddingTop: 6, lineHeight: 1.5 }}>
+          <div className="eyebrow mono" style={{ color: "var(--ink-low)", borderTop: "1px solid var(--line)", paddingTop: 6, lineHeight: 1.5 }}>
             Flow order along คลองท่าดี: Khao Luang → คีรีวง → ลานสกา → city.
             Lead-time = channel distance ÷ a 1.5–3 m/s flood-wave celerity band
             (estimate, not hydraulic routing) — the window to act.

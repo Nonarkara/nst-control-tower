@@ -143,7 +143,7 @@ export function LayerPalette({ lens, onLensChange, enabled, onToggleLayer, count
                   <span className="layer-group-chevron mono">{isCollapsed ? "▸" : "▾"}</span>
                 </button>
                 {!isCollapsed && GROUP_HINT[g] && (
-                  <div className="caption" style={{ color: "var(--text-3)", lineHeight: 1.4, padding: "0 4px 7px" }}>
+                  <div className="caption" style={{ color: "var(--ink-low)", lineHeight: 1.4, padding: "0 4px 7px" }}>
                     {GROUP_HINT[g]}
                   </div>
                 )}

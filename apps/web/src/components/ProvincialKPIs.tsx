@@ -58,10 +58,10 @@ function KpiTile({ label, value, sub, color }: Kpi) {
       aria-label={`${label}: ${value}${sub ? `, ${sub}` : ""}`}
     >
       <div className="eyebrow">{label}</div>
-      <div className="mono" style={{ fontSize: "var(--size-h2)", color: color ?? "var(--text)", lineHeight: 1.05 }}>
+      <div className="mono" style={{ fontSize: "var(--size-h2)", color: color ?? "var(--ink)", lineHeight: 1.05 }}>
         {value}
       </div>
-      {sub && <div className="eyebrow mono" style={{ color: "var(--text-3)" }}>{sub}</div>}
+      {sub && <div className="eyebrow mono" style={{ color: "var(--ink-low)" }}>{sub}</div>}
     </div>
   );
 }
@@ -157,7 +157,7 @@ export function ProvincialKPIs({ data, loading, ageMinutes, fallbackTier }: Prop
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px 16px" }}>
         {kpis.map((k) => <KpiTile key={k.label} {...k} />)}
       </div>
-      <div className="eyebrow mono" style={{ color: "var(--text-3)" }}>
+      <div className="eyebrow mono" style={{ color: "var(--ink-low)" }}>
         SOURCE · DATA.GO.TH · สำนักงานจังหวัดนครศรีธรรมราช + กระทรวงท่องเที่ยวและกีฬา
       </div>
     </div>

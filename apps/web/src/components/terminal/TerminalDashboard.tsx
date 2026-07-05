@@ -189,7 +189,7 @@ export function TerminalDashboard({ onFlip }: { onFlip: () => void }) {
           {/* AIR QUALITY */}
           <Panel title="Air Quality" led={pm25 != null && pm25 > 35 ? "warn" : "live"} src={feat(aq)?.source ?? "PCD/AQICN"}>
             <div className="term-readout">
-              <span className="big" style={{ color: pm25 != null && pm25 > 35 ? "var(--gold)" : "var(--good)" }}>{fmt(pm25, 1)}</span>
+              <span className="big" style={{ color: pm25 != null && pm25 > 35 ? "var(--warn)" : "var(--good)" }}>{fmt(pm25, 1)}</span>
               <span className="unit">µg/m³ PM2.5</span>
               {aqi != null ? <span className="delta">AQI {aqi}</span> : null}
             </div>

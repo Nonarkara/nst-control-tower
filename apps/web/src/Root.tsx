@@ -24,7 +24,7 @@ export function Root() {
   // Locale is app-wide (EN/TH/CN) so it wraps both systems — a language choice
   // made in the geo control-tower carries into the Watch Terminal too.
   const content = mode === "terminal" ? (
-    <Suspense fallback={<div style={{ position: "fixed", inset: 0, background: "var(--bg)" }} />}>
+    <Suspense fallback={<div style={{ position: "fixed", inset: 0, background: "var(--paper)" }} />}>
       <TerminalDashboard onFlip={() => setMode("geo")} />
     </Suspense>
   ) : (

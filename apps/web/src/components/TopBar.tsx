@@ -30,7 +30,7 @@ interface Props {
 
 
 const TEMPO_COLOR: Record<AcademicSnapshot["tempo"], string> = {
-  low: "var(--text-3)",
+  low: "var(--ink-low)",
   normal: "var(--data)",
   high: "var(--warn)",
   peak: "var(--bad)",

@@ -32,11 +32,11 @@ interface FloodCause {
 }
 
 const FLOOD_CAUSES: FloodCause[] = [
-  { cause: "Southwest monsoon rainfall", causeTh: "ฝนมรสุมตะวันตกเฉียงใต้", pct: 45, color: "var(--ink-mid)" },
+  { cause: "Southwest monsoon rainfall", causeTh: "ฝนมรสุมตะวันตกเฉียงใต้", pct: 45, color: "var(--ink-2)" },
   { cause: "Tropical storms / cyclones", causeTh: "พายุหมุนเขตร้อน", pct: 25, color: "var(--bad)" },
   { cause: "Upstream watershed runoff", causeTh: "น้ำป่าจากลุ่มน้ำตอนบน", pct: 15, color: "var(--warn)" },
   { cause: "Gulf storm surge", causeTh: "คลื่นพายุจากอ่าวไทย", pct: 10, color: "var(--data)" },
-  { cause: "Urban drainage failure", causeTh: "ระบบระบายน้ำเสียหาย", pct: 5,  color: "var(--ground-2)" },
+  { cause: "Urban drainage failure", causeTh: "ระบบระบายน้ำเสียหาย", pct: 5,  color: "var(--fill-2)" },
 ];
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -173,7 +173,7 @@ export function FloodAnalysisPanel({
                   const isMax = a.totalMm === maxAnnualTotal;
                   return (
                     <div key={a.year} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <div className="mono" style={{ width: 32, fontSize: "0.65rem", color: "var(--ink-mid)" }}>
+                      <div className="mono" style={{ width: 32, fontSize: "0.65rem", color: "var(--ink-2)" }}>
                         {a.year}
                       </div>
                       <div style={{ flex: 1 }}>
@@ -238,7 +238,7 @@ export function FloodAnalysisPanel({
             </div>
           </>
         ) : (
-          <div className="mono" style={{ color: "var(--text-3)", fontSize: "0.8rem" }}>
+          <div className="mono" style={{ color: "var(--ink-low)", fontSize: "0.8rem" }}>
             No rainfall data available
           </div>
         )}
@@ -290,7 +290,7 @@ export function FloodAnalysisPanel({
                     color={i === 0 ? "var(--bad)" : i < 3 ? "var(--warn)" : "var(--data)"}
                   />
                 </div>
-                <div className="mono" style={{ fontSize: "0.65rem", color: "var(--ink-mid)", width: 60, textAlign: "right" }}>
+                <div className="mono" style={{ fontSize: "0.65rem", color: "var(--ink-2)", width: 60, textAlign: "right" }}>
                   {p.totalPopExposed.toLocaleString()}
                 </div>
               </div>
@@ -350,7 +350,7 @@ export function FloodAnalysisPanel({
                     <div key={label} style={{ display: "flex", alignItems: "center", gap: 4 }}>
                       <div style={{ width: 8, height: 8, borderRadius: "50%", background: color }} />
                       <span className="mono" style={{ fontSize: "0.7rem", color: "var(--ink)" }}>{label}</span>
-                      <span className="mono" style={{ fontSize: "0.7rem", color: "var(--ink-mid)" }}>({count})</span>
+                      <span className="mono" style={{ fontSize: "0.7rem", color: "var(--ink-2)" }}>({count})</span>
                     </div>
                   );
                 })}
@@ -372,7 +372,7 @@ export function FloodAnalysisPanel({
                     <div key={label} style={{ display: "flex", alignItems: "center", gap: 4 }}>
                       <div style={{ width: 8, height: 8, borderRadius: "50%", background: color }} />
                       <span className="mono" style={{ fontSize: "0.7rem", color: "var(--ink)" }}>{label}</span>
-                      <span className="mono" style={{ fontSize: "0.7rem", color: "var(--ink-mid)" }}>({count.toLocaleString()} ตำบล)</span>
+                      <span className="mono" style={{ fontSize: "0.7rem", color: "var(--ink-2)" }}>({count.toLocaleString()} ตำบล)</span>
                     </div>
                   );
                 })}

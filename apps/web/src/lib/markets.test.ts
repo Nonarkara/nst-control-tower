@@ -99,7 +99,7 @@ describe("arrow", () => {
 
 describe("tickColor", () => {
   it("returns muted text color for null", () => {
-    expect(tickColor(null)).toBe("var(--text-3)");
+    expect(tickColor(null)).toBe("var(--ink-low)");
   });
 
   it("returns good color for change > +0.05%", () => {
@@ -113,8 +113,8 @@ describe("tickColor", () => {
   });
 
   it("returns neutral text color in the dead-zone", () => {
-    expect(tickColor(0)).toBe("var(--text-2)");
-    expect(tickColor(0.05)).toBe("var(--text-2)");
-    expect(tickColor(-0.05)).toBe("var(--text-2)");
+    expect(tickColor(0)).toBe("var(--ink-3)");
+    expect(tickColor(0.05)).toBe("var(--ink-3)");
+    expect(tickColor(-0.05)).toBe("var(--ink-3)");
   });
 });

@@ -60,7 +60,7 @@ const DEVELOPMENTS: Development[] = [
 const DEV_COLOR: Record<Development["status"], string> = {
   open: "var(--good)",
   "in-progress": "var(--warn)",
-  planned: "var(--text-3)",
+  planned: "var(--ink-low)",
 };
 
 export function PmcuBrief({ hour, isWeekend, iticEvents, cityReports, trafficSampleCount }: Props) {

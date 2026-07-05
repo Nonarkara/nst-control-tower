@@ -40,7 +40,7 @@ export function AqiBadge({ trend, loading }: Props) {
         <div className="aqi-readout">
           <div className="eyebrow mono">AIR QUALITY · US AQI</div>
           <div className="aqi-num skeleton" style={{ width: 90, height: 56 }} />
-          <div className="caption mono" style={{ color: "var(--text-3)" }}>
+          <div className="caption mono" style={{ color: "var(--ink-low)" }}>
             {loading ? "Connecting…" : "Unavailable"}
           </div>
         </div>
@@ -53,7 +53,7 @@ export function AqiBadge({ trend, loading }: Props) {
   const trending = peak - trend.current.aqi;
   const trendArrow = trending >= 4 ? "▲" : trending <= -4 ? "▼" : "→";
   const trendDir = trending >= 4 ? "rising" : trending <= -4 ? "falling" : "stable";
-  const trendColor = trending >= 4 ? "var(--bad)" : trending <= -4 ? "var(--good)" : "var(--text-2)";
+  const trendColor = trending >= 4 ? "var(--bad)" : trending <= -4 ? "var(--good)" : "var(--ink-3)";
 
   // Sparkline for next8h (current + 8 points)
   const series = [trend.current.aqi, ...trend.next8h.map((p) => p.aqi)].filter((v): v is number => v != null);

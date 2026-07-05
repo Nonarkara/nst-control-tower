@@ -129,7 +129,7 @@
 .atlas-source-status { font-family: var(--font-mono); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.04em; padding: 2px 6px; white-space: nowrap; }
 .atlas-source-status.integrated { color: var(--accent); border: 1px solid var(--accent); }
 .atlas-source-status.live-free { color: var(--accent); border: 1px solid var(--accent); }
-.atlas-source-status.registration { color: var(--gold); border: 1px solid var(--gold); }
+.atlas-source-status.registration { color: var(--warn); border: 1px solid var(--warn); }
 .atlas-source-status.scrape { color: var(--ink-2); border: 1px solid var(--line-2); }
 .atlas-source-status.planned { color: var(--ink-3); border: 1px solid var(--line); }
 

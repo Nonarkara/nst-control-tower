@@ -95,11 +95,11 @@ export function SourceCatalog({ open, onClose }: Props) {
         {/* Runtime adapter health — distinguish "configured live" from "actually working" */}
         {sysStatus && (
           <div className="modal-summary mono" role="status" aria-live="polite">
-            <span style={{ color: "var(--text-3)" }}>RUNTIME ·</span>
+            <span style={{ color: "var(--ink-low)" }}>RUNTIME ·</span>
             <span style={{ color: "var(--good)" }}>{sysStatus.healthy} healthy</span>
             {sysStatus.degraded > 0 && <span style={{ color: "var(--warn)" }}>{sysStatus.degraded} degraded</span>}
             {sysStatus.down > 0 && <span style={{ color: "var(--bad)" }}>{sysStatus.down} down</span>}
-            <span style={{ color: "var(--text-3)" }}>· of {sysStatus.total} tracked</span>
+            <span style={{ color: "var(--ink-low)" }}>· of {sysStatus.total} tracked</span>
           </div>
         )}
 

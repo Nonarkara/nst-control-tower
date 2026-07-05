@@ -169,11 +169,11 @@ function InsightsTab({ jump }: { jump: (j: Jump) => void }) {
   if (!digest) return <div className="kp-content-inner"><p className="kp-hint">Computing insights…</p></div>;
   return (
     <div className="kp-content-inner">
-      <p className="kp-hint" style={{ fontSize: "var(--size-h3)", color: "var(--text-1)", marginBottom: "var(--s-4)" }}>{digest.headline}</p>
+      <p className="kp-hint" style={{ fontSize: "var(--size-h3)", color: "var(--ink-2)", marginBottom: "var(--s-4)" }}>{digest.headline}</p>
       {digest.insights.map((ins: Insight) => (
         <div key={ins.id} className={`kp-insight ${ins.severity}`} onClick={() => ins.deepLink && jump(ins.deepLink)} style={{ cursor: ins.deepLink ? "pointer" : "default" }}>
           <div className="kp-insight-head">
-            <span className="kp-insight-sev" style={{ color: ins.severity === "critical" ? "var(--bad)" : ins.severity === "alert" ? "#fb923c" : "var(--gold)" }}>{ins.severity}</span>
+            <span className="kp-insight-sev" style={{ color: ins.severity === "critical" ? "var(--bad)" : ins.severity === "alert" ? "#fb923c" : "var(--warn)" }}>{ins.severity}</span>
             <h4>{ins.title}</h4>
           </div>
           <div className="kp-insight-body">{ins.body}</div>

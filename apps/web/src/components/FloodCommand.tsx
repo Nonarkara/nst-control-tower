@@ -96,7 +96,7 @@ interface Props {
 const MONTHS = ["J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D"];
 
 const RISK_CELL_COLOR = [
-  "var(--bg-3)",  // 0 — no recorded flooding
+  "var(--ground-soft)",  // 0 — no recorded flooding
   "var(--data)",  // 1 — low (1–3 events / 17 y)
   "var(--warn)",  // 2 — medium (4–8)
   "var(--bad)",   // 3 — high (9+)
@@ -107,7 +107,7 @@ function rainTone(mm: number): string {
   if (mm >= 35) return "var(--bad)";
   if (mm >= 10) return "var(--warn)";
   if (mm >= 1) return "var(--data)";
-  return "var(--text-3)";
+  return "var(--ink-low)";
 }
 
 const BKK_TZ = "Asia/Bangkok";
@@ -146,7 +146,7 @@ function runAge(runId: string | undefined, locale: string): { hours: number; lab
     hours,
     label,
     // A new run should land ~every 12 h + publication lag; escalate visibly.
-    color: hours >= 48 ? "var(--bad)" : hours >= 24 ? "var(--warn)" : "var(--text-3)",
+    color: hours >= 48 ? "var(--bad)" : hours >= 24 ? "var(--warn)" : "var(--ink-low)",
   };
 }
 
@@ -237,7 +237,7 @@ export function FloodCommand({
           aria-label={t(STR.sliderLabel)}
         />
         {scenarioLevel != null && !stats && (
-          <div className="eyebrow mono" style={{ color: "var(--text-3)" }}>
+          <div className="eyebrow mono" style={{ color: "var(--ink-low)" }}>
             {t(STR.loading)}
           </div>
         )}
@@ -287,7 +287,7 @@ export function FloodCommand({
           {t(STR.watershedEyebrow)}
         </div>
         {wrfOutlook.length === 0 ? (
-          <div className="eyebrow mono" style={{ color: "var(--text-3)" }}>
+          <div className="eyebrow mono" style={{ color: "var(--ink-low)" }}>
             {wrfNote ?? t(STR.wrfAwaiting)}
           </div>
         ) : (
@@ -326,7 +326,7 @@ export function FloodCommand({
                 {t(STR.mapBtn)}
               </button>
             </div>
-            <div className="eyebrow mono" style={{ color: age?.color ?? "var(--text-3)", marginTop: 2 }}>
+            <div className="eyebrow mono" style={{ color: age?.color ?? "var(--ink-low)", marginTop: 2 }}>
               {age ? age.label : null} · {t(STR.unitsLine)}
             </div>
           </>
@@ -363,12 +363,12 @@ export function FloodCommand({
           ))}
         </div>
         <div className="fc-legend mono" aria-label={t(STR.calendarAria)}>
-          <span><i style={{ background: "var(--bg-3)" }} /> 0</span>
+          <span><i style={{ background: "var(--ground-soft)" }} /> 0</span>
           <span><i style={{ background: "var(--data)" }} /> 1–3</span>
           <span><i style={{ background: "var(--warn)" }} /> 4–8</span>
           <span><i style={{ background: "var(--bad)" }} /> {t(STR.legend9plus)}</span>
         </div>
-        <div className="eyebrow mono" style={{ color: "var(--text-3)", marginTop: 2 }}>
+        <div className="eyebrow mono" style={{ color: "var(--ink-low)", marginTop: 2 }}>
           {t({
             en: SEASONAL_RISK_SOURCE,
             th: "hii.or.th พื้นที่เสี่ยงน้ำท่วม · บันทึกดาวเทียม GISTDA 2548–2564",
@@ -377,7 +377,7 @@ export function FloodCommand({
       </div>
 
       {/* ── Honesty footer ────────────────────────────────────────────── */}
-      <div className="eyebrow mono" style={{ color: "var(--text-3)", borderTop: "1px solid var(--line)", paddingTop: 6, lineHeight: 1.5 }}>
+      <div className="eyebrow mono" style={{ color: "var(--ink-low)", borderTop: "1px solid var(--line)", paddingTop: 6, lineHeight: 1.5 }}>
         {t(STR.footer)}
       </div>
     </div>

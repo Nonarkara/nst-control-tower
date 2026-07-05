@@ -65,7 +65,7 @@ const TREND_ARROW: Record<WaterGauge["trend"], string> = {
 const TREND_COL: Record<WaterGauge["trend"], string> = {
   rising: "var(--bad)",
   falling: "var(--data)",
-  stable: "var(--text-3)",
+  stable: "var(--ink-low)",
 };
 
 type Tab = "gauges" | "reservoirs" | "rain";
@@ -82,7 +82,7 @@ function Bar({ pct, color }: { pct: number | null; color: string }) {
 // ─── Gauge section ───────────────────────────────────────────────────────────
 
 function GaugeRow({ g }: { g: WaterGauge }) {
-  const col = SIT_COLOR[g.situationLevel] ?? "var(--text-3)";
+  const col = SIT_COLOR[g.situationLevel] ?? "var(--ink-low)";
   const warningPct = g.warningMsl && g.levelMsl != null
     ? Math.min(100, Math.max(0, (g.levelMsl / g.warningMsl) * 100))
     : null;
@@ -103,7 +103,7 @@ function GaugeRow({ g }: { g: WaterGauge }) {
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
           {g.levelMsl != null && (
-            <span className="eyebrow mono" style={{ color: "var(--text-3)" }}>
+            <span className="eyebrow mono" style={{ color: "var(--ink-low)" }}>
               {g.levelMsl.toFixed(2)} m
             </span>
           )}
@@ -116,7 +116,7 @@ function GaugeRow({ g }: { g: WaterGauge }) {
         <Bar pct={warningPct} color={col} />
       )}
       {g.diffFromBank != null && (
-        <div className="eyebrow mono" style={{ color: "var(--text-3)" }}>
+        <div className="eyebrow mono" style={{ color: "var(--ink-low)" }}>
           {g.diffFromBank >= 0
             ? `${g.diffFromBank.toFixed(2)} m above bank`
             : `${Math.abs(g.diffFromBank).toFixed(2)} m below bank`}
@@ -132,7 +132,7 @@ function GaugesSection({ gauges }: { gauges: WaterGauge[] }) {
 
   if (gauges.length === 0) {
     return (
-      <div className="eyebrow mono" style={{ color: "var(--text-3)" }}>
+      <div className="eyebrow mono" style={{ color: "var(--ink-low)" }}>
         ── ไม่มีข้อมูลสถานี ── no gauge data
       </div>
     );
@@ -143,13 +143,13 @@ function GaugesSection({ gauges }: { gauges: WaterGauge[] }) {
   const displayNormal = showAll ? normal : normal.slice(0, 5);
 
   const worstSit = Math.max(...gauges.map((g) => g.situationLevel));
-  const worstColor = SIT_COLOR[worstSit] ?? "var(--text-3)";
+  const worstColor = SIT_COLOR[worstSit] ?? "var(--ink-low)";
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
       {/* Status bar */}
       <div className="spread" style={{ alignItems: "center" }}>
-        <div className="eyebrow mono" style={{ color: "var(--text-3)" }}>
+        <div className="eyebrow mono" style={{ color: "var(--ink-low)" }}>
           {gauges.length} สถานี · {gauges.filter((g) => g.isKeyStation).length} key
         </div>
         <div className="eyebrow mono" style={{ color: worstColor, fontWeight: 700 }}>
@@ -186,7 +186,7 @@ function GaugesSection({ gauges }: { gauges: WaterGauge[] }) {
         </button>
       )}
 
-      <div className="eyebrow mono" style={{ color: "var(--text-3)" }}>
+      <div className="eyebrow mono" style={{ color: "var(--ink-low)" }}>
         SOURCE · HII ThaiWater · api-v3.thaiwater.net · province 80
       </div>
     </div>
@@ -204,7 +204,7 @@ function ReservoirSection({ reservoirs, ridReservoirs }: { reservoirs: Reservoir
   };
 
   if (reservoirs.length === 0 && ridReservoirs.length === 0) {
-    return <div className="eyebrow mono" style={{ color: "var(--text-3)" }}>── no reservoir data</div>;
+    return <div className="eyebrow mono" style={{ color: "var(--ink-low)" }}>── no reservoir data</div>;
   }
 
   // Province total from datago source
@@ -223,7 +223,7 @@ function ReservoirSection({ reservoirs, ridReservoirs }: { reservoirs: Reservoir
             </div>
           </div>
           <Bar pct={totalPct} color={totalPct < 30 ? "var(--warn)" : "var(--good)"} />
-          <div className="eyebrow mono" style={{ color: "var(--text-3)" }}>
+          <div className="eyebrow mono" style={{ color: "var(--ink-low)" }}>
             {totalCurrent.toFixed(1)} / {totalMax.toFixed(1)} MCM
           </div>
         </div>
@@ -255,7 +255,7 @@ function ReservoirSection({ reservoirs, ridReservoirs }: { reservoirs: Reservoir
       {/* RID reservoirs (deduped by id) */}
       {ridReservoirs.map((r) => {
         const pct = r.storagePct ?? null;
-        const col = pct == null ? "var(--text-3)" : pct > 90 ? "var(--bad)" : pct > 70 ? "var(--warn)" : pct > 40 ? "var(--good)" : "var(--data)";
+        const col = pct == null ? "var(--ink-low)" : pct > 90 ? "var(--bad)" : pct > 70 ? "var(--warn)" : pct > 40 ? "var(--good)" : "var(--data)";
         const name = r.name.replace(/^อ่างเก็บน้ำ\s*/u, "").replace(/^อ่างเก้บน้ำ\s*/u, "").trim();
         return (
           <div key={r.id} style={{ display: "flex", flexDirection: "column", gap: 1 }}>
@@ -268,7 +268,7 @@ function ReservoirSection({ reservoirs, ridReservoirs }: { reservoirs: Reservoir
             </div>
             <Bar pct={pct} color={col} />
             {(r.inflowMcm != null || r.outflowMcm != null) && (
-              <div className="eyebrow mono" style={{ color: "var(--text-3)" }}>
+              <div className="eyebrow mono" style={{ color: "var(--ink-low)" }}>
                 {r.inflowMcm != null ? `in ${r.inflowMcm.toFixed(2)}` : ""}
                 {r.inflowMcm != null && r.outflowMcm != null ? " / " : ""}
                 {r.outflowMcm != null ? `out ${r.outflowMcm.toFixed(2)} MCM/d` : ""}
@@ -278,7 +278,7 @@ function ReservoirSection({ reservoirs, ridReservoirs }: { reservoirs: Reservoir
         );
       })}
 
-      <div className="eyebrow mono" style={{ color: "var(--text-3)" }}>
+      <div className="eyebrow mono" style={{ color: "var(--ink-low)" }}>
         SOURCE · data.go.th · RID กรมชลประทาน · app.rid.go.th
       </div>
     </div>
@@ -290,7 +290,7 @@ function ReservoirSection({ reservoirs, ridReservoirs }: { reservoirs: Reservoir
 function RainfallSection({ rain }: { rain: RainfallStation[] }) {
   const [showAll, setShowAll] = useState(false);
   if (rain.length === 0) {
-    return <div className="eyebrow mono" style={{ color: "var(--text-3)" }}>── no rainfall data</div>;
+    return <div className="eyebrow mono" style={{ color: "var(--ink-low)" }}>── no rainfall data</div>;
   }
 
   const withRain = rain.filter((r) => (r.rain24h ?? 0) > 0);
@@ -300,7 +300,7 @@ function RainfallSection({ rain }: { rain: RainfallStation[] }) {
   const display = showAll ? withRain : withRain.slice(0, 8);
 
   function rainColor(mm: number | null): string {
-    if (mm == null) return "var(--text-3)";
+    if (mm == null) return "var(--ink-low)";
     if (mm > 90) return "var(--bad)";
     if (mm > 35) return "var(--warn)";
     if (mm > 10) return "var(--data)";
@@ -310,7 +310,7 @@ function RainfallSection({ rain }: { rain: RainfallStation[] }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
       <div className="spread" style={{ alignItems: "center" }}>
-        <div className="eyebrow mono" style={{ color: "var(--text-3)" }}>
+        <div className="eyebrow mono" style={{ color: "var(--ink-low)" }}>
           {totalStations} สถานี · avg {totalRain24h.toFixed(1)} mm/24h
         </div>
         <div className="eyebrow mono" style={{ color: rainColor(maxRain) }}>
@@ -339,7 +339,7 @@ function RainfallSection({ rain }: { rain: RainfallStation[] }) {
             </div>
             <Bar pct={barPct} color={col} />
             {r.amphoe && (
-              <div className="eyebrow mono" style={{ color: "var(--text-3)" }}>{r.amphoe}</div>
+              <div className="eyebrow mono" style={{ color: "var(--ink-low)" }}>{r.amphoe}</div>
             )}
           </div>
         );
@@ -355,7 +355,7 @@ function RainfallSection({ rain }: { rain: RainfallStation[] }) {
         </button>
       )}
 
-      <div className="eyebrow mono" style={{ color: "var(--text-3)" }}>
+      <div className="eyebrow mono" style={{ color: "var(--ink-low)" }}>
         SOURCE · HII ThaiWater · ฝน 24 ชม. · province 80
       </div>
     </div>
@@ -421,7 +421,7 @@ export function WaterPanel({
             className="eyebrow mono"
             style={{
               background: tab === t.id ? "var(--ink)" : "transparent",
-              color: tab === t.id ? "var(--ground)" : "var(--text-3)",
+              color: tab === t.id ? "var(--ground)" : "var(--ink-low)",
               border: `1px solid ${tab === t.id ? "var(--ink)" : "var(--line)"}`,
               padding: "2px 7px",
               cursor: "pointer",

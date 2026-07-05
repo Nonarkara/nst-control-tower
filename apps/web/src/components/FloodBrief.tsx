@@ -31,7 +31,7 @@ const GAUGE_STATUS_COLOR: Record<FloodGauge["status"], string> = {
   watch: "var(--warn)",
   warning: "var(--warn)",
   flood: "var(--bad)",
-  unknown: "var(--text-3)",
+  unknown: "var(--ink-low)",
 };
 
 const GAUGE_RANK: Record<FloodGauge["status"], number> = {
@@ -47,7 +47,7 @@ const DAM_STATUS_COLOR: Record<DamStatus["status"], string> = {
   normal: "var(--good)",
   high: "var(--warn)",
   spilling: "var(--bad)",
-  unknown: "var(--text-3)",
+  unknown: "var(--ink-low)",
 };
 
 const INTENSITY_COLOR: Record<PrecipNowcast["intensity"], string> = {
@@ -124,7 +124,7 @@ export function FloodBrief({ gauges, waterGauges = [], dam, precip, floodRiskFea
               <div className="mono" style={{ color: SIT_COLOR[worstThaiWater.situationLevel], fontSize: "0.9rem" }}>
                 {SIT_LABEL[worstThaiWater.situationLevel]}
               </div>
-              <div className="eyebrow mono" style={{ color: "var(--text-3)" }}>
+              <div className="eyebrow mono" style={{ color: "var(--ink-low)" }}>
                 {worstThaiWater.name.replace(/^สถานีโทรมาตร\s*/u, "")}
                 {worstThaiWater.levelMsl != null ? ` · ${worstThaiWater.levelMsl.toFixed(2)} m MSL` : ""}
                 {worstThaiWater.warningMsl != null ? ` / warn ${worstThaiWater.warningMsl.toFixed(1)}` : ""}
@@ -135,12 +135,12 @@ export function FloodBrief({ gauges, waterGauges = [], dam, precip, floodRiskFea
               <div className="mono" style={{ color: GAUGE_STATUS_COLOR[worstGauge.status], fontSize: "0.9rem" }}>
                 {worstGauge.status.toUpperCase()}
               </div>
-              <div className="eyebrow mono" style={{ color: "var(--text-3)" }}>
+              <div className="eyebrow mono" style={{ color: "var(--ink-low)" }}>
                 {worstGauge.name} · {fmt(worstGauge.levelM, 2, " m")}
               </div>
             </>
           ) : (
-            <div className="mono eyebrow" style={{ color: "var(--text-3)" }}>no gauge feed</div>
+            <div className="mono eyebrow" style={{ color: "var(--ink-low)" }}>no gauge feed</div>
           )}
         </div>
         <div style={{ flex: 1 }}>
@@ -148,7 +148,7 @@ export function FloodBrief({ gauges, waterGauges = [], dam, precip, floodRiskFea
           <div className="mono" style={{ fontSize: "0.9rem" }}>
             {useThaiWater ? waterGauges.length : gauges.length || "—"}
           </div>
-          <div className="eyebrow mono" style={{ color: "var(--text-3)" }}>
+          <div className="eyebrow mono" style={{ color: "var(--ink-low)" }}>
             {useThaiWater
               ? `${waterGauges.filter((g) => g.situationLevel >= 4).length} above warning`
               : `${gauges.filter((g) => g.status === "warning" || g.status === "flood").length} above warning`}
@@ -160,17 +160,17 @@ export function FloodBrief({ gauges, waterGauges = [], dam, precip, floodRiskFea
       <div className="flood-row" style={{ display: "flex", gap: 12, marginTop: 10 }}>
         <div style={{ flex: 1 }}>
           <div className="eyebrow">KHAO LUANG RUNOFF</div>
-          <div className="mono" style={{ color: dam ? DAM_STATUS_COLOR[dam.status] : "var(--text-3)", fontSize: "0.9rem" }}>
+          <div className="mono" style={{ color: dam ? DAM_STATUS_COLOR[dam.status] : "var(--ink-low)", fontSize: "0.9rem" }}>
             {dam ? dam.status.toUpperCase() : "—"}
           </div>
-          <div className="eyebrow mono" style={{ color: "var(--text-3)" }}>
+          <div className="eyebrow mono" style={{ color: "var(--ink-low)" }}>
             storage {fmt(dam?.storagePct, 0, "%")}
           </div>
         </div>
         <div style={{ flex: 1 }}>
           <div className="eyebrow">OUTFLOW</div>
           <div className="mono" style={{ fontSize: "0.9rem" }}>{fmt(dam?.outflowCms, 0, " m³/s")}</div>
-          <div className="eyebrow mono" style={{ color: "var(--text-3)" }}>
+          <div className="eyebrow mono" style={{ color: "var(--ink-low)" }}>
             rising outflow precedes city flooding
           </div>
         </div>
@@ -182,18 +182,18 @@ export function FloodBrief({ gauges, waterGauges = [], dam, precip, floodRiskFea
           <div className="eyebrow">RAIN NOW</div>
           <div
             className="mono"
-            style={{ color: precip ? INTENSITY_COLOR[precip.intensity] : "var(--text-3)", fontSize: "0.9rem" }}
+            style={{ color: precip ? INTENSITY_COLOR[precip.intensity] : "var(--ink-low)", fontSize: "0.9rem" }}
           >
             {fmt(precip?.nowMm, 1, " mm")}
           </div>
-          <div className="eyebrow mono" style={{ color: "var(--text-3)" }}>
+          <div className="eyebrow mono" style={{ color: "var(--ink-low)" }}>
             {precip ? precip.intensity.toUpperCase() : "—"}
           </div>
         </div>
         <div style={{ flex: 1 }}>
           <div className="eyebrow">NEXT 2H</div>
           <div className="mono" style={{ fontSize: "0.9rem" }}>{fmt(precip?.total2hMm, 1, " mm")}</div>
-          <div className="eyebrow mono" style={{ color: "var(--text-3)" }}>
+          <div className="eyebrow mono" style={{ color: "var(--ink-low)" }}>
             {precip?.minutesToSignificant != null ? `rain in ~${precip.minutesToSignificant} min` : "no rain forecast"}
           </div>
         </div>
@@ -206,18 +206,18 @@ export function FloodBrief({ gauges, waterGauges = [], dam, precip, floodRiskFea
           <div className="mono" style={{ fontSize: "1.0rem", color: "var(--warn)" }}>
             ~{cityHouseholds.toLocaleString()} households
           </div>
-          <div className="eyebrow mono" style={{ color: "var(--text-3)" }}>
+          <div className="eyebrow mono" style={{ color: "var(--ink-low)" }}>
             Old Town / city low-lying zone · reference
           </div>
           {provinceHouseholds != null && (
-            <div className="eyebrow mono" style={{ color: "var(--text-3)", marginTop: 4 }}>
+            <div className="eyebrow mono" style={{ color: "var(--ink-low)", marginTop: 4 }}>
               ~{provinceHouseholds.toLocaleString()} across {floodRiskFeatures?.length ?? 0} NST basin zones (provincial)
             </div>
           )}
         </div>
       )}
 
-      <div className="eyebrow mono" style={{ color: "var(--text-3)", marginTop: 8 }}>
+      <div className="eyebrow mono" style={{ color: "var(--ink-low)", marginTop: 8 }}>
         {useThaiWater
           ? `HII ThaiWater · ${waterGauges.length} stations · PAK PHANANG / THA DEE basin`
           : "Open-Meteo GloFAS discharge proxy · PAK PHANANG / THA DEE"

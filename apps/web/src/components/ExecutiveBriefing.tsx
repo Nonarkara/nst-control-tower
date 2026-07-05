@@ -82,13 +82,13 @@ export function ExecutiveBriefing({
         ageMinutes={ageMinutes}
         fallbackTier={fallbackTier}
         actions={
-          <span className="mono caption" style={{ color: "var(--text-3)" }}>{nowStr}</span>
+          <span className="mono caption" style={{ color: "var(--ink-low)" }}>{nowStr}</span>
         }
       />
 
       {/* Situation alerts */}
       <div className="exec-briefing-section">
-        <span className="mono eyebrow" style={{ color: "var(--text-3)" }}>SITUATION</span>
+        <span className="mono eyebrow" style={{ color: "var(--ink-low)" }}>SITUATION</span>
         {alerts.length === 0 ? (
           <div className="exec-briefing-nominal mono caption" role="status">
             ✓ NOMINAL — no active alerts
@@ -99,7 +99,7 @@ export function ExecutiveBriefing({
               <li key={a.id} className="exec-briefing-alert"
                   style={{ borderLeftColor: LEVEL_COLOR[a.level] ?? "var(--line)" }}>
                 <div className="exec-briefing-alert-row">
-                  <span className="mono" style={{ color: LEVEL_COLOR[a.level] ?? "var(--text-2)", fontSize: "0.60rem", letterSpacing: "0.08em", fontWeight: 600 }}>
+                  <span className="mono" style={{ color: LEVEL_COLOR[a.level] ?? "var(--ink-3)", fontSize: "0.60rem", letterSpacing: "0.08em", fontWeight: 600 }}>
                     {LEVEL_ICON[a.level] ?? "·"} {a.level.toUpperCase()} · {a.category.toUpperCase()}
                   </span>
                 </div>
@@ -118,27 +118,27 @@ export function ExecutiveBriefing({
 
       {/* City vitals */}
       <div className="exec-briefing-section">
-        <span className="mono eyebrow" style={{ color: "var(--text-3)" }}>CITY VITALS</span>
+        <span className="mono eyebrow" style={{ color: "var(--ink-low)" }}>CITY VITALS</span>
         <div className="marine-detail-grid" role="group" aria-label="City vital statistics">
           <div>
-            <span className="mono eyebrow" style={{ color: "var(--text-3)" }}>AQI</span>
-            <span className="mono" style={{ color: aqi != null ? execAqiColor(aqi) : "var(--text-2)" }}>
+            <span className="mono eyebrow" style={{ color: "var(--ink-low)" }}>AQI</span>
+            <span className="mono" style={{ color: aqi != null ? execAqiColor(aqi) : "var(--ink-3)" }}>
               {fmtInt(aqi)}{aqi != null ? ` · ${execAqiBand(aqi)}` : ""}
             </span>
           </div>
           <div>
-            <span className="mono eyebrow" style={{ color: "var(--text-3)" }}>TEMP</span>
+            <span className="mono eyebrow" style={{ color: "var(--ink-low)" }}>TEMP</span>
             <span className="mono">{fmt1(weather?.tempC)}°C</span>
           </div>
           <div>
-            <span className="mono eyebrow" style={{ color: "var(--text-3)" }}>REPORTS</span>
-            <span className="mono" style={{ color: openIncidents > 5 ? "var(--warn)" : "var(--text)" }}>
+            <span className="mono eyebrow" style={{ color: "var(--ink-low)" }}>REPORTS</span>
+            <span className="mono" style={{ color: openIncidents > 5 ? "var(--warn)" : "var(--ink)" }}>
               {openIncidents} OPEN
             </span>
           </div>
           <div>
-            <span className="mono eyebrow" style={{ color: "var(--text-3)" }}>RESERVOIRS</span>
-            <span className="mono" style={{ color: avgReservoir != null && avgReservoir < 30 ? "var(--warn)" : "var(--text)" }}>
+            <span className="mono eyebrow" style={{ color: "var(--ink-low)" }}>RESERVOIRS</span>
+            <span className="mono" style={{ color: avgReservoir != null && avgReservoir < 30 ? "var(--warn)" : "var(--ink)" }}>
               {avgReservoir != null ? `${Math.round(avgReservoir)}%` : "—"}
             </span>
           </div>
@@ -148,8 +148,8 @@ export function ExecutiveBriefing({
       {/* Strategic initiatives */}
       {initiatives.length > 0 && (
         <div className="exec-briefing-section">
-          <span className="mono eyebrow" style={{ color: "var(--text-3)" }}>
-            INITIATIVES <span style={{ color: "var(--text-3)", fontWeight: 400 }}>· INDICATIVE</span>
+          <span className="mono eyebrow" style={{ color: "var(--ink-low)" }}>
+            INITIATIVES <span style={{ color: "var(--ink-low)", fontWeight: 400 }}>· INDICATIVE</span>
           </span>
           <ul className="exec-briefing-initiatives" role="list">
             {initiatives.map((init) => (
@@ -159,7 +159,7 @@ export function ExecutiveBriefing({
                   <span className="mono" style={{
                     fontSize: "0.60rem",
                     letterSpacing: "0.06em",
-                    color: STATUS_COLOR[init.status] ?? "var(--text-3)",
+                    color: STATUS_COLOR[init.status] ?? "var(--ink-low)",
                   }}>
                     {init.status.toUpperCase().replace("-", " ")}
                   </span>
@@ -168,7 +168,7 @@ export function ExecutiveBriefing({
                     would catch invented precision. Show owner + target date only,
                     with a qualitative status, until the Mayor's office supplies real
                     progress figures. */}
-                <div className="mono" style={{ fontSize: "0.58rem", color: "var(--text-3)" }}>
+                <div className="mono" style={{ fontSize: "0.58rem", color: "var(--ink-low)" }}>
                   {init.owner} · target {init.deadline}
                 </div>
               </li>
@@ -180,17 +180,17 @@ export function ExecutiveBriefing({
       {/* Markets snapshot — only when live data is available */}
       {markets && (thbUsd != null || sp500 || wti) && (
         <div className="exec-briefing-section">
-          <span className="mono eyebrow" style={{ color: "var(--text-3)" }}>MARKETS</span>
+          <span className="mono eyebrow" style={{ color: "var(--ink-low)" }}>MARKETS</span>
           <div className="marine-detail-grid">
             {thbUsd != null && (
               <div>
-                <span className="mono eyebrow" style={{ color: "var(--text-3)" }}>THB / USD</span>
+                <span className="mono eyebrow" style={{ color: "var(--ink-low)" }}>THB / USD</span>
                 <span className="mono">{thbUsd.toFixed(2)}</span>
               </div>
             )}
             {sp500 && (
               <div>
-                <span className="mono eyebrow" style={{ color: "var(--text-3)" }}>S&amp;P 500</span>
+                <span className="mono eyebrow" style={{ color: "var(--ink-low)" }}>S&amp;P 500</span>
                 <span className="mono" style={{ color: (sp500.changePct ?? 0) >= 0 ? "var(--good)" : "var(--bad)" }}>
                   {sp500.value != null ? fmtInt(sp500.value) : "—"}
                   {sp500.changePct != null && (
@@ -203,7 +203,7 @@ export function ExecutiveBriefing({
             )}
             {wti && (
               <div>
-                <span className="mono eyebrow" style={{ color: "var(--text-3)" }}>WTI CRUDE</span>
+                <span className="mono eyebrow" style={{ color: "var(--ink-low)" }}>WTI CRUDE</span>
                 <span className="mono">${fmt1(wti.value)}</span>
               </div>
             )}
@@ -230,7 +230,7 @@ function DataHealthSection({ adapters }: { adapters: AdapterHealth[] }) {
   return (
     <div className="exec-briefing-section" role="status" aria-label="Data feed health">
       <div className="spread" style={{ alignItems: "center", marginBottom: 4 }}>
-        <span className="mono eyebrow" style={{ color: "var(--text-3)" }}>DATA HEALTH</span>
+        <span className="mono eyebrow" style={{ color: "var(--ink-low)" }}>DATA HEALTH</span>
         <span className="mono caption" style={{ color: healthy === total ? "var(--good)" : "var(--warn)" }}>
           {healthy}/{total} HEALTHY
         </span>
@@ -251,14 +251,14 @@ function DataHealthSection({ adapters }: { adapters: AdapterHealth[] }) {
               <span className="mono" style={{ fontSize: "0.60rem", color: statusColor, fontWeight: 700, letterSpacing: "0.07em", whiteSpace: "nowrap" }}>
                 {isDown ? "▲" : "◆"} {a.name}
               </span>
-              <span className="mono caption" style={{ color: "var(--text-3)", flex: 1, textAlign: "right" }}>
+              <span className="mono caption" style={{ color: "var(--ink-low)", flex: 1, textAlign: "right" }}>
                 {isMissingKey ? "KEY MISSING" : a.status.toUpperCase()}
               </span>
             </div>
           );
         })}
         {unhealthy.length > 5 && (
-          <span className="mono caption" style={{ color: "var(--text-3)", paddingLeft: 6 }}>
+          <span className="mono caption" style={{ color: "var(--ink-low)", paddingLeft: 6 }}>
             +{unhealthy.length - 5} more — see SOURCES
           </span>
         )}

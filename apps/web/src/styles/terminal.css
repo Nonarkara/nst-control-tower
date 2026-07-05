@@ -20,8 +20,8 @@
 .term-head .term-mark b { color: var(--accent); }
 .term-head .term-sub { color: var(--ink-3); font-size: var(--size-eyebrow); text-transform: uppercase; letter-spacing: 0.06em; }
 .term-clock { margin-left: auto; color: var(--ink); font-variant-numeric: tabular-nums; }
-.term-flip { border: 1px solid var(--gold); color: var(--gold); padding: 5px 14px; text-transform: uppercase; letter-spacing: 0.06em; }
-.term-flip:hover { background: var(--gold); color: var(--paper); }
+.term-flip { border: 1px solid var(--warn); color: var(--warn); padding: 5px 14px; text-transform: uppercase; letter-spacing: 0.06em; }
+.term-flip:hover { background: var(--warn); color: var(--paper); }
 
 /* ticker strip */
 .term-ticker { background: #000; border-bottom: 1px solid var(--line); overflow: hidden; flex-shrink: 0; height: 30px; display: flex; align-items: center; }
@@ -50,7 +50,7 @@
 .term-panel-head h3 { font-size: var(--size-eyebrow); text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink); font-family: var(--font-mono); font-weight: 600; }
 .term-panel-head .term-led { width: 7px; height: 7px; flex-shrink: 0; background: var(--ink-3); }
 .term-led.live { background: var(--accent); }
-.term-led.warn { background: var(--gold); }
+.term-led.warn { background: var(--warn); }
 .term-led.crit { background: var(--neg); }
 .term-panel-head .term-src { margin-left: auto; color: var(--ink-3); font-size: 0.64rem; text-transform: uppercase; letter-spacing: 0.04em; }
 .term-panel-body { padding: var(--s-3); flex: 1; display: flex; flex-direction: column; gap: 8px; }
@@ -72,12 +72,12 @@
 
 /* the juxtaposition line — the insight from pairing live × static */
 .term-jux { margin-top: auto; padding-top: 8px; border-top: 1px solid var(--line); color: var(--ink-2); font-size: 0.74rem; line-height: 1.4; font-family: var(--font-sans); }
-.term-jux b { color: var(--gold); font-weight: 600; }
+.term-jux b { color: var(--warn); font-weight: 600; }
 
 /* status pills */
 .term-pill { display: inline-block; font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.05em; padding: 1px 6px; border: 1px solid var(--line-2); }
 .term-pill.ok { color: var(--accent); border-color: var(--accent); }
-.term-pill.warn { color: var(--gold); border-color: var(--gold); }
+.term-pill.warn { color: var(--warn); border-color: var(--warn); }
 .term-pill.crit { color: var(--neg); border-color: var(--neg); }
 
 /* news wire */

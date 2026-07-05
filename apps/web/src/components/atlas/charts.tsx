@@ -16,16 +16,16 @@ import type {
 
 // ── palette ─────────────────────────────────────────────────────────────────
 const TEAL = "var(--accent)";
-const GOLD = "var(--gold)";
+const GOLD = "var(--warn)";
 const CATEGORICAL = [
-  "var(--accent)", "var(--gold)", "var(--data)", "var(--good)",
+  "var(--accent)", "var(--warn)", "var(--data)", "var(--good)",
   "#a78bfa", "#f472b6", "#22d3ee", "#fb923c", "#94a3b8", "#facc15",
 ];
 const catColor = (i: number, explicit?: string) => explicit ?? CATEGORICAL[i % CATEGORICAL.length];
 
 const STATUS_COLOR: Record<string, string> = {
-  good: "var(--good)", watch: "var(--gold)", alert: "#fb923c",
-  critical: "var(--bad)", neutral: "var(--text-2)",
+  good: "var(--good)", watch: "var(--warn)", alert: "#fb923c",
+  critical: "var(--bad)", neutral: "var(--ink-3)",
 };
 
 // ── number formatting ─────────────────────────────────────────────────────────
@@ -43,13 +43,13 @@ function fmtVal(v: number | string): string {
 
 // ── KPI card (Indicator) ──────────────────────────────────────────────────────
 export function KpiCard({ ind }: { ind: Indicator }) {
-  const statusColor = ind.status ? STATUS_COLOR[ind.status] : "var(--text)";
+  const statusColor = ind.status ? STATUS_COLOR[ind.status] : "var(--ink)";
   const good = ind.goodDirection ?? "neutral";
   const deltaGood =
     !ind.delta || good === "neutral"
       ? null
       : (ind.delta.trend === "up") === (good === "up");
-  const deltaColor = deltaGood == null ? "var(--text-2)" : deltaGood ? "var(--good)" : "var(--bad)";
+  const deltaColor = deltaGood == null ? "var(--ink-3)" : deltaGood ? "var(--good)" : "var(--bad)";
   const arrow = ind.delta?.trend === "up" ? "▲" : ind.delta?.trend === "down" ? "▼" : "▸";
 
   return (
@@ -122,15 +122,15 @@ function Donut({ data, unit, centerLabel, title, note }: Extract<AtlasChart, { k
               transform={`rotate(-90 ${cx} ${cy})`} />
           );
         })}
-        <text x={cx} y={cy - 4} textAnchor="middle" className="atlas-svg-big" fill="var(--text)">{centerLabel ?? fmtNum(total)}</text>
-        {unit ? <text x={cx} y={cy + 14} textAnchor="middle" className="atlas-svg-cap" fill="var(--text-2)">{unit}</text> : null}
+        <text x={cx} y={cy - 4} textAnchor="middle" className="atlas-svg-big" fill="var(--ink)">{centerLabel ?? fmtNum(total)}</text>
+        {unit ? <text x={cx} y={cy + 14} textAnchor="middle" className="atlas-svg-cap" fill="var(--ink-3)">{unit}</text> : null}
       </g>
       <g>
         {data.map((d, i) => (
           <g key={i} transform={`translate(215, ${28 + i * 22})`}>
             <rect width="10" height="10" y="-9" fill={catColor(i, d.color)} />
-            <text x="16" y="0" className="atlas-svg-cap" fill="var(--text-1)">{d.name}</text>
-            <text x="145" y="0" textAnchor="end" className="atlas-svg-cap mono" fill="var(--text-2)">{Math.round((d.value / total) * 100)}%</text>
+            <text x="16" y="0" className="atlas-svg-cap" fill="var(--ink-2)">{d.name}</text>
+            <text x="145" y="0" textAnchor="end" className="atlas-svg-cap mono" fill="var(--ink-3)">{Math.round((d.value / total) * 100)}%</text>
           </g>
         ))}
       </g>
@@ -152,12 +152,12 @@ function Bar({ data, unit, title, note }: Extract<AtlasChart, { kind: "bar" }>) 
         return (
           <g key={i}>
             <rect x={x} y={base - h} width={w} height={h} fill={catColor(i, d.color)} />
-            <text x={x + w / 2} y={base - h - 5} textAnchor="middle" className="atlas-svg-cap mono" fill="var(--text-1)">{fmtNum(d.value)}</text>
-            <text x={x + w / 2} y={base + 14} textAnchor="middle" className="atlas-svg-tick" fill="var(--text-2)">{d.name}</text>
+            <text x={x + w / 2} y={base - h - 5} textAnchor="middle" className="atlas-svg-cap mono" fill="var(--ink-2)">{fmtNum(d.value)}</text>
+            <text x={x + w / 2} y={base + 14} textAnchor="middle" className="atlas-svg-tick" fill="var(--ink-3)">{d.name}</text>
           </g>
         );
       })}
-      {unit ? <text x={pad} y={16} className="atlas-svg-tick" fill="var(--text-3)">{unit}</text> : null}
+      {unit ? <text x={pad} y={16} className="atlas-svg-tick" fill="var(--ink-low)">{unit}</text> : null}
     </ChartFrame>
   );
 }
@@ -173,9 +173,9 @@ function HBar({ data, unit, title, note }: Extract<AtlasChart, { kind: "hbar" }>
         const y = 10 + i * rowH;
         return (
           <g key={i}>
-            <text x={labelW - 6} y={y + 12} textAnchor="end" className="atlas-svg-cap" fill="var(--text-1)">{d.name}</text>
+            <text x={labelW - 6} y={y + 12} textAnchor="end" className="atlas-svg-cap" fill="var(--ink-2)">{d.name}</text>
             <rect x={x0} y={y + 2} width={Math.max(w, 1)} height={14} fill={catColor(i, d.color)} />
-            <text x={x0 + w + 5} y={y + 13} className="atlas-svg-cap mono" fill="var(--text-2)">{fmtNum(d.value)}{unit ? ` ${unit}` : ""}</text>
+            <text x={x0 + w + 5} y={y + 13} className="atlas-svg-cap mono" fill="var(--ink-3)">{fmtNum(d.value)}{unit ? ` ${unit}` : ""}</text>
           </g>
         );
       })}
@@ -198,7 +198,7 @@ function LineArea({ series, unit, title, note, area }: Extract<AtlasChart, { kin
       {[0, 0.5, 1].map((f, i) => {
         const y = base - f * (base - padT);
         const v = minY + f * (maxY - minY);
-        return <g key={i}><line x1={padL} y1={y} x2={W - padR} y2={y} stroke="var(--line)" strokeDasharray="2 3" /><text x={4} y={y + 3} className="atlas-svg-tick" fill="var(--text-3)">{fmtNum(v)}</text></g>;
+        return <g key={i}><line x1={padL} y1={y} x2={W - padR} y2={y} stroke="var(--line)" strokeDasharray="2 3" /><text x={4} y={y + 3} className="atlas-svg-tick" fill="var(--ink-low)">{fmtNum(v)}</text></g>;
       })}
       {series.map((s, si) => {
         const col = s.color ?? catColor(si);
@@ -213,9 +213,9 @@ function LineArea({ series, unit, title, note, area }: Extract<AtlasChart, { kin
         );
       })}
       {series[0].points.map((p, i) => i % Math.ceil(series[0].points.length / 6) === 0 ? (
-        <text key={i} x={sx(Number(p.x))} y={base + 16} textAnchor="middle" className="atlas-svg-tick" fill="var(--text-3)">{p.x}</text>
+        <text key={i} x={sx(Number(p.x))} y={base + 16} textAnchor="middle" className="atlas-svg-tick" fill="var(--ink-low)">{p.x}</text>
       ) : null)}
-      {unit ? <text x={padL} y={10} className="atlas-svg-tick" fill="var(--text-3)">{unit}</text> : null}
+      {unit ? <text x={padL} y={10} className="atlas-svg-tick" fill="var(--ink-low)">{unit}</text> : null}
     </ChartFrame>
   );
 }
@@ -237,11 +237,11 @@ function Pyramid({ bands, male, female, unit, title, note }: Extract<AtlasChart,
           <g key={i}>
             <rect x={cx - midGap / 2 - mw} y={y} width={mw} height={rowH - 3} fill={TEAL} />
             <rect x={cx + midGap / 2} y={y} width={fw} height={rowH - 3} fill="var(--data)" />
-            <text x={cx} y={y + rowH - 5} textAnchor="middle" className="atlas-svg-tick" fill="var(--text-2)">{b}</text>
+            <text x={cx} y={y + rowH - 5} textAnchor="middle" className="atlas-svg-tick" fill="var(--ink-3)">{b}</text>
           </g>
         );
       })}
-      {unit ? <text x={4} y={h - 4} className="atlas-svg-tick" fill="var(--text-3)">{unit}</text> : null}
+      {unit ? <text x={4} y={h - 4} className="atlas-svg-tick" fill="var(--ink-low)">{unit}</text> : null}
     </ChartFrame>
   );
 }
@@ -263,7 +263,7 @@ function Radar({ axes, max, title, note }: Extract<AtlasChart, { kind: "radar" }
       ))}
       {axes.map((_, i) => { const [x, y] = pt(i, 1); return <line key={i} x1={cx} y1={cy} x2={x} y2={y} stroke="var(--line)" />; })}
       <polygon points={poly} fill={TEAL} opacity={0.22} stroke={TEAL} strokeWidth={2} />
-      {axes.map((a, i) => { const [x, y] = pt(i, 1.16); return <text key={i} x={x} y={y} textAnchor="middle" className="atlas-svg-tick" fill="var(--text-2)">{a.name}</text>; })}
+      {axes.map((a, i) => { const [x, y] = pt(i, 1.16); return <text key={i} x={x} y={y} textAnchor="middle" className="atlas-svg-tick" fill="var(--ink-3)">{a.name}</text>; })}
     </ChartFrame>
   );
 }
@@ -286,11 +286,11 @@ function GroupedBar({ groups, unit, title, note }: Extract<AtlasChart, { kind: "
               const x = pad + gi * gw + gw * 0.14 + i * bw;
               return <rect key={i} x={x} y={base - h} width={bw - 2} height={h} fill={catColor(i, v.color)} />;
             })}
-            <text x={pad + gi * gw + gw / 2} y={base + 14} textAnchor="middle" className="atlas-svg-tick" fill="var(--text-2)">{g.label}</text>
+            <text x={pad + gi * gw + gw / 2} y={base + 14} textAnchor="middle" className="atlas-svg-tick" fill="var(--ink-3)">{g.label}</text>
           </g>
         );
       })}
-      {unit ? <text x={pad} y={26} className="atlas-svg-tick" fill="var(--text-3)">{unit}</text> : null}
+      {unit ? <text x={pad} y={26} className="atlas-svg-tick" fill="var(--ink-low)">{unit}</text> : null}
     </ChartFrame>
   );
 }
@@ -306,8 +306,8 @@ function Timeline({ events, title, note }: Extract<AtlasChart, { kind: "timeline
         return (
           <g key={i}>
             <circle cx={20} cy={y} r={4} fill={col} />
-            <text x={34} y={y - 2} className="atlas-svg-cap" fill="var(--text)">{e.label}</text>
-            <text x={34} y={y + 12} className="atlas-svg-tick" fill="var(--text-2)">{e.date}{e.value != null ? ` · ${fmtNum(e.value)}` : ""}{e.note ? ` · ${e.note}` : ""}</text>
+            <text x={34} y={y - 2} className="atlas-svg-cap" fill="var(--ink)">{e.label}</text>
+            <text x={34} y={y + 12} className="atlas-svg-tick" fill="var(--ink-3)">{e.date}{e.value != null ? ` · ${fmtNum(e.value)}` : ""}{e.note ? ` · ${e.note}` : ""}</text>
           </g>
         );
       })}

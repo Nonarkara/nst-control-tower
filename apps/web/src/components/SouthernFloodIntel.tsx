@@ -42,7 +42,7 @@ const DISCHARGE_COLOR: Record<RiverDischargeBand, string> = {
   watch: "var(--data)",
   warning: "var(--warn)",
   emergency: "var(--bad)",
-  unknown: "var(--text-3)",
+  unknown: "var(--ink-low)",
 };
 
 function fmtMm(n: number | null | undefined): string {

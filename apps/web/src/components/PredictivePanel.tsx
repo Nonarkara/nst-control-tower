@@ -64,7 +64,7 @@ const H = 32;
 const PAD = 2;
 
 function Sparkline({ points, alertThreshold }: { points: ForecastPoint[]; alertThreshold: number }) {
-  if (points.length < 2) return <span className="mono eyebrow" style={{ color: "var(--text-3)" }}>—</span>;
+  if (points.length < 2) return <span className="mono eyebrow" style={{ color: "var(--ink-low)" }}>—</span>;
 
   const vals = points.map((p) => p.p50);
   const lo   = points.map((p) => p.p10 ?? p.p50);
@@ -195,7 +195,7 @@ export function PredictivePanel({ apiBase, onMetricClick, onAlert, onForecastsLo
       />
 
       {loading && !data && (
-        <div className="eyebrow mono" style={{ color: "var(--text-3)" }}>LOADING …</div>
+        <div className="eyebrow mono" style={{ color: "var(--ink-low)" }}>LOADING …</div>
       )}
 
       {error && (
@@ -205,7 +205,7 @@ export function PredictivePanel({ apiBase, onMetricClick, onAlert, onForecastsLo
       )}
 
       {!loading && !error && !hasAnyData && (
-        <div className="eyebrow mono" style={{ color: "var(--text-3)" }}>
+        <div className="eyebrow mono" style={{ color: "var(--ink-low)" }}>
           Forecasts resume when the prediction service reports in.
         </div>
       )}
@@ -235,7 +235,7 @@ export function PredictivePanel({ apiBase, onMetricClick, onAlert, onForecastsLo
               )}
               <span className="forecast-peak mono">{peakLabel(fm.horizon, fm.unit)}</span>
               {clickable && (
-                <span className="eyebrow mono" style={{ color: "var(--text-3)", marginLeft: "auto" }}>
+                <span className="eyebrow mono" style={{ color: "var(--ink-low)", marginLeft: "auto" }}>
                   →MAP
                 </span>
               )}
@@ -247,7 +247,7 @@ export function PredictivePanel({ apiBase, onMetricClick, onAlert, onForecastsLo
               </span>
             </div>
             {fm.generatedAt && (
-              <div className="eyebrow mono" style={{ color: "var(--text-3)", marginTop: 1 }}>
+              <div className="eyebrow mono" style={{ color: "var(--ink-low)", marginTop: 1 }}>
                 {formatAge(fm.generatedAt)}
               </div>
             )}
@@ -255,7 +255,7 @@ export function PredictivePanel({ apiBase, onMetricClick, onAlert, onForecastsLo
         );
       })}
 
-      <div className="eyebrow mono" style={{ color: "var(--text-3)", marginTop: 4 }}>
+      <div className="eyebrow mono" style={{ color: "var(--ink-low)", marginTop: 4 }}>
         GOOGLE TIMESFM 2.0 · 200M · ZERO-SHOT INFERENCE
       </div>
     </div>

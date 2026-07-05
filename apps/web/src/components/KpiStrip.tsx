@@ -23,7 +23,7 @@ const GAUGE_STATUS_COLOR: Record<FloodGauge["status"], string> = {
   watch: "var(--warn)",
   warning: "var(--warn)",
   flood: "var(--bad)",
-  unknown: "var(--text-3)",
+  unknown: "var(--ink-low)",
 };
 
 const GAUGE_STATUS_WORD: Record<FloodGauge["status"], string> = {
@@ -48,7 +48,7 @@ export function KpiStrip({ cityReports, floodGauges, airQuality, weather, ageMin
       <div className="kpi-grid">
       <div className="kpi" role="status" aria-label={`Citizen reports: ${openReports} open`}>
         <div className="label">TRAFFY:CR</div>
-        <div className="value" style={{ color: openReports > 20 ? "var(--bad)" : openReports > 5 ? "var(--warn)" : openReports > 0 ? "var(--text)" : "var(--good)" }}>
+        <div className="value" style={{ color: openReports > 20 ? "var(--bad)" : openReports > 5 ? "var(--warn)" : openReports > 0 ? "var(--ink)" : "var(--good)" }}>
           {openReports}
           <span className="kpi-status-word">{openReports > 20 ? "CRITICAL" : openReports > 5 ? "ELEVATED" : openReports > 0 ? "OPEN" : "CLEAR"}</span>
         </div>
@@ -57,7 +57,7 @@ export function KpiStrip({ cityReports, floodGauges, airQuality, weather, ageMin
 
       <div className="kpi" role="status" aria-label={worstGauge ? `Flood gauge: ${worstGauge.status}` : "Flood status unavailable"}>
         <div className="label">FLOOD:GAUGE</div>
-        <div className="value" style={{ color: worstGauge ? GAUGE_STATUS_COLOR[worstGauge.status] : "var(--text-3)" }}>
+        <div className="value" style={{ color: worstGauge ? GAUGE_STATUS_COLOR[worstGauge.status] : "var(--ink-low)" }}>
           {worstGauge ? GAUGE_STATUS_WORD[worstGauge.status] : "—"}
           {worstGauge && worstGauge.status !== "unknown" && (
             <span className="kpi-status-word">{floodGauges.filter(g => g.status === "warning" || g.status === "flood").length > 0 ? "ALERT" : "OK"}</span>
@@ -69,7 +69,7 @@ export function KpiStrip({ cityReports, floodGauges, airQuality, weather, ageMin
       <div className="kpi" role="status"
         aria-label={aq?.aqi != null ? `AQI ${aq.aqi}, ${aqiBand(aq.aqi)}` : "AQI unavailable"}>
         <div className="label">PM2.5:AQI</div>
-        <div className="value" style={{ color: aq?.aqi != null ? aqiColor(aq.aqi) : "var(--text-3)" }}>
+        <div className="value" style={{ color: aq?.aqi != null ? aqiColor(aq.aqi) : "var(--ink-low)" }}>
           {aq?.aqi ?? "—"}
           {aq?.aqi != null && (
             <span className="kpi-status-word">{aqiBand(aq.aqi)}</span>

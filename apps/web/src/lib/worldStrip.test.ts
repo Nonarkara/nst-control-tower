@@ -69,7 +69,7 @@ describe("uvBand", () => {
   it("returns neutral dash for null", () => {
     const band = uvBand(null);
     expect(band.label).toBe("—");
-    expect(band.color).toBe("var(--text-3)");
+    expect(band.color).toBe("var(--ink-low)");
   });
 
   it("returns 'low' for uv < 3", () => {
@@ -111,8 +111,8 @@ describe("uvBand", () => {
 
 describe("pulseColor", () => {
   it("returns text (normal) when below warn threshold", () => {
-    expect(pulseColor(0, 5, 10)).toBe("var(--text)");
-    expect(pulseColor(4, 5, 10)).toBe("var(--text)");
+    expect(pulseColor(0, 5, 10)).toBe("var(--ink)");
+    expect(pulseColor(4, 5, 10)).toBe("var(--ink)");
   });
 
   it("returns warn when at or above warn but below bad", () => {
@@ -131,7 +131,7 @@ describe("pulseColor", () => {
 describe("aqiBand", () => {
   it("returns dash for null", () => {
     expect(aqiBand(null).label).toBe("—");
-    expect(aqiBand(null).color).toBe("var(--text-3)");
+    expect(aqiBand(null).color).toBe("var(--ink-low)");
   });
 
   it("AQI 0–50 → good", () => {
@@ -184,7 +184,7 @@ describe("rainBadge", () => {
   it("returns loading state for null", () => {
     const b = rainBadge(null);
     expect(b.label).toBe("—");
-    expect(b.color).toBe("var(--text-3)");
+    expect(b.color).toBe("var(--ink-low)");
   });
 
   it("dry: label DRY 2H with total forecast in sub", () => {

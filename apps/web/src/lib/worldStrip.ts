@@ -31,7 +31,7 @@ export interface UvBand {
  *   ≥ 11 → extreme
  */
 export function uvBand(uv: number | null): UvBand {
-  if (uv == null) return { label: "—", color: "var(--text-3)" };
+  if (uv == null) return { label: "—", color: "var(--ink-low)" };
   if (uv < 3)  return { label: "low",       color: "var(--good)" };
   if (uv < 6)  return { label: "moderate",  color: "var(--warn)" };
   if (uv < 8)  return { label: "high",      color: "var(--bad)" };
@@ -46,7 +46,7 @@ export function uvBand(uv: number | null): UvBand {
 export function pulseColor(n: number, warn: number, bad: number): string {
   if (n >= bad) return "var(--bad)";
   if (n >= warn) return "var(--warn)";
-  return "var(--text)";
+  return "var(--ink)";
 }
 
 export interface AqiBand {
@@ -59,7 +59,7 @@ export interface AqiBand {
  * Follows US EPA standard breakpoints (0–50 good, 51–100 moderate, etc.).
  */
 export function aqiBand(aqi: number | null): AqiBand {
-  if (aqi == null) return { label: "—", color: "var(--text-3)" };
+  if (aqi == null) return { label: "—", color: "var(--ink-low)" };
   if (aqi <= 50)  return { label: "good",          color: "var(--good)" };
   if (aqi <= 100) return { label: "moderate",       color: "var(--warn)" };
   if (aqi <= 150) return { label: "unhealthy SG",   color: "var(--bad)" };
@@ -78,7 +78,7 @@ export interface RainBadge {
  * Used in the WorldStrip host block to show current / upcoming rain status.
  */
 export function rainBadge(p: PrecipNowcast | null): RainBadge {
-  if (!p) return { label: "—", sub: "rain nowcast loading", color: "var(--text-3)" };
+  if (!p) return { label: "—", sub: "rain nowcast loading", color: "var(--ink-low)" };
   if (p.intensity === "dry") {
     return { label: "DRY 2H", sub: `${p.total2hMm.toFixed(1)} mm forecast`, color: "var(--good)" };
   }

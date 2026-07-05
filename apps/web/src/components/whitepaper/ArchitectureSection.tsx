@@ -57,7 +57,7 @@ export function ArchitectureSection() {
         </tbody>
       </table>
 
-      <p style={{ marginTop: 12, color: "var(--text-2)", fontSize: "var(--size-caption)" }}>
+      <p style={{ marginTop: 12, color: "var(--ink-3)", fontSize: "var(--size-caption)" }}>
         <strong>Data gap — air quality:</strong> NST province has no permanent PCD monitoring station in the city area. The AQ panel is served by Open-Meteo atmospheric model interpolation and the nearest AQICN reporting station; values are indicative, not authoritative. This gap is documented in the Source Catalog (SOURCES button). Integration with a future DEPA IoT air sensor is planned.
       </p>
     </section>

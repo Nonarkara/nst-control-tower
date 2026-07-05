@@ -27,7 +27,7 @@ export function HourRail({ hour, isWeekend, onHourChange, onWeekendToggle }: Pro
             </span>
           </div>
           <div className="mono" style={{ fontSize: "1.1rem", marginTop: 2 }}>
-            {fmt(hour)} <span style={{ color: "var(--text-3)", fontSize: "0.7rem" }}>local</span>
+            {fmt(hour)} <span style={{ color: "var(--ink-low)", fontSize: "0.7rem" }}>local</span>
           </div>
         </div>
         <div className="row">

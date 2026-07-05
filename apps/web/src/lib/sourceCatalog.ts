@@ -13,8 +13,8 @@ export const STATUS_COLOR: Record<SourceStatus, string> = {
   live: "var(--good)",
   ready: "var(--data)",
   planned: "var(--warn)",
-  research: "var(--text-3)",
-  stub: "var(--text-3)",
+  research: "var(--ink-low)",
+  stub: "var(--ink-low)",
 };
 
 export const CATEGORY_LABEL: Record<SourceCategory, string> = {

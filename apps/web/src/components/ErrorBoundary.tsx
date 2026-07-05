@@ -29,8 +29,8 @@ export class ErrorBoundary extends Component<Props, State> {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          background: "var(--bg)",
-          color: "var(--text)",
+          background: "var(--paper)",
+          color: "var(--ink)",
           fontFamily: "'IBM Plex Sans', system-ui, sans-serif",
           padding: 24,
         }}>
@@ -39,7 +39,7 @@ export class ErrorBoundary extends Component<Props, State> {
             <h1 style={{ fontSize: "1.25rem", fontWeight: 600, marginBottom: 8 }}>
               Dashboard encountered an error
             </h1>
-            <p style={{ color: "var(--text-2)", marginBottom: 20, lineHeight: 1.5 }}>
+            <p style={{ color: "var(--ink-3)", marginBottom: 20, lineHeight: 1.5 }}>
               Something went wrong while rendering the map or data panels.
               Try reloading the page.
             </p>
@@ -49,8 +49,8 @@ export class ErrorBoundary extends Component<Props, State> {
                 padding: "10px 18px",
                 borderRadius: 6,
                 border: "1px solid var(--line)",
-                background: "var(--bg-2)",
-                color: "var(--text)",
+                background: "var(--ground)",
+                color: "var(--ink)",
                 cursor: "pointer",
                 fontFamily: "'IBM Plex Mono', monospace",
               }}
@@ -61,10 +61,10 @@ export class ErrorBoundary extends Component<Props, State> {
               <pre style={{
                 marginTop: 20,
                 padding: 12,
-                background: "var(--bg-2)",
+                background: "var(--ground)",
                 borderRadius: 6,
                 fontSize: "0.75rem",
-                color: "var(--text-2)",
+                color: "var(--ink-3)",
                 overflow: "auto",
                 textAlign: "left",
               }}>

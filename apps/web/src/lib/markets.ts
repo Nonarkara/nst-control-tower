@@ -45,8 +45,8 @@ export function arrow(p: number | null): string {
  * Dead-zone ±0.05% is treated as neutral.
  */
 export function tickColor(p: number | null): string {
-  if (p == null) return "var(--text-3)";
+  if (p == null) return "var(--ink-low)";
   if (p > 0.05) return "var(--good)";
   if (p < -0.05) return "var(--bad)";
-  return "var(--text-2)";
+  return "var(--ink-3)";
 }

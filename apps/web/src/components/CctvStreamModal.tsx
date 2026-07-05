@@ -164,7 +164,7 @@ export function CctvStreamModal({ camera, onClose, apiBase = "" }: Props) {
           <section className="cctv-modal-cv">
             <span className="eyebrow mono">LAST DETECTION</span>
             <div className="cctv-cv-row">
-              <span className="mono" style={{ color: "var(--ink-mid)", fontSize: "0.7rem" }}>
+              <span className="mono" style={{ color: "var(--ink-2)", fontSize: "0.7rem" }}>
                 {cvEvent.model && `${cvEvent.model} · `}
                 {new Date(cvEvent.timestamp).toLocaleString()}
               </span>
@@ -174,7 +174,7 @@ export function CctvStreamModal({ camera, onClose, apiBase = "" }: Props) {
                 {cvEvent.detections.slice(0, 8).map((d, i) => (
                   <li key={`${d.class}-${d.confidence}-${i}`} className="cctv-det-item mono">
                     <span className="cctv-det-class">{d.class}</span>
-                    <span className="cctv-det-conf" style={{ color: "var(--ink-mid)" }}>
+                    <span className="cctv-det-conf" style={{ color: "var(--ink-2)" }}>
                       {Math.round(d.confidence * 100)}%
                     </span>
                   </li>

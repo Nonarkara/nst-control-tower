@@ -310,7 +310,7 @@ export const ZONE_STATUS_COLOR: Record<ZoneStatus, string> = {
   high: "var(--warn)",
   watch: "var(--data)",
   normal: "var(--good)",
-  nodata: "var(--text-3)",
+  nodata: "var(--ink-low)",
 };
 
 export const ZONE_STATUS_LABEL: Record<ZoneStatus, string> = {

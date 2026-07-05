@@ -99,7 +99,7 @@ export function FloodPosture({ waterGauges, rainfall, ews = [], dam, precip, age
       />
 
       {!hasData ? (
-        <div className="eyebrow mono" style={{ color: "var(--text-3)" }}>
+        <div className="eyebrow mono" style={{ color: "var(--ink-low)" }}>
           Awaiting gauge + rainfall feeds to compute posture.
         </div>
       ) : (
@@ -110,7 +110,7 @@ export function FloodPosture({ waterGauges, rainfall, ews = [], dam, precip, age
               border: `1px solid ${step.color}`,
               borderLeft: `3px solid ${step.color}`,
               padding: "8px 10px",
-              background: "var(--bg-2)",
+              background: "var(--ground)",
             }}
           >
             <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
@@ -121,12 +121,12 @@ export function FloodPosture({ waterGauges, rainfall, ews = [], dam, precip, age
                 <span className="mono" style={{ fontSize: "0.86rem", color: step.color, fontWeight: 600 }}>
                   {step.th} · {step.en}
                 </span>
-                <span className="eyebrow mono" style={{ color: "var(--text-3)" }}>
+                <span className="eyebrow mono" style={{ color: "var(--ink-low)" }}>
                   {step.issuer}
                 </span>
               </div>
             </div>
-            <div style={{ fontSize: "var(--size-eyebrow)", color: "var(--text-2)", marginTop: 4, lineHeight: 1.4 }}>
+            <div style={{ fontSize: "var(--size-eyebrow)", color: "var(--ink-3)", marginTop: 4, lineHeight: 1.4 }}>
               ▸ {step.action}
             </div>
           </div>
@@ -155,7 +155,7 @@ export function FloodPosture({ waterGauges, rainfall, ews = [], dam, precip, age
           {/* Drivers — why this level (precautionary transparency) */}
           <div>
             <div className="eyebrow">DRIVERS</div>
-            <div style={{ fontSize: "var(--size-eyebrow)", color: "var(--text-2)", lineHeight: 1.5 }}>
+            <div style={{ fontSize: "var(--size-eyebrow)", color: "var(--ink-3)", lineHeight: 1.5 }}>
               {posture.drivers.join(" · ")}
             </div>
           </div>
@@ -165,7 +165,7 @@ export function FloodPosture({ waterGauges, rainfall, ews = [], dam, precip, age
             <div style={{ flex: 1 }}>
               <div className="eyebrow">LEAD SIGNAL</div>
               <div className="mono" style={{ fontSize: "0.82rem" }}>{lead}</div>
-              <div className="eyebrow mono" style={{ color: "var(--text-3)" }}>
+              <div className="eyebrow mono" style={{ color: "var(--ink-low)" }}>
                 {leadKW
                   ? `คีรีวง → city ≈ ${leadKW.minH.toFixed(1)}–${leadKW.maxH.toFixed(1)} h (est. @ ${CELERITY_MIN_MS}–${CELERITY_MAX_MS} m/s)`
                   : "upland rain leads city by hours"}
@@ -180,7 +180,7 @@ export function FloodPosture({ waterGauges, rainfall, ews = [], dam, precip, age
                     ? "high water"
                     : "within banks"}
               </div>
-              <div className="eyebrow mono" style={{ color: "var(--text-3)" }}>
+              <div className="eyebrow mono" style={{ color: "var(--ink-low)" }}>
                 {posture.risingCount} rising · max {Math.round(posture.rain24hMax)} mm/24h
               </div>
             </div>
@@ -195,7 +195,7 @@ export function FloodPosture({ waterGauges, rainfall, ews = [], dam, precip, age
                   {ewsStat.label}
                 </span>
               </div>
-              <div className="eyebrow mono" style={{ color: "var(--text-3)", marginTop: 2 }}>
+              <div className="eyebrow mono" style={{ color: "var(--ink-low)", marginTop: 2 }}>
                 {ews.length} DWR EWS stations
                 {posture.maxSoil != null ? ` · soil max ${Math.round(posture.maxSoil)}%` : ""}
                 {posture.primedCount > 0 ? ` · ${posture.primedCount} primed` : ""}
@@ -206,24 +206,24 @@ export function FloodPosture({ waterGauges, rainfall, ews = [], dam, precip, age
                     const primed = (s.soilMoisture ?? 0) >= SOIL_PRIMED;
                     return (
                       <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        <span className="eyebrow mono" style={{ color: "var(--text-3)", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        <span className="eyebrow mono" style={{ color: "var(--ink-low)", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                           {s.amphoe || s.name}
                         </span>
                         {s.rain12h != null && s.rain12h > 0 && (
-                          <span className="eyebrow mono" style={{ color: "var(--text-3)" }}>
+                          <span className="eyebrow mono" style={{ color: "var(--ink-low)" }}>
                             {Math.round(s.rain12h)}mm/12h
                           </span>
                         )}
                         <span
                           className="mono"
-                          style={{ fontSize: "0.72rem", color: primed ? "var(--warn)" : "var(--text-2)", fontWeight: primed ? 600 : 400 }}
+                          style={{ fontSize: "0.72rem", color: primed ? "var(--warn)" : "var(--ink-3)", fontWeight: primed ? 600 : 400 }}
                         >
                           {Math.round(s.soilMoisture ?? 0)}%
                         </span>
                       </div>
                     );
                   })}
-                  <div className="eyebrow mono" style={{ color: "var(--text-3)" }}>
+                  <div className="eyebrow mono" style={{ color: "var(--ink-low)" }}>
                     soil ≥ {SOIL_PRIMED}% + rain = flash-flood primed
                   </div>
                 </div>
@@ -233,7 +233,7 @@ export function FloodPosture({ waterGauges, rainfall, ews = [], dam, precip, age
 
           {/* Runoff context */}
           {dam && (
-            <div className="eyebrow mono" style={{ color: "var(--text-3)" }}>
+            <div className="eyebrow mono" style={{ color: "var(--ink-low)" }}>
               Khao Luang runoff {dam.status.toUpperCase()}
               {dam.outflowCms != null ? ` · outflow ${Math.round(dam.outflowCms)} m³/s` : ""}
               {" "}— rising outflow precedes city flooding
@@ -243,7 +243,7 @@ export function FloodPosture({ waterGauges, rainfall, ews = [], dam, precip, age
           {/* Methodology — honest provenance */}
           <div
             className="eyebrow mono"
-            style={{ color: "var(--text-3)", marginTop: 4, lineHeight: 1.5, borderTop: "1px solid var(--line)", paddingTop: 6 }}
+            style={{ color: "var(--ink-low)", marginTop: 4, lineHeight: 1.5, borderTop: "1px solid var(--line)", paddingTop: 6 }}
           >
             Decision support, not an official order. Composite of observed river
             state + forecast rain on the JMA evacuation ladder (act by L4),

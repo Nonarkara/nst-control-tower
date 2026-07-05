@@ -71,7 +71,7 @@ export function FacebookPanel({ posts, loading, ageMinutes, fallbackTier }: Prop
                 <span className="eyebrow mono" style={{ color: "var(--accent)" }}>
                   ▶ POST
                 </span>
-                <span className="eyebrow mono" style={{ marginLeft: "auto", color: "var(--text-3)" }}>
+                <span className="eyebrow mono" style={{ marginLeft: "auto", color: "var(--ink-low)" }}>
                   {ago(p.createdAt)}
                 </span>
               </div>
@@ -96,7 +96,7 @@ export function FacebookPanel({ posts, loading, ageMinutes, fallbackTier }: Prop
           height="420"
           style={{
             border: "1px solid var(--line)",
-            background: "var(--bg-2)",
+            background: "var(--ground)",
             display: "block",
             width: "100%",
           }}
@@ -107,7 +107,7 @@ export function FacebookPanel({ posts, loading, ageMinutes, fallbackTier }: Prop
       </div>
 
       {posts.length === 0 && !loading && (
-        <div className="eyebrow mono" style={{ color: "var(--text-3)" }}>
+        <div className="eyebrow mono" style={{ color: "var(--ink-low)" }}>
           Live timeline above via Meta page plugin. For server-side tagged posts,
           set <code>FACEBOOK_PAGE_TOKEN</code> in the API env.
         </div>

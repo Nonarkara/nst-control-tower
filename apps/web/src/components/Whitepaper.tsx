@@ -53,7 +53,7 @@ export function Whitepaper({ open, onClose }: Props) {
               Nakhon Si Thammarat City Control Tower
               <span className="whitepaper-thai serif"> · ศูนย์ควบคุมเมืองนครศรีธรรมราช</span>
             </h2>
-            <span className="caption" style={{ color: "var(--text-2)" }}>
+            <span className="caption" style={{ color: "var(--ink-3)" }}>
               Platform Overview &amp; Research Paper · ภาพรวมแพลตฟอร์มและงานวิจัย
             </span>
           </div>

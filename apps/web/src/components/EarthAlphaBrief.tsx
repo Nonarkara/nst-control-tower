@@ -118,7 +118,7 @@ export function EarthAlphaBrief({
           </div>
           <div>
             <div className="eyebrow">SOLAR · GISTDA</div>
-            <div className="mono" style={{ color: "var(--gold)" }}>
+            <div className="mono" style={{ color: "var(--warn)" }}>
               {avgSolarIrrKWh != null ? `${avgSolarIrrKWh.toFixed(1)} kWh/m²` : "—"}
             </div>
           </div>
@@ -136,7 +136,7 @@ export function EarthAlphaBrief({
       <div className="marine-detail-grid">
         <div>
           <div className="eyebrow">EO LAYERS ON</div>
-          <div className="mono" style={{ color: activeEarthLayers.length ? "var(--accent)" : "var(--text-3)" }}>
+          <div className="mono" style={{ color: activeEarthLayers.length ? "var(--accent)" : "var(--ink-low)" }}>
             {activeEarthLayers.length}/{EARTH_LAYERS.length}
           </div>
         </div>
@@ -154,19 +154,19 @@ export function EarthAlphaBrief({
         </div>
         <div>
           <div className="eyebrow">FLOOD AREAS</div>
-          <div className="mono" style={{ color: floodZoneCount ? "var(--warn)" : "var(--text-3)" }}>
+          <div className="mono" style={{ color: floodZoneCount ? "var(--warn)" : "var(--ink-low)" }}>
             {floodZoneCount}
           </div>
         </div>
         <div>
           <div className="eyebrow">OPEN REPORTS</div>
-          <div className="mono" style={{ color: openIncidentCount >= 5 ? "var(--warn)" : "var(--text)" }}>
+          <div className="mono" style={{ color: openIncidentCount >= 5 ? "var(--warn)" : "var(--ink)" }}>
             {openIncidentCount}
           </div>
         </div>
       </div>
 
-      <div className="eyebrow mono" style={{ color: "var(--text-3)", lineHeight: 1.5, marginBottom: 2 }}>
+      <div className="eyebrow mono" style={{ color: "var(--ink-low)", lineHeight: 1.5, marginBottom: 2 }}>
         Satellite earth-observation overlays (NASA GIBS). Each tints the whole map by
         one measured signal — toggle one at a time to read it. Updates daily/sub-daily.
       </div>
@@ -184,9 +184,9 @@ export function EarthAlphaBrief({
             >
               <span className="row" style={{ justifyContent: "space-between", width: "100%" }}>
                 <span style={{ fontWeight: 600 }}>{l.label}</span>
-                <span className="mono caption" style={{ color: on ? "var(--accent)" : "var(--text-3)" }}>{on ? "ON" : "off"}</span>
+                <span className="mono caption" style={{ color: on ? "var(--accent)" : "var(--ink-low)" }}>{on ? "ON" : "off"}</span>
               </span>
-              <span className="eyebrow" style={{ color: "var(--text-3)", lineHeight: 1.3, whiteSpace: "normal", textTransform: "none", letterSpacing: 0 }}>
+              <span className="eyebrow" style={{ color: "var(--ink-low)", lineHeight: 1.3, whiteSpace: "normal", textTransform: "none", letterSpacing: 0 }}>
                 {l.what}
               </span>
             </button>
@@ -199,19 +199,19 @@ export function EarthAlphaBrief({
           <div key={w.title} style={{ borderLeft: "2px solid var(--accent)", paddingLeft: 8 }}>
             <div className="spread" style={{ gap: 8 }}>
               <span>{w.title}</span>
-              <span className="eyebrow mono" style={{ color: "var(--text-3)" }}>{w.layers}</span>
+              <span className="eyebrow mono" style={{ color: "var(--ink-low)" }}>{w.layers}</span>
             </div>
-            <div className="eyebrow mono" style={{ color: "var(--text-3)" }}>{w.signal}</div>
+            <div className="eyebrow mono" style={{ color: "var(--ink-low)" }}>{w.signal}</div>
           </div>
         ))}
       </div>
 
-      <div className="eyebrow mono" style={{ color: "var(--text-3)" }}>
+      <div className="eyebrow mono" style={{ color: "var(--ink-low)" }}>
         {hasFloodStack ? "FLOOD STACK ACTIVE" : "TURN ON EAR LENS FOR FLOOD STACK"}
         {" · "}
         {hasHeatStack ? "HEAT/HAZE VISIBLE" : "HEAT/HAZE LAYERS AVAILABLE"}
       </div>
-      <div className="eyebrow mono" style={{ color: "var(--text-3)" }}>
+      <div className="eyebrow mono" style={{ color: "var(--ink-low)" }}>
         IMERG {imergFreshness?.date ?? "n/a"} · FLOOD {floodFreshness?.date ?? "n/a"} · {waterwayCount.toLocaleString()} WATERWAYS · {fisheryZoneCount} FISHERY ZONES
       </div>
     </div>

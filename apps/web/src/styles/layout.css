@@ -2131,7 +2131,7 @@ input:focus-visible,
 
 /* ── 3DS toggle variant: amber underline so the substructure mode reads as escalated ── */
 .dim-toggle.vm-3D  { background: var(--accent); color: var(--paper); border-color: var(--accent); }
-.dim-toggle.vm-3DS { background: var(--accent-dim); color: var(--paper); border-color: var(--accent-dim); }
+.dim-toggle.vm-3DS { background: var(--accent); color: var(--paper); border-color: var(--accent); }
 .dim-toggle.vm-3DS:hover { background: var(--accent); border-color: var(--accent); color: var(--paper); }
 
 /* ─────────────────────────────────────────────────────────────────────────
@@ -3065,10 +3065,10 @@ input:focus-visible,
   padding-left: 24px;
 }
 .whitepaper-th .manual-h3 {
-  color: var(--gold);
+  color: var(--warn);
 }
 .whitepaper-th .manual-h3::before {
-  background: var(--gold);
+  background: var(--warn);
 }
 .whitepaper-th p,
 .whitepaper-th li {
@@ -3857,7 +3857,7 @@ input:focus-visible,
   letter-spacing: 0.06em;
   padding: 1px 5px;
   border-radius: 2px;
-  background: var(--surface-2);
+  background: var(--ground);
 }
 
 .building-card-state {
@@ -4249,7 +4249,7 @@ input:focus-visible,
 
 .tourism-year {
   font-size: 0.6rem;
-  color: var(--ink-mid);
+  color: var(--ink-2);
   text-align: right;
 }
 
@@ -4276,7 +4276,7 @@ input:focus-visible,
 
 .tourism-val {
   font-size: 0.6rem;
-  color: var(--ink-mid);
+  color: var(--ink-2);
   text-align: right;
   white-space: nowrap;
 }
@@ -4284,7 +4284,7 @@ input:focus-visible,
 .tourism-note {
   padding: 3px 12px 0;
   font-size: 0.6rem;
-  color: var(--ink-mid);
+  color: var(--ink-2);
   display: flex;
   gap: 4px;
   align-items: center;

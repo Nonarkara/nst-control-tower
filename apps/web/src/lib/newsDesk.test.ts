@@ -10,7 +10,7 @@ import { scoreColor } from "./newsDesk";
  * Covered:
  *   - score ≥ 1000 → --bad
  *   - score ≥ 500  → --warn
- *   - score < 500  → --text-3
+ *   - score < 500  → --ink-low
  *   - Exact boundary values (500, 1000)
  */
 
@@ -27,10 +27,10 @@ describe("scoreColor", () => {
     expect(scoreColor(999)).toBe("var(--warn)");
   });
 
-  it("returns --text-3 for score < 500", () => {
-    expect(scoreColor(0)).toBe("var(--text-3)");
-    expect(scoreColor(100)).toBe("var(--text-3)");
-    expect(scoreColor(499)).toBe("var(--text-3)");
+  it("returns --ink-low for score < 500", () => {
+    expect(scoreColor(0)).toBe("var(--ink-low)");
+    expect(scoreColor(100)).toBe("var(--ink-low)");
+    expect(scoreColor(499)).toBe("var(--ink-low)");
   });
 
   it("returns --bad at exactly 1000 (boundary)", () => {

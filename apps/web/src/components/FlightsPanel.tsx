@@ -24,11 +24,11 @@ type Tab = "arrivals" | "departures";
 
 // Status → colour + short label
 const STATUS_STYLE: Record<FlightFids["status"], { color: string; label: string }> = {
-  scheduled: { color: "var(--text-3)",  label: "SCHED" },
+  scheduled: { color: "var(--ink-low)",  label: "SCHED" },
   active:    { color: "var(--accent)",  label: "EN ROUTE" },
   landed:    { color: "var(--good)",    label: "LANDED" },
   cancelled: { color: "var(--bad)",     label: "CXLD" },
-  unknown:   { color: "var(--text-3)",  label: "—" },
+  unknown:   { color: "var(--ink-low)",  label: "—" },
 };
 
 // Airline IATA → short colour code for the badge
@@ -68,7 +68,7 @@ function DelayBadge({ minutes }: { minutes: number | null }) {
 }
 
 function AirlineBadge({ iata }: { iata: string }) {
-  const bg = AIRLINE_COLOR[iata] ?? "var(--ink-mid)";
+  const bg = AIRLINE_COLOR[iata] ?? "var(--ink-2)";
   return (
     <span
       className="mono"
@@ -116,7 +116,7 @@ function FlightRow({ f }: { f: FlightFids }) {
           {fmtTime(displayTime)}
         </span>
         {f.scheduledTime !== displayTime && (
-          <span className="mono" style={{ fontSize: "0.6rem", color: "var(--text-3)", textDecoration: "line-through" }}>
+          <span className="mono" style={{ fontSize: "0.6rem", color: "var(--ink-low)", textDecoration: "line-through" }}>
             {fmtTime(f.scheduledTime)}
           </span>
         )}
@@ -132,17 +132,17 @@ function FlightRow({ f }: { f: FlightFids }) {
           <DelayBadge minutes={f.delayMinutes} />
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-          <span style={{ fontSize: "var(--size-eyebrow)", color: "var(--text-2)" }}>
+          <span style={{ fontSize: "var(--size-eyebrow)", color: "var(--ink-3)" }}>
             {f.direction === "arrival" ? "from" : "to"}{" "}
             <strong>{f.otherName}</strong>
           </span>
           {f.gate && (
-            <span className="eyebrow mono" style={{ color: "var(--text-3)" }}>
+            <span className="eyebrow mono" style={{ color: "var(--ink-low)" }}>
               Gate {f.gate}
             </span>
           )}
           {f.baggage && (
-            <span className="eyebrow mono" style={{ color: "var(--text-3)" }}>
+            <span className="eyebrow mono" style={{ color: "var(--ink-low)" }}>
               Belt {f.baggage}
             </span>
           )}
@@ -200,7 +200,7 @@ export function FlightsPanel({ flights, loading, ageMinutes, fallbackTier, note 
 
       {/* No-key state */}
       {fallbackTier === "unavailable" && note && (
-        <div style={{ fontSize: "var(--size-eyebrow)", color: "var(--text-3)", lineHeight: 1.5 }}>
+        <div style={{ fontSize: "var(--size-eyebrow)", color: "var(--ink-low)", lineHeight: 1.5 }}>
           {note.includes("AIRLABS_API_KEY") ? (
             <>
               Set <code style={{ color: "var(--accent)" }}>AIRLABS_API_KEY</code> in the API env
@@ -231,7 +231,7 @@ export function FlightsPanel({ flights, loading, ageMinutes, fallbackTier, note 
                 className="eyebrow mono"
                 style={{
                   background: tab === t ? "var(--ink)" : "transparent",
-                  color: tab === t ? "var(--ground)" : "var(--text-3)",
+                  color: tab === t ? "var(--ground)" : "var(--ink-low)",
                   border: `1px solid ${tab === t ? "var(--ink)" : "var(--line)"}`,
                   padding: "2px 7px",
                   cursor: "pointer",
@@ -254,14 +254,14 @@ export function FlightsPanel({ flights, loading, ageMinutes, fallbackTier, note 
           ))}
         </div>
       ) : flights.length > 0 ? (
-        <div id={`flights-panel-section-${tab}`} className="eyebrow mono" style={{ color: "var(--text-3)" }}>
+        <div id={`flights-panel-section-${tab}`} className="eyebrow mono" style={{ color: "var(--ink-low)" }}>
           No {tab} scheduled today.
         </div>
       ) : null}
 
       {/* Last updated */}
       {ageMinutes != null && flights.length > 0 && (
-        <div className="eyebrow mono" style={{ color: "var(--text-3)" }}>
+        <div className="eyebrow mono" style={{ color: "var(--ink-low)" }}>
           Updated {ageMinutes < 2 ? "just now" : `${Math.round(ageMinutes)} min ago`} ·
           VTSF · Nakhon Si Thammarat Airport
         </div>

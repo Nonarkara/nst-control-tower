@@ -35,15 +35,15 @@ export function MapCompass({ bearing, onResetNorth }: MapCompassProps) {
       >
         {/* North half — alert red; South half — muted */}
         <polygon points="20,6 24.5,20 20,17 15.5,20" fill="var(--bad)" />
-        <polygon points="20,34 24.5,20 20,23 15.5,20" fill="var(--text-3)" />
-        <circle cx="20" cy="20" r="1.7" fill="var(--text-1)" />
+        <polygon points="20,34 24.5,20 20,23 15.5,20" fill="var(--ink-low)" />
+        <circle cx="20" cy="20" r="1.7" fill="var(--ink-2)" />
         <text
           x="20"
           y="5"
           textAnchor="middle"
           fontSize="6"
           fontFamily="var(--font-mono)"
-          fill="var(--text-1)"
+          fill="var(--ink-2)"
         >
           N
         </text>
