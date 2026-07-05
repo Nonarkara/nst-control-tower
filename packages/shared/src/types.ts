@@ -380,6 +380,32 @@ export interface RidReservoir {
   observedAt: string;
 }
 
+// ---- NST Flood Risk Villages ----
+
+/**
+ * Nakhon Si Thammarat province flood risk village-level records from
+ * data.go.th CKAN (พื้นที่เสี่ยงอุทกภัย — Nakhon Si Thammarat Province dataset).
+ * Resource: 13809f57-218d-4eb8-bbf0-03db21b4de8d
+ */
+export interface FloodRiskVillage {
+  year: number;
+  month: string;
+  riskLevel: "สูง" | "ปานกลาง" | "ต่ำ" | "ไม่มีความเสี่ยง" | "";
+  province: string;
+  district: string;
+  subdistrict: string;
+  villageNumber: number;
+  standingWater: boolean;
+  riverOverflow: boolean;
+  flashFlood: boolean;
+  /** Approximate centroid lat for district (for map display) */
+  lat?: number;
+  /** Approximate centroid lng for district */
+  lng?: number;
+}
+
+export interface FloodRiskVillageFeed extends NormalizedFeed<FloodRiskVillage> {}
+
 // ---- Flights FIDS ----
 
 /** Arrival or departure entry from AirLabs /schedules for NST airport. */
@@ -935,4 +961,44 @@ export interface SouthernRiverCascadeFeed {
   links: SouthernRiverLink[];
   methodEn: string;
   methodTh: string;
+}
+
+// ── Tourism (data.go.th CKAN · นักท่องเที่ยวจังหวัดนครศรีธรรมราช) ─────────────────
+
+/**
+ * Annual visitor totals for Nakhon Si Thammarat province from the
+ * สำนักงานการท่องเที่ยวและกีฬาจังหวัด (สทกจ.) dataset on data.go.th.
+ * No transport-mode breakdown — just year BE + total headcount.
+ */
+export interface TourismYearRecord {
+  yearBE: number;
+  /** Visitor count */
+  visitors: number;
+  unit: string;
+  source: string;
+  /** Visitor count in millions */
+  visitorsMillions: number;
+}
+
+// ---- Road Restoration / Damage Hotspots ----
+
+/** A single road-restoration budget record from the DPM datastore (data.go.th). */
+export interface RoadRestorationRecord {
+  year: number;
+  province: string;
+  district: string;
+  roadCategory: string;
+  routeNumber: string;
+  segmentName: string;
+  budgetBaht: number;
+  unit: string;
+  source: string;
+}
+
+/** District-level aggregation of road restoration spending for hotspot analysis. */
+export interface DamageHotspotSummary {
+  district: string;
+  totalBudgetBaht: number;
+  recordCount: number;
+  latestYear: number;
 }

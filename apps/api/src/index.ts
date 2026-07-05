@@ -36,11 +36,13 @@ import { fetchWaterGauges, fetchRainfall } from "./adapters/thaiwater.js";
 import { fetchNationalWaterways } from "./adapters/waterways.js";
 import { fetchHistoricalRainfall } from "./adapters/historicalRain.js";
 import { fetchNationalFloodProne } from "./adapters/floodProne.js";
+import { fetchFloodRiskVillages } from "./adapters/flood-risk-villages.js";
 import { fetchUnosit2021Exposure } from "./adapters/unosatExposure.js";
 import { fetchEwsStations } from "./adapters/dwrEws.js";
 import { fetchRidReservoirs } from "./adapters/rid.js";
 import { fetchFlights } from "./adapters/flights.js";
 import { fetchDatagoPoints, fetchDatagoDatasets, fetchReservoirs, fetchDisasterStats, fetchFahfon, fetchProvincialKPIs } from "./adapters/datago.js";
+import { fetchTourismVisitors } from "./adapters/tourism-visitors.js";
 import { fetchFacebookPosts } from "./adapters/facebook.js";
 import { buildAtlasSnapshot, getAtlasModule, ATLAS_SOURCES } from "./data/index.js";
 import {
@@ -57,6 +59,8 @@ import { recordAdapterSuccess, recordAdapterError, getAllHealth, getSystemStatus
 import { getMqttStatus } from "./adapters/mqttBridge.js";
 import { twinDbStatus } from "./lib/twinDb.js";
 import twinApp from "./routes/twin.js";
+import floodRiskVillagesApp from "./routes/flood-risk-villages.js";
+import damageHotspotsApp from "./routes/damage-hotspots.js";
 
 type Bindings = {
   ENVIRONMENT?: string;
@@ -137,6 +141,7 @@ app.get("/", (c) =>
       "/api/flood/unosat-2021",
       "/api/flood/south/risk",
       "/api/flood/south/rivers",
+      "/api/flood-risk-villages",
       "/api/water/national-waterways",
       "/api/rainfall/historical",
       "/api/datago/points",
@@ -145,6 +150,7 @@ app.get("/", (c) =>
       "/api/datago/disasters",
       "/api/datago/fahfon",
       "/api/datago/provincial-kpis",
+      "/api/tourism-visitors",
       "/api/social/facebook",
       "/api/chat",
       "/api/health/detailed",
@@ -153,6 +159,7 @@ app.get("/", (c) =>
       "/api/twin/relations",
       "/api/twin/state",
       "/api/twin/snapshot",
+      "/api/damage-hotspots",
       "/api/gistda/poi",
       "/api/gistda/solar",
       "/api/gistda/landuse",
@@ -493,6 +500,7 @@ app.get("/api/datago/provincial-kpis", async (c) => {
   const token = c.env.DATA_GO_TH_TOKEN ?? "";
   return safeFeed(c, () => fetchProvincialKPIs(token));
 });
+app.get("/api/tourism-visitors", async (c) => safeFeed(c, fetchTourismVisitors, "tourism-visitors"));
 app.get("/api/gistda/poi",     async (c) => safeFeed(c, fetchGistdaPoi, "gistda-poi"));
 app.get("/api/gistda/solar",   async (c) => {
   const month = c.req.query("month") ? Number(c.req.query("month")) : undefined;
@@ -590,6 +598,8 @@ app.post("/api/chat", async (c) => {
 });
 
 app.route("/api/twin", twinApp);
+app.route("/api/damage-hotspots", damageHotspotsApp);
+app.route("/api/flood-risk-villages", floodRiskVillagesApp);
 
 // ── Geoapify Isochrone ────────────────────────────────────────────────────────
 // GET /api/isochrone?lng=100.99&lat=13.36&minutes=15&mode=walk

@@ -36,9 +36,12 @@ import type {
   UnositRecord,
   SouthernFloodRiskFeed,
   SouthernRiverCascadeFeed,
+  FloodRiskVillage,
+  DamageHotspotSummary,
 } from "@nst/shared";
 
 import { useFeed } from "./hooks/useFeed";
+import { CollapsibleSection } from "./components/CollapsibleSection";
 import { buildTrafficSamples, type RoadProps } from "./sim/trafficSim";
 import {
   buildingRoofsLayer,
@@ -124,6 +127,9 @@ import { NewsDesk } from "./components/NewsDesk";
 import { FacebookPanel } from "./components/FacebookPanel";
 import { WaterPanel, type ReservoirStatus } from "./components/WaterPanel";
 import { ProvincialKPIs, type ProvincialKPIs as ProvincialKPIsType } from "./components/ProvincialKPIs";
+import { TourismVisitorsPanel, type TourismFeedRecord } from "./components/TourismVisitorsPanel";
+import { DamageHotspotPanel } from "./components/DamageHotspotPanel";
+import { FloodRiskPanel } from "./components/FloodRiskPanel";
 import { EarthAlphaBrief } from "./components/EarthAlphaBrief";
 import { FloodBrief } from "./components/FloodBrief";
 import { FloodAnalysisPanel } from "./components/FloodAnalysisPanel";
@@ -874,6 +880,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
   const facebook = useFeed<FacebookPost>(`${API_BASE}/api/social/facebook`, 10 * 60_000);
   const reservoirs = useFeed<ReservoirStatus>(`${API_BASE}/api/datago/reservoirs`, 60 * 60_000);
   const provincialKPIs = useFeed<ProvincialKPIsType>(`${API_BASE}/api/datago/provincial-kpis`, 6 * 60 * 60_000);
+  const tourismVisitors = useFeed<TourismFeedRecord>(`${API_BASE}/api/tourism-visitors`, 30 * 24 * 60 * 60_000);
   const gistdaPois = useFeed<GistdaPoi>(`${API_BASE}/api/gistda/poi`, 60 * 60_000);
   const gistdaSolar = useFeed<GistdaSolarBuilding>(`${API_BASE}/api/gistda/solar`, 6 * 60 * 60_000);
   const gistdaLandUse = useFeed<GistdaLandUse>(`${API_BASE}/api/gistda/landuse`, 60 * 60_000);
@@ -969,6 +976,8 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
   const historicalRainfall = useFeed<HistoricalRainfallRecord>(`${API_BASE}/api/rainfall/historical`, 24 * 60 * 60_000);
   const southernRisk = useFeed<SouthernFloodRiskFeed>(`${API_BASE}/api/flood/south/risk`, 5 * 60_000);
   const southernRivers = useFeed<SouthernRiverCascadeFeed>(`${API_BASE}/api/flood/south/rivers`, 3 * 60 * 60_000);
+  const floodRiskVillages = useFeed<FloodRiskVillage>(`${API_BASE}/api/flood-risk-villages`, 24 * 60 * 60_000);
+  const damageHotspots = useFeed<DamageHotspotSummary>(`${API_BASE}/api/damage-hotspots`, 7 * 24 * 60 * 60_000);
   const flights = useFeed<FlightFids>(`${API_BASE}/api/flights`, 90 * 60_000);
 
   const worldWeather = useWorldWeather();
@@ -1525,7 +1534,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
           </div>
         )}
         {lens === "intelligence" && (
-          <div className="left-section" style={{ paddingBottom: 12 }}>
+          <CollapsibleSection storageKey="situation-digest" title="Situation Digest" divided={true} defaultOpen={true}>
             <Suspense fallback={null}>
               <SituationDigest
                 nasaReadings={nasaEarth.data[0] ?? null}
@@ -1534,11 +1543,12 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
                 forecasts={forecastMetrics}
               />
             </Suspense>
-          </div>
+          </CollapsibleSection>
         )}
         {lens === "executive" && (
-          <div className="left-section" style={{ paddingBottom: 12 }}>
-            <MemoExecutiveBriefing              executive={executive.data[0] ?? null}
+          <CollapsibleSection storageKey="executive-brief" title="Executive Brief" divided={true} defaultOpen={true}>
+            <MemoExecutiveBriefing
+              executive={executive.data[0] ?? null}
               weather={weather.data[0] ?? null}
               airQuality={airQuality.data[0] ?? null}
               openIncidents={cityReports.data.filter((r) => r.status !== "resolved").length + iticEvents.data.length}
@@ -1548,22 +1558,33 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
               ageMinutes={executive.ageMinutes}
               fallbackTier={executive.fallbackTier === "loading" ? undefined : executive.fallbackTier}
             />
-          </div>
+          </CollapsibleSection>
         )}
         {provincialKPIs.data.length > 0 && (
-          <div className="left-section">
+          <CollapsibleSection storageKey="provincial-kpis" title="Provincial KPIs" divided={true} defaultOpen={true}>
             <ProvincialKPIs
               data={provincialKPIs.data[0] ?? null}
               loading={provincialKPIs.fallbackTier === "loading"}
               ageMinutes={provincialKPIs.ageMinutes}
               fallbackTier={provincialKPIs.fallbackTier === "loading" ? undefined : provincialKPIs.fallbackTier}
             />
-          </div>
+          </CollapsibleSection>
         )}
-        <div className="left-section left-section-divided">
+        {tourismVisitors.data.length > 0 && (
+          <CollapsibleSection storageKey="tourism-visitors" title="Tourism Visitors" divided={true} defaultOpen={true}>
+            <TourismVisitorsPanel
+              records={tourismVisitors.data}
+              loading={tourismVisitors.fallbackTier === "loading"}
+              ageMinutes={tourismVisitors.ageMinutes}
+              fallbackTier={tourismVisitors.fallbackTier === "loading" ? undefined : tourismVisitors.fallbackTier}
+            />
+          </CollapsibleSection>
+        )}
+        <CollapsibleSection storageKey="air-quality" title="Air Quality" divided={true} defaultOpen={true}>
           <AqiBadge trend={aqiTrend.data[0] ?? null} loading={aqiTrend.fallbackTier === "loading"} />
-        </div>
-        <div className="left-section left-section-divided">
+        </CollapsibleSection>
+
+        <CollapsibleSection storageKey="flood-brief" title="Flood Brief" divided={true} defaultOpen={true}>
           <FloodBrief
             gauges={floodGauges.data}
             waterGauges={waterGauges.data}
@@ -1575,8 +1596,9 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
               ? (waterGauges.fallbackTier === "loading" ? undefined : waterGauges.fallbackTier)
               : (floodGauges.fallbackTier === "loading" ? undefined : floodGauges.fallbackTier)}
           />
-        </div>
-        <div className="left-section left-section-divided">
+        </CollapsibleSection>
+
+        <CollapsibleSection storageKey="flood-posture" title="Flood Posture" divided={true} defaultOpen={true}>
           <FloodPosture
             waterGauges={waterGauges.data}
             rainfall={waterRain.data}
@@ -1588,8 +1610,29 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
               ? (waterGauges.fallbackTier === "loading" ? undefined : waterGauges.fallbackTier)
               : (waterRain.fallbackTier === "loading" ? undefined : waterRain.fallbackTier)}
           />
-        </div>
-        <div className="left-section left-section-divided">
+        </CollapsibleSection>
+
+        {floodRiskVillages.data.length > 0 && (
+          <CollapsibleSection storageKey="flood-risk-villages" title="Flood Risk Villages" divided={true} defaultOpen={true}>
+            <FloodRiskPanel
+              villages={floodRiskVillages.data}
+              ageMinutes={floodRiskVillages.ageMinutes}
+              fallbackTier={floodRiskVillages.fallbackTier === "loading" ? undefined : floodRiskVillages.fallbackTier}
+            />
+          </CollapsibleSection>
+        )}
+
+        {damageHotspots.data.length > 0 && (
+          <CollapsibleSection storageKey="damage-hotspots" title="Road Restoration" divided={true} defaultOpen={false}>
+            <DamageHotspotPanel
+              data={damageHotspots.data}
+              ageMinutes={damageHotspots.ageMinutes}
+              fallbackTier={damageHotspots.fallbackTier === "loading" ? undefined : damageHotspots.fallbackTier}
+            />
+          </CollapsibleSection>
+        )}
+
+        <CollapsibleSection storageKey="upstream-watershed" title="Upstream Watershed" divided={true} defaultOpen={true}>
           <UpstreamWatershed
             waterGauges={waterGauges.data}
             rainfall={waterRain.data}
@@ -1601,8 +1644,9 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
               ? (waterGauges.fallbackTier === "loading" ? undefined : waterGauges.fallbackTier)
               : (waterRain.fallbackTier === "loading" ? undefined : waterRain.fallbackTier)}
           />
-        </div>
-        <div className="left-section left-section-divided">
+        </CollapsibleSection>
+
+        <CollapsibleSection storageKey="southern-flood-intel" title="Southern Flood Intel" divided={true} defaultOpen={true}>
           <SouthernFloodIntel
             risk={southernRisk.data[0] ?? null}
             rivers={southernRivers.data[0] ?? null}
@@ -1612,8 +1656,9 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
               : southernRisk.fallbackTier ?? (southernRivers.fallbackTier === "loading" ? undefined : southernRivers.fallbackTier)
             }
           />
-        </div>
-        <div className="left-section left-section-divided">
+        </CollapsibleSection>
+
+        <CollapsibleSection storageKey="flood-command" title="Flood Command" divided={true} defaultOpen={true}>
           <FloodCommand
             scenarioLevel={scenarioLevel}
             onScenarioChange={setScenarioLevel}
@@ -1627,8 +1672,9 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
             onToggleWrfLayer={() => onToggleLayer("wrf-rain-grid")}
             wrfNote={wrfOutlook.note}
           />
-        </div>
-        <div className="left-section left-section-divided">
+        </CollapsibleSection>
+
+        <CollapsibleSection storageKey="flood-analysis" title="Flood Analysis" divided={true} defaultOpen={true}>
           <FloodAnalysisPanel
             rainfall={historicalRainfall.data[0] ?? null}
             rainfallAge={historicalRainfall.ageMinutes}
@@ -1638,8 +1684,9 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
             unosatAge={unosatExposure.ageMinutes}
             unosatFallback={unosatExposure.fallbackTier}
           />
-        </div>
-        <div className="left-section left-section-divided">
+        </CollapsibleSection>
+
+        <CollapsibleSection storageKey="earth-alpha" title="Earth Observation" divided={true} defaultOpen={true}>
           <EarthAlphaBrief
             enabledLayers={enabledLayers}
             onToggleLayer={onToggleLayer}
@@ -1656,8 +1703,9 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
             ageMinutes={nasaEarth.ageMinutes}
             fallbackTier={nasaEarth.fallbackTier === "loading" ? undefined : nasaEarth.fallbackTier}
           />
-        </div>
-        <div className="left-section left-section-divided">
+        </CollapsibleSection>
+
+        <CollapsibleSection storageKey="water-panel" title="Water & Reservoirs" divided={true} defaultOpen={true}>
           <WaterPanel
             reservoirs={reservoirs.data}
             ridReservoirs={ridReservoirs.data}
@@ -1669,8 +1717,9 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
               ? (waterGauges.fallbackTier === "loading" ? undefined : waterGauges.fallbackTier)
               : (reservoirs.fallbackTier === "loading" ? undefined : reservoirs.fallbackTier)}
           />
-        </div>
-        <div className="left-section left-section-divided">
+        </CollapsibleSection>
+
+        <CollapsibleSection storageKey="flights-panel" title="Airport Flights" divided={true} defaultOpen={true}>
           <FlightsPanel
             flights={flights.data}
             loading={flights.fallbackTier === "loading"}
@@ -1678,35 +1727,41 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
             fallbackTier={flights.fallbackTier === "loading" ? undefined : flights.fallbackTier}
             note={flights.note}
           />
-        </div>
-        <div className="left-section left-section-divided">
-          <MemoPredictivePanel            apiBase={API_BASE}
+        </CollapsibleSection>
+
+        <CollapsibleSection storageKey="predictive-panel" title="Predictive Forecast" divided={true} defaultOpen={true}>
+          <MemoPredictivePanel
+            apiBase={API_BASE}
             onMetricClick={handleForecastMetricClick}
             onAlert={handleForecastAlert}
             onForecastsLoaded={handleForecastsLoaded}
           />
-        </div>
-        <MemoPmcuBrief          hour={hour}
+        </CollapsibleSection>
+
+        <MemoPmcuBrief
+          hour={hour}
           isWeekend={isWeekend}
           iticEvents={iticEvents.data}
           cityReports={cityReports.data}
           trafficSampleCount={trafficSamples.length}
         />
-        <div className="left-section">
+
+        <CollapsibleSection storageKey="device-checkin" title="Device Check-In" divided={true} defaultOpen={false}>
           <DeviceCheckIn presence={presence} onRequest={requestDevice} onClear={clearDevice} />
-        </div>
-        <div className="left-section">
+        </CollapsibleSection>
+
+        <CollapsibleSection storageKey="speed-test" title="Speed Test" divided={true} defaultOpen={false}>
           <SpeedTestPanel />
-        </div>
-        <div className="left-section">
-          <span className="eyebrow mono">Municipal Brief</span>
+        </CollapsibleSection>
+
+        <CollapsibleSection storageKey="municipal-brief" title="Municipal Brief" divided={true} defaultOpen={true}>
           <MemoKpiStrip
             cityReports={cityReports.data}
             floodGauges={floodGauges.data}
             airQuality={airQuality.data}
             weather={weather.data}
           />
-        </div>
+        </CollapsibleSection>
       </aside>
 
       {/* ── Map center — nothing overlaps this ── */}
@@ -1831,32 +1886,35 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
           StrategicAlerts and PeerComparison were Chula-university panels —
           removed until rebuilt with provincial peer data (Rayong, Chachoengsao). ── */}
       <aside className="right-bar" aria-hidden={isMobile && mobilePanel !== "layers"}>
-        <div className="right-trends">
-          <MemoTrendsPanel            snapshots={trends.data}
+        <CollapsibleSection storageKey="right-trends" title="Google Trends" divided={false} defaultOpen={true}>
+          <MemoTrendsPanel
+            snapshots={trends.data}
             loading={trends.fallbackTier === "loading"}
             ageMinutes={trends.ageMinutes}
             onRefresh={trends.refetch}
             fallbackTier={trends.fallbackTier === "loading" ? undefined : trends.fallbackTier}
           />
-        </div>
-        <div className="right-news">
+        </CollapsibleSection>
+
+        <CollapsibleSection storageKey="right-news" title="Live News" divided={true} defaultOpen={true}>
           <NewsDesk
             items={news.data}
             loading={news.fallbackTier === "loading"}
             ageMinutes={news.ageMinutes}
             onRefresh={news.refetch}
           />
-          <div className="left-section-divided" style={{ marginTop: 4 }}>
-            <FacebookPanel
-              posts={facebook.data}
-              loading={facebook.fallbackTier === "loading"}
-              ageMinutes={facebook.ageMinutes}
-              fallbackTier={facebook.fallbackTier === "loading" ? undefined : facebook.fallbackTier}
-            />
-          </div>
-        </div>
+          <FacebookPanel
+            posts={facebook.data}
+            loading={facebook.fallbackTier === "loading"}
+            ageMinutes={facebook.ageMinutes}
+            fallbackTier={facebook.fallbackTier === "loading" ? undefined : facebook.fallbackTier}
+          />
+        </CollapsibleSection>
+
+        {/* Layer palette stays expanded — it needs maximum space for the toggle list */}
         <div className="right-layers">
-          <MemoLayerPalette            lens={lens}
+          <MemoLayerPalette
+            lens={lens}
             onLensChange={onLensChange}
             enabled={enabledLayers}
             onToggleLayer={onToggleLayer}
