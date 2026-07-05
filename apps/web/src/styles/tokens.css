@@ -1,79 +1,103 @@
 /* ═══════════════════════════════════════════════════════════════════════
-   Design DNA — Nakhon Si Thammarat Control Tower (เทศบาลนครนครศรีธรรมราช)
+   NST Control Tower — Rams × NYCTA Design Core
    ═══════════════════════════════════════════════════════════════════════
-   Place       → Nakhon Si Thammarat, a Southern Thai provincial capital
-                 defined by recurrent severe flooding: Khao Luang runoff down
-                 the Tha Dee canal (คลองท่าดี) into the Old Town, and the Pak
-                 Phanang basin. A historic N–S Old Town axis along Ratchadamnoen.
-   Typography  → Inter, the neo-grotesque voice — one family for body,
-                 display, and tabular-numeral readouts (Rams DNA §2). IBM
-                 Plex Sans Thai fills Inter's one gap: Thai-script rendering.
-   Color       → Rams × NYCTA: a warm-neutral greyscale field (never pure
-                 black/white) plus ONE signal accent (a desaturated forest
-                 green — positive/live) and one negative (a muted brick red).
-                 A closed 8-color "route" palette rides on top, strictly
-                 ENCLOSED in discs/plates, for wayfinding only (which lens,
-                 which board) — it never bleeds into bare data color.
-   Surface     → No rounding, no blur, no shadow, no gradient. Honest surfaces.
-   Grid        → 4 px Vignelli grid. Tight, information-dense.
-   Heritage    → Dieter Rams × Bob Noorda/Massimo Vignelli (1970 NYCTA Graphics
-                 Standards Manual). "As little design as possible" governs the
-                 field; a coded, closed color system governs only navigation.
+   Based on: Rams-NYCTA-Design-Core by Non Arkaraprasertkul
+   Lineage:   Dieter Rams (Braun, 1950–1995) × Bob Noorda & Massimo Vignelli
+              (NYCTA Graphics Standards Manual, 1970)
+
+   Design layers:
+     Layer 1 — Rams Foundation (always active)
+     Layer 2 — NYCTA route palette (for wayfinding discs)
+     Layer 3 — NST domain tokens (AQI, airlines, tag categories)
+
+   Rule: never invent a value not in this file.
    ═══════════════════════════════════════════════════════════════════════ */
 
+/* ── LAYER 1: RAMS FOUNDATION ────────────────────────────────────── */
 :root {
-  /* ── The one signal accent — desaturated forest green. Positive / live /
-       primary action. Reproduction-standard hex — do not eyeball. ──────── */
-  --accent:     #1f6e43;
-  --accent-dim: #16512f;
+  /* Surface */
+  --paper:  #faf9f7;  /* page background — warm off-white, never #fff  */
+  --panel:  #ffffff;  /* cards / cells / instrument faces             */
+  --ground: #f3f2ee;  /* slightly recessed surface                    */
+  --ground-soft: #f9fafb; /* very light surface for chips/badges     */
 
-  /* ── Heritage / Old Town secondary mark — retuned warm + desaturated.
-       No longer used bare (that would be a second free accent); it now
-       only fills enclosed route-discs (see --rt-yellow) and legend swatches. ── */
-  --gold:       #8a5a1f;
-  --gold-dim:   #6b4517;
+  /* Ink */
+  --ink:    #191712;  /* primary text / bars / active — warm near-black */
+  --ink-2:  #6f6c63;  /* secondary text                               */
+  --ink-3:  #a9a59a;  /* tertiary · labels · meta                     */
+  --ink-low: #c9c4b8; /* low-emphasis text (disabled / placeholder)    */
 
-  /* ── Functional signal colours — load-bearing, warm-desaturated, identical
-       role across themes. --good reuses the accent hue (Rams: the accent's
-       job *is* "positive/live" — one hue, one meaning). ──────────────────── */
-  --data: #3d5a73;   /* muted slate blue — links, informational marks */
-  --good: #1f6e43;   /* = accent — live, healthy, positive */
-  --warn: #8a5a1f;   /* muted amber — caution, degraded */
-  --bad:  #a23a26;   /* muted brick red — alert, error (never bright) */
-  --crit: #7a2c1c;   /* deeper brick red — critical, danger */
-  --info: #6f6c63;   /* = ink-2 — informational, never decorative */
+  /* Lines */
+  --line:   #e7e5dd;  /* hairline · grid gaps · inactive tracks       */
+  --line-2: #d2cfc5;  /* stronger borders · structural dividers       */
+  --rule:   #e7e5dd;  /* row divider (alias for --line)               */
 
-  /* ── Route palette — closed 8-color NYCTA trunk set. ENCLOSED USE ONLY:
-       a disc (small circle + white glyph) or a station-plate rule. Never
-       a bare word/icon. Fixed hexes — reproduction standard. ────────────── */
-  --rt-blue:   #0039A6;
-  --rt-orange: #FF6319;
-  --rt-green:  #00853F;
-  --rt-red:    #EE352E;
-  --rt-purple: #B933AD;
-  --rt-yellow: #FCCC0A;
-  --rt-grey:   #6D6E71;
-  --rt-brown:  #996633;
-  --rt-ink:    #191712;
-  --rt-glyph:      #fff;    /* glyph color on every disc except yellow */
-  --rt-glyph-dark: #191712; /* --rt-yellow's glyph exception */
+  /* Signal colors — one accent, one negative, no others */
+  --accent: #1f6e43;  /* positive / live / primary action             */
+  --neg:    #a23a26;  /* negative data only — never buttons or headings*/
 
-  /* ── Type system — one neo-grotesque family everywhere (Rams DNA §2.1/§8:
-       "no more than one type family"). Tabular figures keep columns aligned. ── */
-  --font-sans:
-    "Inter", "IBM Plex Sans Thai",
-    "Noto Sans Thai", system-ui, -apple-system, "Segoe UI", sans-serif;
+  /* Neutral fills for stacked bars / 3–5 categories */
+  --fill-1: #8f8b80;
+  --fill-2: #bdb9ad;
+  --fill-3: #d8d4ca;
+
+  /* Aliases for backward compatibility */
+  --data: #3d5a73;   /* informational (kept as domain alias)          */
+  --good: var(--accent);   /* live/positive — same hue as accent         */
+  --warn: #8a5a1f;   /* muted amber — caution                          */
+  --bad:  var(--neg);      /* alert/error                               */
+  --crit: #7a2c1c;   /* deeper brick — critical/danger                */
+  --info: var(--ink-2);    /* informational                             */
+
+  /* ── LAYER 2: NYCTA ROUTE PALETTE ───────────────────────────────── */
+  /* Enclosed use ONLY — discs, station-plates, header rules.
+     Never bare text color. Never more than ~5 families on screen. */
+  --rt-blue:   #0039A6;  /* A·C·E      glyph: #fff            */
+  --rt-orange: #FF6319;  /* B·D·F·M    glyph: #fff            */
+  --rt-green:  #00853F;  /* 4·5·6      glyph: #fff            */
+  --rt-red:    #EE352E;  /* 1·2·3      glyph: #fff            */
+  --rt-purple: #B933AD;  /* 7           glyph: #fff            */
+  --rt-yellow: #FCCC0A;  /* N·Q·R·W    glyph: #191712 (dark) */
+  --rt-grey:   #6D6E71;  /* L · shuttle glyph: #fff            */
+  --rt-brown:  #996633;  /* J·Z        glyph: #fff            */
+  --rt-ink:    #191712;  /* Hub / home  glyph: var(--paper)    */
+  --rt-glyph:       #fff;
+  --rt-glyph-dark: #191712;
+
+  /* ── LAYER 3: NST DOMAIN TOKENS ─────────────────────────────────── */
+  /* US EPA AQI colour scale — reproduction standard, do not modify */
+  --aqi-good:           #22c55e;
+  --aqi-moderate:       #facc15;
+  --aqi-unhealthy-sg:   #f97316;
+  --aqi-unhealthy:      #ef4444;
+  --aqi-very-unhealthy: #a855f7;
+  --aqi-hazardous:      #7f1d1d;
+
+  /* Mayor's Desk event-tag category colours */
+  --tag-funeral:  #a78bfa;   /* purple — ceremonial              */
+  --tag-police:   #f87171;   /* soft red — friction/authority   */
+  --tag-festival: #fbbf24;   /* amber — celebration              */
+  --tag-health:   #f472b6;   /* pink — public health             */
+
+  /* Airline brand colours (FlightsPanel FIDS) — fixed reproduction hexes */
+  --airline-fd: #e8000d;  /* Thai AirAsia red  */
+  --airline-dd: #f36f21;  /* Nok Air orange    */
+  --airline-sl: #f0af00;  /* Thai Lion Air yellow */
+  --airline-tg: #6a0dad;  /* Thai Airways purple */
+  --airline-pg: #003087;  /* Bangkok Airways navy */
+
+  /* On-brand glyph on saturated background */
+  --on-brand: #fff;
+
+  /* ── Typography ─────────────────────────────────────────────────────── */
+  --font-sans: "Inter", "IBM Plex Sans Thai", "Noto Sans Thai",
+                system-ui, -apple-system, "Helvetica Neue", Helvetica, Arial, sans-serif;
   --font-display: var(--font-sans);
   --font-serif:   var(--font-sans);
   --font-mono:    var(--font-sans);
-  --font-thai:
-    "IBM Plex Sans Thai", "Noto Sans Thai", "Inter", sans-serif;
+  --font-thai: "IBM Plex Sans Thai", "Noto Sans Thai", "Inter", sans-serif;
 
-  /* ── Type scale ──────────────────────────────────────────────────────
-     Sizes are in rem and scale with the fluid html root (see tokens below),
-     so the whole scale grows on a wall display and shrinks on a phone while
-     staying legible. Floor: nothing renders below ~12px effective on a
-     laptop. --size-body == 1rem (tracks the root). */
+  /* Type scale — fluid, rem-based */
   --size-eyebrow: 0.80rem;
   --size-caption: 0.88rem;
   --size-body:    1rem;
@@ -82,17 +106,12 @@
   --size-h1:      1.92rem;
   --size-display: 2.6rem;
 
-  /* Label tracking — the smaller the text, the wider the tracking (Rams
-     DNA §2.3, non-negotiable): 0.14–0.18em on 9–11px labels. */
-  --tracking-eyebrow: 0.14em;
+  /* Tracking — the smaller the text, the wider the tracking (non-negotiable) */
+  --tracking-label:  0.16em;  /* section header labels */
+  --tracking-micro:  0.14em;  /* micro-labels / meta   */
+  --tracking-control:0.11em;  /* nav / controls        */
 
-  /* ── Responsive sidebar rail width ───────────────────────────────────
-     Map must always dominate, so rails are clamped: narrow enough on a
-     laptop, wider on a big display where there's room. Overridden per
-     breakpoint below. */
-  --rail: clamp(248px, 19vw, 460px);
-
-  /* ── Spacing — 4 px Vignelli grid ────────────────────────────────── */
+  /* ── Spacing — 4 px Vignelli grid ─────────────────────────────────── */
   --s-1: 4px;
   --s-2: 8px;
   --s-3: 12px;
@@ -101,35 +120,53 @@
   --s-8: 32px;
   --s-12: 48px;
 
-  /* ── US EPA AQI colour scale — do not modify; these are standardised ── */
-  --aqi-good:           #22c55e;
-  --aqi-moderate:       #facc15;
-  --aqi-unhealthy-sg:   #f97316;
-  --aqi-unhealthy:      #ef4444;
-  --aqi-very-unhealthy: #a855f7;
-  --aqi-hazardous:      #7f1d1d;
+  /* Sidebar rail width */
+  --rail: clamp(248px, 19vw, 460px);
 
-  /* ── Mayor's Desk action-tag category colours ─────────────────────── */
-  --tag-funeral:   #a78bfa;   /* purple — ceremonial */
-  --tag-police:    #f87171;   /* soft red — friction/authority */
-  --tag-festival:  #fbbf24;   /* amber — celebration */
-  --tag-health:    #f472b6;   /* pink — public health */
+  /* ── Motion ──────────────────────────────────────────────────────────── */
+  --ease-out:    cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-hover:  ease;
+  --t-press:  100ms;
+  --t-state:  150ms;
+  --t-layout: 250ms;
 
-  /* ── Airline brand colours (FlightsPanel FIDS badges) — fixed reproduction
-       hexes, not theme-dependent, same as the route palette above. ────────── */
-  --airline-fd: #e8000d;   /* Thai AirAsia red */
-  --airline-dd: #f36f21;   /* Nok Air orange */
-  --airline-sl: #f0af00;   /* Thai Lion Air yellow */
-  --airline-tg: #6a0dad;   /* Thai Airways purple */
-  --airline-pg: #003087;   /* Bangkok Airways navy */
+  /* ── Containers ─────────────────────────────────────────────────────── */
+  --max-w-tool: 1360px;
+  --max-w-app:   960px;
+  --max-w-doc:   720px;
 
-  /* ── Fixed light-on-dark glyph colour for badges on a saturated brand-color
-       background (mirrors --rt-glyph's role for route discs). ────────────── */
-  --on-brand: #fff;
+  color-scheme: dark;
+}
 
-  /* ── Sparkline muted-line tokens (PredictivePanel non-alert confidence
-       band + p50 line) — near-white on dark, near-ink on light, so they
-       stay visible against --bg-1 in both themes. ─────────────────────── */
+/* ── Dark theme — warm near-black field ──────────────────────────────── */
+:root,
+[data-theme="dark"] {
+  --paper:  #171310;
+  --panel:  #1d1812;
+  --ground: #241e17;
+  --ground-soft: #2c251c;
+
+  --ink:    #f2ede2;
+  --ink-2:  #c9c4b8;
+  --ink-3:  #a9a59a;
+  --ink-low: #7d7666;
+
+  --line:   #3a3226;
+  --line-2: #4d4535;
+  --rule:   #3a3226;
+
+  /* Dark-theme accent: slightly lighter for legibility on dark field */
+  --accent: #2f8a5c;
+  --neg:    #c2543c;
+  --warn:   #b8823f;
+  --data:   #6b8caa;
+
+  /* Route discs: flip the hub disc to warm off-white so it still reads */
+  --rt-ink:    #f2ede2;
+  --rt-glyph:  #191712;
+
+  /* Sparkline muted lines — near-white on dark */
   --spark-band: rgba(255, 255, 255, 0.06);
   --spark-threshold: rgba(255, 255, 255, 0.15);
   --spark-line: rgba(255, 255, 255, 0.55);
@@ -137,99 +174,56 @@
   color-scheme: dark;
 }
 
-/* ── Dark theme (default) — warm near-black, never cool blue-grey
-     (Rams DNA §1.1 warmth rule) ───────────────────────────────────────── */
-:root,
-[data-theme="dark"] {
-  --bg:    #171310;
-  --bg-1:  #1d1812;
-  --bg-2:  #241e17;
-  --bg-3:  #2c251c;
-  --line:  #3a3226;
-  --line-2:#4d4535;
-
-  --text:   #f2ede2;
-  --text-1: #cfc7b6;
-  --text-2: #a89f8c;
-  --text-3: #7d7666;
-
-  /* Signal colours lightened one step for legibility on a dark field —
-     same hue family as the light theme, so the accent stays one meaning. */
-  --accent:     #2f8a5c;
-  --accent-dim: #1f6e43;
-  --gold:       #b8823f;
-  --gold-dim:   #8a5a1f;
-  --data: #6b8caa;
-  --good: #2f8a5c;
-  --warn: #b8823f;
-  --bad:  #c2543c;
-  --crit: #8f3826;
-  --info: #a89f8c;
-
-  /* The "hub" route-disc (--rt-ink) is a warm near-black — invisible on an
-     already-near-black dark field. In dark mode, the hub disc flips to the
-     warm off-white with a dark glyph (mirrors --rt-yellow's own dark-glyph
-     exception), so it still reads as a distinct, neutral disc. */
-  --rt-ink: #f2ede2;
-  --rt-ink-glyph: #191712;
-  color-scheme: dark;
-}
-
-/* ── Light theme — the manual's literal reproduction values: warm
-     off-white paper, warm near-black ink. Contrast >= 4.5:1. ──────────── */
+/* ── Light theme — Rams reproduction standard ─────────────────────────── */
 [data-theme="light"] {
-  --bg:    #faf9f7;
-  --bg-1:  #ffffff;
-  --bg-2:  #f3f2ee;
-  --bg-3:  #ebe9e3;
-  --line:  #e7e5dd;
-  --line-2:#d2cfc5;
+  --paper:  #faf9f7;
+  --panel:  #ffffff;
+  --ground: #f3f2ee;
+  --ground-soft: #f9fafb;
 
-  --text:   #191712;
-  --text-1: #3d3a33;
-  --text-2: #6f6c63;
-  --text-3: #a9a59a;
+  --ink:    #191712;
+  --ink-2:  #6f6c63;
+  --ink-3:  #a9a59a;
+  --ink-low: #c9c4b8;
 
-  --accent:     #1f6e43;
-  --accent-dim: #16512f;
-  --gold:       #8a5a1f;
-  --gold-dim:   #6b4517;
-  --data: #3d5a73;
-  --good: #1f6e43;
-  --warn: #8a5a1f;
-  --bad:  #a23a26;
-  --crit: #7a2c1c;
-  --info: #6f6c63;
+  --line:   #e7e5dd;
+  --line-2: #d2cfc5;
+  --rule:   #e7e5dd;
+
+  --accent: #1f6e43;
+  --neg:    #a23a26;
+  --warn:   #8a5a1f;
+  --data:   #3d5a73;
+
   --rt-ink: #191712;
-  --rt-ink-glyph: #fff;
+  --rt-glyph: #fff;
 
-  /* Light theme: flip the sparkline muted lines to near-ink-on-white so
-     they don't wash out against --bg-1 (#fff). Same opacities as dark. */
+  /* Sparkline muted lines — near-ink on light */
   --spark-band: rgba(25, 23, 18, 0.06);
   --spark-threshold: rgba(25, 23, 18, 0.15);
   --spark-line: rgba(25, 23, 18, 0.55);
+
   color-scheme: light;
 }
 
-/* ── Surface rules — no rounding, no blur, no shadow ───────────────── */
+/* ── Surface rules — Rams hard bans ──────────────────────────────────── */
 *,
 *::before,
 *::after {
   border-radius: 0 !important;
-  box-shadow: none;
+  box-shadow: none !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
 }
 
-/* Fluid root: drives the whole rem scale. Grows from phone → 100" wall.
-   At ~1280px laptop ≈ 15.6px, 1440 ≈ 16px, caps at 20px for distance reading. */
+/* ── Base typography ───────────────────────────────────────────────────── */
 html {
   font-size: clamp(15px, 0.28vw + 12px, 20px);
 }
 
 body {
-  background: var(--bg);
-  color: var(--text);
+  background: var(--paper);
+  color: var(--ink);
   font-family: var(--font-sans);
   font-size: var(--size-body);
   line-height: 1.5;
@@ -244,47 +238,36 @@ body, #root {
   min-height: 100vh;
 }
 
-/* ── Headings — same grotesque as body; size + weight carry hierarchy ── */
+/* ── Headings ──────────────────────────────────────────────────────────── */
 h1, h2, h3, h4 {
   font-family: var(--font-display);
   font-weight: 600;
   margin: 0;
   letter-spacing: -0.005em;
-  color: var(--text);
+  color: var(--ink);
 }
 h1 { font-size: var(--size-h1); }
 h2 { font-size: var(--size-h2); }
 h3 { font-size: var(--size-h3); }
 
-/* Formerly the editorial serif; now the same grotesque (Rams DNA: no
-   serifs, one type family only). Class kept — many call sites reference it. */
-.serif { font-family: var(--font-serif); }
+/* ── Utility classes ───────────────────────────────────────────────────── */
+.serif  { font-family: var(--font-serif); }
+.mono   { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
 
 .eyebrow {
   font-size: var(--size-eyebrow);
   text-transform: uppercase;
-  letter-spacing: var(--tracking-eyebrow);
-  color: var(--text-3);
+  letter-spacing: var(--tracking-label);
+  color: var(--ink-3);
   font-weight: 700;
 }
 
 .caption {
   font-size: var(--size-caption);
-  color: var(--text-2);
+  color: var(--ink-2);
 }
 
-.mono {
-  font-family: var(--font-mono);
-  font-variant-numeric: tabular-nums;
-}
-
-/* ── Route disc — the NYCTA identification atom. A solid circle with a
-   white glyph; the ONE enclosed way color carries meaning (RAMS-x-NYCTA §4).
-   Sizes per §4.2: nav 18–20px / header 32–36px / hero 56–72px. The glyph is
-   CSS-generated content (data-glyph + ::before) rather than a text child —
-   it's redundant with the button's own label, so it stays out of textContent/
-   accessible-name matching instead of duplicating the label ("F" + "FLOOD"
-   would otherwise read as "FFLOOD"). aria-hidden marks it decorative too. ── */
+/* ── Route disc ────────────────────────────────────────────────────────── */
 .rt-disc {
   flex: none;
   border-radius: 50% !important;
@@ -297,66 +280,76 @@ h3 { font-size: var(--size-h3); }
   line-height: 1;
 }
 .rt-disc::before { content: attr(data-glyph); }
-.rt-disc--nav {
-  width: 19px;
-  height: 19px;
-  font-size: 10px;
-}
-.rt-disc--header {
-  width: 34px;
-  height: 34px;
-  font-size: 16px;
-}
-.rt-disc--ink { background: var(--rt-ink); color: var(--rt-ink-glyph); }
-.rt-disc--blue { background: var(--rt-blue); }
+.rt-disc--nav    { width: 19px; height: 19px; font-size: 10px; }
+.rt-disc--header { width: 34px; height: 34px; font-size: 16px; }
+.rt-disc--ink    { background: var(--rt-ink); }
+.rt-disc--blue   { background: var(--rt-blue); }
 .rt-disc--orange { background: var(--rt-orange); }
-.rt-disc--green { background: var(--rt-green); }
-.rt-disc--red { background: var(--rt-red); }
+.rt-disc--green  { background: var(--rt-green); }
+.rt-disc--red    { background: var(--rt-red); }
 .rt-disc--purple { background: var(--rt-purple); }
 .rt-disc--yellow { background: var(--rt-yellow); color: var(--rt-glyph-dark); }
-.rt-disc--grey { background: var(--rt-grey); }
-.rt-disc--brown { background: var(--rt-brown); }
+.rt-disc--grey   { background: var(--rt-grey); }
+.rt-disc--brown  { background: var(--rt-brown); }
 
-/* ── Buttons — no radius, crisp borders ─────────────────────────── */
+/* ── Buttons ───────────────────────────────────────────────────────────── */
 button {
   font-family: inherit;
   font-size: inherit;
   background: transparent;
   border: 1px solid var(--line-2);
-  color: var(--text-1);
+  color: var(--ink-2);
   padding: 6px 10px;
   cursor: pointer;
-  letter-spacing: 0.01em;
-  transition: color 0.12s, border-color 0.12s, background 0.12s;
+  transition: color var(--t-state) var(--ease-hover),
+              border-color var(--t-state) var(--ease-hover),
+              background var(--t-state) var(--ease-hover);
 }
-button:hover { color: var(--text); border-color: var(--data); background: color-mix(in srgb, var(--data) 10%, transparent); }
-button:active { opacity: 0.8; }
-button[aria-pressed="true"], button.active {
-  color: #fff;
-  background: var(--accent);
-  border-color: var(--accent);
+button:hover {
+  color: var(--ink);
+  border-color: var(--ink);
+  background: var(--ground);
+}
+button:active { transform: scale(0.97); }
+button[aria-pressed="true"],
+button.active {
+  background: var(--ink);
+  color: var(--paper);
+  border-color: var(--ink);
 }
 
-a { color: var(--data); text-decoration: none; }
-a:hover { text-decoration: underline; }
+/* ── Links ─────────────────────────────────────────────────────────────── */
+a { color: var(--ink-2); text-decoration: none; }
+a:hover { color: var(--accent); }
 
-/* ── Skeleton loading state — a flat pulse, not a gradient shimmer
-   (Rams DNA §6: the only sanctioned animation is a slow status pulse). ── */
+/* ── Live pulse — the only sanctioned animation ────────────────────────── */
+@keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.2; } }
+
+/* ── Skeleton loading ──────────────────────────────────────────────────── */
 @keyframes skeleton-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
 .skeleton {
   background: var(--line);
   animation: skeleton-pulse 1.6s ease-in-out infinite;
 }
 
-/* ── Scrollbar — minimal ─────────────────────────────────────── */
+/* ── Scrollbar ─────────────────────────────────────────────────────────── */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-thumb { background: var(--line); }
 ::-webkit-scrollbar-thumb:hover { background: var(--line-2); }
 ::-webkit-scrollbar-track { background: transparent; }
 
-/* ── Selection & focus — accent border-darken, no glow (Rams DNA §1.4) ── */
+/* ── Selection & focus ─────────────────────────────────────────────────── */
 ::selection { background: var(--accent); color: #fff; }
 :focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 1px solid var(--ink);
   outline-offset: 2px;
+}
+
+/* ── Reduced motion ────────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

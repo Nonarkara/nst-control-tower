@@ -1873,7 +1873,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
             }}>
               {[...forecastAlerts].map((m) => (
                 <span key={m} className="mono eyebrow" style={{
-                  background: "var(--bad)", color: "var(--bg)",
+                  background: "var(--neg)", color: "var(--paper)",
                   padding: "3px 8px", fontSize: "0.60rem", letterSpacing: "0.1em",
                 }}>▲ {METRIC_LABEL[m] ?? m} FORECAST</span>
               ))}

@@ -107,7 +107,7 @@ function Sparkline({ points, alertThreshold }: { points: ForecastPoint[]; alertT
       {threshY >= PAD && threshY <= H - PAD && (
         <line
           x1={PAD} y1={threshY} x2={W - PAD} y2={threshY}
-          stroke={isAlert ? "var(--bad, #dc2626)" : "var(--spark-threshold)"}
+          stroke={isAlert ? "var(--neg)" : "var(--spark-threshold)"}
           strokeWidth={0.5}
           strokeDasharray="2,2"
         />
@@ -116,7 +116,7 @@ function Sparkline({ points, alertThreshold }: { points: ForecastPoint[]; alertT
       <polyline
         points={linePts}
         fill="none"
-        stroke={isAlert ? "var(--warn, #d97706)" : "var(--spark-line)"}
+        stroke={isAlert ? "var(--accent)" : "var(--spark-line)"}
         strokeWidth={1.2}
         strokeLinejoin="round"
       />
