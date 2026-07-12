@@ -91,6 +91,8 @@ interface Props {
   wrfLayerOn: boolean;
   onToggleWrfLayer: () => void;
   wrfNote?: string;
+  /** Water-balance ledger's suggested ponding level (m MSL), when it predicts overflow. */
+  modelSuggestedM?: number | null;
 }
 
 const MONTHS = ["J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D"];
@@ -162,6 +164,7 @@ export function FloodCommand({
   wrfLayerOn,
   onToggleWrfLayer,
   wrfNote,
+  modelSuggestedM,
 }: Props) {
   const { t, locale } = useLocale();
 
@@ -219,6 +222,16 @@ export function FloodCommand({
               </button>
             );
           })}
+          {modelSuggestedM != null && (
+            <button
+              onClick={() => onScenarioChange(modelSuggestedM)}
+              aria-pressed={scenarioLevel === modelSuggestedM}
+              className={`mono ${scenarioLevel === modelSuggestedM ? "active" : ""}`}
+              title="ระดับที่แบบจำลองสมดุลน้ำคาดจากส่วนเกิน 24 ชม. (WATER BALANCE)"
+            >
+              MODEL {modelSuggestedM.toFixed(2)}
+            </button>
+          )}
         </div>
         <input
           type="range"

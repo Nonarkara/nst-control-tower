@@ -316,6 +316,16 @@ export interface WaterGauge {
   amphoe: string;
   observedAt: string;
   isKeyStation: boolean;
+  /** RID station code, e.g. "X.203" — stable across feeds, used by the water-balance basin config. */
+  stationCode: string | null;
+  /** Bank crest level (m MSL) — min_bank from HII; level above this = overbank. */
+  bankMsl: number | null;
+  /** Channel fullness % (HII storage_percent — water level relative to bank datum). Can exceed 100. */
+  fullnessPct: number | null;
+  /** Live discharge (m³/s) where the station rates flow. */
+  dischargeCms: number | null;
+  /** Rated max channel discharge (m³/s) — the conveyance capacity of this reach. */
+  qmaxCms: number | null;
 }
 
 /** 24h/1h rainfall telemetry from HII ThaiWater (130 stations in NST province). */
@@ -378,6 +388,100 @@ export interface RidReservoir {
   inflowMcm: number | null;
   outflowMcm: number | null;
   observedAt: string;
+}
+
+// ---- Basin water balance (mass-balance flood ledger) ----
+
+export type BasinId = "city_tha_dee" | "pak_phanang" | "klai_north" | "northwest_tapi";
+
+/** How stressed a basin is: modelled inflow vs. drainage + reservoir absorption. */
+export type BasinStressBand = "ok" | "tight" | "overflow" | "unknown";
+
+export type BasinWetness = "dry" | "moist" | "wet" | "saturated" | "unknown";
+
+/** One forecast horizon of the ledger. Volumes in m³; lo/hi span the runoff-coefficient range. */
+export interface BasinHorizonLedger {
+  horizonH: 24 | 48 | 72;
+  /** Basin-mean observed 24h rain (telemetry) counted into the first horizon. */
+  rainObservedMm: number;
+  /** Basin-mean forecast rain within this horizon (WRF-ROMS window mean). */
+  rainForecastMm: number;
+  inflowM3Lo: number;
+  inflowM3Hi: number;
+  /** qmax × horizon × tideFactor. Null when the outlet capacity is unpublished. */
+  conveyanceM3: number | null;
+  /** Σ known reservoir free volume (capacity − stored), m³. Unknown storage counts 0 (safe). */
+  reservoirHeadroomM3: number;
+  stressLo: number | null;
+  stressHi: number | null;
+  band: BasinStressBand;
+}
+
+/** Live capacity snapshot of one gauge that feeds a basin's ledger. */
+export interface BasinGaugeSnapshot {
+  id: string;
+  code: string | null;
+  name: string;
+  levelMsl: number | null;
+  bankMsl: number | null;
+  /** bank − level (m); negative = already overbank. */
+  freeboardM: number | null;
+  fullnessPct: number | null;
+  dischargeCms: number | null;
+  qmaxCms: number | null;
+  situationLevel: 1 | 2 | 3 | 4 | 5;
+  /** Observed rise rate (m/h) from recent samples; null until history warms up. */
+  riseMPerH: number | null;
+  /** freeboard ÷ rise (h); null if not rising or unknown. */
+  etaOvertopH: number | null;
+}
+
+export interface BasinReservoirHeadroom {
+  id: string;
+  name: string;
+  capacityMcm: number | null;
+  storedMcm: number | null;
+  /** capacity − stored; null when storage unreported (then counted as 0 absorb). */
+  headroomMcm: number | null;
+}
+
+/**
+ * Water ledger for one basin: modelled inflow volume vs. what the system can
+ * pass (channel conveyance × tide gating) plus what it can hold (reservoir
+ * headroom). First-order mass balance — MODELLED, not a hydraulic simulation.
+ */
+export interface BasinWaterBalance {
+  basinId: BasinId;
+  nameTh: string;
+  nameEn: string;
+  areaKm2: number;
+  /** Where areaKm2 comes from and how uncertain it is. */
+  areaProvenance: string;
+  /** Wetness-adjusted runoff coefficient range actually used. */
+  runoffCLo: number;
+  runoffCHi: number;
+  wetness: BasinWetness;
+  /** Basin-mean EWS soil moisture % backing the wetness call (null = no station). */
+  soilMoisturePct: number | null;
+  tidal: boolean;
+  /** 0.5–1.0 drainage efficiency from tide phase; null = not tidal or no tide data. */
+  tideFactor: number | null;
+  horizons: BasinHorizonLedger[];
+  gauges: BasinGaugeSnapshot[];
+  /** Station whose qmax is the basin's outlet bottleneck, e.g. "X.203". */
+  chokeStationCode: string | null;
+  /** Live discharge ÷ qmax at the choke (%); null when either is unknown. */
+  chokeUtilizationPct: number | null;
+  /** Soonest gauge overtop ETA in the basin (h). */
+  worstEtaOvertopH: number | null;
+  /** City basin only: first-order ponding level (m MSL) for the street-flood sim. */
+  suggestedScenarioM: number | null;
+  hasReservoir: boolean;
+  reservoirs: BasinReservoirHeadroom[];
+  verdictTh: string;
+  verdictEn: string;
+  /** Every modelling assumption that shaped this ledger, for the UI footer. */
+  assumptions: string[];
 }
 
 // ---- NST Flood Risk Villages ----

@@ -33,6 +33,7 @@ import { isValidLatLng } from "./lib/bbox.js";
 import { fetchFloodGauges, fetchDamStatus } from "./adapters/flood.js";
 import { fetchSouthernFloodRisk, fetchSouthernRiverCascade } from "./adapters/flooddash.js";
 import { fetchWaterGauges, fetchRainfall } from "./adapters/thaiwater.js";
+import { fetchWaterBalance } from "./adapters/waterBalance.js";
 import { fetchNationalWaterways } from "./adapters/waterways.js";
 import { fetchHistoricalRainfall } from "./adapters/historicalRain.js";
 import { fetchNationalFloodProne } from "./adapters/floodProne.js";
@@ -143,6 +144,7 @@ app.get("/", (c) =>
       "/api/flood/south/rivers",
       "/api/flood-risk-villages",
       "/api/water/national-waterways",
+      "/api/water/balance",
       "/api/rainfall/historical",
       "/api/datago/points",
       "/api/datago/datasets",
@@ -356,6 +358,7 @@ app.get("/api/water/rain", async (c) => safeFeed(c, fetchRainfall, "thaiwater-ra
 app.get("/api/water/ews", async (c) => safeFeed(c, fetchEwsStations, "dwr-ews"));
 app.get("/api/water/reservoirs-rid", async (c) => safeFeed(c, fetchRidReservoirs, "rid-reservoirs"));
 app.get("/api/water/national-waterways", async (c) => safeFeed(c, fetchNationalWaterways, "national-waterways"));
+app.get("/api/water/balance", async (c) => safeFeed(c, fetchWaterBalance, "water-balance"));
 app.get("/api/rainfall/historical", async (c) => {
   const qLat = parseFloat(c.req.query("lat") ?? "");
   const qLng = parseFloat(c.req.query("lng") ?? "");

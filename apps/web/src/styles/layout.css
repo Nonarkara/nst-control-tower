@@ -4292,3 +4292,47 @@ input:focus-visible,
 .tourism-note--covid {
   color: var(--neg);
 }
+
+/* ── Water balance ledger (WaterBalancePanel + FloodOpsBoard) ─────────────── */
+.wb-ops-btn { font-size: 0.62rem; padding: 2px 8px; letter-spacing: 0.08em; }
+.wb-row { padding: 6px 0; border-bottom: 1px solid var(--line); }
+.wb-row:last-of-type { border-bottom: none; }
+.wb-row-head { display: flex; align-items: baseline; gap: 6px; }
+.wb-dot { width: 8px; height: 8px; border-radius: 50% !important; flex: none; align-self: center; }
+.wb-name { font-size: var(--size-caption); font-weight: 600; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wb-band { font-size: 0.62rem; letter-spacing: 0.06em; flex: none; }
+.wb-bar { position: relative; height: 8px; background: var(--ground); margin: 4px 0 2px; overflow: hidden; }
+.wb-bar-cap { position: absolute; inset: 0; background: var(--ground); }
+.wb-bar-in { position: absolute; top: 0; bottom: 0; left: 0; opacity: 0.35; }
+.wb-bar-in--lo { opacity: 0.9; }
+/* the 100%-of-capacity tick sits at 1/1.4 of the track (bar headroom = 1.4×) */
+.wb-bar-100 { position: absolute; top: -1px; bottom: -1px; left: 71.4%; width: 2px; background: var(--ink); }
+.wb-meta { color: var(--ink-3); }
+.wb-verdict { line-height: 1.4; white-space: normal; text-transform: none; letter-spacing: 0.02em; }
+.wb-assump-toggle { background: none; border: none; padding: 4px 0 0; color: var(--ink-low); cursor: pointer; }
+.wb-assumptions { list-style: none; margin: 2px 0 0; padding: 0 0 0 10px; }
+.wb-assumptions li { color: var(--ink-low); line-height: 1.5; white-space: normal; text-transform: none; letter-spacing: 0.02em; }
+
+/* Flood Ops board (rides the atlas-overlay shell) */
+.ops-body { display: grid; grid-template-columns: 1fr 320px; gap: var(--s-4); padding: var(--s-4) var(--s-6); align-items: start; }
+.ops-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: var(--s-4); }
+.ops-side { display: flex; flex-direction: column; gap: var(--s-4); }
+.ops-card { background: var(--panel); border: 1px solid var(--line); border-top: 3px solid var(--line-2); padding: var(--s-3) var(--s-4); }
+.ops-card-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 4px; }
+.ops-card-head h3 { font-size: var(--size-h3); }
+.ops-band { font-weight: 700; letter-spacing: 0.04em; }
+.ops-verdict { font-size: var(--size-h3); line-height: 1.45; margin: 4px 0 0; }
+.ops-verdict-en { color: var(--ink-3); margin: 2px 0 8px; }
+.ops-ledger { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-3); margin: 6px 0; }
+.ops-ledger > div { display: flex; flex-direction: column; gap: 2px; }
+.ops-ledger b { font-size: var(--size-h3); font-variant-numeric: tabular-nums; }
+.ops-ledger .eyebrow { color: var(--ink-3); white-space: normal; }
+.ops-stress { font-size: var(--size-caption); color: var(--ink-2); margin-bottom: 6px; }
+.ops-gauges { width: 100%; border-collapse: collapse; font-size: var(--size-caption); }
+.ops-gauges td { padding: 3px 6px 3px 0; border-top: 1px solid var(--line); }
+.ops-res { margin-top: 6px; white-space: normal; line-height: 1.6; color: var(--ink-3); }
+.ops-apply { margin-top: 8px; width: 100%; border-color: var(--accent); color: var(--accent); font-size: var(--size-caption); }
+.ops-apply:hover { background: var(--accent); color: var(--paper); border-color: var(--accent); }
+@media (max-width: 900px) {
+  .ops-body { grid-template-columns: 1fr; }
+}

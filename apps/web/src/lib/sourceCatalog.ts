@@ -67,6 +67,7 @@ export const API_PATH_TO_ADAPTER: Array<[RegExp, string]> = [
   [/\/api\/water\/rain$/, "thaiwater-rain"],
   [/\/api\/water\/ews$/, "dwr-ews"],
   [/\/api\/water\/reservoirs-rid$/, "rid-reservoirs"],
+  [/\/api\/water\/balance$/, "water-balance"],
   // Additional live routes that were missing health-mapping coverage —
   // without these, the SOURCES modal showed no warning chip for degraded adapters.
   [/\/api\/air-quality\/air4thai$/, "air4thai"],

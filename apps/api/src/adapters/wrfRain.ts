@@ -45,7 +45,7 @@ interface AscHeader {
 }
 
 /** Province-window slice of one day's grid (row-major from the NW corner). */
-interface DayWindow {
+export interface DayWindow {
   lngMin: number;
   latMax: number;
   cellDeg: number;
@@ -210,6 +210,18 @@ async function fetchLatestRun(): Promise<WrfRun | null> {
   } catch {
     return null; // no cached run at all — callers report the unavailable tier
   }
+}
+
+/**
+ * Cached parsed windows for other adapters (water balance) — same cache entry
+ * as the outlook/grid feeds, so no extra upstream traffic.
+ */
+export async function fetchWrfWindows(): Promise<{
+  runId: string;
+  fetchedAt: string;
+  days: (DayWindow | null)[];
+} | null> {
+  return fetchLatestRun();
 }
 
 /** Valid date of a run's dayN file: run date + (n−1) days. */

@@ -11,6 +11,7 @@
 
 import type { NormalizedFeed, WaterGauge, RainfallStation } from "@nst/shared";
 import { cacheAgeMinutes, cachedWithStale as cached } from "../lib/cache.js";
+import { recordGaugeSample } from "../lib/gaugeHistory.js";
 import { fetchJsonOrThrow } from "./common.js";
 
 const BASE = "https://api-v3.thaiwater.net/api/v1/thaiwater30/public";
@@ -25,10 +26,13 @@ interface TWStation {
   tele_station_name: { th: string; en: string } | string;
   tele_station_lat: number;
   tele_station_long: number;
+  tele_station_oldcode?: string | null;
   is_key_station?: boolean;
   warning_level_m?: number | null;
   critical_level_msl?: number | null;
   min_bank?: number | null;
+  /** Rated max channel discharge (m³/s) — the reach's conveyance capacity. */
+  qmax?: number | null;
 }
 
 interface TWGeocode {
@@ -49,8 +53,10 @@ interface TWWaterLevelEntry {
   diff_wl_bank?: number | string | null;
   diff_wl_bank_text?: string | null;
   situation_level?: number | null;
-  flow_rate?: number | null;
-  discharge?: number | null;
+  flow_rate?: number | string | null;
+  discharge?: number | string | null;
+  /** Channel fullness % relative to bank datum (can exceed 100 when overbank). */
+  storage_percent?: number | string | null;
   river_name?: string | null;
   station?: TWStation;
   geocode?: TWGeocode;
@@ -58,6 +64,10 @@ interface TWWaterLevelEntry {
 }
 
 interface TWRainEntry {
+  id?: number;
+  // Station identity nests under `station` (same shape as the waterlevel
+  // feed); the flat tele_station_* fields exist only in some legacy payloads.
+  station?: TWStation;
   tele_station_id?: number;
   tele_station_name?: { th: string; en: string } | string;
   tele_station_lat?: number;
@@ -181,8 +191,20 @@ export async function fetchWaterGauges(): Promise<NormalizedFeed<WaterGauge>> {
         amphoe: amphoeName(entry.geocode?.amphoe_name),
         observedAt: entry.waterlevel_datetime ?? fetchedAt,
         isKeyStation: s?.is_key_station ?? false,
+        stationCode: s?.tele_station_oldcode ?? null,
+        bankMsl: num(s?.min_bank),
+        fullnessPct: num(entry.storage_percent),
+        // flow_rate is the same quantity at stations that report it under that name
+        dischargeCms: num(entry.discharge) ?? num(entry.flow_rate),
+        qmaxCms: num(s?.qmax),
       };
     }).filter((g) => g.lat !== 0 && g.lng !== 0);
+
+    // Feed the rise-rate ring (keyed by station code when present — stable
+    // across feed reloads, unlike the reading id).
+    for (const g of features) {
+      recordGaugeSample(g.stationCode ?? g.id, g.observedAt, g.levelMsl);
+    }
 
     // Sort: highest situation_level first, then key stations, then by name
     features.sort((a, b) => {
@@ -233,18 +255,23 @@ export async function fetchRainfall(): Promise<NormalizedFeed<RainfallStation>> 
     const raw: TWRainEntry[] = resp?.data ?? [];
 
     const features: RainfallStation[] = raw
-      .map((entry) => ({
-        id: String(entry.tele_station_id ?? Math.random()),
-        name: typeof entry.tele_station_name === "string"
-          ? entry.tele_station_name
-          : (entry.tele_station_name?.th ?? entry.tele_station_name?.en ?? ""),
-        lat: entry.tele_station_lat ?? 0,
-        lng: entry.tele_station_long ?? 0,
-        rain1h: num(entry.rain_1h),
-        rain24h: num(entry.rain_24h),
-        amphoe: amphoeName(entry.amphoe_name ?? entry.geocode?.amphoe_name),
-        observedAt: entry.rainfall_datetime ?? fetchedAt,
-      }))
+      .map((entry) => {
+        const s = entry.station;
+        return {
+          id: String(entry.id ?? s?.tele_station_id ?? entry.tele_station_id ?? Math.random()),
+          name: s
+            ? stationName(s.tele_station_name)
+            : typeof entry.tele_station_name === "string"
+              ? entry.tele_station_name
+              : (entry.tele_station_name?.th ?? entry.tele_station_name?.en ?? ""),
+          lat: s?.tele_station_lat ?? entry.tele_station_lat ?? 0,
+          lng: s?.tele_station_long ?? entry.tele_station_long ?? 0,
+          rain1h: num(entry.rain_1h),
+          rain24h: num(entry.rain_24h),
+          amphoe: amphoeName(entry.amphoe_name ?? entry.geocode?.amphoe_name),
+          observedAt: entry.rainfall_datetime ?? fetchedAt,
+        };
+      })
       .filter((r) => r.lat !== 0 && r.lng !== 0);
 
     // Sort by highest 24h rain first

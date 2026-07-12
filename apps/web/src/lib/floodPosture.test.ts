@@ -20,6 +20,11 @@ function gauge(overrides: Partial<WaterGauge> = {}): WaterGauge {
     amphoe: "Mueang",
     observedAt: "2026-06-21T08:00:00+07:00",
     isKeyStation: false,
+    stationCode: null,
+    bankMsl: null,
+    fullnessPct: null,
+    dischargeCms: null,
+    qmaxCms: null,
     ...overrides,
   };
 }

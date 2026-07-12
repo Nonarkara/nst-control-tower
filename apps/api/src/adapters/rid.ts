@@ -7,11 +7,12 @@
  * Returns 461 reservoirs nationally, grouped by region. We filter to
  * ภาคใต้ (South) and then further to the NST reservoirs by id or name.
  *
- * Known NST / Pak Phanang basin reservoirs:
- *   rsv434 — ห้วยน้ำใส   (86 MCM)
- *   rsv435 — คลองกะทูน  (70.5 MCM)  ← main NST reservoir
- *   rsv425 — ยางชุม      (41.1 MCM)
- *   Plus any other southern reservoirs not yet mapped — we surface all of ภาคใต้.
+ * Known NST reservoirs (ids re-verified against the live API 2026-07-13):
+ *   rsv434 — ห้วยน้ำใส     (86 MCM)   — Cha-uat, Pak Phanang basin headwaters
+ *   rsv435 — คลองกะทูน    (70.5 MCM) — Phipun, built after the 1988 Kathun disaster
+ *   rsv436 — บ้านเสม็ดจวน (1.7 MCM)  — Thung Yai
+ *   rsv437 — คลองดินแดง   (60 MCM)   — Phipun, the 1988-response pair with Katun
+ * (rsv425 ยางชุม is Kui Buri, Prachuap Khiri Khan — previously mis-listed here.)
  */
 
 import type { NormalizedFeed, RidReservoir } from "@nst/shared";
@@ -44,11 +45,12 @@ interface RidResponse {
   data?: RidRegion[];
 }
 
-// IDs confirmed for NST / Pak Phanang basin (from live API probe 2026-06-20)
-const NST_IDS = new Set(["rsv434", "rsv435", "rsv425"]);
+// IDs re-verified against the live API 2026-07-13 (see header for names)
+export const NST_RESERVOIR_IDS = ["rsv434", "rsv435", "rsv436", "rsv437"] as const;
+const NST_IDS = new Set<string>(NST_RESERVOIR_IDS);
 
 // Fallback: include any southern reservoir whose name contains an NST keyword
-const NST_KEYWORDS = ["นครศรีธรรมราช", "ปากพนัง", "ท่าแดง", "คลองกะทูน", "ห้วยน้ำใส", "ยางชุม", "ลานสกา"];
+const NST_KEYWORDS = ["นครศรีธรรมราช", "ปากพนัง", "ท่าแดง", "คลองกะทูน", "ห้วยน้ำใส", "คลองดินแดง", "เสม็ดจวน", "ลานสกา"];
 
 function isNstReservoir(r: RidReservoirRaw): boolean {
   if (r.id && NST_IDS.has(r.id)) return true;

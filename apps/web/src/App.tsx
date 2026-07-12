@@ -16,6 +16,7 @@ import type {
   MarketSnapshot,
   PrecipNowcast,
   ZonePrecipNowcast,
+  BasinWaterBalance,
   WrfRainDay,
   WrfRainGrid,
   WeatherSnapshot,
@@ -137,6 +138,7 @@ import { FloodPosture } from "./components/FloodPosture";
 import { SouthernFloodIntel } from "./components/SouthernFloodIntel";
 import { UpstreamWatershed } from "./components/UpstreamWatershed";
 import { FloodCommand } from "./components/FloodCommand";
+import { WaterBalancePanel } from "./components/WaterBalancePanel";
 import { FlightsPanel } from "./components/FlightsPanel";
 // Heavy modals — lazy-loaded so they're excluded from the initial bundle.
 // Each loads only on first open; subsequent opens are instant (module cached).
@@ -147,6 +149,7 @@ const Whitepaper = lazy(() => import("./components/Whitepaper").then((m) => ({ d
 const SheetsPanel = lazy(() => import("./components/SheetsPanel").then((m) => ({ default: m.SheetsPanel })));
 const SituationDigest = lazy(() => import("./components/SituationDigest").then((m) => ({ default: m.SituationDigest })));
 const AtlasView = lazy(() => import("./components/atlas/AtlasView").then((m) => ({ default: m.AtlasView })));
+const FloodOpsBoard = lazy(() => import("./components/FloodOpsBoard").then((m) => ({ default: m.FloodOpsBoard })));
 const PlatformView = lazy(() => import("./components/platform/PlatformView").then((m) => ({ default: m.PlatformView })));
 
 // Inline the SheetsPanel URL check so we don't eagerly load the whole module.
@@ -773,6 +776,15 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
     setForecastAlerts(new Set()); // clear stale alert badges on lens switch
   }, []);
 
+  // OPS board "apply model level": drive the street-flood scenario with the
+  // ledger's suggested ponding level and land on the FLOOD lens (which
+  // includes the street-flood-sim layer) so the map shows it immediately.
+  const onApplyModelScenario = useCallback((levelM: number) => {
+    setScenarioLevel(levelM);
+    onLensChange("flood");
+    setOpsOpen(false);
+  }, [onLensChange]);
+
   const handleForecastMetricClick = useCallback((metric: string) => {
     const entry = METRIC_LAYER_MAP[metric];
     if (!entry) return;
@@ -873,6 +885,9 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
   const [wrfDay, setWrfDay] = useState<1 | 2 | 3>(1);
   const wrfOutlook = useFeed<WrfRainDay>(`${API_BASE}/api/wrf/rain-outlook`, 30 * 60_000);
   const wrfGrid = useFeed<WrfRainGrid>(`${API_BASE}/api/wrf/rain-grid?day=${wrfDay}`, 30 * 60_000);
+  // Basin water-balance ledger (inflow vs. conveyance + reservoir headroom).
+  const waterBalance = useFeed<BasinWaterBalance>(`${API_BASE}/api/water/balance`, 10 * 60_000);
+  const [opsOpen, setOpsOpen] = useState(false);
   // Mirror for the (dependency-free) tooltip callback.
   const scenarioLevelRef = useRef<number | null>(null);
   scenarioLevelRef.current = scenarioLevel;
@@ -1584,6 +1599,16 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
           <AqiBadge trend={aqiTrend.data[0] ?? null} loading={aqiTrend.fallbackTier === "loading"} />
         </CollapsibleSection>
 
+        <CollapsibleSection storageKey="water-balance" title="Water Balance" divided={true} defaultOpen={true}>
+          <WaterBalancePanel
+            basins={waterBalance.data}
+            ageMinutes={waterBalance.ageMinutes}
+            fallbackTier={waterBalance.fallbackTier === "loading" ? undefined : waterBalance.fallbackTier}
+            note={waterBalance.note}
+            onOpenOps={() => setOpsOpen(true)}
+          />
+        </CollapsibleSection>
+
         <CollapsibleSection storageKey="flood-brief" title="Flood Brief" divided={true} defaultOpen={true}>
           <FloodBrief
             gauges={floodGauges.data}
@@ -1671,6 +1696,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
             wrfLayerOn={enabledLayers.has("wrf-rain-grid")}
             onToggleWrfLayer={() => onToggleLayer("wrf-rain-grid")}
             wrfNote={wrfOutlook.note}
+            modelSuggestedM={waterBalance.data.find((b) => b.basinId === "city_tha_dee")?.suggestedScenarioM ?? null}
           />
         </CollapsibleSection>
 
@@ -1950,6 +1976,18 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
       </Suspense>
       <Suspense fallback={null}>
         {atlasOpen && <AtlasView onClose={() => setAtlasOpen(false)} />}
+      </Suspense>
+      <Suspense fallback={null}>
+        {opsOpen && (
+          <FloodOpsBoard
+            basins={waterBalance.data}
+            ageMinutes={waterBalance.ageMinutes}
+            note={waterBalance.note}
+            wrfOutlook={wrfOutlook.data}
+            onApplyScenario={onApplyModelScenario}
+            onClose={() => setOpsOpen(false)}
+          />
+        )}
       </Suspense>
       <Suspense fallback={null}>
         {platformOpen && (

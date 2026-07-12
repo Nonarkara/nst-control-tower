@@ -354,3 +354,28 @@ test.describe("Map camera — programmatic flights", () => {
   });
 });
 
+
+test.describe("WATER BALANCE — basin ledger + Flood Ops board", () => {
+  test("panel renders basin rows and OPS BOARD opens the full-screen board", async ({ page }) => {
+    await page.goto("/");
+    await expect(page.locator(".map-host")).toBeVisible({ timeout: 20_000 });
+
+    // Rail panel mounts with its PanelHeader eyebrow
+    await expect(page.getByText(/^WATER BALANCE$/)).toBeVisible({ timeout: 15_000 });
+
+    // At least one basin row appears once the ledger feed lands (Thai names)
+    await expect(page.locator(".wb-row").first()).toBeVisible({ timeout: 20_000 });
+
+    // OPS BOARD button opens the full-screen overlay
+    await page.getByRole("button", { name: /OPS BOARD/ }).click();
+    const board = page.getByRole("dialog", { name: /Flood operations board/i });
+    await expect(board).toBeVisible({ timeout: 15_000 });
+    await expect(board.getByText(/FLOOD OPS/)).toBeVisible();
+    // Basin cards render inside the board
+    await expect(board.locator(".ops-card").first()).toBeVisible({ timeout: 15_000 });
+
+    // ESC closes it
+    await page.keyboard.press("Escape");
+    await expect(board).toHaveCount(0);
+  });
+});

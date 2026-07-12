@@ -34,6 +34,11 @@ function gauge(o: Partial<WaterGauge> = {}): WaterGauge {
     amphoe: "ลานสกา",
     observedAt: "2026-06-21T08:00:00+07:00",
     isKeyStation: false,
+    stationCode: null,
+    bankMsl: null,
+    fullnessPct: null,
+    dischargeCms: null,
+    qmaxCms: null,
     ...o,
   };
 }
