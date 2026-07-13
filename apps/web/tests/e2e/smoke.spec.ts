@@ -379,3 +379,23 @@ test.describe("WATER BALANCE — basin ledger + Flood Ops board", () => {
     await expect(board).toHaveCount(0);
   });
 });
+
+test.describe("SENSOR SIGNALS — insight cards + sensor dot layers", () => {
+  test("panel renders and rail sections default collapsed", async ({ page }) => {
+    await page.goto("/");
+    await expect(page.locator(".map-host")).toBeVisible({ timeout: 20_000 });
+
+    // Insight panel mounts at the top of the rail
+    await expect(page.getByText(/^SENSOR SIGNALS$/).first()).toBeVisible({ timeout: 15_000 });
+
+    // Non-critical sections start collapsed (chevron ▸, aria-expanded=false)
+    const floodAnalysis = page.locator('.sidebar-section__hdr:has-text("Flood Analysis")');
+    await expect(floodAnalysis).toHaveAttribute("aria-expanded", "false");
+    const waterBalance = page.locator('.sidebar-section__hdr:has-text("Water Balance")');
+    await expect(waterBalance).toHaveAttribute("aria-expanded", "true");
+
+    // Clicking a collapsed heading expands it
+    await floodAnalysis.click();
+    await expect(floodAnalysis).toHaveAttribute("aria-expanded", "true");
+  });
+});

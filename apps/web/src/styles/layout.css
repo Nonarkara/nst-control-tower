@@ -4336,3 +4336,25 @@ input:focus-visible,
 @media (max-width: 900px) {
   .ops-body { grid-template-columns: 1fr; }
 }
+
+/* ── Sensor signals (insight cards, FloodDash-style) ─────────────────────── */
+.si-card {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  text-align: left;
+  background: var(--ground);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--line-2);
+  padding: 6px 8px;
+  margin-bottom: 4px;
+  cursor: pointer;
+}
+.si-card:disabled { cursor: default; opacity: 0.9; }
+.si-card:hover:not(:disabled) { background: var(--ground-soft); border-color: var(--line-2); }
+.si-head { display: flex; justify-content: space-between; gap: 8px; font-size: 0.6rem; letter-spacing: 0.08em; }
+.si-type { color: var(--ink-3); text-transform: uppercase; }
+.si-sev { font-weight: 700; }
+.si-title { font-size: var(--size-caption); font-weight: 600; line-height: 1.35; color: var(--ink); }
+.si-body { font-size: 0.72rem; color: var(--ink-3); line-height: 1.4; white-space: normal; }

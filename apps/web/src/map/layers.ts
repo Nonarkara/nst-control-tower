@@ -18,6 +18,9 @@ import type {
   SouthernRiverReach,
   FloodWatchBand,
   RiverDischargeBand,
+  WaterGauge,
+  RainfallStation,
+  EwsStation,
 } from "@nst/shared";
 import type { HeatPoint } from "../sim/trafficSim";
 import {
@@ -2493,6 +2496,92 @@ export function damStatusLayer(dams: DamStatus[]) {
     stroked: true,
     getLineColor: [255, 255, 255, 230],
     lineWidthMinPixels: 2.5,
+    pickable: true,
+  });
+}
+
+// ── Live sensor telemetry dots (ported from FloodDash paint.js) ─────────────
+// FloodDash's LV_COLOR situation palette: 1 drought-tan, 2 low-grey,
+// 3 normal-green, 4 high-orange, 5 overbank-red. Every dot is pickable —
+// the whole point is hover → live reading.
+const SITUATION_RGB: Record<number, [number, number, number]> = {
+  1: [183, 175, 163],
+  2: [148, 140, 127],
+  3: [0, 147, 60],
+  4: [232, 106, 16],
+  5: [165, 25, 49],
+};
+
+/** All ~26 HII/RID telemetry water-level stations, coloured by situation level. */
+export function waterGaugesLayer(gauges: WaterGauge[]) {
+  return new ScatterplotLayer<WaterGauge>({
+    id: "water-gauges",
+    data: gauges,
+    getPosition: (g) => [g.lng, g.lat],
+    // Alerting stations read bigger from a province-wide zoom.
+    getRadius: (g) => (g.situationLevel >= 5 ? 160 : g.situationLevel >= 4 ? 120 : 70),
+    radiusMinPixels: 5,
+    radiusMaxPixels: 16,
+    getFillColor: (g) => {
+      const c = SITUATION_RGB[g.situationLevel] ?? SITUATION_RGB[3];
+      return [c[0], c[1], c[2], 235] as [number, number, number, number];
+    },
+    stroked: true,
+    getLineColor: [255, 255, 255, 220],
+    lineWidthMinPixels: 1.5,
+    pickable: true,
+  });
+}
+
+/** Rain telemetry: dot area grows with 24 h accumulation (FloodDash 2+√mm). */
+export function rainStationsLayer(stations: RainfallStation[]) {
+  return new ScatterplotLayer<RainfallStation>({
+    id: "rain-stations",
+    data: stations,
+    getPosition: (r) => [r.lng, r.lat],
+    getRadius: (r) => 40 + Math.min(220, Math.sqrt(Math.max(0, r.rain24h ?? 0)) * 26),
+    radiusMinPixels: 2.5,
+    radiusMaxPixels: 20,
+    getFillColor: (r) => {
+      const mm = r.rain24h ?? 0;
+      // TMD bands: ≥90 very heavy (red), ≥35 heavy (orange), else rain-blue;
+      // dry stations fade back so wet cells pop.
+      if (mm >= 90) return [165, 25, 49, 235];
+      if (mm >= 35) return [232, 106, 16, 225];
+      if (mm >= 1) return [0, 57, 166, 200];
+      return [0, 57, 166, 70];
+    },
+    stroked: true,
+    getLineColor: [255, 255, 255, 150],
+    lineWidthMinPixels: 0.8,
+    pickable: true,
+  });
+}
+
+// DWR EWS official alert-status palette (0 normal → 3 critical/siren).
+const EWS_STATUS_RGB: Record<number, [number, number, number]> = {
+  0: [148, 140, 127],
+  1: [240, 180, 0],
+  2: [232, 106, 16],
+  3: [165, 25, 49],
+};
+
+/** DWR community early-warning stations — the ones that trigger village sirens. */
+export function ewsStationsLayer(stations: EwsStation[]) {
+  return new ScatterplotLayer<EwsStation>({
+    id: "ews-stations",
+    data: stations,
+    getPosition: (e) => [e.lng, e.lat],
+    getRadius: (e) => (e.status >= 2 ? 130 : e.status >= 1 ? 90 : 55),
+    radiusMinPixels: 3.5,
+    radiusMaxPixels: 15,
+    getFillColor: (e) => {
+      const c = EWS_STATUS_RGB[e.status] ?? EWS_STATUS_RGB[0];
+      return [c[0], c[1], c[2], e.status >= 1 ? 235 : 150] as [number, number, number, number];
+    },
+    stroked: true,
+    getLineColor: (e) => (e.status >= 2 ? [255, 255, 255, 240] : [255, 255, 255, 120]),
+    lineWidthMinPixels: 1,
     pickable: true,
   });
 }

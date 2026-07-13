@@ -97,6 +97,9 @@ import {
   riverBufferLayer,
   floodGaugesLayer,
   watershedNodesLayer,
+  waterGaugesLayer,
+  rainStationsLayer,
+  ewsStationsLayer,
   thaDeeFlowPath,
   damStatusLayer,
   conflictIncidentsLayer,
@@ -156,6 +159,7 @@ const PlatformView = lazy(() => import("./components/platform/PlatformView").the
 const SHEETS_STORAGE_KEY = "nst:sheets-url-v1";
 import { AqiBadge, type AqiTrend } from "./components/AqiBadge";
 import { BuildingCard } from "./components/BuildingCard";
+import { CctvStreamModal } from "./components/CctvStreamModal";
 import { IncidentCard } from "./components/IncidentCard";
 import { BuildingSearch } from "./components/BuildingSearch";
 import { MapOverlayControls } from "./components/MapOverlayControls";
@@ -173,6 +177,8 @@ import { PredictivePanel, METRIC_LAYER_MAP, METRIC_LABEL, type ForecastMetric } 
 import { ExecutiveBriefing } from "./components/ExecutiveBriefing";
 import { API_BASE } from "./lib/apiBase";
 import { summarizeWatershed, isThaDeeZone, worstStatus, ZONE_STATUS_RGB } from "./lib/watershed";
+import { buildSensorInsights } from "./lib/sensorInsights";
+import { SensorInsightsPanel } from "./components/SensorInsightsPanel";
 import { useFlowAnimation } from "./map/useFlowAnimation";
 import type { NasaEarthReadings, FacebookPost } from "@nst/shared";
 import { useDevicePresence } from "./hooks/useDevicePresence";
@@ -475,6 +481,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
   const [selectedCoord, setSelectedCoord] = useState<[number, number] | null>(null);
   // Selected incident — drives the IncidentCard with its "Open report ↗" link.
   const [selectedIncident, setSelectedIncident] = useState<IncidentFeature | null>(null);
+  const [selectedCctv, setSelectedCctv] = useState<CctvCamera | null>(null);
 
   // Camera helpers — all command the uncontrolled camera via flyCamera.
   const flyTo = useCallback((longitude: number, latitude: number, zoom = 17) => {
@@ -519,6 +526,20 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
       // Click an incident → open its card with a deep-link back to the report.
       setSelectedBuilding(null);
       setSelectedIncident(info.object as IncidentFeature);
+    } else if (info.layer?.id === "cctv-cameras" && info.object) {
+      // The palette has promised "click for the live stream" — honor it.
+      setSelectedCctv(info.object as CctvCamera);
+    } else if (
+      (info.layer?.id === "water-gauges" ||
+        info.layer?.id === "rain-stations" ||
+        info.layer?.id === "ews-stations") &&
+      info.object
+    ) {
+      // Sensor dot → zoom to the station so its tooltip is comfortably hoverable
+      // (and on touch, the tap itself shows the reading).
+      const s = info.object as { lng: number; lat: number };
+      const vs = viewStateRef.current;
+      flyTo(s.lng, s.lat, Math.max(vs.zoom, 12.5));
     } else if (!info.layer) {
       setSelectedBuilding(null);
       setSelectedIncident(null);
@@ -589,6 +610,13 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
     };
     let title: string | null = null;
     let sub: string | null = null;
+    // Multi-line body for sensor dots — each entry renders as its own row so a
+    // gauge reading looks like a station card, not a caption (FloodDash popupHtml).
+    let lines: string[] = [];
+    const num = (k: string): number | null => {
+      const v = (p as Record<string, unknown>)[k];
+      return typeof v === "number" && Number.isFinite(v) ? v : null;
+    };
     switch (id) {
       case "municipality-buildings":
       case "campus-buildings":
@@ -726,6 +754,63 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
         title = pick("name") ?? "River gauge";
         sub = `${(pick("status") ?? "").toUpperCase()} · ${pick("levelM") ?? "—"} m${pick("warningM") ? ` / ${pick("warningM")} m warn` : ""}`;
         break;
+      case "water-gauges": {
+        // Live HII telemetry — the FloodDash water-station popup, in full.
+        title = pick("name") ?? "Telemetry gauge";
+        const situ = num("situationLevel") ?? 3;
+        const situLabel =
+          ["", "1 — วิกฤติแล้งจัด", "2 — น้ำน้อย", "3 — ปกติ", "4 — น้ำมาก เฝ้าระวัง", "5 — ล้นตลิ่ง"][situ] ?? `${situ}`;
+        const trendGlyph = pick("trend") === "rising" ? " ▲ กำลังขึ้น" : pick("trend") === "falling" ? " ▼ กำลังลง" : "";
+        lines.push(`สถานการณ์ ${situLabel}${trendGlyph}`);
+        const level = num("levelMsl");
+        const fullness = num("fullnessPct");
+        if (level != null)
+          lines.push(`ระดับน้ำ ${level.toFixed(2)} ม.รทก.${fullness != null ? ` · ${Math.round(fullness)}% ของตลิ่ง` : ""}`);
+        const bank = num("bankMsl");
+        if (bank != null && level != null) {
+          const free = bank - level;
+          lines.push(free >= 0 ? `เหลือ ${free.toFixed(2)} ม. ถึงตลิ่ง (${bank.toFixed(2)} ม.)` : `สูงกว่าตลิ่ง ${Math.abs(free).toFixed(2)} ม. — ล้นแล้ว`);
+        }
+        const q = num("dischargeCms");
+        const qmax = num("qmaxCms");
+        if (q != null || qmax != null)
+          lines.push(`อัตราไหล ${q != null ? q.toFixed(1) : "—"}${qmax != null ? ` / ความจุ ${Math.round(qmax)}` : ""} ม³/วิ${q != null && qmax != null && qmax > 0 ? ` (${Math.round((q / qmax) * 100)}%)` : ""}`);
+        const parts = [pick("stationCode"), pick("riverName"), pick("amphoe")].filter(Boolean);
+        const obs = pick("observedAt");
+        lines.push(`${parts.join(" · ")}${obs ? ` · ⏱ ${obs.slice(-5)}` : ""}`);
+        break;
+      }
+      case "rain-stations": {
+        title = `☔ ${pick("name") ?? "Rain station"}`;
+        const r24 = num("rain24h");
+        const r1 = num("rain1h");
+        const band = (r24 ?? 0) >= 90 ? " — ฝนหนักมาก" : (r24 ?? 0) >= 35 ? " — ฝนหนัก" : "";
+        lines.push(`ฝน 24 ชม. ${r24 != null ? r24.toFixed(1) : "—"} มม.${band}`);
+        if (r1 != null && r1 > 0) lines.push(`ฝน 1 ชม. ${r1.toFixed(1)} มม.${r1 >= 30 ? " — ฝนถล่ม เสี่ยงน้ำหลาก" : ""}`);
+        const obsR = pick("observedAt");
+        lines.push(`อ.${pick("amphoe") ?? "—"}${obsR ? ` · ⏱ ${obsR.slice(-5)}` : ""}`);
+        break;
+      }
+      case "ews-stations": {
+        title = `🔔 ${pick("name") ?? "EWS station"}`;
+        const st = num("status") ?? 0;
+        lines.push(
+          ["สถานะ 0 — ปกติ", "สถานะ 1 — เฝ้าระวัง", "สถานะ 2 — เตรียมพร้อม/เตรียมอพยพ", "สถานะ 3 — วิกฤติ/อพยพ"][st] ?? `สถานะ ${st}`,
+        );
+        const soil = num("soilMoisture");
+        const r12 = num("rain12h");
+        const wl = num("waterLevel");
+        const readings = [
+          soil != null ? `ดินชื้น ${Math.round(soil)}%${soil >= 85 ? " — อิ่มตัว" : ""}` : null,
+          r12 != null && r12 > 0 ? `ฝน 12 ชม. ${r12.toFixed(1)} มม.` : null,
+          wl != null ? `ระดับน้ำ ${wl.toFixed(2)} ม.` : null,
+        ].filter(Boolean) as string[];
+        if (readings.length > 0) lines.push(readings.join(" · "));
+        const warnTxt = pick("warn");
+        if (warnTxt) lines.push(`⚠ ${warnTxt}`);
+        lines.push(`ต.${pick("tambon") ?? "—"} อ.${pick("amphoe") ?? "—"} · สถานีเตือนภัยชุมชน DWR`);
+        break;
+      }
       case "watershed-nodes": {
         title = `${pick("name") ?? ""} ${pick("nameEn") ?? ""}`.trim() || "Watershed node";
         const bits = [pick("statusLabel"), pick("role")].filter(Boolean);
@@ -759,6 +844,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
       html:
         `<div class="picker-tooltip"><div class="picker-title">${escapeHtml(title ?? "")}</div>` +
         (sub ? `<div class="picker-sub">${escapeHtml(sub)}</div>` : "") +
+        lines.map((l) => `<div class="picker-sub">${escapeHtml(l)}</div>`).join("") +
         `</div>`,
       style: {
         background: "transparent",
@@ -1089,6 +1175,18 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
     () => summarizeWatershed(waterGauges.data, waterRain.data, ewsStations.data, floodGauges.data),
     [waterGauges.data, waterRain.data, ewsStations.data, floodGauges.data],
   );
+  // Live sensor signal cards — recomputed whenever any telemetry feed lands.
+  const sensorInsights = useMemo(
+    () =>
+      buildSensorInsights({
+        gauges: waterGauges.data,
+        rain: waterRain.data,
+        ews: ewsStations.data,
+        reservoirs: ridReservoirs.data,
+        basins: waterBalance.data,
+      }),
+    [waterGauges.data, waterRain.data, ewsStations.data, ridReservoirs.data, waterBalance.data],
+  );
   const thaDeeFlow = useMemo(() => thaDeeFlowPath(watershedSummaries), [watershedSummaries]);
   // Dots reuse the cascade's real live status color (not a new invented
   // signal) — flood-state cascade animates red, calm animates green/blue.
@@ -1253,6 +1351,13 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
     // below — so their ~10 Hz layer swaps never rebuild this whole array.)
     if (enabledLayers.has("watershed-nodes") && waterGauges.data.length > 0)
       out.push(...(watershedNodesLayer(watershedSummaries) as Layer[]));
+    // ── Live sensor telemetry dots — every dot hovers to a real reading ────
+    if (enabledLayers.has("rain-stations") && waterRain.data.length > 0)
+      out.push(rainStationsLayer(waterRain.data) as Layer);
+    if (enabledLayers.has("ews-stations") && ewsStations.data.length > 0)
+      out.push(ewsStationsLayer(ewsStations.data) as Layer);
+    if (enabledLayers.has("water-gauges") && waterGauges.data.length > 0)
+      out.push(waterGaugesLayer(waterGauges.data) as Layer);
     // ── Yala — flood gauges + Bang Lang Dam (API-backed) ──────────────────
     if (enabledLayers.has("flood-gauges") && floodGauges.data.length > 0)
       out.push(floodGaugesLayer(floodGauges.data) as Layer);
@@ -1576,7 +1681,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
           </CollapsibleSection>
         )}
         {provincialKPIs.data.length > 0 && (
-          <CollapsibleSection storageKey="provincial-kpis" title="Provincial KPIs" divided={true} defaultOpen={true}>
+          <CollapsibleSection storageKey="provincial-kpis" title="Provincial KPIs" divided={true} defaultOpen={false}>
             <ProvincialKPIs
               data={provincialKPIs.data[0] ?? null}
               loading={provincialKPIs.fallbackTier === "loading"}
@@ -1586,7 +1691,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
           </CollapsibleSection>
         )}
         {tourismVisitors.data.length > 0 && (
-          <CollapsibleSection storageKey="tourism-visitors" title="Tourism Visitors" divided={true} defaultOpen={true}>
+          <CollapsibleSection storageKey="tourism-visitors" title="Tourism Visitors" divided={true} defaultOpen={false}>
             <TourismVisitorsPanel
               records={tourismVisitors.data}
               loading={tourismVisitors.fallbackTier === "loading"}
@@ -1595,8 +1700,17 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
             />
           </CollapsibleSection>
         )}
-        <CollapsibleSection storageKey="air-quality" title="Air Quality" divided={true} defaultOpen={true}>
+        <CollapsibleSection storageKey="air-quality" title="Air Quality" divided={true} defaultOpen={false}>
           <AqiBadge trend={aqiTrend.data[0] ?? null} loading={aqiTrend.fallbackTier === "loading"} />
+        </CollapsibleSection>
+
+        <CollapsibleSection storageKey="sensor-signals" title="Sensor Signals" divided={true} defaultOpen={true}>
+          <SensorInsightsPanel
+            insights={sensorInsights}
+            ageMinutes={waterGauges.ageMinutes}
+            fallbackTier={waterGauges.fallbackTier === "loading" ? undefined : waterGauges.fallbackTier}
+            onFocus={(lng, lat) => flyTo(lng, lat, 12.5)}
+          />
         </CollapsibleSection>
 
         <CollapsibleSection storageKey="water-balance" title="Water Balance" divided={true} defaultOpen={true}>
@@ -1638,7 +1752,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
         </CollapsibleSection>
 
         {floodRiskVillages.data.length > 0 && (
-          <CollapsibleSection storageKey="flood-risk-villages" title="Flood Risk Villages" divided={true} defaultOpen={true}>
+          <CollapsibleSection storageKey="flood-risk-villages" title="Flood Risk Villages" divided={true} defaultOpen={false}>
             <FloodRiskPanel
               villages={floodRiskVillages.data}
               ageMinutes={floodRiskVillages.ageMinutes}
@@ -1657,7 +1771,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
           </CollapsibleSection>
         )}
 
-        <CollapsibleSection storageKey="upstream-watershed" title="Upstream Watershed" divided={true} defaultOpen={true}>
+        <CollapsibleSection storageKey="upstream-watershed" title="Upstream Watershed" divided={true} defaultOpen={false}>
           <UpstreamWatershed
             waterGauges={waterGauges.data}
             rainfall={waterRain.data}
@@ -1671,7 +1785,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
           />
         </CollapsibleSection>
 
-        <CollapsibleSection storageKey="southern-flood-intel" title="Southern Flood Intel" divided={true} defaultOpen={true}>
+        <CollapsibleSection storageKey="southern-flood-intel" title="Southern Flood Intel" divided={true} defaultOpen={false}>
           <SouthernFloodIntel
             risk={southernRisk.data[0] ?? null}
             rivers={southernRivers.data[0] ?? null}
@@ -1683,7 +1797,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
           />
         </CollapsibleSection>
 
-        <CollapsibleSection storageKey="flood-command" title="Flood Command" divided={true} defaultOpen={true}>
+        <CollapsibleSection storageKey="flood-command" title="Flood Command" divided={true} defaultOpen={false}>
           <FloodCommand
             scenarioLevel={scenarioLevel}
             onScenarioChange={setScenarioLevel}
@@ -1700,7 +1814,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
           />
         </CollapsibleSection>
 
-        <CollapsibleSection storageKey="flood-analysis" title="Flood Analysis" divided={true} defaultOpen={true}>
+        <CollapsibleSection storageKey="flood-analysis" title="Flood Analysis" divided={true} defaultOpen={false}>
           <FloodAnalysisPanel
             rainfall={historicalRainfall.data[0] ?? null}
             rainfallAge={historicalRainfall.ageMinutes}
@@ -1712,7 +1826,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
           />
         </CollapsibleSection>
 
-        <CollapsibleSection storageKey="earth-alpha" title="Earth Observation" divided={true} defaultOpen={true}>
+        <CollapsibleSection storageKey="earth-alpha" title="Earth Observation" divided={true} defaultOpen={false}>
           <EarthAlphaBrief
             enabledLayers={enabledLayers}
             onToggleLayer={onToggleLayer}
@@ -1731,7 +1845,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
           />
         </CollapsibleSection>
 
-        <CollapsibleSection storageKey="water-panel" title="Water & Reservoirs" divided={true} defaultOpen={true}>
+        <CollapsibleSection storageKey="water-panel" title="Water & Reservoirs" divided={true} defaultOpen={false}>
           <WaterPanel
             reservoirs={reservoirs.data}
             ridReservoirs={ridReservoirs.data}
@@ -1745,7 +1859,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
           />
         </CollapsibleSection>
 
-        <CollapsibleSection storageKey="flights-panel" title="Airport Flights" divided={true} defaultOpen={true}>
+        <CollapsibleSection storageKey="flights-panel" title="Airport Flights" divided={true} defaultOpen={false}>
           <FlightsPanel
             flights={flights.data}
             loading={flights.fallbackTier === "loading"}
@@ -1755,7 +1869,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
           />
         </CollapsibleSection>
 
-        <CollapsibleSection storageKey="predictive-panel" title="Predictive Forecast" divided={true} defaultOpen={true}>
+        <CollapsibleSection storageKey="predictive-panel" title="Predictive Forecast" divided={true} defaultOpen={false}>
           <MemoPredictivePanel
             apiBase={API_BASE}
             onMetricClick={handleForecastMetricClick}
@@ -1780,7 +1894,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
           <SpeedTestPanel />
         </CollapsibleSection>
 
-        <CollapsibleSection storageKey="municipal-brief" title="Municipal Brief" divided={true} defaultOpen={true}>
+        <CollapsibleSection storageKey="municipal-brief" title="Municipal Brief" divided={true} defaultOpen={false}>
           <MemoKpiStrip
             cityReports={cityReports.data}
             floodGauges={floodGauges.data}
@@ -1891,6 +2005,11 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
           <IncidentCard
             incident={selectedIncident}
             onClose={() => setSelectedIncident(null)}
+          />
+          <CctvStreamModal
+            camera={selectedCctv}
+            onClose={() => setSelectedCctv(null)}
+            apiBase={API_BASE}
           />
           {forecastAlerts.size > 0 && (
             <div style={{

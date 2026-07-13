@@ -107,7 +107,10 @@ export type LayerId =
   | "municipality-boundary-line"
   | "municipality-boundary-fill"
   | "heritage-old-town"
-  | "heritage-temple-spires";
+  | "heritage-temple-spires"
+  | "water-gauges"
+  | "rain-stations"
+  | "ews-stations";
 
 export type MapViewState =
   | { kind: "lens"; lensId: LensId }
@@ -173,6 +176,9 @@ export const LENSES: Lens[] = [
       "river-buffer",
       "waterways",
       "watershed-nodes",
+      "water-gauges",
+      "rain-stations",
+      "ews-stations",
       "flood-gauges",
       "dam-status",
       "flood-marks",
@@ -244,6 +250,8 @@ export const LENSES: Lens[] = [
       "waterways",
       "flood-risk-zones",
       "flood-marks",
+      "water-gauges",
+      "ews-stations",
       "incidents-city-reports",
       "incidents-itic",
       "cctv-cameras",
@@ -447,6 +455,12 @@ export const ALL_LAYERS: {
     describe: "The Pak Phanang and Tha Dee river centrelines and inundation buffer — the primary flood vectors carrying Khao Luang runoff through the city and the Pak Phanang basin." },
   { id: "flood-gauges",      label: "River / canal gauges",      swatch: "#38BDF8", group: "environment",
     describe: "Water-level / discharge gauges on the Pak Phanang and Tha Dee rivers and feeder canals, coloured by status (normal / watch / warning / flood). Source: GloFAS / Open-Meteo flood proxy + RID where a station exists." },
+  { id: "water-gauges",      label: "Telemetry gauges (HII live)", swatch: "#E86A10", group: "environment",
+    describe: "All ~26 real HII/RID telemetry water-level stations in the province, coloured by official situation level (1 drought → 5 overbank). Hover any dot for live level vs bank, channel fullness %, discharge vs rated qmax, and trend. Updates ~10 min." },
+  { id: "rain-stations",     label: "Rain telemetry (24 h)",     swatch: "#0039A6", group: "environment",
+    describe: "~130 rain telemetry stations (DWR/HII multi-agency), dot size = 24 h accumulation, colour jumps at the TMD heavy (35 mm) and very-heavy (90 mm) bands. Hover for 1 h / 24 h totals — the flash-flood precursor." },
+  { id: "ews-stations",      label: "EWS village sirens (DWR)",  swatch: "#A51931", group: "environment",
+    describe: "DWR community early-warning stations in the Khao Luang headwaters, coloured by official alert status (0 normal · 1 watch · 2 prepare · 3 critical) with soil-moisture %. These are the stations that trigger village sirens." },
   { id: "watershed-nodes",   label: "Watershed (upstream→city)", swatch: "#38BDF8", group: "environment",
     describe: "The Tha Dee flow cascade made geographic — ทุ่งสง / คีรีวง / ลานสกา upstream nodes feeding the city, with a flow line down คลองท่าดี (คีรีวง → ลานสกา → city). Each node is coloured by live status (gauges + rainfall + DWR EWS soil). Upstream rises here lead the city by hours." },
   { id: "dam-status",        label: "Khao Luang runoff",         swatch: "#22D3EE", group: "environment",
