@@ -120,7 +120,7 @@ export const infrastructureModule: AtlasModule = {
         { name: "Organic / food", value: 48, color: "var(--good)" },
         { name: "Recyclables", value: 28, color: "var(--accent)" },
         { name: "Hazardous", value: 5, color: "var(--bad)" },
-        { name: "General / landfill", value: 19, color: "var(--text-3)" },
+        { name: "General / landfill", value: 19, color: "var(--ink-3)" },
       ],
       note: "Provincial waste composition estimate from DPW waste characterisation study. Only 9% currently recovered.",
     },
@@ -151,7 +151,7 @@ export const infrastructureModule: AtlasModule = {
       title: "City infrastructure footprint",
       unit: "count",
       data: [
-        { name: "Road segments", value: 5564, color: "var(--text-2)" },
+        { name: "Road segments", value: 5564, color: "var(--ink-2)" },
         { name: "Civic POIs mapped", value: 1352, color: "var(--accent)" },
         { name: "Buildings (3D twin)", value: 1927, color: "var(--data)" },
         { name: "Water gauges (ThaiWater)", value: 26, color: "var(--good)" },

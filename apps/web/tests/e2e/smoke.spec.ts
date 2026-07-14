@@ -15,6 +15,32 @@ import { test, expect } from "@playwright/test";
 // Individual tests pass in ~12–40s; the 60s default flakes once Vite cache warms.
 test.setTimeout(90_000);
 
+/**
+ * Expand a collapsible rail section if it isn't already open.
+ * The rail defaults most sections to collapsed to fit a flood-ops board on
+ * one screen; tests that probe inside the body of a section must call this
+ * with the section's HEADER title (e.g. "Water & Reservoirs"), not the
+ * inner panel eyebrow (e.g. "WATER MONITORING") — the header sits outside
+ * the body and is what carries the click-to-expand behaviour.
+ *
+ * The header button also contains the chevron glyph (▾/▸) so we don't anchor
+ * the regex — we just match the title as a substring of the header's text.
+ */
+async function ensureSectionOpen(
+  page: import("@playwright/test").Page,
+  sectionTitle: string,
+) {
+  const header = page.locator(".sidebar-section__hdr", {
+    hasText: new RegExp(sectionTitle, "i"),
+  });
+  await expect(header).toBeVisible({ timeout: 10_000 });
+  const expanded = await header.getAttribute("aria-expanded");
+  if (expanded === "false") {
+    await header.click();
+    await expect(header).toHaveAttribute("aria-expanded", "true", { timeout: 5_000 });
+  }
+}
+
 test.describe("Dashboard boot", () => {
   test("loads with map host and top bar", async ({ page }) => {
     await page.goto("/");
@@ -97,6 +123,11 @@ test.describe("FLOOD lens — panel headers", () => {
   test("WaterPanel and UpstreamWatershed render their PanelHeader eyebrows", async ({ page }) => {
     await page.goto("/");
     await expect(page.locator(".map-host")).toBeVisible({ timeout: 20_000 });
+
+    // Rail defaults these sections to collapsed — open them so the panel
+    // eyebrows (WATER MONITORING, WATERSHED) are reachable.
+    await ensureSectionOpen(page, "Water & Reservoirs");
+    await ensureSectionOpen(page, "Upstream Watershed");
 
     // WaterPanel and UpstreamWatershed are always rendered in the sidebar
     // (not gated by a specific lens). PanelHeader renders its title immediately,
@@ -202,7 +233,11 @@ test.describe("FLOOD COMMAND — God Mode scenario", () => {
     await page.goto("/");
     await expect(page.locator(".map-host")).toBeVisible({ timeout: 20_000 });
 
-    // Panel header confirms mount (left rail, always visible)
+    // Rail defaults the flood-command section to collapsed — open it so
+    // the PABUK preset buttons and the impact readout are reachable.
+    await ensureSectionOpen(page, "Flood Command");
+
+    // Panel header confirms mount (left rail, always visible inside the body)
     await expect(page.getByText(/FLOOD COMMAND \/\/ GOD MODE/i)).toBeVisible({ timeout: 15_000 });
 
     // No impact readout while the scenario is off
@@ -228,6 +263,10 @@ test.describe("EO layer toggles", () => {
 
     // EarthAlphaBrief is always in the sidebar — wait for its PanelHeader to confirm mount
     await expect(page.getByText(/EARTH OBS/i).first()).toBeVisible({ timeout: 15_000 });
+
+    // Rail defaults the Earth Observation section to collapsed — open it
+    // so the layer toggles inside the body are reachable.
+    await ensureSectionOpen(page, "Earth Observation");
 
     // The Rain toggle (satellite-imerg) renders with text "Rain" and a "on"/"off" caption.
     // Its accessible name comes from text content, not aria-label or title.
@@ -304,6 +343,10 @@ test.describe("Language toggle (EN/TH)", () => {
   test("switching to Thai localizes the FLOOD COMMAND panel and back", async ({ page }) => {
     await page.goto("/");
     await expect(page.locator(".map-host")).toBeVisible({ timeout: 20_000 });
+
+    // Rail defaults the flood-command section to collapsed — open it so
+    // the localized panel title inside the body is reachable.
+    await ensureSectionOpen(page, "Flood Command");
 
     // Default locale is English — the FLOOD COMMAND header reads in English.
     await expect(page.getByText(/FLOOD COMMAND \/\/ GOD MODE/i)).toBeVisible({ timeout: 15_000 });
