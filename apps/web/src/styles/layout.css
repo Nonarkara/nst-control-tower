@@ -4358,3 +4358,237 @@ input:focus-visible,
 .si-sev { font-weight: 700; }
 .si-title { font-size: var(--size-caption); font-weight: 600; line-height: 1.35; color: var(--ink); }
 .si-body { font-size: 0.72rem; color: var(--ink-3); line-height: 1.4; white-space: normal; }
+
+/* ── Sensor Situation Board — Rams structure × Lichtenstein spice ───────── */
+/* The global Rams surface rule (`* { box-shadow: none !important }`) would
+   otherwise silently kill every pop drop-shadow below. These few enclosed
+   accent surfaces opt back in — class specificity + !important beats the
+   universal ban. Enclosed use ONLY (SSB board + powered-by chips), never the
+   whole UI, mirroring how NYCTA route discs are the one rounding exception. */
+.ssb-burst,
+.ssb-pane,
+.ssb-pane__pow,
+.ssb-heat-btn,
+.ssb-heat-btn:hover,
+.ssb-heat-btn:active,
+.powered-by-chip {
+  box-shadow: var(--pop-burst-shadow) !important;
+}
+.ssb-heat-btn:hover { box-shadow: 3px 3px 0 var(--ink) !important; }
+.ssb-heat-btn:active { box-shadow: 1px 1px 0 var(--ink) !important; }
+.ssb { display: flex; flex-direction: column; gap: 8px; }
+.ssb-burst {
+  display: inline-block;
+  padding: 2px 8px;
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  font-weight: 800;
+  border: var(--pop-outline-w) solid var(--pop-outline);
+  box-shadow: var(--pop-burst-shadow);
+  line-height: 1.2;
+}
+.ssb-pane {
+  position: relative;
+  border: var(--pop-outline-w) solid var(--pop-outline);
+  background:
+    radial-gradient(circle, var(--pop-dot) var(--pop-dot-size), transparent var(--pop-dot-size))
+      0 0 / 8px 8px,
+    var(--panel);
+  padding: 8px;
+  box-shadow: var(--pop-burst-shadow);
+}
+.ssb-pane--water { border-top: 4px solid var(--rt-blue); }
+.ssb-pane--air { border-top: 4px solid var(--rt-yellow); }
+.ssb-pane__hdr {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.ssb-pane__title {
+  font-size: 0.72rem;
+  letter-spacing: 0.16em;
+  font-weight: 800;
+  color: var(--ink);
+}
+.ssb-pane__pow {
+  padding: 1px 7px;
+  font-size: 0.58rem;
+  letter-spacing: 0.1em;
+  font-weight: 800;
+  border: 2px solid var(--pop-outline);
+  box-shadow: 1px 1px 0 var(--pop-outline);
+}
+.ssb-kpi-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+  margin-bottom: 6px;
+}
+.ssb-kpi {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 4px 3px;
+  background: var(--ground);
+  border: 1px solid var(--line);
+}
+.ssb-kpi__label {
+  font-size: 0.52rem;
+  letter-spacing: 0.08em;
+  color: var(--ink-3);
+}
+.ssb-kpi__val {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+.ssb-bar { margin-bottom: 5px; }
+.ssb-bar__meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.62rem;
+  color: var(--ink-2);
+  margin-bottom: 2px;
+}
+.ssb-bar__track {
+  height: 8px;
+  background: var(--ground);
+  border: 1.5px solid var(--ink);
+  overflow: hidden;
+}
+.ssb-bar__fill {
+  height: 100%;
+  transition: width var(--t-state) var(--ease-out);
+}
+.ssb-flow { margin: 8px 0 4px; }
+.ssb-flow__label {
+  font-size: 0.58rem;
+  letter-spacing: 0.12em;
+  color: var(--ink-3);
+  margin-bottom: 4px;
+}
+.ssb-flow__track {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 0;
+}
+.ssb-flow__node {
+  position: relative;
+  flex: 1 1 72px;
+  min-width: 72px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  text-align: left;
+  padding: 6px 8px 6px 6px;
+  background: var(--paper);
+  border: 2px solid var(--ink);
+  cursor: pointer;
+  margin-right: 10px;
+}
+.ssb-flow__node:hover { background: var(--ground-soft); }
+.ssb-flow__name { font-size: 0.72rem; font-weight: 700; color: var(--ink); }
+.ssb-flow__num {
+  font-size: 0.7rem;
+  color: var(--rt-blue);
+  font-variant-numeric: tabular-nums;
+}
+.ssb-flow__fb { font-size: 0.58rem; color: var(--ink-3); }
+.ssb-flow__arrow {
+  position: absolute;
+  right: -11px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--rt-blue);
+  font-size: 0.85rem;
+  font-weight: 900;
+  pointer-events: none;
+  z-index: 1;
+}
+.ssb-worst {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  width: 100%;
+  text-align: left;
+  padding: 6px 8px;
+  margin-top: 4px;
+  background: var(--ground);
+  border: 2px solid var(--ink);
+  border-left: 5px solid var(--rt-red);
+  cursor: pointer;
+}
+.ssb-worst:hover { background: var(--ground-soft); }
+.ssb-worst__tag {
+  font-size: 0.55rem;
+  letter-spacing: 0.12em;
+  color: var(--rt-red);
+  font-weight: 800;
+}
+.ssb-worst__name { font-size: var(--size-caption); font-weight: 700; color: var(--ink); }
+.ssb-worst__meta { font-size: 0.68rem; color: var(--ink-2); }
+.ssb-heat-btn {
+  margin-top: 6px;
+  width: 100%;
+  padding: 5px 8px;
+  font-size: 0.62rem;
+  letter-spacing: 0.1em;
+  font-weight: 700;
+  color: var(--ink);
+  background: var(--rt-yellow);
+  border: 2px solid var(--ink);
+  box-shadow: 2px 2px 0 var(--ink);
+  cursor: pointer;
+}
+.ssb-heat-btn:hover { transform: translate(-1px, -1px); box-shadow: 3px 3px 0 var(--ink); }
+.ssb-heat-btn:active { transform: translate(1px, 1px); box-shadow: 1px 1px 0 var(--ink); }
+.ssb-powered {
+  font-size: 0.62rem;
+  letter-spacing: 0.04em;
+  color: var(--ink-3);
+  padding-top: 2px;
+}
+.ssb-powered a {
+  color: var(--rt-blue);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.ssb-powered a:hover { color: var(--accent); }
+
+/* Topbar powered-by chip — FloodDash · AirDash by Dr.Non */
+.powered-by-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  font-size: 0.58rem;
+  letter-spacing: 0.06em;
+  font-weight: 700;
+  color: var(--ink);
+  background: var(--rt-yellow);
+  border: 2px solid var(--ink);
+  box-shadow: 1px 1px 0 var(--ink);
+  white-space: nowrap;
+  text-decoration: none;
+}
+.powered-by-chip:hover { background: var(--rt-orange); color: var(--rt-glyph); }
+.powered-by-chip__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 0;
+  background: var(--rt-blue);
+  border: 1px solid var(--ink);
+  flex-shrink: 0;
+}
+
+@media (max-width: 900px) {
+  .ssb-kpi-row { grid-template-columns: repeat(2, 1fr); }
+  .powered-by-chip { display: none; }
+}

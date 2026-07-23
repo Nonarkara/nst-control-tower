@@ -79,6 +79,16 @@ export function TopBar({ feeds, onOpenCatalog, catalogCount, viewMode, onCycleVi
             NST-01 · Southern Thailand
           </span>
         </div>
+        <a
+          className="powered-by-chip mono"
+          href="https://flood.nonarkara.org"
+          target="_blank"
+          rel="noreferrer"
+          title="Water + air sensor intelligence — FloodDash & AirDash by Dr.Non Arkaraprasertkul"
+        >
+          <span className="powered-by-chip__dot" aria-hidden />
+          FloodDash · AirDash · Dr.Non
+        </a>
       </div>
 
       {/* Live feed chips */}

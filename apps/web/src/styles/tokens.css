@@ -1,14 +1,16 @@
 /* ═══════════════════════════════════════════════════════════════════════
-   NST Control Tower — Rams × NYCTA Design Core
+   NST Control Tower — Rams × NYCTA × Lichtenstein Design Core
    ═══════════════════════════════════════════════════════════════════════
    Based on: Rams-NYCTA-Design-Core by Non Arkaraprasertkul
    Lineage:   Dieter Rams (Braun, 1950–1995) × Bob Noorda & Massimo Vignelli
-              (NYCTA Graphics Standards Manual, 1970)
+              (NYCTA Graphics Standards Manual, 1970) × Roy Lichtenstein
+              (Ben-Day dots, bold comic outline — playful severity accents)
 
    Design layers:
      Layer 1 — Rams Foundation (always active)
      Layer 2 — NYCTA route palette (for wayfinding discs)
      Layer 3 — NST domain tokens (AQI, airlines, tag categories)
+     Layer 4 — Lichtenstein spice (sensor situation · pop severity only)
 
    Rule: never invent a value not in this file.
    ═══════════════════════════════════════════════════════════════════════ */
@@ -88,6 +90,15 @@
 
   /* On-brand glyph on saturated background */
   --on-brand: #fff;
+
+  /* ── LAYER 4: LICHTENSTEIN SPICE ───────────────────────────────────── */
+  /* Enclosed use ONLY — Sensor Situation board, severity bursts, powered-by.
+     Never flood the whole UI. Comic outline + Ben-Day dots on Rams paper. */
+  --pop-outline: var(--ink);
+  --pop-outline-w: 2.5px;
+  --pop-dot: color-mix(in srgb, var(--ink) 18%, transparent);
+  --pop-dot-size: 3px;
+  --pop-burst-shadow: 2px 2px 0 var(--ink);
 
   /* ── Typography ─────────────────────────────────────────────────────── */
   --font-sans: "Inter", "IBM Plex Sans Thai", "Noto Sans Thai",

@@ -90,6 +90,8 @@ import {
   trafficDensityFallbackLayer,
   gistdaPoiLayer,
   air4thaiLayer,
+  airPm25HeatmapLayer,
+  airPm25DensityFallbackLayer,
   gistdaSolarLayer,
   gistdaLandUseLayer,
   newsPinsLayer,
@@ -98,6 +100,8 @@ import {
   floodGaugesLayer,
   watershedNodesLayer,
   waterGaugesLayer,
+  waterLevelHeatmapLayer,
+  waterLevelDensityFallbackLayer,
   rainStationsLayer,
   ewsStationsLayer,
   thaDeeFlowPath,
@@ -179,6 +183,7 @@ import { API_BASE } from "./lib/apiBase";
 import { summarizeWatershed, isThaDeeZone, worstStatus, ZONE_STATUS_RGB } from "./lib/watershed";
 import { buildSensorInsights } from "./lib/sensorInsights";
 import { SensorInsightsPanel } from "./components/SensorInsightsPanel";
+import { SensorSituationBoard } from "./components/SensorSituationBoard";
 import { useFlowAnimation } from "./map/useFlowAnimation";
 import type { NasaEarthReadings, FacebookPost } from "@nst/shared";
 import { useDevicePresence } from "./hooks/useDevicePresence";
@@ -1271,7 +1276,15 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
     if (enabledLayers.has("navigation-aids") && maritime?.navAids) out.push(navigationAidsLayer(maritime.navAids) as Layer);
     // Open data
     if (enabledLayers.has("datago-points") && datago.data.length > 0) out.push(datagoPointsLayer(datago.data) as Layer);
-    // Air4Thai PCD stations (official Thai government AQ monitors in Chonburi)
+    // AirDash concentration wash + Air4Thai station dots
+    if (enabledLayers.has("air-heatmap")) {
+      const airPts = [...air4thai.data, ...airQuality.data];
+      if (airPts.length > 0) {
+        out.push(
+          (gpuHeatmapOk ? airPm25HeatmapLayer(airPts) : airPm25DensityFallbackLayer(airPts)) as Layer,
+        );
+      }
+    }
     if (enabledLayers.has("air4thai-stations") && air4thai.data.length > 0) out.push(air4thaiLayer(air4thai.data) as Layer);
     // GISTDA POI Digital Twin (authoritative Thai government POIs)
     if (enabledLayers.has("gistda-pois") && gistdaPois.data.length > 0) out.push(gistdaPoiLayer(gistdaPois.data) as Layer);
@@ -1356,6 +1369,14 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
       out.push(rainStationsLayer(waterRain.data) as Layer);
     if (enabledLayers.has("ews-stations") && ewsStations.data.length > 0)
       out.push(ewsStationsLayer(ewsStations.data) as Layer);
+    // FloodDash water concentration wash under the discrete gauge dots
+    if (enabledLayers.has("water-heatmap") && waterGauges.data.length > 0) {
+      out.push(
+        (gpuHeatmapOk
+          ? waterLevelHeatmapLayer(waterGauges.data)
+          : waterLevelDensityFallbackLayer(waterGauges.data)) as Layer,
+      );
+    }
     if (enabledLayers.has("water-gauges") && waterGauges.data.length > 0)
       out.push(waterGaugesLayer(waterGauges.data) as Layer);
     // ── Yala — flood gauges + Bang Lang Dam (API-backed) ──────────────────
@@ -1395,6 +1416,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
     provinceBoundaries, districtBoundaries,
     conflictIncidents.data, floodGauges.data, damStatus.data,
     waterGauges.data, waterRain.data, ewsStations.data,
+    air4thai.data, airQuality.data,
     southernRisk.data, southernRivers.data,
     watershedSummaries,
     floodMarks, wrfGrid.data,
@@ -1455,6 +1477,9 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
     "incidents-city-reports": cityReports.data.length,
     "datago-points":          datago.data.length,
     "air4thai-stations":      air4thai.data.length,
+    "air-heatmap":            air4thai.data.length + airQuality.data.length,
+    "water-heatmap":          waterGauges.data.length,
+    "water-gauges":           waterGauges.data.length,
     "gistda-pois":            gistdaPois.data.length,
     "gistda-solar":           gistdaSolar.data.length,
     "gistda-landuse":         gistdaLandUse.data.length,
@@ -1474,7 +1499,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
     campus, buildings, roads, transitStations, transitLines, civicPoints, waterways,
     fisheries, floodRisk, heritage, maritimePorts, maritimeFerries, maritimeNavAids,
     cctv.data, iticEvents.data, cityReports.data, datago.data,
-    air4thai.data, gistdaPois.data, gistdaSolar.data, gistdaLandUse.data, news.data,
+    air4thai.data, airQuality.data, gistdaPois.data, gistdaSolar.data, gistdaLandUse.data, news.data,
     ringRoads, riverBuffer, alphaLandcover, alphaFloodProne,
     conflictIncidents.data, floodGauges.data, damStatus.data, waterGauges.data,
     floodMarks, roadLevels,
@@ -1488,6 +1513,9 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
     "incidents-city-reports": { tier: cityReports.fallbackTier, note: cityReports.note },
     "datago-points":          { tier: datago.fallbackTier, note: datago.note },
     "air4thai-stations":      { tier: air4thai.fallbackTier, note: air4thai.note },
+    "air-heatmap":            { tier: air4thai.fallbackTier, note: air4thai.note },
+    "water-heatmap":          { tier: waterGauges.fallbackTier, note: waterGauges.note },
+    "water-gauges":           { tier: waterGauges.fallbackTier, note: waterGauges.note },
     "gistda-pois":            { tier: gistdaPois.fallbackTier, note: gistdaPois.note },
     "gistda-solar":           { tier: gistdaSolar.fallbackTier, note: gistdaSolar.note },
     "gistda-landuse":         { tier: gistdaLandUse.fallbackTier, note: gistdaLandUse.note },
@@ -1700,11 +1728,28 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
             />
           </CollapsibleSection>
         )}
-        <CollapsibleSection storageKey="air-quality" title="Air Quality" divided={true} defaultOpen={false}>
+        <CollapsibleSection storageKey="sensor-situation" title="Sensor Situation" divided={true} defaultOpen={true}>
+          <SensorSituationBoard
+            waterGauges={waterGauges.data}
+            rainfall={waterRain.data}
+            airStations={[...air4thai.data, ...airQuality.data]}
+            ageMinutes={waterGauges.data.length > 0 ? waterGauges.ageMinutes : air4thai.ageMinutes}
+            fallbackTier={
+              waterGauges.data.length > 0
+                ? (waterGauges.fallbackTier === "loading" ? undefined : waterGauges.fallbackTier)
+                : (air4thai.fallbackTier === "loading" ? undefined : air4thai.fallbackTier)
+            }
+            onFocus={(lng, lat) => flyTo(lng, lat, 12.5)}
+            onShowWaterHeat={() => onLensChange("flood")}
+            onShowAirHeat={() => onLensChange("environment")}
+          />
+        </CollapsibleSection>
+
+        <CollapsibleSection storageKey="air-quality" title="Air Quality · AirDash" divided={true} defaultOpen={false}>
           <AqiBadge trend={aqiTrend.data[0] ?? null} loading={aqiTrend.fallbackTier === "loading"} />
         </CollapsibleSection>
 
-        <CollapsibleSection storageKey="sensor-signals" title="Sensor Signals" divided={true} defaultOpen={true}>
+        <CollapsibleSection storageKey="sensor-signals" title="Sensor Signals" divided={true} defaultOpen={false}>
           <SensorInsightsPanel
             insights={sensorInsights}
             ageMinutes={waterGauges.ageMinutes}

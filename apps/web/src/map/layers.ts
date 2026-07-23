@@ -2533,6 +2533,130 @@ export function waterGaugesLayer(gauges: WaterGauge[]) {
   });
 }
 
+/**
+ * Water-level concentration heatmap — FloodDash intensity wash so operators
+ * see WHERE the network is stressing, not only discrete station dots.
+ * Weight = channel fullness (or situation level fallback).
+ */
+export function waterLevelHeatmapLayer(gauges: WaterGauge[]) {
+  return new HeatmapLayer<WaterGauge>({
+    id: "water-heatmap",
+    data: gauges,
+    getPosition: (g) => [g.lng, g.lat],
+    getWeight: (g) => {
+      if (g.fullnessPct != null && Number.isFinite(g.fullnessPct)) {
+        return Math.min(1, Math.max(0.05, g.fullnessPct / 120));
+      }
+      return Math.min(1, Math.max(0.08, g.situationLevel / 5));
+    },
+    radiusPixels: 52,
+    intensity: 1.35,
+    threshold: 0.03,
+    aggregation: "SUM",
+    colorRange: [
+      [3, 105, 161, 0],
+      [14, 165, 233, 110],
+      [56, 189, 248, 160],
+      [251, 191, 36, 200],
+      [249, 115, 22, 230],
+      [220, 38, 38, 255],
+    ],
+  });
+}
+
+/** Mobile-safe substitute when HeatmapLayer float textures fail to compile. */
+export function waterLevelDensityFallbackLayer(gauges: WaterGauge[]) {
+  return new ScatterplotLayer<WaterGauge>({
+    id: "water-heatmap",
+    data: gauges,
+    getPosition: (g) => [g.lng, g.lat],
+    getRadius: (g) => {
+      const w =
+        g.fullnessPct != null
+          ? Math.min(1, Math.max(0.05, g.fullnessPct / 120))
+          : Math.min(1, Math.max(0.08, g.situationLevel / 5));
+      return 40 + w * 160;
+    },
+    radiusMinPixels: 4,
+    radiusMaxPixels: 22,
+    getFillColor: (g) => {
+      const w =
+        g.fullnessPct != null
+          ? Math.min(1, Math.max(0.05, g.fullnessPct / 120))
+          : Math.min(1, Math.max(0.08, g.situationLevel / 5));
+      if (w >= 0.85) return [220, 38, 38, 170];
+      if (w >= 0.65) return [249, 115, 22, 150];
+      if (w >= 0.4) return [251, 191, 36, 130];
+      return [14, 165, 233, 110];
+    },
+    stroked: false,
+    pickable: false,
+  });
+}
+
+/**
+ * Air / PM2.5 concentration heatmap — AirDash field view over Air4Thai +
+ * AQICN points. Yellow→red Lichtenstein read: where the air is thick.
+ */
+export function airPm25HeatmapLayer(stations: AirQualityPoint[]) {
+  const data = stations.filter((s) => s.pm25 != null || s.aqi != null);
+  return new HeatmapLayer<AirQualityPoint>({
+    id: "air-heatmap",
+    data,
+    getPosition: (s) => [s.lng, s.lat],
+    getWeight: (s) => {
+      if (s.pm25 != null && Number.isFinite(s.pm25)) {
+        return Math.min(1, Math.max(0.05, s.pm25 / 150));
+      }
+      if (s.aqi != null && Number.isFinite(s.aqi)) {
+        return Math.min(1, Math.max(0.05, s.aqi / 200));
+      }
+      return 0;
+    },
+    radiusPixels: 64,
+    intensity: 1.25,
+    threshold: 0.04,
+    aggregation: "SUM",
+    colorRange: [
+      [34, 197, 94, 0],
+      [250, 204, 21, 120],
+      [249, 115, 22, 180],
+      [239, 68, 68, 220],
+      [127, 29, 29, 255],
+    ],
+  });
+}
+
+export function airPm25DensityFallbackLayer(stations: AirQualityPoint[]) {
+  const data = stations.filter((s) => s.pm25 != null || s.aqi != null);
+  return new ScatterplotLayer<AirQualityPoint>({
+    id: "air-heatmap",
+    data,
+    getPosition: (s) => [s.lng, s.lat],
+    getRadius: (s) => {
+      const w =
+        s.pm25 != null
+          ? Math.min(1, Math.max(0.05, s.pm25 / 150))
+          : s.aqi != null
+            ? Math.min(1, Math.max(0.05, s.aqi / 200))
+            : 0.1;
+      return 50 + w * 180;
+    },
+    radiusMinPixels: 5,
+    radiusMaxPixels: 26,
+    getFillColor: (s) => {
+      const v = s.pm25 ?? (s.aqi != null ? s.aqi * 0.6 : 0);
+      if (v > 150) return [127, 29, 29, 180];
+      if (v > 55) return [239, 68, 68, 160];
+      if (v > 35) return [249, 115, 22, 140];
+      if (v > 12) return [250, 204, 21, 130];
+      return [34, 197, 94, 100];
+    },
+    stroked: false,
+    pickable: false,
+  });
+}
+
 /** Rain telemetry: dot area grows with 24 h accumulation (FloodDash 2+√mm). */
 export function rainStationsLayer(stations: RainfallStation[]) {
   return new ScatterplotLayer<RainfallStation>({

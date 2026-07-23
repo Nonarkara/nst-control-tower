@@ -60,6 +60,9 @@ export type LayerId =
   | "tile3d-buildings"
   // Air quality
   | "air4thai-stations"
+  | "air-heatmap"
+  // Sensor concentration washes (FloodDash water · AirDash air)
+  | "water-heatmap"
   // GISTDA
   | "gistda-pois"
   | "gistda-solar"
@@ -176,6 +179,7 @@ export const LENSES: Lens[] = [
       "river-buffer",
       "waterways",
       "watershed-nodes",
+      "water-heatmap",
       "water-gauges",
       "rain-stations",
       "ews-stations",
@@ -219,6 +223,7 @@ export const LENSES: Lens[] = [
       "alphaearth-landcover",
       "flood-risk-zones",
       "waterways",
+      "air-heatmap",
       "air4thai-stations",
       "gistda-solar",
     ],
@@ -236,6 +241,7 @@ export const LENSES: Lens[] = [
       "satellite-esri",
       "satellite-ndvi",
       "waterways",
+      "air-heatmap",
       "air4thai-stations",
     ],
   },
@@ -435,7 +441,11 @@ export const ALL_LAYERS: {
     describe: "Hand-authored polygons of historical flood-prone areas (king-tide, storm-surge, drainage-backflow). Hover for severity + household count. Replace with municipal GIS when supplied." },
 
   { id: "air4thai-stations", label: "Air4Thai PCD stations",     swatch: "#22C55E", group: "environment",
-    describe: "Official Thai government air-quality monitors — PCD stations across Nakhon Si Thammarat province. Coloured by PM2.5, labelled with live national AQI. Public source, no key. Click a station for its readings." },
+    describe: "Official Thai government air-quality monitors — PCD stations across Nakhon Si Thammarat province. Coloured by PM2.5, labelled with live national AQI. Public source, no key. Click a station for its readings. AirDash station layer." },
+  { id: "air-heatmap",       label: "Air concentration (AirDash)", swatch: "#FACC15", group: "environment",
+    describe: "PM2.5 / AQI concentration heatmap over Air4Thai + AQICN points — AirDash field view. Shows where air quality thickens across the province, not just discrete station dots." },
+  { id: "water-heatmap",     label: "Water concentration (FloodDash)", swatch: "#0EA5E9", group: "environment",
+    describe: "Water-level concentration heatmap weighted by channel fullness / situation level — FloodDash intensity wash so operators see WHERE the gauge network is stressing." },
 
   // ─── GISTDA ────────────────────────────────────────────────────────────
   { id: "gistda-pois",       label: "GISTDA POI Digital Twin",   swatch: "#F59E0B", group: "open-data",

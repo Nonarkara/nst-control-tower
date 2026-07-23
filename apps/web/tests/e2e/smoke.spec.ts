@@ -433,13 +433,16 @@ test.describe("WATER BALANCE — basin ledger + Flood Ops board", () => {
   });
 });
 
-test.describe("SENSOR SIGNALS — insight cards + sensor dot layers", () => {
-  test("panel renders and rail sections default collapsed", async ({ page }) => {
+test.describe("SENSOR SITUATION — FloodDash + AirDash board", () => {
+  test("situation board renders with Dr.Non attribution", async ({ page }) => {
     await page.goto("/");
     await expect(page.locator(".map-host")).toBeVisible({ timeout: 20_000 });
 
-    // Insight panel mounts at the top of the rail
-    await expect(page.getByText(/^SENSOR SIGNALS$/).first()).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText(/^SENSOR SITUATION$/).first()).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText(/Powered by/i).first()).toBeVisible();
+    await expect(page.getByText(/FloodDash/i).first()).toBeVisible();
+    await expect(page.getByText(/AirDash/i).first()).toBeVisible();
+    await expect(page.getByText(/Dr\.Non/i).first()).toBeVisible();
 
     // Non-critical sections start collapsed (chevron ▸, aria-expanded=false)
     const floodAnalysis = page.locator('.sidebar-section__hdr:has-text("Flood Analysis")');

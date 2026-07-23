@@ -80,7 +80,7 @@ export function AqiBadge({ trend, loading }: Props) {
       <div className="aqi-bar" />
       <div className="aqi-readout">
         <div className="aqi-head">
-          <span className="eyebrow mono">AIR QUALITY · US AQI</span>
+          <span className="eyebrow mono">AIRDASH · US AQI</span>
           <span className="aqi-band mono">{band.label}</span>
         </div>
         <div className="aqi-row">
@@ -110,6 +110,9 @@ export function AqiBadge({ trend, loading }: Props) {
           <span className="caption mono">{fmtHour(trend.current.observedAt)}</span>
         </div>
         <div className="aqi-advice">{band.advice}</div>
+        <div className="caption mono" style={{ color: "var(--ink-low)", marginTop: 4 }}>
+          Powered by AirDash by Dr.Non
+        </div>
       </div>
     </section>
   );

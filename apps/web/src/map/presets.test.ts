@@ -181,6 +181,14 @@ describe("LENSES", () => {
     expect(flood!.layers).toContain("flood-gauges");
     expect(flood!.layers).toContain("dam-status");
     expect(flood!.layers).toContain("flood-risk-zones");
+    expect(flood!.layers).toContain("water-heatmap");
+  });
+
+  it("environment lens includes AirDash concentration heatmap", () => {
+    const env = LENSES.find((l) => l.id === "environment");
+    expect(env).toBeDefined();
+    expect(env!.layers).toContain("air-heatmap");
+    expect(env!.layers).toContain("air4thai-stations");
   });
 
   it("every lens references municipality-boundary-line or municipality-boundary", () => {

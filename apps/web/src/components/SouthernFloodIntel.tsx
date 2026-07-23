@@ -80,7 +80,7 @@ export function SouthernFloodIntel({ risk, rivers, ageMinutes, fallbackTier }: P
         title="SOUTHERN FLOOD INTEL"
         ageMinutes={ageMinutes}
         fallbackTier={fallbackTier}
-        source="flooddash-south-risk · flooddash-south-rivers"
+        source="flooddash · dr.non"
       />
 
       {!hasData && (

@@ -87,6 +87,7 @@ export function SensorInsightsPanel({ insights, ageMinutes, fallbackTier, onFocu
       )}
       <div className="eyebrow mono" style={{ color: "var(--ink-low)", marginTop: 4 }}>
         สัญญาณจากโทรมาตรจริง — ไม่ใช่การพยากรณ์ · เกณฑ์: กรมอุตุฯ/HII/DWR
+        {" · "}Powered by FloodDash by Dr.Non
       </div>
     </div>
   );
