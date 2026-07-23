@@ -159,8 +159,8 @@ export const climateModule: AtlasModule = {
       title: "Flood disasters: households affected (thousands)",
       unit: "thousands of households",
       data: [
-        { name: "2016–17", value: 45, color: "var(--gold)" },
-        { name: "2022", value: 9.8, color: "var(--gold)" },
+        { name: "2016–17", value: 45, color: "var(--warn)" },
+        { name: "2022", value: 9.8, color: "var(--warn)" },
         { name: "2024", value: 28, color: "#fb923c" },
         { name: "2025", value: 223.2, color: "var(--bad)" },
       ],

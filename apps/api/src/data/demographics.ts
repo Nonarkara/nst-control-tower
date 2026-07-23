@@ -134,7 +134,7 @@ export const demographicsModule: AtlasModule = {
       data: [
         { name: "Children 0–18", value: 250000, color: "var(--good)" },
         { name: "Working age 19–59", value: 1088000, color: "var(--accent)" },
-        { name: "Elderly 60+", value: 207000, color: "var(--gold)" },
+        { name: "Elderly 60+", value: 207000, color: "var(--warn)" },
       ],
       note: "DOPA 2022 / NSO Elder Analysis. Out-migration of working-age adults accelerates aging ratio.",
     },

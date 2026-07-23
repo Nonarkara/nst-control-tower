@@ -34,7 +34,7 @@ function num(v: number | string): number | null {
 }
 
 /** Build an insight from a critical/alert indicator. */
-function fromIndicator(mod: AtlasModule, ind: Indicator): Insight | null {
+function fromIndicator(mod: AtlasModule, ind: Indicator, now: string): Insight | null {
   if (ind.status !== "critical" && ind.status !== "alert") return null;
   const sev: InsightSeverity = ind.status;
   const evidence: string[] = [`${ind.label}: ${ind.value}${ind.unit ? " " + ind.unit : ""} (${ind.source}${ind.year ? ", " + ind.year : ""})`];
@@ -49,7 +49,7 @@ function fromIndicator(mod: AtlasModule, ind: Indicator): Insight | null {
   if (ind.note) evidence.push(ind.note);
   return {
     id: `ins-${mod.id}-${ind.id}`,
-    ts: "2026-06-17T00:00:00.000Z",
+    ts: now,
     severity: sev,
     domain: mod.title,
     title: `${ind.label} needs attention`,
@@ -66,7 +66,7 @@ export function computeInsights(now = "2026-06-17T00:00:00.000Z"): InsightDigest
   const insights: Insight[] = [];
   for (const mod of ATLAS_MODULES) {
     for (const ind of mod.indicators) {
-      const ins = fromIndicator(mod, ind);
+      const ins = fromIndicator(mod, ind, now);
       if (ins) insights.push(ins);
     }
   }

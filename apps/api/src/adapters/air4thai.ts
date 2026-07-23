@@ -80,7 +80,16 @@ function pm25Category(pm25: number | null): AirQualityPoint["category"] {
 
 function inNstProvince(s: Air4ThaiStation, lng: number, lat: number): boolean {
   const area = `${s.areaEN ?? ""} ${s.areaTH ?? ""} ${s.nameEN ?? ""} ${s.nameTH ?? ""}`.toLowerCase();
-  if (area.includes("นครศรีธรรมราช") || area.includes("nakhon si thammarat") || area.includes("nakhon")) return true;
+  // Match the full province name only — a bare "nakhon" would also swallow
+  // Nakhon Ratchasima / Nakhon Pathom / Nakhon Sawan / Nakhon Nayok stations,
+  // hundreds of km outside the NST viewport.
+  if (
+    area.includes("นครศรีธรรมราช") ||
+    area.includes("nakhon si thammarat") ||
+    area.includes("nakhon sri thammarat")
+  ) {
+    return true;
+  }
   return inBbox(lng, lat);
 }
 

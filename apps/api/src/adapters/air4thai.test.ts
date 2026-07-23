@@ -40,6 +40,17 @@ const BANGKOK_STATION = {
   AQILast: { date: "2026-05-30", time: "14:00", PM25: { value: "13.2" }, AQI: { aqi: "22" } },
 };
 
+// Same "Nakhon …" prefix, wrong province — must be dropped by the name filter.
+const KORAT_STATION = {
+  stationID: "30t",
+  nameEN: "Korat City Monitor",
+  areaEN: "Nai Mueang, Mueang, Nakhon Ratchasima",
+  areaTH: "ต.ในเมือง อ.เมือง, นครราชสีมา",
+  lat: "14.9799",
+  long: "102.0977",
+  AQILast: { date: "2026-05-30", time: "14:00", PM25: { value: "41.0" }, AQI: { aqi: "95" } },
+};
+
 describe("air4thai adapter (Thai PCD)", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
@@ -54,6 +65,7 @@ describe("air4thai adapter (Thai PCD)", () => {
         stations: [
           makeStation(),
           BANGKOK_STATION,
+          KORAT_STATION,
           makeStation({
             stationID: "81t",
             nameEN: "Sichon District Office",
@@ -72,9 +84,10 @@ describe("air4thai adapter (Thai PCD)", () => {
     const feed = await fetchAir4Thai();
 
     expect(capturedUrl).toContain("air4thai.pcd.go.th");
-    // Bangkok station dropped; two NST stations kept.
+    // Bangkok + Nakhon Ratchasima (wrong "Nakhon …" province) dropped; two NST stations kept.
     expect(feed.features).toHaveLength(2);
     expect(feed.features.every((f) => f.station.length > 0)).toBe(true);
+    expect(feed.features.some((f) => f.source === "air4thai:30t")).toBe(false);
   });
 
   it("returns a live NormalizedFeed with EPA-banded categories", async () => {

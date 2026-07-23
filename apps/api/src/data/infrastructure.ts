@@ -155,7 +155,7 @@ export const infrastructureModule: AtlasModule = {
         { name: "Civic POIs mapped", value: 1352, color: "var(--accent)" },
         { name: "Buildings (3D twin)", value: 1927, color: "var(--data)" },
         { name: "Water gauges (ThaiWater)", value: 26, color: "var(--good)" },
-        { name: "EWS flash-flood stations", value: 86, color: "var(--gold)" },
+        { name: "EWS flash-flood stations", value: 86, color: "var(--warn)" },
       ],
       note: "City digital-twin coverage. All layers rendered live on the NST Control Tower.",
     },

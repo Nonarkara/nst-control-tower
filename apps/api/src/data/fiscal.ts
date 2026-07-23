@@ -100,7 +100,7 @@ export const fiscalModule: AtlasModule = {
         { name: "Maharaj Hospital allocation", value: 2800, color: "var(--good)" },
         { name: "Flood reconstruction 2025 (est.)", value: 1200, color: "var(--bad)" },
         { name: "Municipal road & drainage", value: 150, color: "var(--accent)" },
-        { name: "DEPA Smart City grant", value: 45, color: "var(--gold)" },
+        { name: "DEPA Smart City grant", value: 45, color: "var(--warn)" },
       ],
       note: "Actual e-LAAS municipal budget figures pending DLA integration. MOPH Maharaj allocation 2024; reconstruction from DDPM/NDPF estimates.",
     },

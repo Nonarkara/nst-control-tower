@@ -141,7 +141,7 @@ export const economyModule: AtlasModule = {
       series: [
         {
           name: "Visitors",
-          color: "var(--gold)",
+          color: "var(--warn)",
           points: [
             { x: 2015, y: 2.5 },
             { x: 2016, y: 2.8 },
@@ -164,7 +164,7 @@ export const economyModule: AtlasModule = {
       unit: "ha",
       data: [
         { name: "Rubber plantation", value: 243292, color: "var(--accent)" },
-        { name: "Oil palm", value: 48000, color: "var(--gold)" },
+        { name: "Oil palm", value: 48000, color: "var(--warn)" },
         { name: "Rice paddies", value: 28500, color: "var(--good)" },
         { name: "Durian orchards", value: 18000 },
         { name: "Coconut plantations", value: 12000 },

@@ -40,6 +40,9 @@ async function synthesize(question: string, citations: SearchResult[], apiKey: s
     const res = await fetch(`${GEMINI_URL}?key=${apiKey}`, {
       method: "POST",
       headers: { "content-type": "application/json" },
+      // No timeout here once left a hung Gemini call pinning the whole
+      // concierge request indefinitely — every upstream fetch must abort.
+      signal: AbortSignal.timeout(20_000),
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
         generationConfig: { temperature: 0.2, maxOutputTokens: 600 },
@@ -75,7 +78,9 @@ export async function askConcierge(question: string, env: { GEMINI_API_KEY?: str
     usedLLM,
     meta: {
       source: usedLLM ? "gemini+retrieval" : "retrieval",
-      fetchedAt: "2026-06-17T00:00:00.000Z",
+      // Was a hardcoded "2026-06-17" placeholder — ageMinutes must describe
+      // THIS response, not a fixture date from the original Yala fork.
+      fetchedAt: new Date().toISOString(),
       ageMinutes: 0,
       fallbackTier: usedLLM ? "live" : "reference",
       note: usedLLM ? undefined : "Retrieval-only — set GEMINI_API_KEY to enable synthesized answers.",

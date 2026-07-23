@@ -115,7 +115,7 @@ export const securityModule: AtlasModule = {
       unit: "events declared",
       data: [
         { name: "1990s", value: 2, color: "var(--accent)" },
-        { name: "2000s", value: 3, color: "var(--gold)" },
+        { name: "2000s", value: 3, color: "var(--warn)" },
         { name: "2010s", value: 5, color: "#fb923c" },
         { name: "2020s (partial)", value: 3, color: "var(--bad)" },
       ],
