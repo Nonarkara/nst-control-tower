@@ -469,7 +469,9 @@ app.get("/api/academy/:lesson", (c) => {
 });
 app.get("/api/glossary", (c) => c.json({ terms: GLOSSARY, count: GLOSSARY.length }));
 app.get("/api/dictionary", (c) => c.json({ entries: DATA_DICTIONARY, count: DATA_DICTIONARY.length }));
-app.get("/api/insights", (c) => c.json(computeInsights()));
+// Pass a real timestamp so each insight's `ts` reflects when it was computed,
+// not the 2026-06-17 Yala-fork fixture that was the default.
+app.get("/api/insights", (c) => c.json(computeInsights(new Date().toISOString())));
 app.get("/api/archive", async (c) => {
   const metrics = c.req.query("metrics");
   return c.json(await readArchive(metrics ? metrics.split(",") : undefined));
