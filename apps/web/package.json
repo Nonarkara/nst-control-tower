@@ -14,7 +14,6 @@
     "deploy": "wrangler pages deploy dist --project-name nst-control-tower"
   },
   "dependencies": {
-    "@nst/shared": "workspace:*",
     "@deck.gl/aggregation-layers": "^9.2.11",
     "@deck.gl/core": "^9.2.11",
     "@deck.gl/geo-layers": "^9.2.11",
@@ -24,6 +23,7 @@
     "@fontsource/ibm-plex-sans-thai": "^5.2.8",
     "@fontsource/inter": "^5.2.8",
     "@loaders.gl/3d-tiles": "^4.4.2",
+    "@nst/shared": "workspace:*",
     "maplibre-gl": "^5.7.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",

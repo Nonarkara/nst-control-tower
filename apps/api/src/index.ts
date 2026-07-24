@@ -441,6 +441,43 @@ app.get("/api/streetview", async (c) => {
   return c.body(await upstream.arrayBuffer());
 });
 
+// WAQI / AQICN air-quality tile proxy — streams the US-EPA-AQI raster so the
+// AQICN token stays server-side (never in a client tile URL). This is the
+// AirDash "field" overlay: where the air thickens across the province. A 1×1
+// transparent PNG is returned when the token is unset so the map degrades
+// silently instead of 404-flooding the console.
+const TRANSPARENT_PNG = Uint8Array.from([
+  0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52,
+  0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x08, 0x06, 0x00, 0x00, 0x00, 0x1f, 0x15, 0xc4,
+  0x89, 0x00, 0x00, 0x00, 0x0a, 0x49, 0x44, 0x41, 0x54, 0x78, 0x9c, 0x63, 0x00, 0x01, 0x00, 0x00,
+  0x05, 0x00, 0x01, 0x0d, 0x0a, 0x2d, 0xb4, 0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4e, 0x44, 0xae,
+  0x42, 0x60, 0x82,
+]);
+app.get("/api/air/waqi/:z/:x/:y", async (c) => {
+  const token = c.env.AQICN_TOKEN;
+  const clear = () => {
+    c.header("Content-Type", "image/png");
+    c.header("Cache-Control", "public, max-age=300");
+    return c.body(TRANSPARENT_PNG.buffer as ArrayBuffer);
+  };
+  if (!token) return clear();
+  const z = Number.parseInt(c.req.param("z"), 10);
+  const x = Number.parseInt(c.req.param("x"), 10);
+  // strip any .png suffix a tile client may append to {y}
+  const y = Number.parseInt(String(c.req.param("y")).replace(/\.png$/, ""), 10);
+  if (![z, x, y].every(Number.isFinite)) return c.json({ error: "bad tile coords" }, 400);
+  const url = `https://tiles.waqi.info/tiles/usepa-aqi/${z}/${x}/${y}.png?token=${encodeURIComponent(token)}`;
+  try {
+    const upstream = await fetch(url, { signal: AbortSignal.timeout(12_000) });
+    if (!upstream.ok) return clear();
+    c.header("Content-Type", upstream.headers.get("content-type") ?? "image/png");
+    c.header("Cache-Control", "public, max-age=600");
+    return c.body(await upstream.arrayBuffer());
+  } catch {
+    return clear();
+  }
+});
+
 // ── NST Data Atlas — static outcome-data layer from the Municipal Data Bible ──
 app.get("/api/atlas", (c) => {
   const snap = buildAtlasSnapshot();

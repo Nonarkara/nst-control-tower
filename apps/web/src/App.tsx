@@ -4,7 +4,7 @@ import type { Layer, ControllerProps } from "@deck.gl/core";
 import { FlyToInterpolator, LinearInterpolator } from "@deck.gl/core";
 import { Map as MapLibreMap } from "react-map-gl/maplibre";
 import maplibregl from "maplibre-gl";
-import type { FeatureCollection, LineString, Point, Polygon, MultiPolygon } from "geojson";
+import type { Feature, FeatureCollection, LineString, Point, Polygon, MultiPolygon } from "geojson";
 import { CHONBURI } from "@nst/shared";
 import type {
   AcademicSnapshot,
@@ -52,6 +52,12 @@ import {
   devicePresenceLayer,
   himawariInfraredLayer,
   openTopoTerrainLayer,
+  terrain3dLayer,
+  type TerrainGrid,
+  waqiAirFieldLayer,
+  prepareWaterwayFlows,
+  waterwayFlowDots,
+  waterwayFlowLayer,
   esriSatelliteLayer,
   gibsLayer,
   googleTilesLayer,
@@ -185,6 +191,8 @@ import { buildSensorInsights } from "./lib/sensorInsights";
 import { SensorInsightsPanel } from "./components/SensorInsightsPanel";
 import { SensorSituationBoard } from "./components/SensorSituationBoard";
 import { useFlowAnimation } from "./map/useFlowAnimation";
+import { useRainRadar } from "./map/useRainRadar";
+import { useWaterwayFlow } from "./map/useWaterwayFlow";
 import type { NasaEarthReadings, FacebookPost } from "@nst/shared";
 import { useDevicePresence } from "./hooks/useDevicePresence";
 import { useIsMobile } from "./hooks/useMediaQuery";
@@ -211,7 +219,7 @@ const GIBS_LAYERS: Array<{
   { id: "satellite-true-color",         product: "MODIS_Terra_CorrectedReflectance_TrueColor",    level: 9, format: "jpg", opacity: 0.85 },
   { id: "satellite-viirs-truecolor",     product: "VIIRS_NOAA20_CorrectedReflectance_TrueColor",   level: 9, format: "jpg", opacity: 0.85 },
   { id: "satellite-night",               product: "VIIRS_SNPP_DayNightBand_ENCC",                  level: 8, format: "png", opacity: 0.85 },
-  { id: "satellite-imerg",               product: "IMERG_Precipitation_Rate",                      level: 6, format: "png", opacity: 0.75 },
+  { id: "satellite-imerg",               product: "IMERG_Precipitation_Rate_30min",                level: 6, format: "png", opacity: 0.75 },
   { id: "satellite-ndvi",                product: "MODIS_Terra_NDVI_8Day",                         level: 9, format: "png", opacity: 0.70 },
   { id: "satellite-lst",                 product: "MODIS_Terra_Land_Surface_Temp_Day",             level: 7, format: "png", opacity: 0.70 },
   { id: "satellite-aerosol",             product: "MODIS_Combined_Value_Added_AOD",                level: 7, format: "png", opacity: 0.70 },
@@ -343,6 +351,16 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
   const buildings = useGeoJson<FeatureCollection<Polygon | MultiPolygon, BuildingProperties>>(
     "/geo/nst/buildings.geojson",
   );
+  // Coarse province elevation grid for the extruded 3D terrain (Khao Luang).
+  const [terrainGrid, setTerrainGrid] = useState<TerrainGrid | null>(null);
+  useEffect(() => {
+    let alive = true;
+    fetch("/geo/nst/terrain-grid.json")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((g: TerrainGrid | null) => { if (alive && g?.cells?.length) setTerrainGrid(g); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, []);
   // surrounding-buildings, bangkok-districts, flood-prone-areas removed —
   // all three files contain Chula/Bangkok coordinates and are invisible in
   // the Chonburi viewport. Use chonburi-flood-risk.geojson for flood zones.
@@ -660,6 +678,14 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
         const nm = pick("name:en", "name", "name:th") ?? wt;
         title = nm;
         sub = wt.toUpperCase() + (pick("intermittent") === "yes" ? " · intermittent" : "");
+        // Flow enrichment (scripts/enrich-nst-waterways.mjs): direction + speed.
+        const fclass = (p as { flowClass?: string }).flowClass;
+        if (fclass) {
+          const slope = num("slopePct");
+          const confident = (p as { downhillConfident?: boolean }).downhillConfident;
+          lines.push(`flow ${fclass.toUpperCase()}${slope != null ? ` · slope ${slope.toFixed(2)}%` : ""}`);
+          lines.push(confident ? "direction: downhill (DEM), MODELLED speed" : "direction: uncertain (near-flat) — MODELLED");
+        }
         break;
       }
       case "datago-points":
@@ -1202,6 +1228,33 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
     color: thaDeeFlowColor,
   });
 
+  // ALL-waterways flow (direction + speed). Prepared once per data/gauge change
+  // (the expensive geometry digest), then animated by useWaterwayFlow into ONE
+  // layer appended in allLayers. Gauged Tha Dee reaches take the live cascade
+  // color; the modelled majority is coloured by slope class inside the builder.
+  const waterwayFlowEnabled = enabledLayers.has("waterway-flow");
+  const preparedFlows = useMemo(() => {
+    if (!waterwayFlowEnabled || !waterways?.features?.length) return [];
+    const thaDeeColor = thaDeeFlowColor;
+    return prepareWaterwayFlows(
+      waterways.features as unknown as Feature<LineString, { waterway?: string; name?: string | null; nameTh?: string | null; flowClass?: "slow" | "medium" | "fast"; slopePct?: number; downhillConfident?: boolean }>[],
+      (f) => {
+        const name = `${f.properties.name ?? ""}${f.properties.nameTh ?? ""}`;
+        // Tha Dee trunk: colour by the live cascade status, speed up when in flood.
+        if (name.includes("ท่าดี") || /tha\s*dee/i.test(name)) {
+          const worst = worstStatus(watershedSummaries.filter(isThaDeeZone));
+          const speed = worst === "flood" ? 2.2 : worst === "high" ? 1.6 : 1.1;
+          return { speed, color: thaDeeColor };
+        }
+        return null;
+      },
+    );
+  }, [waterwayFlowEnabled, waterways, thaDeeFlowColor, watershedSummaries]);
+  const waterwayFlow = useWaterwayFlow(preparedFlows, waterwayFlowEnabled);
+
+  // RainViewer live radar nowcast (animated precipitation).
+  const rainRadar = useRainRadar(enabledLayers.has("precip-radar"));
+
   // Google Map Tiles sessions — minted lazily when the layer is first enabled.
   const googleSatSession = useGoogleTileSession("satellite", enabledLayers.has("google-satellite"));
   const googleTrafficSession = useGoogleTileSession("traffic", enabledLayers.has("google-traffic"));
@@ -1235,8 +1288,12 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
     // don't paint in this <DeckGL><Map> setup (verified: 0 tile requests), so
     // the proven deck.gl pattern (terrain/himawari) is used for every raster.
     if (enabledLayers.has("satellite-terrain")) out.push(openTopoTerrainLayer(0.6) as Layer);
+    // 3D topographic relief (Khao Luang) — extruded elevation grid.
+    if (enabledLayers.has("terrain-3d") && terrainGrid) out.push(terrain3dLayer(terrainGrid, 6) as Layer);
     if (enabledLayers.has("satellite-himawari")) out.push(himawariInfraredLayer(0.55) as Layer);
     if (enabledLayers.has("satellite-esri")) out.push(esriSatelliteLayer(1) as Layer);
+    // AirDash air-quality field (WAQI raster, token proxied through the API).
+    if (enabledLayers.has("air-waqi-field")) out.push(waqiAirFieldLayer(API_BASE, 0.55) as Layer);
     for (const g of GIBS_LAYERS) {
       if (enabledLayers.has(g.id as LayerId))
         out.push(gibsLayer(g.product, undefined, g.opacity, { format: g.format, level: g.level as 6 | 7 | 8 | 9 }) as Layer);
@@ -1421,7 +1478,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
     watershedSummaries,
     floodMarks, wrfGrid.data,
     presence.lng, presence.lat, presence.accuracyM,
-    tile3d.layer, gpuHeatmapOk,
+    tile3d.layer, gpuHeatmapOk, terrainGrid,
     googleSatSession, googleTrafficSession,
   ]);
 
@@ -1442,15 +1499,20 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
   // ONLY work their updates cost — the ~30 builder calls above never re-run
   // for a slider tick or an animation frame.
   const allLayers = useMemo<Layer[]>(() => {
-    // flowAnim.layer is already null whenever watershed-nodes is disabled —
-    // the hook owns that gate.
-    if (!streetFloodSimLayer && !flowAnim.layer) return layers;
+    // Each animated/hook layer is already null when its layer is disabled —
+    // the hooks own those gates. Rain radar sits under the vectors; the flow
+    // dot clouds sit on top.
+    const radar = rainRadar.layer as Layer | null;
+    const wwFlow = waterwayFlow.layer as Layer | null;
+    if (!streetFloodSimLayer && !flowAnim.layer && !radar && !wwFlow) return layers;
     return [
+      ...(radar ? [radar] : []),
       ...(streetFloodSimLayer ? [streetFloodSimLayer] : []),
       ...layers,
+      ...(wwFlow ? [wwFlow] : []),
       ...(flowAnim.layer ? [flowAnim.layer as Layer] : []),
     ];
-  }, [layers, streetFloodSimLayer, flowAnim.layer]);
+  }, [layers, streetFloodSimLayer, flowAnim.layer, rainRadar.layer, waterwayFlow.layer]);
 
   // Feature counts — passed to LayerPalette so every toggle shows a number,
   // making it immediately obvious whether the layer has data or not.

@@ -113,7 +113,11 @@ export type LayerId =
   | "heritage-temple-spires"
   | "water-gauges"
   | "rain-stations"
-  | "ews-stations";
+  | "ews-stations"
+  | "terrain-3d"
+  | "waterway-flow"
+  | "precip-radar"
+  | "air-waqi-field";
 
 export type MapViewState =
   | { kind: "lens"; lensId: LensId }
@@ -178,6 +182,7 @@ export const LENSES: Lens[] = [
       "satellite-esri",
       "river-buffer",
       "waterways",
+      "waterway-flow",
       "watershed-nodes",
       "water-heatmap",
       "water-gauges",
@@ -215,7 +220,7 @@ export const LENSES: Lens[] = [
   {
     id: "environment",
     label: "ENV",
-    describe: "Environment — Esri high-res satellite, flood-risk polygons, waterways, AlphaEarth land cover (rubber/oil-palm vs forest), air-quality stations, solar rooftop potential. Opt into MODIS NDVI/LST/AOD when zoomed out.",
+    describe: "Environment — Esri high-res satellite, flood-risk polygons, waterways with live flow direction, AlphaEarth land cover (rubber/oil-palm vs forest), the AirDash air-quality field + stations, solar rooftop potential. Opt into MODIS NDVI/LST/AOD when zoomed out.",
     layers: [
       "municipality-boundary-line",
       "municipality-buildings",
@@ -223,6 +228,8 @@ export const LENSES: Lens[] = [
       "alphaearth-landcover",
       "flood-risk-zones",
       "waterways",
+      "waterway-flow",
+      "air-waqi-field",
       "air-heatmap",
       "air4thai-stations",
       "gistda-solar",
@@ -231,17 +238,15 @@ export const LENSES: Lens[] = [
   {
     id: "earth",
     label: "EAR",
-    describe: "EarthAlpha — earth-observation lens for rain, flood, heat, haze, greenery, land use, waterways, and AlphaEarth embeddings around Nakhon Si Thammarat, the Khao Luang massif, and the Pak Phanang basin.",
-    // One base (Esri) + ONE colorizer (NDVI greenery) by default. The other
-    // earth-obs overlays (rain, heat, haze, NO₂, land cover) are one tap away in
-    // the Imagery group and swap in cleanly — never five rasters at once.
+    describe: "EarthAlpha — earth-observation lens for rain, flood, heat, haze, greenery, land use, waterways, terrain relief, and AlphaEarth embeddings around Nakhon Si Thammarat, the Khao Luang massif, and the Pak Phanang basin.",
+    // 3D terrain relief as the base (the massif is the whole story here) + ONE
+    // colorizer (NDVI greenery) by default. Rain radar, IMERG, heat, haze, NO₂,
+    // land cover are one tap away in the Imagery group and swap in cleanly.
     layers: [
       "municipality-boundary-line",
-      "municipality-buildings",
-      "satellite-esri",
-      "satellite-ndvi",
+      "terrain-3d",
       "waterways",
-      "air-heatmap",
+      "waterway-flow",
       "air4thai-stations",
     ],
   },
@@ -299,6 +304,7 @@ export const SATELLITE_BASE_LAYERS: LayerId[] = [
   "satellite-night",
   "satellite-himawari",
   "satellite-terrain",
+  "terrain-3d",
 ];
 
 /** Full-area data overlays that colour the whole map. Pick at most one. */
@@ -389,8 +395,8 @@ export const ALL_LAYERS: {
   // ─── Municipality ──────────────────────────────────────────────────────
   { id: "municipality-boundary",  label: "Municipal boundary",        swatch: "#0EA5E9", group: "municipality",
     describe: "Nakhon Si Thammarat City Municipality boundary (เทศบาลนครนครศรีธรรมราช)." },
-  { id: "municipality-buildings", label: "Buildings (OSM + MS, 3D)",  swatch: "#0EA5E9", group: "municipality",
-    describe: "20,877 building footprints — OSM/Bing named landmarks (hospitals, temples, hotels) plus Microsoft Building Footprints for the full fabric. Height from levels tag or 2-storey default. Colour-coded by type in 3D." },
+  { id: "municipality-buildings", label: "Buildings (OSM, 3D by type)",  swatch: "#0EA5E9", group: "municipality",
+    describe: "OSM building footprints across the municipality, extruded in 3D and colour-coded by category: temples gold, schools violet, government sky-blue, markets/malls amber, hospitals red. Types come from OSM tags plus a spatial join of civic POIs; untyped footprints stay neutral. Height from the levels tag or a per-type default." },
   { id: "tile3d-buildings",       label: "Photorealistic 3D (Google)", swatch: "#7DD3FC", group: "municipality",
     describe: "Google Photorealistic 3D Tiles — real textured city mesh streamed via deck.gl. Full coverage over Bangkok and major metros; provincial towns may show coarse terrain only. Requires a Google Maps key." },
 
@@ -435,6 +441,8 @@ export const ALL_LAYERS: {
     describe: "Hospitals (✚ red) · clinics (pink) · schools (🅢 violet) · police (P cyan) · fire stations (🜂 orange) · government (cerulean) · temples (卐 gold) · markets (▦ green) · post offices · substations · water works. Hover for name. From OSM province-wide." },
   { id: "waterways",         label: "Canals + rivers + drains",  swatch: "#0EA5E9", group: "municipality",
     describe: "Hydrology network: rivers (sky blue, thick), canals (cerulean, medium), streams (pale sky, thin), drains/ditches (teal). Critical for flood-prevention planning + identifying drainage backbone. Line style is an ordinal proxy for conveyance capacity (river > canal > stream > drain/ditch) derived from OSM classification only — no width/condition/capacity survey data exists for these segments; treat as illustrative, not measured throughput." },
+  { id: "waterway-flow",     label: "Water flow (direction + speed)", swatch: "#38BDF8", group: "environment",
+    describe: "Animated dots showing which way water flows and roughly how fast on every waterway. Direction is oriented downhill from a DEM; speed (blue=slow → cyan → white=fast) is MODELLED from channel slope × type for ungauged reaches and driven by live discharge at gauged trunk reaches (Tha Dee). A directional cue, not a hydraulic routing result." },
   { id: "fisheries",         label: "Fishing + aquaculture zones", swatch: "#FBBF24", group: "maritime",
     describe: "Coastal fishing economy: Pak Phanang basin · Gulf of Thailand artisanal · Sichon coast · Tha Sala fishing piers · NST province aquaculture zones. Click for boat count + yield." },
   { id: "flood-risk-zones",  label: "Coastal flood-risk zones",   swatch: "#EF4444", group: "environment",
@@ -513,6 +521,12 @@ export const ALL_LAYERS: {
     describe: "Google real-time traffic overlay (Map Tiles API). Dense over Bangkok and major corridors; provincial roads may show little flow data. Requires a Google Maps key." },
   { id: "satellite-terrain", label: "OpenTopoMap (zoom < 14)",  swatch: "#A3E635", group: "imagery",
     describe: "OpenTopoMap with contour lines and hillshade. Useful at regional zoom." },
+  { id: "terrain-3d",        label: "3D Terrain (Khao Luang)",  swatch: "#65A30D", group: "imagery",
+    describe: "True 3-D topographic relief — an extruded elevation grid (Open-Meteo ~90 m DEM) of the Khao Luang massif (1,835 m) rising over the coastal lowland, coloured green→brown→grey by height. Reads best at province zoom under pitch. Vertical relief is exaggerated ~6× so the mountains are legible at map scale." },
+  { id: "precip-radar",      label: "Rain radar (live nowcast)", swatch: "#22D3EE", group: "imagery",
+    describe: "RainViewer live weather radar — animated past + short-range forecast frames, the 'where is it raining right now' layer. Complements IMERG (satellite rain-rate estimate) and Himawari (storm clouds). Public, no key." },
+  { id: "air-waqi-field",    label: "Air quality field (AirDash)", swatch: "#FB923C", group: "environment",
+    describe: "WAQI / AQICN US-EPA-AQI raster field — the AirDash overlay showing where air quality thickens across the province (traffic corridors, burning season), not just discrete station dots. Proxied through the API so the token stays server-side." },
   { id: "satellite-viirs-truecolor", label: "VIIRS true-color", swatch: "#A5F3FC", group: "imagery",
     describe: "VIIRS NOAA-20 corrected reflectance — daily, sharper than MODIS." },
   { id: "satellite-night",   label: "VIIRS night lights",       swatch: "#FACC15", group: "imagery",
@@ -566,4 +580,9 @@ export const COMPUTED_LAYERS: ReadonlySet<LayerId> = new Set<LayerId>([
   "satellite-terrain",
   "satellite-himawari",
   "satellite-imerg",
+  // New raster / animated / decorative layers
+  "terrain-3d",
+  "precip-radar",
+  "air-waqi-field",
+  "waterway-flow", // animated dot cloud — a count badge would be meaningless
 ]);

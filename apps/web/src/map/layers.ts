@@ -1231,6 +1231,123 @@ export function googleTilesLayer(tileUrlTemplate: string, opacity = 1, id = "goo
 }
 
 /** OpenTopoMap terrain — for elevation/contour context. Lower max zoom (17). */
+// True-3D topographic terrain of the Khao Luang massif, as an EXTRUDED grid.
+// deck.gl's TerrainLayer does not composite in this DeckGL-as-camera / MapLibre-
+// basemap setup (renders nothing), but deck's extruded layers do — the 3D
+// buildings prove it — so terrain is a GridCellLayer of real ground-elevation
+// samples (scripts/build-nst-terrain-grid.mjs, Open-Meteo ~90 m DEM). Coloured
+// by height: coastal green → foothill olive → montane brown → peak grey.
+export interface TerrainCell {
+  x: number;
+  y: number;
+  lng: number;
+  lat: number;
+  elevM: number;
+}
+export interface TerrainGrid {
+  cellLng: number;
+  cellLat: number;
+  cells: TerrainCell[];
+}
+
+const M_PER_DEG = 110_800;
+
+function terrainColor(elevM: number): [number, number, number] {
+  // Green (sea level) → olive → brown → grey (peaks). Khao Luang ≈ 1,835 m.
+  const stops: Array<[number, [number, number, number]]> = [
+    [0, [56, 118, 63]],
+    [150, [104, 138, 58]],
+    [450, [150, 130, 62]],
+    [900, [140, 104, 72]],
+    [1400, [120, 100, 92]],
+    [1900, [180, 178, 176]],
+  ];
+  if (elevM <= stops[0][0]) return stops[0][1];
+  for (let i = 1; i < stops.length; i++) {
+    if (elevM <= stops[i][0]) {
+      const [lo, loC] = stops[i - 1];
+      const [hi, hiC] = stops[i];
+      const t = (elevM - lo) / (hi - lo);
+      return [
+        Math.round(loC[0] + (hiC[0] - loC[0]) * t),
+        Math.round(loC[1] + (hiC[1] - loC[1]) * t),
+        Math.round(loC[2] + (hiC[2] - loC[2]) * t),
+      ];
+    }
+  }
+  return stops[stops.length - 1][1];
+}
+
+export function terrain3dLayer(grid: TerrainGrid, exaggeration = 6) {
+  // Square-ish cell size from the (larger) lat spacing → cells overlap slightly
+  // rather than gap, so the relief reads as a continuous surface. Exaggeration
+  // is generous: at province scale a literal 1× lifts only ~2 % of the view
+  // width, invisible under pitch — ~6× makes Khao Luang legibly rise.
+  const cellSize = grid.cellLat * M_PER_DEG;
+  return new GridCellLayer<TerrainCell>({
+    id: "terrain-3d",
+    data: grid.cells,
+    cellSize,
+    // GridCellLayer anchors a cell at its position and extends +cellSize; offset
+    // the sample-centre by half a cell so the cell centres on its sample.
+    getPosition: (c) => [c.lng - grid.cellLng / 2, c.lat - grid.cellLat / 2],
+    getElevation: (c) => Math.max(0, c.elevM),
+    elevationScale: exaggeration,
+    extruded: true,
+    getFillColor: (c) => {
+      const [r, g, b] = terrainColor(c.elevM);
+      return [r, g, b, 235];
+    },
+    material: { ambient: 0.5, diffuse: 0.6, shininess: 4, specularColor: [30, 30, 30] },
+    pickable: false,
+  });
+}
+
+/**
+ * RainViewer live radar nowcast (animated) — the third precipitation layer
+ * beside the existing GIBS IMERG (satellite rain-rate) and Himawari (storm
+ * clouds). Plain XYZ PNG tiles; the frame URL is chosen by the caller
+ * (map/useRainRadar.ts) which walks past→forecast frames. No key.
+ */
+export function rainviewerRadarLayer(frameUrlTemplate: string, opacity = 0.6) {
+  return new TileLayer({
+    id: "precip-radar",
+    data: frameUrlTemplate,
+    minZoom: 0,
+    maxZoom: 7,
+    tileSize: 256,
+    opacity,
+    renderSubLayers: (props) => {
+      const { boundingBox } = props.tile as unknown as { boundingBox: [[number, number], [number, number]] };
+      const [[w, s], [e, n]] = boundingBox;
+      return new BitmapLayer({ ...props, data: undefined, image: props.data as unknown as string, bounds: [w, s, e, n] });
+    },
+  });
+}
+
+/**
+ * WAQI / AQICN air-quality tile overlay — the AirDash "field" view (real
+ * US-EPA-AQI raster, not just station dots). Served through the API worker
+ * proxy `/api/air/waqi/{z}/{x}/{y}` so the token stays server-side. Coloured by
+ * WAQI's standard AQI palette; where the air thickens (traffic corridors,
+ * burning season) the field deepens.
+ */
+export function waqiAirFieldLayer(apiBase: string, opacity = 0.55) {
+  return new TileLayer({
+    id: "air-waqi-field",
+    data: `${apiBase}/api/air/waqi/{z}/{x}/{y}`,
+    minZoom: 0,
+    maxZoom: 12,
+    tileSize: 256,
+    opacity,
+    renderSubLayers: (props) => {
+      const { boundingBox } = props.tile as unknown as { boundingBox: [[number, number], [number, number]] };
+      const [[w, s], [e, n]] = boundingBox;
+      return new BitmapLayer({ ...props, data: undefined, image: props.data as unknown as string, bounds: [w, s, e, n] });
+    },
+  });
+}
+
 export function openTopoTerrainLayer(opacity = 0.6) {
   return new TileLayer({
     id: "satellite-terrain",
@@ -2890,6 +3007,123 @@ export function flowDotsLayer(positions: [number, number][], color: [number, num
     radiusMinPixels: 3,
     radiusMaxPixels: 7,
     getFillColor: [color[0], color[1], color[2], 235] as [number, number, number, number],
+    stroked: false,
+    pickable: false,
+    parameters: { depthWriteEnabled: false, depthCompare: "always" },
+  });
+}
+
+// ── ALL-waterways flow animation (direction + fast/slow) ────────────────────
+// Generalises the single Tha Dee cascade to every waterway in waterways.geojson.
+// Direction = the downhill-oriented node order baked by scripts/enrich-nst-
+// waterways.mjs; speed = flowClass (slope × channel type), MODELLED for the
+// ungauged majority, overridden by live discharge at gauged trunk reaches.
+export type WaterwayFlowClass = "slow" | "medium" | "fast";
+
+interface WaterwayFlowProps {
+  waterway?: string;
+  name?: string | null;
+  nameTh?: string | null;
+  flowClass?: WaterwayFlowClass;
+  slopePct?: number;
+  downhillConfident?: boolean;
+}
+
+/** One waterway pre-digested for per-frame animation (geometry math done once). */
+export interface PreparedFlowLine {
+  coords: [number, number][];
+  cycleMs: number;
+  dotCount: number;
+  color: [number, number, number];
+  radius: number;
+  gauged: boolean;
+}
+
+// Visual pace per class (line-laps are faster for faster water). Deliberately
+// stylised — a legible "which way + roughly how fast", never a real-time replay
+// (the real transit time lives in the lead-time text, per useFlowAnimation).
+const FLOW_CLASS_SPEED: Record<WaterwayFlowClass, number> = { slow: 0.55, medium: 1, fast: 1.8 };
+const FLOW_CLASS_COLOR: Record<WaterwayFlowClass, [number, number, number]> = {
+  slow: [37, 99, 235], // deep blue
+  medium: [56, 189, 248], // cyan
+  fast: [224, 242, 254], // near-white — reads as "moving fast"
+};
+const FLOW_BASE_CYCLE_MS = 5200;
+const FLOW_REF_LEN_DEG = 0.05; // ~5.5 km reference line → base cycle
+const FLOW_DOT_SPACING_DEG = 0.011; // ~1.2 km between dots
+const FLOW_MIN_LEN_DEG = 0.004; // skip sub-~450 m stubs (a lone dot reads as noise)
+const FLOW_MAX_DOTS = 8;
+
+function lineLengthDeg(coords: [number, number][]): number {
+  let total = 0;
+  for (let i = 1; i < coords.length; i++) {
+    total += Math.hypot(coords[i][0] - coords[i - 1][0], coords[i][1] - coords[i - 1][1]);
+  }
+  return total;
+}
+
+const clampNum = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
+
+/**
+ * Pre-digest waterway features into per-frame-cheap flow lines. `gaugeOverride`
+ * lets the caller substitute a live speed/color for gauged trunk reaches
+ * (returns null for the modelled majority). Called only when the feature set or
+ * gauge state changes — never per animation frame.
+ */
+export function prepareWaterwayFlows(
+  features: Feature<LineString, WaterwayFlowProps>[],
+  gaugeOverride?: (f: Feature<LineString, WaterwayFlowProps>) => { speed: number; color: [number, number, number] } | null,
+): PreparedFlowLine[] {
+  const out: PreparedFlowLine[] = [];
+  for (const f of features) {
+    const coords = f.geometry?.coordinates as [number, number][] | undefined;
+    if (!coords || coords.length < 2) continue;
+    const len = lineLengthDeg(coords);
+    if (len < FLOW_MIN_LEN_DEG) continue;
+
+    const fclass: WaterwayFlowClass = f.properties.flowClass ?? "medium";
+    let speed = FLOW_CLASS_SPEED[fclass];
+    let color = FLOW_CLASS_COLOR[fclass];
+    const gauge = gaugeOverride?.(f) ?? null;
+    if (gauge) {
+      speed = gauge.speed;
+      color = gauge.color;
+    }
+    const cycleMs = clampNum((FLOW_BASE_CYCLE_MS * (len / FLOW_REF_LEN_DEG)) / speed, 2200, 15000);
+    const dotCount = clampNum(Math.round(len / FLOW_DOT_SPACING_DEG), 1, FLOW_MAX_DOTS);
+    out.push({ coords, cycleMs, dotCount, color, radius: fclass === "fast" ? 68 : 52, gauged: !!gauge });
+  }
+  return out;
+}
+
+export interface WaterwayFlowDot {
+  position: [number, number];
+  color: [number, number, number];
+  radius: number;
+}
+
+/** Per-frame: place moving dots along every prepared line at the shared clock. */
+export function waterwayFlowDots(prepared: PreparedFlowLine[], tMs: number): WaterwayFlowDot[] {
+  const dots: WaterwayFlowDot[] = [];
+  for (const line of prepared) {
+    const phase = (tMs % line.cycleMs) / line.cycleMs;
+    for (const position of flowDotPositions(line.coords, phase, line.dotCount)) {
+      dots.push({ position, color: line.color, radius: line.radius });
+    }
+  }
+  return dots;
+}
+
+/** One ScatterplotLayer for ALL waterway flow dots (per-dot color = speed class). */
+export function waterwayFlowLayer(dots: WaterwayFlowDot[]) {
+  return new ScatterplotLayer<WaterwayFlowDot>({
+    id: "waterway-flow",
+    data: dots,
+    getPosition: (d) => d.position,
+    getRadius: (d) => d.radius,
+    radiusMinPixels: 2,
+    radiusMaxPixels: 6,
+    getFillColor: (d) => [d.color[0], d.color[1], d.color[2], 225],
     stroked: false,
     pickable: false,
     parameters: { depthWriteEnabled: false, depthCompare: "always" },
