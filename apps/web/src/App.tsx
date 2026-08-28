@@ -247,7 +247,7 @@ function basemapStyle(theme: "dark" | "light"): maplibregl.StyleSpecification {
         ],
         tileSize: 256,
         attribution: "Esri, HERE, Garmin · © OpenStreetMap",
-        maxzoom: 20,
+        maxzoom: 16,
       },
       "carto-labels": {
         type: "raster",
@@ -257,7 +257,7 @@ function basemapStyle(theme: "dark" | "light"): maplibregl.StyleSpecification {
           `https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/${labelsSlug}/MapServer/tile/{z}/{y}/{x}`,
         ],
         tileSize: 256,
-        maxzoom: 20,
+        maxzoom: 16,
       },
     },
     layers: [
