@@ -42,3 +42,4 @@ __pycache__/
 # Reference materials — roundtables, presentations, briefings
 SIWW*/
 **/Roundtable*/
+.backups/

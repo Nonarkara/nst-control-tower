@@ -368,7 +368,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
   // water/drainage/wifi) archived under public/geo/_archive — see ARCHIVE.md.
   const roads = useGeoJson<FeatureCollection<LineString, RoadProps>>("/geo/nst/roads.geojson");
   const transitStations = useGeoJson<FeatureCollection<Point, StationProps>>("/geo/nst/transit-stations.geojson");
-  const transitLines = useGeoJson<FeatureCollection<LineString, TransitLineProps>>("/geo/nst/transit-lines.geojson");
+  // (transit-lines is lazy — see the lens-gated load below)
 
   // Computed once at mount — feeds traffic simulation; no longer interactive
   const [hour] = useState<number>(() => new Date().getHours());
@@ -379,6 +379,12 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
 
   // Lens + per-layer toggles
   const [lens, setLens] = useState<LensId>("operations");
+  // Transit lines (rail/bus routes) is only used by the MOB lens — defer the
+  // 88 KB fetch on every other lens. Declared after `lens` so the gating
+  // expression can read it.
+  const transitLines = useGeoJson<FeatureCollection<LineString, TransitLineProps>>(
+    lens === "mobility" ? "/geo/nst/transit-lines.geojson" : null,
+  );
   const [mapViewState, setMapViewState] = useState<MapViewState>({ kind: "lens", lensId: "operations" });
   const [enabledLayers, setEnabledLayers] = useState<Set<LayerId>>(
     () => enforceLayerExclusivity(LENSES.find((l) => l.id === "operations")!.layers.filter((id) => layerCanEnable(id))),
@@ -1049,8 +1055,15 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
   const civicPoints = useGeoJson<FeatureCollection<Point, Record<string, unknown>>>(
     "/geo/nst/civic-pois.geojson",
   );
+  // Waterways is the second-largest static asset (~1.9 MB after slimming) and
+  // is only used by the FLOOD / ENV / EAR / SAF / INT lenses. Defer the fetch
+  // on every other lens — passing `null` here makes the hook a no-op (no
+  // network request, no parser pass, no memory).
+  const waterwaysPath = lens === "flood" || lens === "environment" || lens === "earth" ||
+                        lens === "safety" || lens === "intelligence"
+                        ? "/geo/nst/waterways.geojson" : null;
   const waterways = useGeoJson<FeatureCollection<LineString, Record<string, unknown>>>(
-    "/geo/nst/waterways.geojson",
+    waterwaysPath,
   );
   const fisheries = useGeoJson<FeatureCollection<Polygon | MultiPolygon, Record<string, unknown>>>(
     "/geo/nst/fisheries.geojson",

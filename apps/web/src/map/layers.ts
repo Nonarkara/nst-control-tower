@@ -373,6 +373,18 @@ export function buildingsLayer(
   const fillA = ghosted ? 32  : undefined; // undefined → per-building alpha
   const lineA = ghosted ? 110 : 220;
 
+  // Pre-compute the kind + base color per feature once at layer creation.
+  // Before this, classifyBuilding() was called from getFillColor, getLineColor,
+  // AND getLineWidth on every frame — that's ~15 string comparisons × 2,457
+  // buildings × 60 fps ≈ 2.2 M classifications/sec. Caching here cuts the
+  // accessors to a single property read.
+  const _kindCache: WeakMap<typeof collection.features[number], { kind: ReturnType<typeof classifyBuilding>; base: readonly [number, number, number] }> = new WeakMap();
+  for (const f of collection.features) {
+    const kind = classifyBuilding(f.properties);
+    const base = kind ? LANDMARK_COLOR[kind] : UNTYPED_COLOR;
+    _kindCache.set(f, { kind, base: base as readonly [number, number, number] });
+  }
+
   return new GeoJsonLayer({
     id: "municipality-buildings",
     data: collection as unknown as FeatureCollection,
@@ -393,23 +405,21 @@ export function buildingsLayer(
       ? { ambient: 0.72, diffuse: 0.82, shininess: 24, specularColor: [255, 245, 220] }
       : false,
     getFillColor: ((f: Feature<Polygon | MultiPolygon, BuildingProperties>) => {
-      const kind = classifyBuilding(f.properties);
-      const base = kind ? LANDMARK_COLOR[kind] : UNTYPED_COLOR;
+      const cached = _kindCache.get(f as typeof collection.features[number]);
+      const base = cached ? cached.base : UNTYPED_COLOR as unknown as readonly [number, number, number];
+      const hasKind = cached ? !!cached.kind : false;
       if (ghosted) {
         return [base[0], base[1], base[2], 32] as [number, number, number, number];
       }
       if (extruded) {
-        // Typed buildings carry their category colour at full vibrancy; untyped
-        // stay neutral so the type signal reads clearly in the 3D massing.
-        return [base[0], base[1], base[2], kind ? 230 : 210] as [number, number, number, number];
+        return [base[0], base[1], base[2], hasKind ? 230 : 210] as [number, number, number, number];
       }
-      // 2D flat view — typed buildings stand out, untyped are dim
-      return [base[0], base[1], base[2], kind ? 130 : 70] as [number, number, number, number];
+      return [base[0], base[1], base[2], hasKind ? 130 : 70] as [number, number, number, number];
     }) as unknown as [number, number, number, number],
     getLineColor: ((f: Feature<Polygon | MultiPolygon, BuildingProperties>) => {
-      const kind = classifyBuilding(f.properties);
-      if (kind) {
-        const c = LANDMARK_COLOR[kind];
+      const cached = _kindCache.get(f as typeof collection.features[number]);
+      if (cached?.kind) {
+        const c = cached.base;
         return [c[0], c[1], c[2], lineA] as [number, number, number, number];
       }
       return f.properties.name
@@ -417,10 +427,16 @@ export function buildingsLayer(
         : [15, 23, 42, lineA] as [number, number, number, number];
     }) as unknown as [number, number, number, number],
     getLineWidth: ((f: Feature<Polygon | MultiPolygon, BuildingProperties>) =>
-      classifyBuilding(f.properties) ? 1.2 : 0.6) as unknown as number,
+      _kindCache.get(f as typeof collection.features[number])?.kind ? 1.2 : 0.6) as unknown as number,
     lineWidthMinPixels: extruded && !ghosted ? 0.7 : 0.5,
-    getElevation: ((f: Feature<Polygon | MultiPolygon, BuildingProperties>) =>
-      buildingHeightMeters(f.properties)) as unknown as number,
+    // Prefer the pre-baked `_elevM` from the data file (one tuple-deref per
+    // feature per frame) over calling `buildingHeightMeters` (which is a JS
+    // function call that does ~15 string comparisons per call). Falls back to
+    // the function for older data files that haven't been re-slimmed yet.
+    getElevation: ((f: Feature<Polygon | MultiPolygon, BuildingProperties>) => {
+      const e = (f.properties as BuildingProperties & { _elevM?: number })._elevM;
+      return typeof e === "number" ? e : buildingHeightMeters(f.properties);
+    }) as unknown as number,
     opacity: ghosted ? 0.35 : 1,
     updateTriggers: {
       getFillColor: [extruded, ghosted],
@@ -452,22 +468,18 @@ export function buildingRoofsLayer(
   const maxRoofs = options.maxRoofs ?? 1400;
   const scale = options.elevationScale ?? 1.65;
 
+  // Use the pre-baked `_elevM` for the sort — avoids a JS function call per
+  // pair comparison (2,457 buildings → ~3 M comparisons in the worst case).
+  const elev = (p: BuildingProperties) =>
+    (p as BuildingProperties & { _elevM?: number })._elevM ?? buildingHeightMeters(p);
   const sorted = [...collection.features]
-    .sort((a, b) => buildingHeightMeters(b.properties) - buildingHeightMeters(a.properties))
+    .sort((a, b) => elev(b.properties) - elev(a.properties))
     .slice(0, maxRoofs);
 
   const roofCollection: FeatureCollection = { type: "FeatureCollection", features: sorted };
 
-  // Per-building roof elevation bonus (meters, before elevationScale is applied)
-  function roofBonus(props: BuildingProperties): number {
-    const kind = classifyBuilding(props);
-    if (kind === "temple" || kind === "church" || kind === "mosque") return 12; // spire crown
-    if (kind === "government" || kind === "police" || kind === "fire")  return  5; // civic parapet
-    if (kind === "hotel" || kind === "hospital")                        return  3; // landmark cap
-    return 0.5;
-  }
-
   // Heritage roof colours — bright, pure, recognisable at distance
+  // Declared BEFORE the cache loop because the cache reads from it.
   const HERITAGE_ROOF: Partial<Record<NonNullable<LandmarkKind>, [number, number, number, number]>> = {
     temple:     [255, 235,  50, 240],  // blazing gold — chedi, prang
     church:     [255, 200, 100, 220],  // warm amber — bell tower
@@ -478,6 +490,28 @@ export function buildingRoofsLayer(
     hospital:   [255, 100, 100, 220],  // coral red — hospital crowns
     hotel:      [255, 220,  80, 210],  // gold — hotel landmark
   };
+
+  // Per-building roof elevation bonus (meters, before elevationScale is applied)
+  function roofBonus(props: BuildingProperties): number {
+    const kind = classifyBuilding(props);
+    if (kind === "temple" || kind === "church" || kind === "mosque") return 12; // spire crown
+    if (kind === "government" || kind === "police" || kind === "fire")  return  5; // civic parapet
+    if (kind === "hotel" || kind === "hospital")                        return  3; // landmark cap
+    return 0.5;
+  }
+
+  // Pre-compute per-feature: kind + heritage colour + roof bonus.
+  // Without this cache the accessors below call classifyBuilding() on every
+  // frame for every rendered roof (~1,400 features).
+  const _roofCache: WeakMap<typeof collection.features[number], { kind: ReturnType<typeof classifyBuilding>; heritage: [number, number, number, number] | undefined; bonus: number }> = new WeakMap();
+  for (const f of sorted) {
+    const kind = classifyBuilding(f.properties);
+    _roofCache.set(f, {
+      kind,
+      heritage: kind ? HERITAGE_ROOF[kind] : undefined,
+      bonus: roofBonus(f.properties),
+    });
+  }
 
   return new GeoJsonLayer({
     id: "building-roofs",
@@ -491,14 +525,18 @@ export function buildingRoofsLayer(
     elevationScale: scale,
     material: { ambient: 0.90, diffuse: 0.75, shininess: 28, specularColor: [255, 252, 230] },
     getFillColor: ((f: Feature<Polygon | MultiPolygon, BuildingProperties>) => {
-      const kind = classifyBuilding(f.properties);
-      const heritage = kind ? HERITAGE_ROOF[kind] : undefined;
-      if (heritage) return heritage;
+      const cached = _roofCache.get(f as typeof collection.features[number]);
+      if (cached?.heritage) return cached.heritage;
+      const kind = cached?.kind;
       const base = kind ? LANDMARK_COLOR[kind] : UNTYPED_COLOR;
       return [Math.min(base[0] + 30, 255), Math.min(base[1] + 30, 255), Math.min(base[2] + 30, 255), 200] as [number, number, number, number];
     }) as unknown as [number, number, number, number],
-    getElevation: ((f: Feature<Polygon | MultiPolygon, BuildingProperties>) =>
-      buildingHeightMeters(f.properties) + roofBonus(f.properties)) as unknown as number,
+    getElevation: ((f: Feature<Polygon | MultiPolygon, BuildingProperties>) => {
+      const cached = _roofCache.get(f as typeof collection.features[number]);
+      const e = (f.properties as BuildingProperties & { _elevM?: number })._elevM
+        ?? buildingHeightMeters(f.properties);
+      return e + (cached?.bonus ?? 0.5);
+    }) as unknown as number,
     opacity: 0.92,
     // Without updateTriggers, deck.gl falls back to conservative heuristics and
     // re-runs the elevation/color accessors every time the layer is instantiated.
