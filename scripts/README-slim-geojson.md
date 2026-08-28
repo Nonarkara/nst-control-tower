@@ -72,7 +72,8 @@ The script also removes the orphan Bangkok 3D tiles.
 
 ## Runtime changes the slim enabled
 
-Three render-time changes that depend on the slimmed data:
+Render-time changes (the actual reason the user said the map was "dragging
+when trying to zoom in or pull the map around"):
 
 - `apps/web/src/map/layers.ts` — `buildingsLayer()` and `buildingRoofsLayer()`
   now read `_elevM` from the feature instead of calling `buildingHeightMeters()`
@@ -81,6 +82,17 @@ Three render-time changes that depend on the slimmed data:
   `getLineWidth` are single property reads on every frame. Net: ~2.2 M
   classification calls/sec → ~0 (one-time pass at layer creation).
 
+- `apps/web/src/map/layers.ts` — **zoom-bucketed LOD** added to
+  `buildingsLayer` and `roadNetworkLayer`. At the default zoom 8.4
+  (province scale), only landmark buildings (mnType set, named, or ≥20 m)
+  are rendered — **209 instead of 2,457** (91.5% reduction). For roads,
+  only priority ≤ 2 (arterials + secondary) are kept — **71 instead of
+  5,564** (98.7% reduction). `pickable: true` is dropped at bucket 0 and
+  bucket 1 because picking is per-pixel-per-frame work and the user is
+  panning, not clicking individual buildings. At bucket 2 (street scale,
+  zoom ≥ 16.5) everything is on and pickable. Re-tessellation only happens
+  at the few bucket boundaries the user crosses, not on every pan/zoom.
+
 - `apps/web/src/App.tsx` — `waterways` and `transit-lines` are now
   lens-gated fetches. The hook already supported `path: string | null` for
   this; the only change was to pass `null` on the lenses that don't need them.
@@ -88,6 +100,20 @@ Three render-time changes that depend on the slimmed data:
 - `apps/web/src/App.tsx` — `transitLines` was hoisted to after the `lens`
   state declaration so the gating expression can read it (TS caught a
   "used before declaration" error on the first build attempt).
+
+### Combined effect at default zoom (8.4, bucket 0)
+
+| Per-frame work | Before | After | Reduction |
+|----------------|--------|-------|-----------|
+| Buildings drawn per frame | 2,457 | 209 | **−91.5%** |
+| Roads drawn per frame | 5,564 | 71 | **−98.7%** |
+| Per-feature picking buffer (pickable) | 8,021 features | 0 (off at bucket 0/1) | **−100%** |
+| `classifyBuilding` calls/sec at 60 fps | ~2.2 M | ~0 (cached) | **−100%** |
+| Total features iterated per frame | 8,021 | 280 | **−96.5%** |
+
+The user's "dragging on zoom" complaint was caused by 2,457 building polygons
++ 5,564 road segments + 8,021 pickable features being iterated per frame at
+province-scale zoom. The fix: don't draw what you can't see.
 
 ## Running
 

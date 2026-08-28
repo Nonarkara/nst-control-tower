@@ -425,7 +425,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
   // Live camera mirror — updated synchronously (free, no re-render) on every
   // onViewStateChange so click/flyTo handlers always read the true position.
   const viewStateRef = useRef({ ...CHONBURI.defaultView });
-  const bucketOf = (zoom: number) => (zoom >= 16.5 ? 2 : zoom >= 15.2 ? 1 : 0);
+  const bucketOf = (zoom: number): 0 | 1 | 2 => (zoom >= 16.5 ? 2 : zoom >= 15.2 ? 1 : 0);
 
   // The ONLY camera-derived values a render actually needs: the zoom LOD bucket
   // (building roof density) and the compass bearing. We setState these only when
@@ -1282,8 +1282,13 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
   // and deck.gl would re-tessellate. With a stable reference, deck.gl sees the
   // same layer object and skips the diff entirely.
   const memoizedBuildingsLayer = useMemo<Layer | null>(
-    () => buildings ? (buildingsLayer(buildings, { extruded: is3D, ghosted: isSubstructure }) as Layer) : null,
-    [buildings, is3D, isSubstructure],
+    // zoomBucket is in the deps so the layer re-creates when the camera crosses
+    // a bucket boundary — that's when the LOD filter (zoom 0 keeps only landmarks,
+    // zoom 1 keeps all but drops pickable, zoom 2 keeps everything) changes. The
+    // re-tessellation cost is paid only at the few bucket boundaries the user
+    // actually crosses, not on every pan/zoom tick.
+    () => buildings ? (buildingsLayer(buildings, { extruded: is3D, ghosted: isSubstructure, zoomBucket }) as Layer) : null,
+    [buildings, is3D, isSubstructure, zoomBucket],
   );
   const memoizedRoofsLayer = useMemo<Layer | null>(
     () => {
@@ -1330,7 +1335,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
     // Photorealistic 3D Tiles (Google) — textured glTF mesh streamed by deck.gl
     if (tile3d.layer) out.push(tile3d.layer as Layer);
     if (enabledLayers.has("road-network") && roads)
-      out.push(roadNetworkLayer(roads as unknown as FeatureCollection<LineString, ClassifiedRoadProps>) as Layer);
+      out.push(roadNetworkLayer(roads as unknown as FeatureCollection<LineString, ClassifiedRoadProps>, { zoomBucket }) as Layer);
     if (enabledLayers.has("transit-lines") && transitLines)
       out.push(transitLinesLayer(transitLines) as Layer);
     if (enabledLayers.has("traffic-heatmap") && trafficSamples.length > 0)

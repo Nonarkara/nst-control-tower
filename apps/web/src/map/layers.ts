@@ -366,20 +366,45 @@ export const BUILDING_LEGEND: { label: string; color: [number, number, number] }
  */
 export function buildingsLayer(
   collection: FeatureCollection<Polygon | MultiPolygon, BuildingProperties>,
-  options: { extruded?: boolean; ghosted?: boolean } = {},
+  options: { extruded?: boolean; ghosted?: boolean; zoomBucket?: 0 | 1 | 2 } = {},
 ) {
   const extruded = options.extruded ?? false;
   const ghosted  = options.ghosted  ?? false;
-  const fillA = ghosted ? 32  : undefined; // undefined → per-building alpha
+  const zoomBucket = options.zoomBucket ?? 2;
   const lineA = ghosted ? 110 : 220;
+
+  // ── LOD: drop the ordinary buildings at province scale (default zoom 8.4) ──
+  // At bucket 0 the camera is showing the whole NST province. Individual
+  // buildings are 1-2 px dots and indistinguishable from one another — drawing
+  // all 2,457 of them is pure waste. We keep only the landmarks (mnType set,
+  // ~200 of them) plus buildings that carry a name. Below city scale (bucket 1)
+  // we keep all but drop pickable — pickable is per-pixel-per-frame work and
+  // not useful when the user is panning around the whole city. At street
+  // scale (bucket 2) everything is on.
+  const features = collection.features;
+  const filtered =
+    zoomBucket === 0
+      ? features.filter((f) => {
+          const p = f.properties as BuildingProperties & { _elevM?: number };
+          if (p.mnType) return true;
+          if (p.name) return true;
+          if (typeof p._elevM === "number" && p._elevM >= 20) return true;
+          return false;
+        })
+      : features;
+  const pickable = zoomBucket === 2 && !ghosted;
+  const filteredCollection: FeatureCollection<Polygon | MultiPolygon, BuildingProperties> = {
+    type: "FeatureCollection",
+    features: filtered,
+  };
 
   // Pre-compute the kind + base color per feature once at layer creation.
   // Before this, classifyBuilding() was called from getFillColor, getLineColor,
   // AND getLineWidth on every frame — that's ~15 string comparisons × 2,457
   // buildings × 60 fps ≈ 2.2 M classifications/sec. Caching here cuts the
   // accessors to a single property read.
-  const _kindCache: WeakMap<typeof collection.features[number], { kind: ReturnType<typeof classifyBuilding>; base: readonly [number, number, number] }> = new WeakMap();
-  for (const f of collection.features) {
+  const _kindCache: WeakMap<typeof filtered[number], { kind: ReturnType<typeof classifyBuilding>; base: readonly [number, number, number] }> = new WeakMap();
+  for (const f of filtered) {
     const kind = classifyBuilding(f.properties);
     const base = kind ? LANDMARK_COLOR[kind] : UNTYPED_COLOR;
     _kindCache.set(f, { kind, base: base as readonly [number, number, number] });
@@ -387,7 +412,7 @@ export function buildingsLayer(
 
   return new GeoJsonLayer({
     id: "municipality-buildings",
-    data: collection as unknown as FeatureCollection,
+    data: filteredCollection as unknown as FeatureCollection,
     // Source GeoJSON is already valid (single FeatureCollection with proper
     // geometry); skipping normalization saves a full pass over 20k+ features
     // every time the layer instance is created.
@@ -397,7 +422,7 @@ export function buildingsLayer(
     // In flat 2D mode we keep it — edges are the only way to distinguish footprints.
     stroked: !extruded,
     filled: true,
-    pickable: true,
+    pickable,
     autoHighlight: false,
     extruded,
     elevationScale: extruded && !ghosted ? 1.65 : 1,
@@ -405,7 +430,7 @@ export function buildingsLayer(
       ? { ambient: 0.72, diffuse: 0.82, shininess: 24, specularColor: [255, 245, 220] }
       : false,
     getFillColor: ((f: Feature<Polygon | MultiPolygon, BuildingProperties>) => {
-      const cached = _kindCache.get(f as typeof collection.features[number]);
+      const cached = _kindCache.get(f as typeof filtered[number]);
       const base = cached ? cached.base : UNTYPED_COLOR as unknown as readonly [number, number, number];
       const hasKind = cached ? !!cached.kind : false;
       if (ghosted) {
@@ -417,7 +442,7 @@ export function buildingsLayer(
       return [base[0], base[1], base[2], hasKind ? 130 : 70] as [number, number, number, number];
     }) as unknown as [number, number, number, number],
     getLineColor: ((f: Feature<Polygon | MultiPolygon, BuildingProperties>) => {
-      const cached = _kindCache.get(f as typeof collection.features[number]);
+      const cached = _kindCache.get(f as typeof filtered[number]);
       if (cached?.kind) {
         const c = cached.base;
         return [c[0], c[1], c[2], lineA] as [number, number, number, number];
@@ -427,7 +452,7 @@ export function buildingsLayer(
         : [15, 23, 42, lineA] as [number, number, number, number];
     }) as unknown as [number, number, number, number],
     getLineWidth: ((f: Feature<Polygon | MultiPolygon, BuildingProperties>) =>
-      _kindCache.get(f as typeof collection.features[number])?.kind ? 1.2 : 0.6) as unknown as number,
+      _kindCache.get(f as typeof filtered[number])?.kind ? 1.2 : 0.6) as unknown as number,
     lineWidthMinPixels: extruded && !ghosted ? 0.7 : 0.5,
     // Prefer the pre-baked `_elevM` from the data file (one tuple-deref per
     // feature per frame) over calling `buildingHeightMeters` (which is a JS
@@ -439,9 +464,9 @@ export function buildingsLayer(
     }) as unknown as number,
     opacity: ghosted ? 0.35 : 1,
     updateTriggers: {
-      getFillColor: [extruded, ghosted],
-      getLineColor: [ghosted],
-      getElevation: [extruded, ghosted],
+      getFillColor: [extruded, ghosted, zoomBucket],
+      getLineColor: [ghosted, zoomBucket],
+      getElevation: [extruded, ghosted, zoomBucket],
     },
   });
 }
@@ -1527,13 +1552,31 @@ const ROAD_STYLE: Record<number, { color: [number, number, number]; width: numbe
   2: { color: [148, 163, 184], width: 1.0 },  // unclassified / minor
 };
 
-export function roadNetworkLayer(collection: FeatureCollection<LineString, ClassifiedRoadProps>) {
+export function roadNetworkLayer(
+  collection: FeatureCollection<LineString, ClassifiedRoadProps>,
+  options: { zoomBucket?: 0 | 1 | 2 } = {},
+) {
+  const zoomBucket = options.zoomBucket ?? 2;
+  // Picking is per-pixel work for the GPU picking buffer; at province/city
+  // scale (zoom 0/1) the user is panning around, not clicking on individual
+  // road segments. Disable it.
+  const pickable = zoomBucket === 2;
+  // Drop the smallest roads (priority ≥ 3, i.e. residential/service) at province
+  // scale — they'd be 1 px lines stacked on top of each other. Keep the arterials
+  // and secondary roads (priority 1 + 2) for spatial context.
+  const features = zoomBucket === 0
+    ? collection.features.filter((f) => f.properties.priority <= 2)
+    : collection.features;
+  const filtered: FeatureCollection<LineString, ClassifiedRoadProps> = {
+    type: "FeatureCollection",
+    features,
+  };
   return new GeoJsonLayer({
     id: "road-network",
-    data: collection as unknown as FeatureCollection,
+    data: filtered as unknown as FeatureCollection,
     stroked: true,
     filled: false,
-    pickable: true,
+    pickable,
     getLineColor: ((f: Feature<LineString, ClassifiedRoadProps>) => {
       const s = ROAD_STYLE[f.properties.priority] ?? ROAD_STYLE[3];
       return [s.color[0], s.color[1], s.color[2], 180] as [number, number, number, number];
@@ -1545,6 +1588,10 @@ export function roadNetworkLayer(collection: FeatureCollection<LineString, Class
     lineWidthUnits: "pixels",
     lineWidthMinPixels: 0.5,
     lineWidthMaxPixels: 6,
+    updateTriggers: {
+      getLineColor: [zoomBucket],
+      getLineWidth: [zoomBucket],
+    },
   });
 }
 
