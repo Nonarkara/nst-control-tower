@@ -230,8 +230,8 @@ const GIBS_LAYERS: Array<{
 ];
 
 function basemapStyle(theme: "dark" | "light"): maplibregl.StyleSpecification {
-  const baseSlug = theme === "dark" ? "dark_nolabels" : "light_nolabels";
-  const labelsSlug = theme === "dark" ? "dark_only_labels" : "light_only_labels";
+  const baseSlug = theme === "dark" ? "World_Dark_Gray_Base" : "World_Light_Gray_Base";
+  const labelsSlug = theme === "dark" ? "World_Dark_Gray_Reference" : "World_Light_Gray_Reference";
   const oceanBg = theme === "dark" ? "#031730" : "#E0F2FE";
   const baseOpacity = theme === "dark" ? 0.78 : 0.92;
   const labelOpacity = theme === "dark" ? 0.85 : 0.90;
@@ -241,20 +241,20 @@ function basemapStyle(theme: "dark" | "light"): maplibregl.StyleSpecification {
       "carto-base": {
         type: "raster",
         tiles: [
-          `https://cartodb-basemaps-a.global.ssl.fastly.net/${baseSlug}/{z}/{x}/{y}.png`,
-          `https://cartodb-basemaps-b.global.ssl.fastly.net/${baseSlug}/{z}/{x}/{y}.png`,
-          `https://cartodb-basemaps-c.global.ssl.fastly.net/${baseSlug}/{z}/{x}/{y}.png`,
+          `https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/${baseSlug}/MapServer/tile/{z}/{y}/{x}`,
+          `https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/${baseSlug}/MapServer/tile/{z}/{y}/{x}`,
+          `https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/${baseSlug}/MapServer/tile/{z}/{y}/{x}`,
         ],
         tileSize: 256,
-        attribution: "© OpenStreetMap, © CARTO",
+        attribution: "Esri, HERE, Garmin · © OpenStreetMap",
         maxzoom: 20,
       },
       "carto-labels": {
         type: "raster",
         tiles: [
-          `https://cartodb-basemaps-a.global.ssl.fastly.net/${labelsSlug}/{z}/{x}/{y}.png`,
-          `https://cartodb-basemaps-b.global.ssl.fastly.net/${labelsSlug}/{z}/{x}/{y}.png`,
-          `https://cartodb-basemaps-c.global.ssl.fastly.net/${labelsSlug}/{z}/{x}/{y}.png`,
+          `https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/${labelsSlug}/MapServer/tile/{z}/{y}/{x}`,
+          `https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/${labelsSlug}/MapServer/tile/{z}/{y}/{x}`,
+          `https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/${labelsSlug}/MapServer/tile/{z}/{y}/{x}`,
         ],
         tileSize: 256,
         maxzoom: 20,
