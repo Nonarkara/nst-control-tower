@@ -8,5 +8,6 @@ export HOST=127.0.0.1
 export PORT=8794
 export ENVIRONMENT=production
 
-export AIRLABS_API_KEY=38407d4b-eb1b-4cb1-9252-476a9dbd80c8
+# Optional keys (GEMINI_API_KEY, AIRLABS_API_KEY, …) belong in apps/api/.env
+# (gitignored) or the live LaunchAgent plist — never in this committed script.
 exec /usr/bin/caffeinate -is /Users/axiom/Library/pnpm/pnpm start:node
