@@ -1,17 +1,21 @@
 <div align="center">
 
-# Nakhon Si Thammarat Smart City Dashboard
-### เทศบาลนครนครศรีธรรมราช — Municipal Control Tower
+<img src="docs/hero-banner.png" alt="nst-control-tower: a flood-first municipal control center. Clone what works, adapt it to the place, deploy for the people." width="100%" />
 
-**A free, open-source, real-time intelligence dashboard for Nakhon Si Thammarat City
-Municipality, Southern Thailand — built flood-first, because flooding is the city's
-defining risk.**
+# nst-control-tower
+### Forkable municipal flood-first tower · Nakhon Si Thammarat
+
+**Clone → pick geography → deploy.** One engine. Any city. This repo is the
+flood-first build pointed at Nakhon Si Thammarat (นครศรีธรรมราช) — not a unique
+snowflake.
 
 [![React 19](https://img.shields.io/badge/Web-React%2019%20+%20Vite-blue)](https://react.dev)
 [![deck.gl](https://img.shields.io/badge/Map-deck.gl%209%20+%20MapLibre-blue)](https://deck.gl)
 [![Hono](https://img.shields.io/badge/API-Hono%20%2F%20Cloudflare%20Workers-orange)](https://hono.dev)
-[![Tests](https://img.shields.io/badge/tests-1%2C168%20passing-2DAA9E)](#proof)
+[![Node](https://img.shields.io/badge/one%20Mac-Node%2020%20+%20pnpm-1A1A1A)](#run)
 [![License: MIT](https://img.shields.io/badge/license-MIT-1A1A1A)](LICENSE)
+
+**Live:** [nst.nonarkara.org](https://nst.nonarkara.org/) · [nst-control-tower.pages.dev](https://nst-control-tower.pages.dev)
 
 **[🇹🇭 อ่านภาษาไทย → README.th.md](README.th.md)** · 🇬🇧 English (this page)
 
@@ -19,227 +23,340 @@ defining risk.**
 
 ---
 
-## What is this? <a id="what"></a>
+## What this is
 
-NST sits at the foot of Khao Luang (1,835 m, the South's highest peak). Three watershed
-systems drain off the mountain, through the Old Town, into the Pak Phanang basin — the
-same geography that flooded under Tropical Storm Pabuk in 2019. This dashboard exists to
-answer one question fast, during the hours that matter: **"What is happening right now,
-and where do I send help?"**
+A **municipal control tower**: live hydrology, rainfall, satellite flood extent,
+citizen reports, traffic, air, and open government data on one 3D map — plus a
+flood **scenario simulator** against surveyed street elevations — so an operator
+can answer, in the hours that matter:
 
-It folds dozens of live data feeds — river discharge, rainfall, satellite flood extent,
-air quality, traffic, citizen reports, maritime AIS, government open data — onto a single
-3D map of the city, and adds a flood **scenario simulator** so an operator can test "what
-happens at water level X" against real surveyed street elevations before it happens.
+> **What is happening right now, and where do I send help?**
 
-**This is not a demo.** Every number on screen traces back to a real upstream source or is
-explicitly labeled as modelled/scenario — see [Data honesty](#honesty) below.
+NST sits at the foot of Khao Luang (1,835 m). Three watershed systems drain off
+the mountain, through the Old Town, into the Pak Phanang basin — the same
+geography that flooded under Tropical Storm Pabuk in 2019. Flooding is the
+city's defining risk, so this fork leads with the **FLOOD** lens (gauges,
+upstream→city cascade, HII flood marks, GloFAS, UNOSAT exposure).
 
-## Proof <a id="proof"></a>
+This is **civic software**, MIT-licensed, running on a pnpm monorepo:
 
-| | |
+```
+apps/api/         Hono API — Cloudflare Workers in production, Node on a Mac for local / 24-7
+apps/web/         React 19 + Vite + deck.gl + MapLibre — the dashboard
+packages/shared/  Types, locale, region config, source catalog (types.ts, locale.ts, campus.ts, sources.ts)
+```
+
+It is **not a demo**. Every number traces to a real upstream source or is
+explicitly labeled modelled / scenario / offline — see [Honesty labels](#honesty).
+
+---
+
+## Philosophy
+
+Five tenets. They are how this repo is meant to be used, not slogans on a slide.
+
+| Tenet | What it means here |
 |---|---|
-| **1,927** | tappable 3D building footprints |
-| **70** | cataloged data sources (27 live today) |
-| **1,168** | automated unit tests, plus 18 Playwright E2E smoke tests |
-| **9** | map lenses — one city, many views |
-| **0** | secrets in the repo — every key is an environment variable |
-
-## System architecture <a id="architecture"></a>
-
-A pnpm monorepo, three workspaces:
-
-```
-apps/api/         Hono API on Cloudflare Workers — one adapter per data source
-apps/web/         React 19 + Vite + deck.gl + MapLibre — the dashboard itself
-packages/shared/  Shared TypeScript types + region config (types.ts, sources.ts, campus.ts)
-```
+| **Fork a city** | **CLONE** what already works → **FORK** the geography (bounds, buildings, watershed) → **DEPLOY**. Do not rewrite the engine. |
+| **One Mac** | The whole tower runs on a single laptop: Vite on `:5173`, Node API on `:8794`, optional `launchd` + `caffeinate` for 24/7. Cloudflare Pages/Workers are the public edge, not a prerequisite to think. |
+| **Bilingual** | Thai + English in the UI (`packages/shared/src/locale.ts` — `en` / `th` / `zh`). Campus names are trilingual. This README has a Thai twin. |
+| **Honesty labels** | Every feed carries `fallbackTier`. The UI shows it. Simulated water is never dressed up as a live gauge. |
+| **Not a unique snowflake** | NST is one geography on a shared engine (sibling forks exist). Same `NormalizedFeed<T>`, same lenses, same adapter contract. Your city is config + GeoJSON. |
 
 ```mermaid
 flowchart LR
-    subgraph Upstream["Upstream data sources"]
-        HII["HII ThaiWater<br/>river + rain gauges"]
-        OM["Open-Meteo<br/>forecast · GloFAS flood"]
-        GISTDA["GISTDA<br/>satellite · POIs"]
-        GOV["Traffy · iTIC · data.go.th<br/>citizen + government"]
-        SAT["NASA · UNOSAT<br/>earth observation"]
+    C["1. CLONE<br/>copy what works"] --> F["2. FORK<br/>pick geography"]
+    F --> D["3. DEPLOY<br/>one Mac or the edge"]
+```
+
+---
+
+## Ethical use
+
+This project exists for **civic safety** — flood watch, dispatch, briefings —
+not for theatre.
+
+- **Do not fake an official city endorsement.** Pointing the map at Nakhon Si
+  Thammarat (or any municipality) does **not** make this an official product of
+  that city. Do not imply municipal, provincial, or national endorsement, branding,
+  or operational authority **unless a file in the repository explicitly documents
+  that relationship**. This repo does not currently contain such a file. The
+  software is independent, MIT-licensed work by Non Arkaraprasertkul.
+- **Do not impersonate a government system** in screenshots, tenders, or press.
+  Say what it is: an open-source control tower *about* a place.
+- **Do not hide modelled data.** Scenario / bathtub / forecast layers must keep
+  their honesty chips (`SCENARIO`, `MODELLED`, `OFFLINE`).
+- **Do not commit secrets.** Keys live in `apps/api/.env` (gitignored) or in
+  deployment secret stores. Only `.env.example` is tracked. The SOURCES catalog
+  shows `⚠ KEY MISSING` when an optional key is absent — that is the correct
+  failure mode.
+- **Respect upstream data.** HII, GISTDA, Open-Meteo, Traffy, OSM, and others
+  own their feeds. Credit them; follow their terms.
+
+If you fork this for another city, apply the same rules there.
+
+---
+
+## How it works
+
+Every upstream source is fetched by **one adapter**, reshaped into the same
+envelope, cached with stale-while-revalidate, and rendered by a panel that only
+understands `NormalizedFeed<T>`.
+
+```mermaid
+flowchart LR
+    subgraph Upstream["Upstream"]
+        HII["HII ThaiWater<br/>gauges + rain"]
+        OM["Open-Meteo<br/>forecast · GloFAS"]
+        GISTDA["GISTDA · NASA"]
+        GOV["Traffy · iTIC · data.go.th"]
     end
 
-    subgraph API["apps/api — Hono on Cloudflare Workers"]
-        Adapters["Adapters<br/>(one per source)"]
-        Cache["In-memory cache<br/>TTL + stale-while-revalidate"]
-        Twin["Digital twin store<br/>(buildings + live state)"]
+    subgraph API["apps/api — Hono"]
+        Adapters["Adapters<br/>one per source"]
+        Cache["Cache<br/>TTL + stale-while-revalidate"]
+        Twin["Digital twin<br/>buildings + state"]
     end
 
     subgraph Web["apps/web — React + deck.gl"]
-        Hooks["useFeed() hooks<br/>poll + localStorage fallback"]
-        Panels["Panels<br/>(PanelHeader + freshness tier)"]
+        Hooks["useFeed()<br/>poll + localStorage"]
+        Panels["PanelHeader<br/>age + tier"]
         Map["3D map<br/>lenses → layers"]
     end
 
     Upstream --> Adapters --> Cache --> Hooks --> Panels
     Cache --> Twin --> Map
     Hooks --> Map
-
-    Operator(["Municipal operator / Mayor"]) --> Web
+    Op(["Operator on one Mac"]) --> Web
 ```
 
-**The adapter pattern.** Every upstream source gets exactly one adapter in
-`apps/api/src/adapters/<name>.ts`. An adapter fetches (with a timeout), reshapes the
-payload into typed `features`, stamps a `meta` block describing freshness, and — this is
-the part that matters — **throws on genuine failure** instead of silently returning empty
-data, so the cache layer's stale-while-revalidate logic can serve the last known-good
-value instead of a fabricated "nothing's wrong" response.
+**The adapter contract** (`apps/api/src/adapters/<name>.ts`): fetch with a
+timeout, reshape to typed `features`, stamp `meta` — and **throw on genuine
+failure**. Empty-on-error would look like “nothing’s wrong.” The cache then
+serves last-known-good, or a calm `unavailable` / `scenario` feed on a cold
+start.
 
-## The data contract — `NormalizedFeed<T>` <a id="data-structure"></a>
-
-Every one of the 70 cataloged sources — river gauges, satellite imagery, citizen reports,
-market data — is reshaped into **the same envelope** before it ever reaches a UI panel.
-This is the single most important design decision in the codebase: a panel never has to
-know or care what upstream API produced its data.
-
-```mermaid
-classDiagram
-    class NormalizedFeed~T~ {
-        +features: T[]
-        +meta: SourceMeta
-    }
-    class SourceMeta {
-        +source: string
-        +fetchedAt: string
-        +ageMinutes: number
-        +fallbackTier: FallbackTier
-        +note?: string
-    }
-    class FallbackTier {
-        <<enumeration>>
-        live
-        database
-        cache
-        scenario
-        reference
-        unavailable
-    }
-    NormalizedFeed --> SourceMeta : meta
-    SourceMeta --> FallbackTier : fallbackTier
-
-    class FloodGauge
-    class AirQualityPoint
-    class IncidentFeature
-    class ProvinceWatchScore
-    NormalizedFeed ..> FloodGauge : T =
-    NormalizedFeed ..> AirQualityPoint : T =
-    NormalizedFeed ..> IncidentFeature : T =
-    NormalizedFeed ..> ProvinceWatchScore : T =
+```ts
+interface NormalizedFeed<T> {
+  features: T[];
+  meta: SourceMeta; // source, fetchedAt, ageMinutes, fallbackTier, note?
+}
 ```
 
-One feed's round trip, end to end:
+<a id="honesty"></a>
 
-```mermaid
-sequenceDiagram
-    participant U as Upstream API
-    participant A as Adapter
-    participant C as Cache (stale-while-revalidate)
-    participant R as Hono route
-    participant H as useFeed() hook
-    participant P as Panel
+| `fallbackTier` | Meaning | UI |
+|---|---|---|
+| `live` | Real sensor/API, within TTL | green |
+| `database` | Twin Postgres record | `DB` |
+| `cache` | Last good value (memory or `localStorage`) | `CACHE` |
+| `reference` | Historical / statistical (e.g. UNOSAT 2021) | `REF` |
+| `scenario` | Model output (bathtub sim, forecast grid) | `SCENARIO` / `MODELLED` |
+| `unavailable` | Upstream down, no stale cache | `OFFLINE` — never faked |
 
-    R->>A: safeFeed(fetchXxx)
-    A->>C: cachedWithStale(key, ttl, compute)
-    alt cache hit, still fresh
-        C-->>A: cached data
-    else expired or empty
-        A->>U: fetch (25s timeout)
-        alt upstream OK
-            U-->>A: payload
-            A->>A: reshape → NormalizedFeed<T>
-            A->>C: store fresh
-        else upstream fails
-            A--xC: throws
-            C->>C: serve last-good stale value,<br/>or a calm "unavailable"/"scenario"<br/>feed on a true cold start
-        end
-    end
-    C-->>R: NormalizedFeed<T>
-    R-->>H: JSON response
-    H->>H: poll, retry+backoff,<br/>persist to localStorage
-    H-->>P: {data, ageMinutes, fallbackTier}
-    P->>P: PanelHeader shows source +<br/>age + freshness colour
-```
-
-## Data honesty: real vs. simulated <a id="honesty"></a>
-
-Every data point on screen carries a `fallbackTier`, and the UI always shows it — nothing
-simulated is ever presented as if it were live.
-
-| Tier | Meaning |
-|---|---|
-| `live` | Real sensor/API data, fetched within the adapter's TTL |
-| `database` | Persisted in the digital twin's Postgres store — authoritative record |
-| `cache` | Last good value, served from browser localStorage while a refresh is in flight |
-| `reference` | Historical/statistical dataset (e.g. 17-year satellite flood-frequency) — not live-updating |
-| `scenario` | Model output — e.g. the flood "bathtub" simulator, a forecast rain grid |
-| `unavailable` | Upstream is down and there's no stale cache — shown as an honest error, never faked |
-
-## Lenses — one city, many views <a id="lenses"></a>
+**Lenses** (`apps/web/src/map/presets.ts` — nine views, one city):
 
 | Lens | Purpose |
 |---|---|
-| **EXEC** | Strategic overview — municipal boundary, city-scale KPIs |
-| **OPS** | Day-to-day operations — every building in 3D, traffic, incidents, CCTV |
-| **FLOOD** | The headline risk — river gauges, surveyed flood marks, the scenario simulator, satellite flood exposure, and southern-region watch scores |
-| **MOB** | Mobility & dispatch — road network, transit, traffic heatmap |
-| **ENV** | Environment — flood-risk zones, waterways, land cover, air quality, solar potential |
-| **EAR** | Earth observation — satellite rain, heat, vegetation |
-| **SAF** | Safety — flood zones, citizen reports, hospitals/fire/police |
-| **VIB** | Presentation mode — clean true-color satellite for briefings |
-| **INT** | Forecast intelligence — rain/flood outlook layers |
+| **EXEC** | Strategic — municipal boundary, Old Town axis, city-scale KPIs |
+| **OPS** | Day-to-day — 3D buildings, traffic, incidents, CCTV |
+| **FLOOD** | Headline risk — gauges, flood marks, scenario slider, southern watch |
+| **MOB** | Dispatch — roads, transit, traffic heatmap |
+| **ENV** | Environment — flood polygons, waterways, air, solar |
+| **EAR** | Earth observation — terrain, rain, heat, vegetation |
+| **SAF** | Safety — flood zones, Traffy, hospitals / fire / police |
+| **VIB** | Presentation — clean true-color satellite |
+| **INT** | Forecast intelligence — rain/flood outlook wired to the map |
 
-## The southern-region flood layer <a id="flooddash"></a>
+Deeper internals: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) ·
+[`docs/DATA-SOURCES.md`](docs/DATA-SOURCES.md) · coding conventions in
+[`CLAUDE.md`](CLAUDE.md).
 
-Beyond NST-local monitoring, the **FLOOD** lens also carries peninsula-wide situational
-awareness: a watch score for all 14 southern provinces (water level 50% · rainfall 30% ·
-forecast 20%) and a GloFAS river-discharge cascade across five key reaches (Hat Yai, Tapi,
-Pattani, Tha Dee, Pak Phanang). This logic is a direct, verified port of an independent
-flood-monitoring engine, re-scoped to run against the same live upstream sources with no
-external server dependency.
+---
 
-## Quick start <a id="quickstart"></a>
+## Run it <a id="run"></a>
+
+**Requirements** (from `package.json` / `packageManager`): Node **≥ 20**,
+**pnpm 10.33.0**. One Mac is enough.
+
+### 1. Install
 
 ```bash
+git clone https://github.com/Nonarkara/nst-control-tower.git
+cd nst-control-tower
 pnpm install
-pnpm dev                    # all workspaces
-# or individually:
-pnpm --filter web dev       # frontend → http://localhost:5173
-pnpm --filter api dev       # API     → http://localhost:3000 (wrangler dev)
 ```
+
+### 2. Optional keys
 
 ```bash
-pnpm tsc --noEmit                    # type-check the whole repo
-pnpm --filter @nst/shared test       # 40 tests
-pnpm --filter @nst/api test          # 554 tests
-pnpm --filter @nst/web test          # 574 tests
-pnpm --filter @nst/web test:e2e      # 18 Playwright smoke tests
+cp apps/api/.env.example apps/api/.env
+# paste keys if you have them — every key is optional
 ```
 
-CI (`.github/workflows/test.yml`) runs type-check + unit + E2E on every PR; deploy to
-Cloudflare Pages/Workers runs only after the Test workflow passes.
+The dashboard degrades in public: a missing key hides that feed and surfaces a
+note in SOURCES. **Never commit `.env`.** Names only (see
+`apps/api/.env.example` and `docs/DATA-SOURCES.md`): `GEMINI_API_KEY`,
+`AQICN_TOKEN`, `FMP_API_KEY`, `FRED_API_KEY`, `FACEBOOK_PAGE_TOKEN`,
+`DATA_GO_TH_TOKEN`, `AIRLABS_API_KEY`, `GOOGLE_MAPS_API_KEY`, `GISTDA_API_KEY`,
+`TMD_KEY`, `SUPABASE_DB_URL` / `DATABASE_URL`, MQTT, etc.
 
-## Fork it for your city <a id="fork"></a>
+`apps/api/src/node.ts` loads `apps/api/.env` itself. Check presence (never
+values) with:
 
-This engine is geography-agnostic. To re-point it at another municipality:
+```bash
+curl -s http://127.0.0.1:8794/api/health/keys
+```
 
-1. **Region config** — `packages/shared/src/campus.ts` (center, bounds, name).
-2. **Buildings** — drop your city's OSM building GeoJSON at `apps/web/public/geo/<city>/`.
-3. **Source catalog** — trim or extend `packages/shared/src/sources.ts`.
-4. **Health mapping** — update `API_PATH_TO_ADAPTER` in `apps/web/src/lib/sourceCatalog.ts`
-   so the SOURCES modal can track health for any new routes.
+### 3. Local dashboard — the path Vite actually uses
 
-Deeper notes: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) ·
-[`docs/DATA-SOURCES.md`](docs/DATA-SOURCES.md) · conventions in [`CLAUDE.md`](CLAUDE.md).
+The web dev server (`apps/web/vite.config.ts`) proxies `/api` to
+**`http://localhost:8794`**. The Node entry (`apps/api/src/node.ts`) listens on
+**port 8794** by default (`HOST=127.0.0.1`). That pair is the local tower:
 
-## License & credits
+```bash
+pnpm --filter @nst/api dev:node   # http://127.0.0.1:8794
+pnpm --filter @nst/web dev        # http://localhost:5173  → proxies /api to :8794
+```
 
-MIT — see [`LICENSE`](LICENSE). Data belongs to its respective providers: HII
-(Hydro-Informatics Institute), Open-Meteo, GISTDA, NASA, UNOSAT/UNITAR, data.go.th,
-Traffy Fondue, OpenStreetMap, and others — see the in-app SOURCES catalog for the full,
-current list with live health status.
+Open **http://localhost:5173**.
+
+Notes from the files, not folklore:
+
+- `pnpm --filter @nst/api dev` runs **Wrangler** (`wrangler dev`, typically
+  `:8787`). That is the Workers emulator, **not** the Vite proxy target.
+- Root `pnpm dev` is `pnpm --parallel -r dev` (web Vite + Wrangler). Use the
+  **Node** API above if you want the proxy to hit live adapters the same way the
+  one-Mac daemon does.
+- Override with `PORT` / `HOST` in `.env`. `.env.example` still mentions `8787`
+  as a commented alternative; the committed Node default is **8794**.
+- Twin persistence is optional: without `SUPABASE_DB_URL` / `DATABASE_URL` the
+  twin stays in memory and hydrates from
+  `apps/web/public/geo/nst/buildings.geojson` on boot.
+
+### 4. One Mac, 24/7
+
+Production comment in `apps/api/src/node.ts`: a long-lived Node process (Thai
+government endpoints that local `workerd` TLS can reject), disk cache, 5-minute
+prewarm, optional MQTT.
+
+Committed wrappers (edit **paths** for your machine before loading):
+
+| File | Role |
+|---|---|
+| [`infra/run-nst-api.sh`](infra/run-nst-api.sh) | `caffeinate -is` + `pnpm start:node` on `:8794` |
+| [`infra/org.nonarkara.nst-api.plist`](infra/org.nonarkara.nst-api.plist) | `launchd` KeepAlive, `RunAtLoad`, logs under `var/` |
+
+Copy the plist to `~/Library/LaunchAgents/`, point `WorkingDirectory` /
+`ProgramArguments` at **your** clone, keep keys in `.env` (not in git).
+
+### 5. Tests and typecheck
+
+```bash
+pnpm --filter @nst/shared typecheck
+pnpm --filter @nst/web typecheck
+pnpm --filter @nst/api typecheck
+
+pnpm --filter @nst/shared test
+pnpm --filter @nst/api test
+pnpm --filter @nst/web test
+pnpm --filter @nst/web test:e2e    # Playwright smoke — map, lenses, honesty chips
+```
+
+CI (`.github/workflows/test.yml`) runs typecheck + unit + E2E on every PR.
+Deploy (`.github/workflows/deploy.yml`) waits for Test on `main`, then:
+
+- Web: `pnpm --filter @nst/web build` with `VITE_API_BASE_URL` →
+  `wrangler pages deploy` project **`nst-control-tower`**
+- API: `pnpm --filter @nst/api deploy` (Worker name
+  **`nst-control-tower-api`** in `apps/api/wrangler.toml`)
+
+---
+
+## Fork a city
+
+NST is the reference geography. The engine is meant to be re-pointed — clone,
+change place, ship. Paths below are what this repo actually hardcodes today.
+
+### 1. Clone
+
+Fork [Nonarkara/nst-control-tower](https://github.com/Nonarkara/nst-control-tower)
+(or `git clone`). Keep the monorepo. Do not start from a blank Vite app.
+
+### 2. Pick geography
+
+**Region config** — `packages/shared/src/campus.ts` (`NST`):
+
+- `id`, trilingual `name` (`en` / `th` / `zh`)
+- `center` as **`[lng, lat]`** (deck.gl order)
+- `innerBounds` / `outerBounds` (municipality vs map coverage)
+- `defaultView` (longitude, latitude, zoom, pitch, bearing)
+- `surroundingRoads`
+
+Also retarget, if your hydrology is not Tha Dee / Khao Luang:
+
+- `WATERSHED_FORECAST_POINTS` in the same file (order is API/web aligned)
+- `WATERSHED_ZONES` in `apps/web/src/lib/watershed.ts` (Thai/English names,
+  amphoe matchers)
+- `NST_PROVINCE_BBOX` for province-scale adapters
+
+**Buildings and static GeoJSON** — today loaders point at `/geo/nst/…`
+(`apps/web/src/App.tsx`, twin hydrate in `apps/api/src/node.ts`). Either:
+
+- replace files under `apps/web/public/geo/nst/`, or
+- add `apps/web/public/geo/<city>/` and retarget those paths.
+
+Minimum useful set (see `apps/web/scripts/extract-nst-geo.mjs`):
+`buildings.geojson`, `boundary.geojson`, `roads.geojson`, `waterways.geojson`,
+`civic-pois.geojson`. Adapt that script’s `BBOX` / `CENTER` and run from
+`apps/web/`:
+
+```bash
+node scripts/extract-nst-geo.mjs
+```
+
+**Source catalog** — trim or extend `packages/shared/src/sources.ts`. For every
+new live route, add a row to `API_PATH_TO_ADAPTER` in
+`apps/web/src/lib/sourceCatalog.ts` or the SOURCES modal will miss health chips.
+
+**News / keywords** — city-name filters live in the relevant adapters; grep and
+replace.
+
+**Public URLs** — `apps/web/index.html` (canonical, Open Graph, CSP,
+`preconnect`) and `apps/web/src/lib/apiBase.ts` (`NST_API_BASE`,
+`VITE_API_BASE_URL`). Wrangler / Pages project names:
+`nst-control-tower`, `nst-control-tower-api`.
+
+### 3. Deploy
+
+Local: the one-Mac pair in [Run it](#run). Public: Cloudflare Pages + Worker
+(see `.github/workflows/deploy.yml`), or keep Node behind a tunnel if you need
+the same process that talks to Thai government TLS.
+
+Then add a row to [`DEPLOYMENTS.md`](DEPLOYMENTS.md). Do **not** add a city
+there as “official” unless the repo documents that endorsement.
+
+---
+
+## Live URL
+
+| Surface | URL | Where it is declared |
+|---|---|---|
+| Canonical dashboard | [https://nst.nonarkara.org/](https://nst.nonarkara.org/) | `apps/web/index.html` (`link rel="canonical"`, Open Graph) |
+| Cloudflare Pages | [https://nst-control-tower.pages.dev](https://nst-control-tower.pages.dev) | [`DEPLOYMENTS.md`](DEPLOYMENTS.md) |
+| Production API | [https://nst-control-tower-api.drnon.workers.dev](https://nst-control-tower-api.drnon.workers.dev) | `apps/web/src/lib/apiBase.ts` (`NST_API_BASE`) |
+
+Custom API hosts can be set at build time with `VITE_API_BASE_URL`. Dev mode
+with no override uses relative `/api` (the Vite proxy).
+
+---
+
+## License
+
+MIT — [`LICENSE`](LICENSE). Copyright (c) 2026 Non Arkaraprasertkul.
+
+Data belongs to its providers: HII (Hydro-Informatics Institute), Open-Meteo,
+GISTDA, NASA, UNOSAT/UNITAR, data.go.th, Traffy Fondue, OpenStreetMap, and
+others. The in-app **SOURCES** catalog is the live list with health status.
+
+Software ≠ official city endorsement. See [Ethical use](#ethical-use).

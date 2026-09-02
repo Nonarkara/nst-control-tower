@@ -2,7 +2,7 @@
 
 | City | URL | Forked by | Notes |
 |------|-----|-----------|-------|
-| Nakhon Si Thammarat City Municipality (นครศรีธรรมราช) | [nst-control-tower.pages.dev](https://nst-control-tower.pages.dev) | Dr. Non Arkara | This repository's own deployment |
+| Nakhon Si Thammarat (นครศรีธรรมราช) — geography this repo points at | [nst.nonarkara.org](https://nst.nonarkara.org/) · [nst-control-tower.pages.dev](https://nst-control-tower.pages.dev) | Dr. Non Arkara | Independent civic fork — not an official municipal product unless a file in this repo says so |
 
 This engine also runs sibling deployments for other municipalities as separate
 forks/repos — see [Fork it for your city](README.md#fork) for how to stand up your own.
