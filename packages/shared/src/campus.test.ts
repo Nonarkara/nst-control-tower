@@ -40,10 +40,13 @@ describe("NST campus config", () => {
     expect(longitude).toBeLessThanOrEqual(maxLng);
     expect(latitude).toBeGreaterThanOrEqual(minLat);
     expect(latitude).toBeLessThanOrEqual(maxLat);
-    // Default camera frames the WHOLE PROVINCE (zoom ~8.4) so the map opens
-    // on the hydrology view — every river + district + flow arrow visible.
-    expect(zoom).toBeGreaterThanOrEqual(8);
-    expect(zoom).toBeLessThanOrEqual(20);
+    // City-scale boot: tight enough to pan, close enough to read the Old Town.
+    // The previous province-wide boot (zoom ~8.4) against tight outerBounds
+    // made the viewport WIDER than its own clamp — every drag was rejected and
+    // the map felt frozen. These bounds are what stop that coming back.
+    expect(zoom).toBeGreaterThanOrEqual(13);
+    expect(zoom).toBeLessThan(16);
+    expect(Math.hypot(longitude - NST.center[0], latitude - NST.center[1])).toBeLessThan(0.05);
   });
 
   it("defaultView is centred on the province centroid so the hydrology map reads on first paint", () => {

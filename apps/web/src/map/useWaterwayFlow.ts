@@ -29,12 +29,16 @@ export function useWaterwayFlow(
    *  going" cue the operator asked for; the full ~4k-dot network still waits
    *  for street zoom. */
   overview = false,
+  /** Shared drag flag — a REF, not a boolean. Toggling it during a drag must
+   *  not re-render App; the first pan froze the dashboard when it did. */
+  pausedRef?: { current: boolean },
 ): {
   layer: ScatterplotLayer<WaterwayFlowDot> | null;
 } {
   const [layer, setLayer] = useState<ScatterplotLayer<WaterwayFlowDot> | null>(null);
   const rafRef = useRef<number | null>(null);
   const reducedMotion = usePrefersReducedMotion();
+  const localPaused = pausedRef ?? { current: false };
 
   useEffect(() => {
     // LOD: skip the heavy ~4k-dot animation at province/city scale (zoom 0/1)
@@ -53,6 +57,10 @@ export function useWaterwayFlow(
     const start = performance.now();
     let lastUpdate = 0;
     const tick = (now: number) => {
+      if (localPaused.current) {
+        rafRef.current = requestAnimationFrame(tick);
+        return;
+      }
       if (now - lastUpdate >= UPDATE_INTERVAL_MS) {
         lastUpdate = now;
         setLayer(waterwayFlowLayer(waterwayFlowDots(prepared, now - start), zoomBucket, opts));

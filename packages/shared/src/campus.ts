@@ -59,6 +59,11 @@ export const NST: CampusConfig = {
   // cascade subway) are gated to zoomBucket === 0, so they only appear when
   // the operator zooms past 15.2 → no. Zoom out to 8.4 if you want the
   // RID-style basin overview.
+  //
+  // This is also what makes the camera PANNABLE. The previous boot was
+  // province-wide (zoom ~8.4) while deck.gl was also given tight
+  // `outerBounds` — a viewport wider than its own clamp. Every drag was
+  // rejected and the map felt frozen.
   defaultView: {
     longitude: 99.9631,
     latitude: 8.4367,

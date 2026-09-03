@@ -138,10 +138,12 @@ test.describe("Map camera — programmatic flights", () => {
   });
 
   test("dragging the map does not throw page errors", async ({ page }) => {
-    // A pan that fights the controller clamp (or a picking/shader hiccup
-    // mid-drag) used to freeze the canvas with a page error. One short hop
-    // near the top chrome — CI software-WebGL is not asked to interpolate a
-    // 12-step drag across extruded buildings.
+    // A pan that fights a camera clamp (or a picking/shader hiccup mid-drag)
+    // used to freeze the canvas with a page error. The tight `maxBounds` clamp
+    // is gone now — the boot is city-scale and the viewport is never wider
+    // than its own bounds — but a picking or shader hiccup mid-drag still can,
+    // so the guard stays. One short hop near the top chrome: CI software-WebGL
+    // is not asked to interpolate a 12-step drag across extruded buildings.
     const errors: string[] = [];
     page.on("pageerror", (e) => errors.push(e.message));
     await page.goto("/");
