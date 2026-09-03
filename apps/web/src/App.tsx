@@ -4,7 +4,7 @@ import type { Layer, ControllerProps } from "@deck.gl/core";
 import { FlyToInterpolator, LinearInterpolator } from "@deck.gl/core";
 import { Map as MapLibreMap } from "react-map-gl/maplibre";
 import maplibregl from "maplibre-gl";
-import type { Feature, FeatureCollection, LineString, Point, Polygon, MultiPolygon } from "geojson";
+import type { Feature, FeatureCollection, LineString, MultiLineString, Point, Polygon, MultiPolygon } from "geojson";
 import { CHONBURI } from "@nst/shared";
 import type {
   AcademicSnapshot,
@@ -1248,7 +1248,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
   const preparedArrows = useMemo(() => {
     if (!waterwayFlowEnabled || !waterways?.features?.length) return [];
     return prepareRiverArrows(
-      waterways.features as unknown as Feature<LineString, WaterwayArrowProps>[],
+      waterways.features as unknown as Feature<LineString | MultiLineString, WaterwayArrowProps>[],
       waterGauges.data,
     );
   }, [waterwayFlowEnabled, waterways, waterGauges.data]);

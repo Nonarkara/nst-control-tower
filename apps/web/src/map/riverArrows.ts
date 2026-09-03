@@ -1,15 +1,12 @@
 /**
  * Blinking downhill arrows on every waterway.
- *
- * Direction = DEM-oriented node order (high → low). Thickness = live discharge
- * when a gauge is near the reach; otherwise MODELLED from flowClass. Blink
- * rate tracks the same amount. Typography names reaches, marks HIGH/LOW, and
- * shows m³/s arriving at Nakhon Si Thammarat (the LOW end of คลองท่าดี).
+ * Direction = DEM high → low. Thickness = live discharge or MODELLED flowClass.
+ * Typography names reaches, marks HIGH/LOW, and shows m³/s to the city.
  */
 
 import { PathLayer, TextLayer } from "@deck.gl/layers";
 import type { Layer } from "@deck.gl/core";
-import type { Feature, LineString } from "geojson";
+import type { Feature, LineString, MultiLineString } from "geojson";
 import type { WaterGauge } from "@nst/shared";
 import {
   WATERSHED_ZONES,
@@ -43,7 +40,6 @@ export interface PreparedRiver {
   name: string;
   elevStart: number | null;
   elevEnd: number | null;
-  downhillConfident: boolean;
   thaDee: boolean;
   seeds: RiverArrowSeed[];
 }
@@ -206,39 +202,50 @@ export function placeArrows(
   return out;
 }
 
+function lineCoords(geom: LineString | MultiLineString | undefined): [number, number][][] {
+  if (!geom?.coordinates) return [];
+  const rings = geom.type === "MultiLineString" ? geom.coordinates : [geom.coordinates];
+  return rings
+    .map((ring) =>
+      ring
+        .filter((p): p is number[] => Array.isArray(p) && typeof p[0] === "number" && typeof p[1] === "number")
+        .map((p): [number, number] => [p[0], p[1]]),
+    )
+    .filter((c) => c.length >= 2);
+}
+
 export function prepareRiverArrows(
-  features: Feature<LineString, WaterwayArrowProps>[],
+  features: Feature<LineString | MultiLineString, WaterwayArrowProps>[],
   gauges: WaterGauge[] = [],
 ): PreparedRiver[] {
   const out: PreparedRiver[] = [];
   for (const f of features) {
-    const coords = f.geometry?.coordinates as [number, number][] | undefined;
-    if (!coords || coords.length < 2) continue;
-    const len = lineLengthDeg(coords);
-    if (len < MIN_LEN_DEG) continue;
     const p = f.properties ?? {};
     const name = featureName(p);
     const thaDee = isThaDeeName(name);
     const fclass: WaterwayFlowClass = p.flowClass ?? "medium";
-    const mid = coords[Math.floor(coords.length / 2)];
-    const gauge = matchReachGauge(mid[0], mid[1], gauges, thaDee);
-    const { amount, gauged } = amountFromSensors(gauge, fclass);
-    const flood = (gauge?.situationLevel ?? 0) >= 5;
-    out.push({
-      coords,
-      color: arrowColor(amount, gauged, gauge?.situationLevel ?? null),
-      amount,
-      sizePx: arrowSizePx(amount),
-      widthPx: flowWidthPx(amount),
-      blinkMs: blinkMsForAmount(amount, flood),
-      gauged,
-      name,
-      elevStart: p.elevStart ?? null,
-      elevEnd: p.elevEnd ?? null,
-      downhillConfident: p.downhillConfident !== false,
-      thaDee,
-      seeds: placeArrows(coords),
-    });
+    for (const coords of lineCoords(f.geometry)) {
+      const len = lineLengthDeg(coords);
+      if (len < MIN_LEN_DEG) continue;
+      const mid = coords[Math.floor(coords.length / 2)];
+      const gauge = matchReachGauge(mid[0], mid[1], gauges, thaDee);
+      const { amount, gauged } = amountFromSensors(gauge, fclass);
+      const flood = (gauge?.situationLevel ?? 0) >= 5;
+      out.push({
+        coords,
+        color: arrowColor(amount, gauged, gauge?.situationLevel ?? null),
+        amount,
+        sizePx: arrowSizePx(amount),
+        widthPx: flowWidthPx(amount),
+        blinkMs: blinkMsForAmount(amount, flood),
+        gauged,
+        name,
+        elevStart: p.elevStart ?? null,
+        elevEnd: p.elevEnd ?? null,
+        thaDee,
+        seeds: placeArrows(coords),
+      });
+    }
   }
   return out;
 }
@@ -311,12 +318,13 @@ export function riverTypographyData(
   const seen = new Set<string>();
   for (const line of prepared) {
     if (!line.name && !line.thaDee) continue;
-    const key = `${line.name}|${line.coords[0][0].toFixed(3)}`;
+    const start = line.coords[0];
+    const end = line.coords[line.coords.length - 1];
+    if (typeof start[0] !== "number" || typeof end[0] !== "number") continue;
+    const key = `${line.name}|${start[0].toFixed(3)}`;
     if (seen.has(key)) continue;
     seen.add(key);
     const mid = line.coords[Math.floor(line.coords.length / 2)];
-    const start = line.coords[0];
-    const end = line.coords[line.coords.length - 1];
     const display = line.name || "คลองท่าดี Tha Dee";
     labels.push({
       position: mid,
