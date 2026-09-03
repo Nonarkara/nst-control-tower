@@ -23,6 +23,8 @@ const CYCLE_MS = 8000;
 
 interface Props {
   visible: boolean;
+  /** When true, keep the last frame and skip React updates (drag/zoom). */
+  paused?: boolean;
   /** Flow path in flow order (upstream → city) — see map/layers.ts's thaDeeFlowPath. */
   flowPath: [number, number][];
   /** RGB for the dots — callers pass the cascade's real live status color,
@@ -44,9 +46,11 @@ interface FlowAnimationResult {
  * — never a raw per-frame tick value, which would rebuild every other layer
  * in that memo on every animation frame.
  */
-export function useFlowAnimation({ visible, flowPath, color }: Props): FlowAnimationResult {
+export function useFlowAnimation({ visible, paused = false, flowPath, color }: Props): FlowAnimationResult {
   const [layer, setLayer] = useState<ScatterplotLayer<[number, number]> | null>(null);
   const rafRef = useRef<number | null>(null);
+  const pausedRef = useRef(paused);
+  pausedRef.current = paused;
 
   // Stringify the small path/color so the effect only restarts (and resets
   // the animation clock) when the actual coordinates/color change — not on
@@ -65,6 +69,10 @@ export function useFlowAnimation({ visible, flowPath, color }: Props): FlowAnima
     let lastUpdate = 0;
 
     const tick = (now: number) => {
+      if (pausedRef.current) {
+        rafRef.current = requestAnimationFrame(tick);
+        return;
+      }
       if (now - lastUpdate >= UPDATE_INTERVAL_MS) {
         lastUpdate = now;
         const t = ((now - start) % CYCLE_MS) / CYCLE_MS;

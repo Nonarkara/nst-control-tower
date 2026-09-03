@@ -5,7 +5,7 @@ import { FlyToInterpolator, LinearInterpolator } from "@deck.gl/core";
 import { Map as MapLibreMap } from "react-map-gl/maplibre";
 import maplibregl from "maplibre-gl";
 import type { Feature, FeatureCollection, LineString, Point, Polygon, MultiPolygon } from "geojson";
-import { CHONBURI } from "@nst/shared";
+import { NST } from "@nst/shared";
 import type {
   AcademicSnapshot,
   AirQualityPoint,
@@ -130,6 +130,12 @@ import { useTile3DLayer } from "./map/Tile3DLayer";
 import { useGoogleTileSession } from "./hooks/useGoogleTileSession";
 import { googleTileTemplate } from "./lib/googleTiles";
 import { ALL_LAYERS, LENSES, layerCanEnable, enforceLayerExclusivity, exclusiveGroupOf, type LayerId, type LensId, type MapViewState } from "./map/presets";
+import {
+  MAP_DEVICE_PIXELS,
+  MAP_MAX_ZOOM,
+  MAP_MIN_ZOOM,
+  MAP_SCROLL_ZOOM,
+} from "./map/camera";
 
 import { TopBar } from "./components/TopBar";
 import { MapCompass } from "./components/MapCompass";
@@ -412,13 +418,13 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
   // the finger-to-pixel lag. Bounds/min/max zoom are enforced on the
   // `controller` prop, so the camera stays clamped without a controlled state.
   const [initialViewState, setInitialViewState] = useState({
-    ...CHONBURI.defaultView,
+    ...NST.defaultView,
     transitionDuration: 0,
   });
 
   // Live camera mirror — updated synchronously (free, no re-render) on every
   // onViewStateChange so click/flyTo handlers always read the true position.
-  const viewStateRef = useRef({ ...CHONBURI.defaultView });
+  const viewStateRef = useRef({ ...NST.defaultView });
   const bucketOf = (zoom: number) => (zoom >= 16.5 ? 2 : zoom >= 15.2 ? 1 : 0);
 
   // The ONLY camera-derived values a render actually needs: the zoom LOD bucket
@@ -427,9 +433,14 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
   // and a zoom crosses a bucket only a handful of times. rAF-coalesced so a
   // 240 Hz trackpad still can't exceed one check per frame.
   const [observed, setObserved] = useState({
-    zoomBucket: bucketOf(CHONBURI.defaultView.zoom),
-    bearing: CHONBURI.defaultView.bearing,
+    zoomBucket: bucketOf(NST.defaultView.zoom),
+    bearing: NST.defaultView.bearing,
   });
+  // Drag/zoom gesture flag — one React update at gesture start/end, never per
+  // frame. While true we disable GPU picking and freeze flow animations so a
+  // pan is just the camera, not a tooltip + 10 Hz layer rebuild.
+  const [mapBusy, setMapBusy] = useState(false);
+  const mapBusyRef = useRef(false);
   const observedRef = useRef(observed);
   observedRef.current = observed;
   const rafScheduledRef = useRef(false);
@@ -464,7 +475,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
   /** Command a programmatic camera move — sets a fresh initialViewState (which
    *  deck resets to) built from the LIVE camera so it preserves current
    *  pitch/bearing/zoom unless overridden. */
-  const flyCamera = useCallback((patch: Partial<typeof CHONBURI.defaultView> & { transitionDuration?: number; transitionInterpolator?: unknown }) => {
+  const flyCamera = useCallback((patch: Partial<typeof NST.defaultView> & { transitionDuration?: number; transitionInterpolator?: unknown }) => {
     const base = viewStateRef.current;
     const next = {
       longitude: patch.longitude ?? base.longitude,
@@ -521,6 +532,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
   // already runs a hover pick for getTooltip, so onHover adds no extra cost.
   const coordRef = useRef<HTMLSpanElement>(null);
   const handleMapHover = useCallback((info: { coordinate?: number[] }) => {
+    if (mapBusyRef.current) return;
     const el = coordRef.current;
     if (!el) return;
     const c = info?.coordinate;
@@ -569,8 +581,15 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
     }
   }, [flyTo]);
 
+  const handleInteractionStateChange = useCallback((state: { isDragging?: boolean }) => {
+    const busy = Boolean(state.isDragging);
+    if (mapBusyRef.current === busy) return;
+    mapBusyRef.current = busy;
+    setMapBusy(busy);
+  }, []);
+
   const zoomBy = (delta: number) => {
-    const z = Math.max(8, Math.min(20, viewStateRef.current.zoom + delta));
+    const z = Math.max(MAP_MIN_ZOOM, Math.min(MAP_MAX_ZOOM, viewStateRef.current.zoom + delta));
     flyCamera({ zoom: z, transitionDuration: 200 });
   };
 
@@ -593,10 +612,18 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
     setViewMode((prev) => (prev === "2D" ? "3D" : "2D"));
   }, []);
 
+  const viewModeBooted = useRef(false);
   useEffect(() => {
+    // Skip the mount run — defaultView already has the 3D pitch. A boot
+    // FlyTo would steal the first drag.
+    if (!viewModeBooted.current) {
+      viewModeBooted.current = true;
+      return;
+    }
+    // Pitch only — do not yank bearing back to a canned heading, which made
+    // a 2D/3D toggle feel like the city was ripped out from under the cursor.
     flyCamera({
-      pitch: viewMode === "2D" ? 0 : 60,
-      bearing: viewMode === "2D" ? 0 : -18,
+      pitch: viewMode === "2D" ? 0 : 48,
       transitionDuration: 700,
       transitionInterpolator: new FlyToInterpolator(),
     });
@@ -1187,8 +1214,14 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
   }, []);
   const handleDeckError = useCallback((error: Error, layer?: { id?: string }) => {
     const layerId = String(layer?.id ?? "");
-    if (layerId.includes("heatmap") || /shader|compil/i.test(error.message)) {
+    const msg = error?.message ?? String(error);
+    // Picking/context-loss noise during a drag is not an operator-facing
+    // failure — swapping heatmaps or logging every frame is what froze the
+    // canvas after a shader hiccup.
+    if (/context lost|CONTEXT_LOST|picking/i.test(msg)) return;
+    if (layerId.includes("heatmap") || /shader|compil/i.test(msg)) {
       setGpuHeatmapOk(false);
+      return;
     }
     console.error("[deck.gl]", layerId, error);
   }, []);
@@ -1224,6 +1257,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
   const thaDeeFlowColor = ZONE_STATUS_RGB[worstStatus(watershedSummaries.filter(isThaDeeZone))];
   const flowAnim = useFlowAnimation({
     visible: enabledLayers.has("watershed-nodes"),
+    paused: mapBusy,
     flowPath: thaDeeFlow,
     color: thaDeeFlowColor,
   });
@@ -1250,7 +1284,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
       },
     );
   }, [waterwayFlowEnabled, waterways, thaDeeFlowColor, watershedSummaries]);
-  const waterwayFlow = useWaterwayFlow(preparedFlows, waterwayFlowEnabled);
+  const waterwayFlow = useWaterwayFlow(preparedFlows, waterwayFlowEnabled, mapBusy);
 
   // RainViewer live radar nowcast (animated precipitation).
   const rainRadar = useRainRadar(enabledLayers.has("precip-radar"));
@@ -1448,8 +1482,8 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
 
     // Distance grid (1·5·10 km)
     if (enabledLayers.has("distance-grid")) {
-      out.push(distanceGridLayer(CHONBURI.center, [1, 5, 10]) as Layer);
-      out.push(distanceGridLabelsLayer(CHONBURI.center, [1, 5, 10]) as Layer);
+      out.push(distanceGridLayer(NST.center, [1, 5, 10]) as Layer);
+      out.push(distanceGridLabelsLayer(NST.center, [1, 5, 10]) as Layer);
     }
 
     // Device GPS pulse — always above everything else when a fix is available.
@@ -1623,6 +1657,33 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
     { label: "EX", tier: executive.fallbackTier, ageMinutes: executive.ageMinutes },
     { label: "MK", tier: markets.fallbackTier, ageMinutes: markets.ageMinutes },
   ], [news.fallbackTier, news.ageMinutes, cityReports.fallbackTier, cityReports.ageMinutes, iticEvents.fallbackTier, iticEvents.ageMinutes, cctv.fallbackTier, cctv.ageMinutes, datago.fallbackTier, datago.ageMinutes, aqiTrend.fallbackTier, aqiTrend.ageMinutes, weather.fallbackTier, weather.ageMinutes, executive.fallbackTier, executive.ageMinutes, markets.fallbackTier, markets.ageMinutes]);
+
+  const mapController = useMemo(
+    () =>
+      ({
+        minZoom: MAP_MIN_ZOOM,
+        maxZoom: MAP_MAX_ZOOM,
+        scrollZoom: MAP_SCROLL_ZOOM,
+        dragPan: true,
+        dragRotate: true,
+        touchRotate: false,
+        inertia: true,
+      }) as ControllerProps & {
+        minZoom?: number;
+        maxZoom?: number;
+        inertia?: boolean;
+        touchRotate?: boolean;
+      },
+    [],
+  );
+
+  const getMapTooltip = useCallback(
+    (info: { layer?: { id?: string } | null; object?: unknown }) => {
+      if (mapBusyRef.current) return null;
+      return tooltipForPickMemo(info);
+    },
+    [tooltipForPickMemo],
+  );
 
   return (
     <div
@@ -2021,15 +2082,12 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
           <DeckGL
             initialViewState={initialViewState}
             onViewStateChange={handleViewStateChange}
-            // Controller options — minZoom/maxZoom live in MapStateProps which is not
-            // re-exported by @deck.gl/core, so we extend ControllerProps locally.
-            // All three constraints enforce bounds *before* onViewStateChange fires,
-            // preventing the one-frame "flash to outer space" that a pure React clamp cannot.
-            // scrollZoom.speed: default 0.01 → one fast trackpad swipe jumps 5+ levels;
-            // 0.004 is ~2.5× slower, still comfortable but safe.
-            controller={{ minZoom: 8, maxZoom: 20, maxBounds: CHONBURI.outerBounds, scrollZoom: { speed: 0.004, smooth: false } } as ControllerProps & { minZoom?: number; maxZoom?: number }}
+            onInteractionStateChange={handleInteractionStateChange}
+            controller={mapController}
             layers={allLayers}
-            getTooltip={tooltipForPickMemo}
+            pickingRadius={mapBusy ? 0 : 5}
+            useDevicePixels={MAP_DEVICE_PIXELS}
+            getTooltip={getMapTooltip}
             onClick={handleMapClick}
             onHover={handleMapHover}
             onDeviceInitialized={handleDeviceInitialized}

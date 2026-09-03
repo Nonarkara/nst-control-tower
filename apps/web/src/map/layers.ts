@@ -77,7 +77,7 @@ export function campusBoundaryLayer(
     data: collection as unknown as FeatureCollection,
     stroked: options.stroked ?? true,
     filled: options.filled ?? true,
-    pickable: true,
+    pickable: false,
     extruded: options.extruded ?? false,
     getFillColor: ((f: CampusZoneFeature) => {
       const z = ZONE_COLORS[f.properties.zoneType] ?? [120, 120, 120];
@@ -386,7 +386,6 @@ export function buildingsLayer(
     stroked: !extruded,
     filled: true,
     pickable: true,
-    autoHighlight: false,
     extruded,
     elevationScale: extruded && !ghosted ? 1.65 : 1,
     material: extruded && !ghosted
@@ -1495,7 +1494,9 @@ export function roadNetworkLayer(collection: FeatureCollection<LineString, Class
     data: collection as unknown as FeatureCollection,
     stroked: true,
     filled: false,
-    pickable: true,
+    // Roads cover the whole city; GPU line-picking on every hover/drag stole
+    // the pan. Tooltip lives on buildings / incidents / civic dots instead.
+    pickable: false,
     getLineColor: ((f: Feature<LineString, ClassifiedRoadProps>) => {
       const s = ROAD_STYLE[f.properties.priority] ?? ROAD_STYLE[3];
       return [s.color[0], s.color[1], s.color[2], 180] as [number, number, number, number];
@@ -2437,7 +2438,7 @@ export function ringRoadsLayer(collection: FeatureCollection<LineString, RingRoa
     data: collection as unknown as FeatureCollection,
     stroked: true,
     filled: false,
-    pickable: true,
+    pickable: false,
     getLineColor: ((f: Feature<LineString, RingRoadProps>) =>
       f.properties.ring
         ? ([255, 240, 150, 255] as [number, number, number, number]) // ring — bright cream

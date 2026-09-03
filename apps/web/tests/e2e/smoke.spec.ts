@@ -395,6 +395,26 @@ test.describe("Map camera — programmatic flights", () => {
     const z3 = await page.evaluate(() => (window as unknown as { __mapCam?: { zoom: number } }).__mapCam?.zoom);
     expect(z3).toBeGreaterThan(z2!);
   });
+
+  test("dragging the map does not throw page errors", async ({ page }) => {
+    const errors: string[] = [];
+    page.on("pageerror", (e) => errors.push(e.message));
+    await page.goto("/");
+    await expect(page.locator(".map-host")).toBeVisible({ timeout: 20_000 });
+
+    const host = page.locator(".map-host");
+    const box = await host.boundingBox();
+    expect(box).toBeTruthy();
+    const x = box!.x + box!.width * 0.55;
+    const y = box!.y + box!.height * 0.45;
+    await page.mouse.move(x, y);
+    await page.mouse.down();
+    await page.mouse.move(x - 140, y + 50, { steps: 12 });
+    await page.mouse.up();
+    await page.waitForTimeout(300);
+
+    expect(errors, errors.join("\n")).toEqual([]);
+  });
 });
 
 
