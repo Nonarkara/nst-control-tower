@@ -172,7 +172,7 @@ export const LENSES: Lens[] = [
   {
     id: "flood",
     label: "FLOOD",
-    describe: "Flood — the headline risk. Pak Phanang + Tha Dee river corridors + buffer, the upstream→city watershed cascade (ทุ่งสง · คีรีวง · ลานสกา → city), river/canal gauges (GloFAS), Khao Luang runoff, surveyed flood marks + street elevations (HII 2025) with the FLOOD COMMAND scenario, hand-authored flood-risk polygons, WRF-ROMS forecast rain.",
+    describe: "Flood — the headline risk. Pak Phanang + Tha Dee river corridors + buffer, blinking downhill arrows on every waterway (thickness = live discharge where a gauge rates it), the upstream→city watershed cascade (ทุ่งสง · คีรีวง · ลานสกา → city) with how much water is arriving downtown, river/canal gauges (GloFAS), Khao Luang runoff, surveyed flood marks + street elevations (HII 2025) with the FLOOD COMMAND scenario, hand-authored flood-risk polygons, WRF-ROMS forecast rain.",
     // Esri imagery + the flood-prone fill as the single colorizer + flood
     // vectors (risk zones, river buffer, gauges). Tap IMERG rainfall to swap the
     // colorizer to live rain — it replaces the flood-prone fill, so the map never
@@ -441,8 +441,8 @@ export const ALL_LAYERS: {
     describe: "Hospitals (✚ red) · clinics (pink) · schools (🅢 violet) · police (P cyan) · fire stations (🜂 orange) · government (cerulean) · temples (卐 gold) · markets (▦ green) · post offices · substations · water works. Hover for name. From OSM province-wide." },
   { id: "waterways",         label: "Canals + rivers + drains",  swatch: "#0EA5E9", group: "municipality",
     describe: "Hydrology network: rivers (sky blue, thick), canals (cerulean, medium), streams (pale sky, thin), drains/ditches (teal). Critical for flood-prevention planning + identifying drainage backbone. Line style is an ordinal proxy for conveyance capacity (river > canal > stream > drain/ditch) derived from OSM classification only — no width/condition/capacity survey data exists for these segments; treat as illustrative, not measured throughput." },
-  { id: "waterway-flow",     label: "Water flow (direction + speed)", swatch: "#38BDF8", group: "environment",
-    describe: "Animated dots showing which way water flows and roughly how fast on every waterway. Direction is oriented downhill from a DEM; speed (blue=slow → cyan → white=fast) is MODELLED from channel slope × type for ungauged reaches and driven by live discharge at gauged trunk reaches (Tha Dee). A directional cue, not a hydraulic routing result." },
+  { id: "waterway-flow",     label: "River arrows (direction + amount)", swatch: "#38BDF8", group: "environment",
+    describe: "Blinking arrows on every river and canal showing which way water runs (downhill, high → low from a DEM). Arrow thickness / pulse rate = live discharge (or channel fullness × qmax) when a nearby HII gauge rates the reach; MODELLED from slope × channel type otherwise. Typography names the waterways, marks HIGH/LOW elevation, and shows how many m³/s are arriving at Nakhon Si Thammarat — the LOW end of คลองท่าดี is the flood destination. A directional cue, not a hydraulic routing result." },
   { id: "fisheries",         label: "Fishing + aquaculture zones", swatch: "#FBBF24", group: "maritime",
     describe: "Coastal fishing economy: Pak Phanang basin · Gulf of Thailand artisanal · Sichon coast · Tha Sala fishing piers · NST province aquaculture zones. Click for boat count + yield." },
   { id: "flood-risk-zones",  label: "Coastal flood-risk zones",   swatch: "#EF4444", group: "environment",
@@ -584,5 +584,5 @@ export const COMPUTED_LAYERS: ReadonlySet<LayerId> = new Set<LayerId>([
   "terrain-3d",
   "precip-radar",
   "air-waqi-field",
-  "waterway-flow", // animated dot cloud — a count badge would be meaningless
+  "waterway-flow", // blinking arrows — a count badge would be meaningless
 ]);

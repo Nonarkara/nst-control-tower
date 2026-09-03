@@ -1,37 +1,46 @@
 import { useEffect, useRef, useState } from "react";
-import type { ScatterplotLayer } from "@deck.gl/layers";
-import { waterwayFlowDots, waterwayFlowLayer, type PreparedFlowLine, type WaterwayFlowDot } from "./layers";
+import type { Layer } from "@deck.gl/core";
+import {
+  flattenRiverGlyphs,
+  riverArrowLayer,
+  type PreparedRiver,
+} from "./riverArrows";
 
 /**
- * Animates flow dots along EVERY waterway (direction + speed), generalising the
- * single Tha Dee cascade in useFlowAnimation. Same isolation contract: owns its
- * own rAF loop, and the returned `layer` reference is the ONLY thing that
- * changes per frame — the caller appends it in `allLayers` OUTSIDE the big
- * `layers` useMemo so a tick never rebuilds the ~30 other layers.
- *
- * The expensive geometry digest (prepareWaterwayFlows) is done by the caller and
- * passed in as `prepared`; this hook only advances the shared clock. Prepared
- * changes only when the waterway set or gauge state changes, restarting the loop.
+ * Blinks downhill arrows along every prepared waterway.
+ * Geometry is flattened once; the rAF tick only swaps the TextLayer color
+ * trigger so a frame never reallocates thousands of glyph objects (that freeze
+ * froze the FLOOD lens on CI software-WebGL).
  */
-const UPDATE_INTERVAL_MS = 100; // ~10 Hz
+const UPDATE_INTERVAL_MS = 160;
 
-export function useWaterwayFlow(prepared: PreparedFlowLine[], visible: boolean): {
-  layer: ScatterplotLayer<WaterwayFlowDot> | null;
+export function useWaterwayFlow(
+  prepared: PreparedRiver[],
+  visible: boolean,
+  pausedRef?: { current: boolean },
+): {
+  layer: Layer | null;
 } {
-  const [layer, setLayer] = useState<ScatterplotLayer<WaterwayFlowDot> | null>(null);
+  const [layer, setLayer] = useState<Layer | null>(null);
   const rafRef = useRef<number | null>(null);
+  const localPaused = pausedRef ?? { current: false };
 
   useEffect(() => {
     if (!visible || prepared.length === 0) {
       setLayer(null);
       return;
     }
+    const glyphs = flattenRiverGlyphs(prepared);
     const start = performance.now();
     let lastUpdate = 0;
     const tick = (now: number) => {
+      if (localPaused.current) {
+        rafRef.current = requestAnimationFrame(tick);
+        return;
+      }
       if (now - lastUpdate >= UPDATE_INTERVAL_MS) {
         lastUpdate = now;
-        setLayer(waterwayFlowLayer(waterwayFlowDots(prepared, now - start)));
+        setLayer(riverArrowLayer(glyphs, now - start) as Layer);
       }
       rafRef.current = requestAnimationFrame(tick);
     };

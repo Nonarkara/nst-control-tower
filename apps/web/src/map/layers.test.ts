@@ -84,6 +84,9 @@ function zone(key: string, river: string, lng: number, lat: number): ZoneSummary
     gaugeCount: 0,
     topStation: "",
     modelled: false,
+    dischargeCms: null,
+    fullnessPct: null,
+    qmaxCms: null,
   };
 }
 

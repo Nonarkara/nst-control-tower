@@ -4,7 +4,7 @@ import type { Layer, ControllerProps } from "@deck.gl/core";
 import { FlyToInterpolator, LinearInterpolator } from "@deck.gl/core";
 import { Map as MapLibreMap } from "react-map-gl/maplibre";
 import maplibregl from "maplibre-gl";
-import type { Feature, FeatureCollection, LineString, Point, Polygon, MultiPolygon } from "geojson";
+import type { Feature, FeatureCollection, LineString, MultiLineString, Point, Polygon, MultiPolygon } from "geojson";
 import { CHONBURI } from "@nst/shared";
 import type {
   AcademicSnapshot,
@@ -55,9 +55,6 @@ import {
   terrain3dLayer,
   type TerrainGrid,
   waqiAirFieldLayer,
-  prepareWaterwayFlows,
-  waterwayFlowDots,
-  waterwayFlowLayer,
   esriSatelliteLayer,
   gibsLayer,
   googleTilesLayer,
@@ -186,7 +183,14 @@ import { ChatBox } from "./components/ChatBox";
 import { PredictivePanel, METRIC_LAYER_MAP, METRIC_LABEL, type ForecastMetric } from "./components/PredictivePanel";
 import { ExecutiveBriefing } from "./components/ExecutiveBriefing";
 import { API_BASE } from "./lib/apiBase";
-import { summarizeWatershed, isThaDeeZone, worstStatus, ZONE_STATUS_RGB } from "./lib/watershed";
+import { summarizeWatershed, summarizeCityInflow, isThaDeeZone, worstStatus, ZONE_STATUS_RGB } from "./lib/watershed";
+import {
+  prepareRiverArrows,
+  riverFlowWidthLayer,
+  riverTypographyData,
+  riverTypographyLayer,
+  type WaterwayArrowProps,
+} from "./map/riverArrows";
 import { buildSensorInsights } from "./lib/sensorInsights";
 import { SensorInsightsPanel } from "./components/SensorInsightsPanel";
 import { SensorSituationBoard } from "./components/SensorSituationBoard";
@@ -680,11 +684,18 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
         sub = wt.toUpperCase() + (pick("intermittent") === "yes" ? " · intermittent" : "");
         // Flow enrichment (scripts/enrich-nst-waterways.mjs): direction + speed.
         const fclass = (p as { flowClass?: string }).flowClass;
+        const elevStart = num("elevStart");
+        const elevEnd = num("elevEnd");
+        if (elevStart != null || elevEnd != null) {
+          lines.push(
+            `high ${elevStart != null ? Math.round(elevStart) : "—"} m → low ${elevEnd != null ? Math.round(elevEnd) : "—"} m MSL (water runs downhill)`,
+          );
+        }
         if (fclass) {
           const slope = num("slopePct");
           const confident = (p as { downhillConfident?: boolean }).downhillConfident;
           lines.push(`flow ${fclass.toUpperCase()}${slope != null ? ` · slope ${slope.toFixed(2)}%` : ""}`);
-          lines.push(confident ? "direction: downhill (DEM), MODELLED speed" : "direction: uncertain (near-flat) — MODELLED");
+          lines.push(confident ? "direction: downhill (DEM), MODELLED speed unless a nearby gauge rates discharge" : "direction: uncertain (near-flat) — MODELLED");
         }
         break;
       }
@@ -1228,29 +1239,25 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
     color: thaDeeFlowColor,
   });
 
-  // ALL-waterways flow (direction + speed). Prepared once per data/gauge change
-  // (the expensive geometry digest), then animated by useWaterwayFlow into ONE
-  // layer appended in allLayers. Gauged Tha Dee reaches take the live cascade
-  // color; the modelled majority is coloured by slope class inside the builder.
+  // ALL-waterways blinking arrows (direction + amount). Prepared once per
+  // waterway/gauge change, then blinked by useWaterwayFlow into ONE TextLayer
+  // appended in allLayers so a 10 Hz tick never rebuilds the rest of the map.
+  // Thickness = live discharge (or fullness × qmax) when a gauge is near the
+  // reach; MODELLED from slope class otherwise.
   const waterwayFlowEnabled = enabledLayers.has("waterway-flow");
-  const preparedFlows = useMemo(() => {
+  const preparedArrows = useMemo(() => {
     if (!waterwayFlowEnabled || !waterways?.features?.length) return [];
-    const thaDeeColor = thaDeeFlowColor;
-    return prepareWaterwayFlows(
-      waterways.features as unknown as Feature<LineString, { waterway?: string; name?: string | null; nameTh?: string | null; flowClass?: "slow" | "medium" | "fast"; slopePct?: number; downhillConfident?: boolean }>[],
-      (f) => {
-        const name = `${f.properties.name ?? ""}${f.properties.nameTh ?? ""}`;
-        // Tha Dee trunk: colour by the live cascade status, speed up when in flood.
-        if (name.includes("ท่าดี") || /tha\s*dee/i.test(name)) {
-          const worst = worstStatus(watershedSummaries.filter(isThaDeeZone));
-          const speed = worst === "flood" ? 2.2 : worst === "high" ? 1.6 : 1.1;
-          return { speed, color: thaDeeColor };
-        }
-        return null;
-      },
+    return prepareRiverArrows(
+      waterways.features as unknown as Feature<LineString | MultiLineString, WaterwayArrowProps>[],
+      waterGauges.data,
     );
-  }, [waterwayFlowEnabled, waterways, thaDeeFlowColor, watershedSummaries]);
-  const waterwayFlow = useWaterwayFlow(preparedFlows, waterwayFlowEnabled);
+  }, [waterwayFlowEnabled, waterways, waterGauges.data]);
+  const cityInflow = useMemo(() => summarizeCityInflow(waterGauges.data), [waterGauges.data]);
+  const waterwayFlow = useWaterwayFlow(preparedArrows, waterwayFlowEnabled);
+  const riverLabels = useMemo(() => {
+    if (!waterwayFlowEnabled || preparedArrows.length === 0) return [] as Layer[];
+    return [riverTypographyLayer(riverTypographyData(preparedArrows, cityInflow))];
+  }, [waterwayFlowEnabled, preparedArrows, cityInflow]);
 
   // RainViewer live radar nowcast (animated precipitation).
   const rainRadar = useRainRadar(enabledLayers.has("precip-radar"));
@@ -1355,6 +1362,9 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
     if (enabledLayers.has("civic-points") && civicPoints) out.push(civicPointsLayer(civicPoints) as Layer);
     // Waterways (canals + rivers + drains)
     if (enabledLayers.has("waterways") && waterways) out.push(waterwaysLayer(waterways) as Layer);
+    // Flow-amount stroke under the blinking arrows (static; arrows tick in allLayers).
+    if (waterwayFlowEnabled && preparedArrows.length > 0)
+      out.push(riverFlowWidthLayer(preparedArrows) as Layer);
     // National waterways (NST province from Overpass API)
     if (enabledLayers.has("national-waterways") && nationalWaterways.data.length > 0)
       out.push(nationalWaterwaysLayer(nationalWaterways.data) as Layer);
@@ -1480,6 +1490,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
     presence.lng, presence.lat, presence.accuracyM,
     tile3d.layer, gpuHeatmapOk, terrainGrid,
     googleSatSession, googleTrafficSession,
+    waterwayFlowEnabled, preparedArrows,
   ]);
 
   // Street-flood scenario layer — composed OUTSIDE the big memo above so a
@@ -1494,25 +1505,28 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
     [enabledLayers, roadLevels, scenarioLevel],
   );
   // Fast-cadence layers are concatenated OUTSIDE the big memo above: the
-  // street wash PREPENDED (renders beneath marks/gauges/labels), the animated
-  // flow dots APPENDED (must draw above the cascade line). This concat is the
-  // ONLY work their updates cost — the ~30 builder calls above never re-run
-  // for a slider tick or an animation frame.
+  // street wash PREPENDED (renders beneath marks/gauges/labels), the blinking
+  // river arrows APPENDED then labelled on top. This concat is the ONLY work
+  // their updates cost — the ~30 builder calls above never re-run for a slider
+  // tick or an animation frame.
   const allLayers = useMemo<Layer[]>(() => {
     // Each animated/hook layer is already null when its layer is disabled —
-    // the hooks own those gates. Rain radar sits under the vectors; the flow
-    // dot clouds sit on top.
+    // the hooks own those gates. Rain radar sits under the vectors; arrows
+    // sit on the waterways; typography sits above the arrows.
     const radar = rainRadar.layer as Layer | null;
     const wwFlow = waterwayFlow.layer as Layer | null;
-    if (!streetFloodSimLayer && !flowAnim.layer && !radar && !wwFlow) return layers;
+    if (!streetFloodSimLayer && !flowAnim.layer && !radar && !wwFlow && riverLabels.length === 0) {
+      return layers;
+    }
     return [
       ...(radar ? [radar] : []),
       ...(streetFloodSimLayer ? [streetFloodSimLayer] : []),
       ...layers,
       ...(wwFlow ? [wwFlow] : []),
+      ...riverLabels,
       ...(flowAnim.layer ? [flowAnim.layer as Layer] : []),
     ];
-  }, [layers, streetFloodSimLayer, flowAnim.layer, rainRadar.layer, waterwayFlow.layer]);
+  }, [layers, streetFloodSimLayer, flowAnim.layer, rainRadar.layer, waterwayFlow.layer, riverLabels]);
 
   // Feature counts — passed to LayerPalette so every toggle shows a number,
   // making it immediately obvious whether the layer has data or not.

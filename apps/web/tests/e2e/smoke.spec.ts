@@ -62,6 +62,8 @@ test.describe("Dashboard boot", () => {
 
 test.describe("Lens switching", () => {
   test("INT and FLOOD lens buttons toggle aria-pressed", async ({ page }) => {
+    // FLOOD turns on river arrows + satellite; software-WebGL CI is slower than a laptop.
+    test.setTimeout(120_000);
     await page.goto("/");
     await expect(page.locator(".map-host")).toBeVisible({ timeout: 20_000 });
 
@@ -134,6 +136,9 @@ test.describe("FLOOD lens — panel headers", () => {
     // even during loading state — so no API data is required.
     await expect(page.getByText(/WATER MONITORING/i).first()).toBeVisible({ timeout: 15_000 });
     await expect(page.getByText(/WATERSHED/i).first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByLabel("Water to the city")).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText(/WATER TO THE CITY/i).first()).toBeVisible();
+    await expect(page.getByText(/high → low/i).first()).toBeVisible();
   });
 });
 
