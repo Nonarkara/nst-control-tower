@@ -436,10 +436,8 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
     zoomBucket: bucketOf(NST.defaultView.zoom),
     bearing: NST.defaultView.bearing,
   });
-  // Drag/zoom gesture flag — one React update at gesture start/end, never per
-  // frame. While true we disable GPU picking and freeze flow animations so a
-  // pan is just the camera, not a tooltip + 10 Hz layer rebuild.
-  const [mapBusy, setMapBusy] = useState(false);
+  // Drag/zoom gesture flag — ref only, never setState. A React update on
+  // pointer-down rebuilt the whole App (and deck.gl) and froze the first pan.
   const mapBusyRef = useRef(false);
   const observedRef = useRef(observed);
   observedRef.current = observed;
@@ -582,10 +580,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
   }, [flyTo]);
 
   const handleInteractionStateChange = useCallback((state: { isDragging?: boolean }) => {
-    const busy = Boolean(state.isDragging);
-    if (mapBusyRef.current === busy) return;
-    mapBusyRef.current = busy;
-    setMapBusy(busy);
+    mapBusyRef.current = Boolean(state.isDragging);
   }, []);
 
   const zoomBy = (delta: number) => {
@@ -1257,7 +1252,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
   const thaDeeFlowColor = ZONE_STATUS_RGB[worstStatus(watershedSummaries.filter(isThaDeeZone))];
   const flowAnim = useFlowAnimation({
     visible: enabledLayers.has("watershed-nodes"),
-    paused: mapBusy,
+    pausedRef: mapBusyRef,
     flowPath: thaDeeFlow,
     color: thaDeeFlowColor,
   });
@@ -1284,7 +1279,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
       },
     );
   }, [waterwayFlowEnabled, waterways, thaDeeFlowColor, watershedSummaries]);
-  const waterwayFlow = useWaterwayFlow(preparedFlows, waterwayFlowEnabled, mapBusy);
+  const waterwayFlow = useWaterwayFlow(preparedFlows, waterwayFlowEnabled, mapBusyRef);
 
   // RainViewer live radar nowcast (animated precipitation).
   const rainRadar = useRainRadar(enabledLayers.has("precip-radar"));
@@ -2085,7 +2080,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
             onInteractionStateChange={handleInteractionStateChange}
             controller={mapController}
             layers={allLayers}
-            pickingRadius={mapBusy ? 0 : 5}
+            pickingRadius={5}
             useDevicePixels={MAP_DEVICE_PIXELS}
             getTooltip={getMapTooltip}
             onClick={handleMapClick}
