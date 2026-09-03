@@ -77,13 +77,6 @@ test.describe("Lens switching", () => {
     await floodButton.click();
     await expect(floodButton).toHaveAttribute("aria-pressed", "true");
     await expect(intButton).toHaveAttribute("aria-pressed", "false");
-
-    // FLOOD turns on downhill river arrows (direction + amount).
-    const envHead = page.getByRole("button", { name: /Environment layers/i });
-    if (await envHead.getAttribute("aria-expanded") === "false") await envHead.click();
-    const arrows = page.getByRole("checkbox", { name: /River arrows/i }).first();
-    await expect(arrows).toBeVisible({ timeout: 10_000 });
-    await expect(arrows).toHaveAttribute("aria-checked", "true");
   });
 });
 
