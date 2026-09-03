@@ -1,18 +1,10 @@
-/**
- * Blinking downhill arrows on every waterway.
- * Direction = DEM high → low. Thickness = live discharge or MODELLED flowClass.
- * Typography names reaches, marks HIGH/LOW, and shows m³/s to the city.
- */
+/** Downhill blinking arrows: DEM high→low, thickness from discharge or MODELLED flowClass. */
 
 import { PathLayer, TextLayer } from "@deck.gl/layers";
 import type { Layer } from "@deck.gl/core";
 import type { Feature, LineString, MultiLineString } from "geojson";
 import type { WaterGauge } from "@nst/shared";
-import {
-  WATERSHED_ZONES,
-  fmtCityInflowShort,
-  type CityInflow,
-} from "../lib/watershed";
+import { WATERSHED_ZONES, fmtCityInflowShort, type CityInflow } from "../lib/watershed";
 
 export type WaterwayFlowClass = "slow" | "medium" | "fast";
 
@@ -51,7 +43,8 @@ export interface RiverArrowSeed {
 
 export interface RiverGlyph extends RiverArrowSeed {
   size: number;
-  color: [number, number, number, number];
+  rgb: [number, number, number];
+  blinkMs: number;
 }
 
 export interface RiverLabel {
@@ -62,9 +55,10 @@ export interface RiverLabel {
   color: [number, number, number, number];
 }
 
-const MIN_LEN_DEG = 0.004; // skip sub-~450 m stubs
-const ARROW_SPACING_DEG = 0.014; // ~1.5 km
-const MAX_ARROWS = 6;
+const MIN_LEN_DEG = 0.006; // skip sub-~650 m stubs
+const ARROW_SPACING_DEG = 0.022; // ~2.4 km
+const MAX_ARROWS = 4;
+export const MAX_TOTAL_ARROWS = 320;
 const MATCH_DEG2 = 0.022 * 0.022; // ~2.4 km
 const THA_DEE_MATCH_DEG2 = 0.04 * 0.04;
 const MODELLED_AMOUNT: Record<WaterwayFlowClass, number> = { slow: 0.22, medium: 0.45, fast: 0.78 };
@@ -224,6 +218,8 @@ export function prepareRiverArrows(
     const name = featureName(p);
     const thaDee = isThaDeeName(name);
     const fclass: WaterwayFlowClass = p.flowClass ?? "medium";
+    const kind = String(p.waterway ?? "").toLowerCase();
+    if ((kind === "drain" || kind === "ditch") && !name && !thaDee) continue;
     for (const coords of lineCoords(f.geometry)) {
       const len = lineLengthDeg(coords);
       if (len < MIN_LEN_DEG) continue;
@@ -247,25 +243,29 @@ export function prepareRiverArrows(
       });
     }
   }
-  return out;
+  out.sort((a, b) => (b.thaDee ? 4 : b.name ? 3 : 1) - (a.thaDee ? 4 : a.name ? 3 : 1));
+  const kept: PreparedRiver[] = [];
+  let glyphs = 0;
+  for (const line of out) {
+    const r = line.thaDee ? 4 : line.name ? 3 : 1;
+    if (glyphs >= MAX_TOTAL_ARROWS && r < 4) break;
+    kept.push(line);
+    glyphs += line.seeds.length;
+  }
+  return kept;
 }
 
-export function riverArrowGlyphs(prepared: PreparedRiver[], tMs: number): RiverGlyph[] {
+export function flattenRiverGlyphs(prepared: PreparedRiver[]): RiverGlyph[] {
   const glyphs: RiverGlyph[] = [];
   for (const line of prepared) {
-    const a = blinkAlpha(tMs, line.blinkMs);
     for (const seed of line.seeds) {
-      glyphs.push({
-        ...seed,
-        size: line.sizePx,
-        color: [line.color[0], line.color[1], line.color[2], a],
-      });
+      glyphs.push({ ...seed, size: line.sizePx, rgb: line.color, blinkMs: line.blinkMs });
     }
   }
   return glyphs;
 }
 
-export function riverArrowLayer(glyphs: RiverGlyph[]) {
+export function riverArrowLayer(glyphs: RiverGlyph[], tMs: number) {
   return new TextLayer<RiverGlyph>({
     id: "waterway-flow",
     data: glyphs,
@@ -274,12 +274,14 @@ export function riverArrowLayer(glyphs: RiverGlyph[]) {
     getSize: (d) => d.size,
     sizeUnits: "pixels",
     getAngle: (d) => d.angle,
-    getColor: (d) => d.color,
+    getColor: (d) => [d.rgb[0], d.rgb[1], d.rgb[2], blinkAlpha(tMs, d.blinkMs)],
+    updateTriggers: { getColor: Math.floor(tMs / 160) },
     getTextAnchor: "middle",
     getAlignmentBaseline: "center",
     billboard: false,
     fontFamily: "sans-serif",
     fontWeight: "bold",
+    characterSet: ["▶"],
     outlineColor: [10, 14, 20, 200],
     outlineWidth: 2,
     fontSettings: { sdf: true, radius: 12, buffer: 8 },
@@ -357,13 +359,10 @@ export function riverTypographyData(
   }
 
   for (const z of WATERSHED_ZONES) {
-    const caption = z.isCity
-      ? fmtCityInflowShort(inflow)
-      : z.key === "khiri-wong"
-        ? "▲ HIGH · Tha Dee source · water runs downhill"
-        : z.key === "lan-saka"
-          ? "↓ downhill to the city lowland"
-          : "SW divide · not Tha Dee";
+    const caption = z.isCity ? fmtCityInflowShort(inflow)
+      : z.key === "khiri-wong" ? "▲ HIGH · Tha Dee source · water runs downhill"
+      : z.key === "lan-saka" ? "↓ downhill to the city lowland"
+      : "SW divide · not Tha Dee";
     labels.push({
       position: [z.lng, z.lat],
       text: `${z.th} ${z.en} · ${caption}`,

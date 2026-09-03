@@ -1,23 +1,18 @@
 import { useEffect, useRef, useState } from "react";
 import type { Layer } from "@deck.gl/core";
 import {
-  riverArrowGlyphs,
+  flattenRiverGlyphs,
   riverArrowLayer,
   type PreparedRiver,
 } from "./riverArrows";
 
 /**
- * Animates blinking downhill arrows along every prepared waterway.
- * Same isolation contract as the old flow-dot hook: owns its own rAF loop,
- * and the returned `layer` reference is the ONLY thing that changes per
- * frame — the caller appends it in `allLayers` OUTSIDE the big `layers`
- * useMemo so a tick never rebuilds the rest of the map.
- *
- * Geometry + gauge matching (prepareRiverArrows) is done by the caller and
- * passed in as `prepared`. Prepared changes only when the waterway set or
- * gauge state changes, restarting the loop.
+ * Blinks downhill arrows along every prepared waterway.
+ * Geometry is flattened once; the rAF tick only swaps the TextLayer color
+ * trigger so a frame never reallocates thousands of glyph objects (that freeze
+ * froze the FLOOD lens on CI software-WebGL).
  */
-const UPDATE_INTERVAL_MS = 100; // ~10 Hz
+const UPDATE_INTERVAL_MS = 160;
 
 export function useWaterwayFlow(
   prepared: PreparedRiver[],
@@ -35,6 +30,7 @@ export function useWaterwayFlow(
       setLayer(null);
       return;
     }
+    const glyphs = flattenRiverGlyphs(prepared);
     const start = performance.now();
     let lastUpdate = 0;
     const tick = (now: number) => {
@@ -44,7 +40,7 @@ export function useWaterwayFlow(
       }
       if (now - lastUpdate >= UPDATE_INTERVAL_MS) {
         lastUpdate = now;
-        setLayer(riverArrowLayer(riverArrowGlyphs(prepared, now - start)) as Layer);
+        setLayer(riverArrowLayer(glyphs, now - start) as Layer);
       }
       rafRef.current = requestAnimationFrame(tick);
     };

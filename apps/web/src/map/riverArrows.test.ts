@@ -8,11 +8,11 @@ import {
   blinkMsForAmount,
   featureName,
   flowWidthPx,
+  flattenRiverGlyphs,
   isThaDeeName,
   matchReachGauge,
   placeArrows,
   prepareRiverArrows,
-  riverArrowGlyphs,
   riverTypographyData,
   segmentAngleDeg,
   type WaterwayArrowProps,
@@ -161,12 +161,18 @@ describe("matchReachGauge / prepareRiverArrows", () => {
     expect(labels.some((l) => l.text.includes("ตาปี"))).toBe(true);
   });
 
-  test("glyphs inherit blink + size from the prepared line", () => {
+  test("unnamed drains are skipped; named ditches stay", () => {
+    expect(prepareRiverArrows([line(LONG, { waterway: "drain", flowClass: "slow" })])).toHaveLength(0);
+    expect(prepareRiverArrows([line(LONG, { waterway: "ditch", name: "คลองระบาย", flowClass: "slow" })])).toHaveLength(1);
+  });
+
+  test("glyphs inherit size + blink from the prepared line", () => {
     const prepared = prepareRiverArrows([line(LONG, { flowClass: "fast", nameEn: "Khlong Tha Di" })]);
-    const glyphs = riverArrowGlyphs(prepared, 0);
+    const glyphs = flattenRiverGlyphs(prepared);
     expect(glyphs.length).toBe(prepared[0].seeds.length);
     expect(glyphs[0].size).toBe(prepared[0].sizePx);
-    expect(glyphs[0].color[3]).toBe(blinkAlpha(0, prepared[0].blinkMs));
+    expect(glyphs[0].blinkMs).toBe(prepared[0].blinkMs);
+    expect(blinkAlpha(0, glyphs[0].blinkMs)).toBeGreaterThanOrEqual(110);
   });
 });
 
