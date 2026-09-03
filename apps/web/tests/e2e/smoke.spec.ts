@@ -77,6 +77,13 @@ test.describe("Lens switching", () => {
     await floodButton.click();
     await expect(floodButton).toHaveAttribute("aria-pressed", "true");
     await expect(intButton).toHaveAttribute("aria-pressed", "false");
+
+    // FLOOD turns on downhill river arrows (direction + amount).
+    const envHead = page.getByRole("button", { name: /Environment layers/i });
+    if (await envHead.getAttribute("aria-expanded") === "false") await envHead.click();
+    const arrows = page.getByRole("checkbox", { name: /River arrows/i }).first();
+    await expect(arrows).toBeVisible({ timeout: 10_000 });
+    await expect(arrows).toHaveAttribute("aria-checked", "true");
   });
 });
 
@@ -134,6 +141,9 @@ test.describe("FLOOD lens — panel headers", () => {
     // even during loading state — so no API data is required.
     await expect(page.getByText(/WATER MONITORING/i).first()).toBeVisible({ timeout: 15_000 });
     await expect(page.getByText(/WATERSHED/i).first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByLabel("Water to the city")).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText(/WATER TO THE CITY/i).first()).toBeVisible();
+    await expect(page.getByText(/high → low/i).first()).toBeVisible();
   });
 });
 

@@ -120,6 +120,18 @@ describe("summarizeZone", () => {
     expect(s.situation).toBe(5);
   });
 
+  test("city zone surfaces live discharge from a rated Tha Dee gauge", () => {
+    const s = summarizeZone(
+      ZONE("city"),
+      [gauge({ name: "บ้านนาป่า", amphoe: "เมืองนครศรีธรรมราช", dischargeCms: 14.5, qmaxCms: 50, fullnessPct: 29 })],
+      [],
+      [],
+    );
+    expect(s.dischargeCms).toBe(14.5);
+    expect(s.qmaxCms).toBe(50);
+    expect(s.fullnessPct).toBe(29);
+  });
+
   test("a DWR EWS critical status escalates a calm gauge zone to flood", () => {
     const s = summarizeZone(
       ZONE("lan-saka"),

@@ -182,6 +182,8 @@ describe("LENSES", () => {
     expect(flood!.layers).toContain("dam-status");
     expect(flood!.layers).toContain("flood-risk-zones");
     expect(flood!.layers).toContain("water-heatmap");
+    expect(flood!.layers).toContain("waterway-flow");
+    expect(flood!.layers).toContain("watershed-nodes");
   });
 
   it("environment lens includes AirDash concentration heatmap", () => {

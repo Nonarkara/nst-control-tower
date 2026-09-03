@@ -159,6 +159,12 @@ export interface ZoneSummary {
   topStation: string;
   /** Status came from a GloFAS proxy (no live HII gauge/EWS in the zone). */
   modelled: boolean;
+  /** Live rated discharge (m³/s) if any zone gauge reports it. */
+  dischargeCms: number | null;
+  /** Channel fullness % at the representative gauge. */
+  fullnessPct: number | null;
+  /** Rated max channel discharge (m³/s) at the representative gauge. */
+  qmaxCms: number | null;
 }
 
 export const SEVERITY: Record<ZoneStatus, number> = { nodata: -1, normal: 0, watch: 1, high: 2, flood: 3 };
@@ -280,6 +286,7 @@ export function summarizeZone(
     modelled = proxyStatus !== "nodata";
   }
 
+  const rated = zoneGauges.find((g) => g.dischargeCms != null) ?? worstGauge;
   return {
     zone,
     status,
@@ -293,7 +300,106 @@ export function summarizeZone(
     gaugeCount: zoneGauges.length,
     topStation: worstGauge?.name?.replace(/^สถานี\S*\s*/u, "") ?? "",
     modelled,
+    dischargeCms: rated?.dischargeCms ?? null,
+    fullnessPct: (rated ?? worstGauge)?.fullnessPct ?? null,
+    qmaxCms: (rated ?? worstGauge)?.qmaxCms ?? null,
   };
+}
+
+/** How much water is arriving at Nakhon Si Thammarat city via คลองท่าดี. */
+export interface CityInflow {
+  /** Live rated discharge (m³/s), or null when the city gauge does not rate flow. */
+  dischargeCms: number | null;
+  /** fullness × qmax when live discharge is missing — labelled estimate, not LIVE. */
+  estimatedCms: number | null;
+  fullnessPct: number | null;
+  qmaxCms: number | null;
+  stationName: string;
+  /** True only when dischargeCms came from a telemetry rating. */
+  live: boolean;
+  volumeM3PerHour: number | null;
+  volumeM3PerDay: number | null;
+  channelPct: number | null;
+}
+
+const THA_DEE_NAME = /ท่าดี|tha\s*d[ie]|นาป่า/i;
+
+function pickInflowGauge(gauges: WaterGauge[]): WaterGauge | null {
+  const city = WATERSHED_ZONES.find((z) => z.isCity);
+  if (!city) return null;
+  const inCity = gauges.filter((g) => inAmphoe(g.amphoe, city) && matchesName(g.name, city));
+  const thaDee = gauges.filter((g) => THA_DEE_NAME.test(`${g.name} ${g.riverName}`));
+  const pool = inCity.length ? inCity : thaDee;
+  if (!pool.length) return null;
+  return (
+    pool.find((g) => g.dischargeCms != null) ??
+    pool.find((g) => g.qmaxCms != null && g.fullnessPct != null) ??
+    [...pool].sort((a, b) => b.situationLevel - a.situationLevel)[0] ??
+    null
+  );
+}
+
+function cmsFromFullness(g: WaterGauge): number | null {
+  if (g.qmaxCms == null || g.fullnessPct == null || g.qmaxCms <= 0) return null;
+  return g.qmaxCms * Math.max(0, g.fullnessPct) / 100;
+}
+
+/** City-node inflow from live HII gauges. Ungauged → modelled-null, never invented. */
+export function summarizeCityInflow(gauges: WaterGauge[]): CityInflow {
+  const empty: CityInflow = {
+    dischargeCms: null,
+    estimatedCms: null,
+    fullnessPct: null,
+    qmaxCms: null,
+    stationName: "",
+    live: false,
+    volumeM3PerHour: null,
+    volumeM3PerDay: null,
+    channelPct: null,
+  };
+  const g = pickInflowGauge(gauges);
+  if (!g) return empty;
+  const liveCms = g.dischargeCms;
+  const estimatedCms = liveCms == null ? cmsFromFullness(g) : null;
+  const cms = liveCms ?? estimatedCms;
+  const channelPct =
+    liveCms != null && g.qmaxCms != null && g.qmaxCms > 0
+      ? (liveCms / g.qmaxCms) * 100
+      : g.fullnessPct;
+  return {
+    dischargeCms: liveCms,
+    estimatedCms,
+    fullnessPct: g.fullnessPct,
+    qmaxCms: g.qmaxCms,
+    stationName: g.name.replace(/^สถานี\S*\s*/u, ""),
+    live: liveCms != null,
+    volumeM3PerHour: cms != null ? cms * 3600 : null,
+    volumeM3PerDay: cms != null ? cms * 86_400 : null,
+    channelPct,
+  };
+}
+
+export function effectiveCms(inflow: CityInflow): number | null {
+  return inflow.dischargeCms ?? inflow.estimatedCms;
+}
+
+export function fmtCms(n: number): string {
+  const rounded = n >= 100 ? Math.round(n) : Math.round(n * 10) / 10;
+  return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
+}
+
+/** One-line map / panel caption — always honest about LIVE vs estimated vs none. */
+export function fmtCityInflowShort(inflow: CityInflow): string {
+  const q = effectiveCms(inflow);
+  if (q == null) return "No live discharge · MODELLED direction";
+  return `${fmtCms(q)} m³/s → city · ${inflow.live ? "LIVE" : "est."}`;
+}
+
+export function fmtCityInflowVolume(inflow: CityInflow): string | null {
+  if (inflow.volumeM3PerHour == null) return null;
+  const h = inflow.volumeM3PerHour;
+  if (h >= 100_000) return `${(h / 1_000_000).toFixed(2)} million m³/h`;
+  return `${Math.round(h).toLocaleString("en")} m³/h`;
 }
 
 export function summarizeWatershed(
