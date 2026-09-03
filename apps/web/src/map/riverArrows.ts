@@ -277,7 +277,7 @@ export function riverArrowLayer(glyphs: RiverGlyph[]) {
     outlineWidth: 2,
     fontSettings: { sdf: true, radius: 12, buffer: 8 },
     pickable: false,
-    parameters: { depthTest: false },
+    parameters: { depthWriteEnabled: false, depthCompare: "always" },
   });
 }
 
@@ -293,7 +293,7 @@ export function riverFlowWidthLayer(prepared: PreparedRiver[]) {
     capRounded: true,
     jointRounded: true,
     pickable: false,
-    parameters: { depthTest: false },
+    parameters: { depthWriteEnabled: false, depthCompare: "always" },
   });
 }
 
@@ -384,7 +384,7 @@ export function riverTypographyLayer(labels: RiverLabel[]) {
     background: true,
     getBackgroundColor: [10, 14, 20, 175],
     backgroundPadding: [4, 2],
-    parameters: { depthTest: false },
+    parameters: { depthWriteEnabled: false, depthCompare: "always" },
     pickable: false,
   }) as Layer;
 }
