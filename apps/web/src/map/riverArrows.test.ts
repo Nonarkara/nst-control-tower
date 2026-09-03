@@ -1,5 +1,5 @@
 import { describe, test, expect } from "vitest";
-import type { Feature, LineString } from "geojson";
+import type { Feature, LineString, MultiLineString } from "geojson";
 import type { WaterGauge } from "@nst/shared";
 import {
   amountFromSensors,
@@ -140,6 +140,25 @@ describe("matchReachGauge / prepareRiverArrows", () => {
     const g = gauge({ lng: 100.4, lat: 7.9, dischargeCms: 90 });
     const [p] = prepareRiverArrows([line(LONG, { flowClass: "slow" })], [g]);
     expect(p.gauged).toBe(false);
+  });
+
+  test("MultiLineString reaches flatten instead of crashing typography", () => {
+    const multi: Feature<MultiLineString, WaterwayArrowProps> = {
+      type: "Feature",
+      properties: { name: "แม่น้ำตาปี", nameEn: "Tapi River", flowClass: "medium" },
+      geometry: {
+        type: "MultiLineString",
+        coordinates: [
+          [[99.90, 8.40], [99.93, 8.43]],
+          [[99.93, 8.43], [99.96, 8.44]],
+        ],
+      },
+    };
+    const prepared = prepareRiverArrows([multi]);
+    expect(prepared.length).toBe(2);
+    expect(() => riverTypographyData(prepared, summarizeCityInflow([]))).not.toThrow();
+    const labels = riverTypographyData(prepared, summarizeCityInflow([]));
+    expect(labels.some((l) => l.text.includes("ตาปี"))).toBe(true);
   });
 
   test("glyphs inherit blink + size from the prepared line", () => {

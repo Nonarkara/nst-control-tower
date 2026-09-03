@@ -4,7 +4,7 @@ import type { Layer, ControllerProps } from "@deck.gl/core";
 import { FlyToInterpolator, LinearInterpolator, AmbientLight, DirectionalLight, LightingEffect } from "@deck.gl/core";
 import { Map as MapLibreMap } from "react-map-gl/maplibre";
 import * as maplibregl from "maplibre-gl";
-import type { Feature, FeatureCollection, LineString, Point, Polygon, MultiPolygon } from "geojson";
+import type { Feature, FeatureCollection, LineString, MultiLineString, Point, Polygon, MultiPolygon } from "geojson";
 import { NST } from "@nst/shared";
 import type {
   AcademicSnapshot,
@@ -1652,7 +1652,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
   const preparedArrows = useMemo(() => {
     if (!waterways?.features?.length) return [] as PreparedRiver[];
     return prepareRiverArrows(
-      waterways.features as unknown as Parameters<typeof prepareRiverArrows>[0],
+      waterways.features as unknown as Feature<LineString | MultiLineString, WaterwayArrowProps>[],
       waterGauges.data,
     );
   }, [waterways, waterGauges.data]);
