@@ -1,24 +1,19 @@
 import { useEffect, useRef, useState } from "react";
 import type { Layer } from "@deck.gl/core";
 import {
-  riverArrowGlyphs,
+  flattenRiverGlyphs,
   riverArrowLayer,
   type PreparedRiver,
 } from "./riverArrows";
 import { usePrefersReducedMotion } from "../hooks/usePrefersReducedMotion";
 
 /**
- * Animates blinking downhill arrows along every prepared waterway.
- * Same isolation contract as the old flow-dot hook: owns its own rAF loop,
- * and the returned `layer` reference is the ONLY thing that changes per
- * frame — the caller appends it in `allLayers` OUTSIDE the big `layers`
- * useMemo so a tick never rebuilds the rest of the map.
- *
- * Geometry + gauge matching (prepareRiverArrows) is done by the caller and
- * passed in as `prepared`. Prepared changes only when the waterway set or
- * gauge state changes, restarting the loop.
+ * Blinks downhill arrows along every prepared waterway.
+ * Geometry is flattened once; the rAF tick only swaps the TextLayer color
+ * trigger so a frame never reallocates thousands of glyph objects (that freeze
+ * froze the FLOOD lens on CI software-WebGL).
  */
-const UPDATE_INTERVAL_MS = 100; // ~10 Hz
+const UPDATE_INTERVAL_MS = 160;
 
 export function useWaterwayFlow(
   prepared: PreparedRiver[],
@@ -29,7 +24,6 @@ export function useWaterwayFlow(
 } {
   const [layer, setLayer] = useState<Layer | null>(null);
   const rafRef = useRef<number | null>(null);
-
   const localPaused = pausedRef ?? { current: false };
   const reducedMotion = usePrefersReducedMotion();
 
@@ -38,10 +32,12 @@ export function useWaterwayFlow(
       setLayer(null);
       return;
     }
-    // Reduced motion: ONE static frame of arrows, no blink and no rAF loop.
-    // The glyphs are placed the same way; only the phase is frozen.
+    const glyphs = flattenRiverGlyphs(prepared);
+    // Reduced motion: ONE static frame of arrows — same glyphs, frozen phase.
+    // No blink and no rAF loop, so the map is not a field of pulsing glyphs for
+    // an operator who has asked the OS to stop motion.
     if (reducedMotion) {
-      setLayer(riverArrowLayer(riverArrowGlyphs(prepared, 0)) as Layer);
+      setLayer(riverArrowLayer(glyphs, 0) as Layer);
       return;
     }
     const start = performance.now();
@@ -53,7 +49,7 @@ export function useWaterwayFlow(
       }
       if (now - lastUpdate >= UPDATE_INTERVAL_MS) {
         lastUpdate = now;
-        setLayer(riverArrowLayer(riverArrowGlyphs(prepared, now - start)) as Layer);
+        setLayer(riverArrowLayer(glyphs, now - start) as Layer);
       }
       rafRef.current = requestAnimationFrame(tick);
     };
