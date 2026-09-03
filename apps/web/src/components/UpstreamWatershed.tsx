@@ -178,6 +178,34 @@ export function UpstreamWatershed({ waterGauges, rainfall, ews = [], floodGauges
         fallbackTier={fallbackTier}
       />
 
+      <div
+        aria-label="Water to the city"
+        style={{
+          border: "1px solid var(--line)",
+          background: "var(--ground-soft)",
+          padding: "8px 10px",
+          display: "flex",
+          flexDirection: "column",
+          gap: 4,
+        }}
+      >
+        <div className="eyebrow mono" style={{ color: "var(--ink-low)" }}>WATER TO THE CITY</div>
+        <div className="mono" style={{ fontSize: "0.95rem", fontWeight: 700, color: "var(--ink)" }}>
+          {fmtCityInflowShort(inflow)}
+        </div>
+        <div className="eyebrow mono" style={{ color: "var(--ink-low)", lineHeight: 1.45 }}>
+          {cms != null && volume
+            ? `${volume}${inflow.volumeM3PerDay != null ? ` · ${Math.round(inflow.volumeM3PerDay).toLocaleString("en")} m³/day` : ""}`
+            : "No rated discharge at the city node yet."}
+          {inflow.channelPct != null ? ` · ${Math.round(inflow.channelPct)}% of channel` : ""}
+          {inflow.stationName ? ` · ${inflow.stationName}` : ""}
+        </div>
+        <div className="eyebrow mono" style={{ color: "var(--ink-low)", lineHeight: 1.45 }}>
+          Water runs high → low: Khao Luang / คีรีวง down คลองท่าดี into the Nakhon Si Thammarat city lowland.
+          {!inflow.live && " Ungauged arrows are MODELLED from DEM slope."}
+        </div>
+      </div>
+
       {!hasAny ? (
         <p className="flood-empty">Awaiting upstream gauge + rainfall feeds.</p>
       ) : (
@@ -197,34 +225,6 @@ export function UpstreamWatershed({ waterGauges, rainfall, ews = [], floodGauges
               "Upstream calm — Tha Dee headwaters within banks"
             )}
           </p>
-
-          <div
-            aria-label="Water to the city"
-            style={{
-              border: "1px solid var(--line)",
-              background: "var(--ground-soft)",
-              padding: "8px 10px",
-              display: "flex",
-              flexDirection: "column",
-              gap: 4,
-            }}
-          >
-            <div className="eyebrow mono" style={{ color: "var(--ink-low)" }}>WATER TO THE CITY</div>
-            <div className="mono" style={{ fontSize: "0.95rem", fontWeight: 700, color: "var(--ink)" }}>
-              {fmtCityInflowShort(inflow)}
-            </div>
-            <div className="eyebrow mono" style={{ color: "var(--ink-low)", lineHeight: 1.45 }}>
-              {cms != null && volume
-                ? `${volume}${inflow.volumeM3PerDay != null ? ` · ${Math.round(inflow.volumeM3PerDay).toLocaleString("en")} m³/day` : ""}`
-                : "No rated discharge at the city node yet."}
-              {inflow.channelPct != null ? ` · ${Math.round(inflow.channelPct)}% of channel` : ""}
-              {inflow.stationName ? ` · ${inflow.stationName}` : ""}
-            </div>
-            <div className="eyebrow mono" style={{ color: "var(--ink-low)", lineHeight: 1.45 }}>
-              Water runs high → low: Khao Luang / คีรีวง down คลองท่าดี into the Nakhon Si Thammarat city lowland.
-              {!inflow.live && " Ungauged arrows are MODELLED from DEM slope."}
-            </div>
-          </div>
 
           {/* The cascade */}
           <ol className="watershed-cascade" aria-label="Flow order, upstream to city">
