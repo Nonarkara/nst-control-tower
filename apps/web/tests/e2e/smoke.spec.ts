@@ -62,6 +62,8 @@ test.describe("Dashboard boot", () => {
 
 test.describe("Lens switching", () => {
   test("INT and FLOOD lens buttons toggle aria-pressed", async ({ page }) => {
+    // FLOOD turns on river arrows + satellite; software-WebGL CI is slower than a laptop.
+    test.setTimeout(120_000);
     await page.goto("/");
     await expect(page.locator(".map-host")).toBeVisible({ timeout: 20_000 });
 
