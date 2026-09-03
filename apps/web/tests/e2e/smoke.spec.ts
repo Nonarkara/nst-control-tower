@@ -395,6 +395,27 @@ test.describe("Map camera — programmatic flights", () => {
     const z3 = await page.evaluate(() => (window as unknown as { __mapCam?: { zoom: number } }).__mapCam?.zoom);
     expect(z3).toBeGreaterThan(z2!);
   });
+
+  test("dragging the map does not throw page errors", async ({ page }) => {
+    const errors: string[] = [];
+    page.on("pageerror", (e) => errors.push(e.message));
+    await page.goto("/");
+    const canvas = page.locator(".map-host canvas").first();
+    await expect(canvas).toBeVisible({ timeout: 20_000 });
+
+    const box = await canvas.boundingBox();
+    expect(box).toBeTruthy();
+    // Short one-hop pan near the top chrome so CI software-WebGL is not asked
+    // to interpolate a 12-step drag across extruded buildings.
+    const x = box!.x + Math.min(160, box!.width * 0.3);
+    const y = box!.y + 28;
+    await page.mouse.move(x, y);
+    await page.mouse.down();
+    await page.mouse.move(x - 70, y);
+    await page.mouse.up();
+
+    expect(errors, errors.join("\n")).toEqual([]);
+  });
 });
 
 

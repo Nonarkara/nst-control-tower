@@ -51,15 +51,16 @@ export const NST: CampusConfig = {
     "Phatthanakan Khukhwang Road",
     "Si Thammasok Road",
   ],
-  // Default camera frames the WHOLE PROVINCE (zoom ~8.4) so the map opens on the
-  // full provincial extent with the city visible; zoom in past ~13 for the Old
-  // Town building fabric. pitch kept gentle for the province overview.
+  // Default camera opens ON the city (Old Town / Wat Phra Mahathat), not the
+  // whole province. A province-wide zoom (~8.4) plus tight outerBounds made the
+  // viewport wider than the clamp — drag fought the walls and felt frozen.
+  // Zoom out from here to see Khao Luang / the Pak Phanang basin.
   defaultView: {
-    longitude: 99.83,
-    latitude: 8.62,
-    zoom: 8.4,
-    pitch: 25,
-    bearing: 0,
+    longitude: 99.9631,
+    latitude: 8.4364,
+    zoom: 14.1,
+    pitch: 42,
+    bearing: -8,
   },
 };
 

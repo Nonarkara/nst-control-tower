@@ -40,9 +40,10 @@ describe("NST campus config", () => {
     expect(longitude).toBeLessThanOrEqual(maxLng);
     expect(latitude).toBeGreaterThanOrEqual(minLat);
     expect(latitude).toBeLessThanOrEqual(maxLat);
-    // Default camera frames the whole province (~8.4), not the city.
-    expect(zoom).toBeGreaterThanOrEqual(8);
-    expect(zoom).toBeLessThanOrEqual(20);
+    // City-scale boot: tight enough to pan, close enough to read the Old Town.
+    expect(zoom).toBeGreaterThanOrEqual(13);
+    expect(zoom).toBeLessThan(16);
+    expect(Math.hypot(longitude - NST.center[0], latitude - NST.center[1])).toBeLessThan(0.05);
   });
 
   it("province bbox encloses the city center", () => {

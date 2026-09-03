@@ -15,11 +15,16 @@ import { waterwayFlowDots, waterwayFlowLayer, type PreparedFlowLine, type Waterw
  */
 const UPDATE_INTERVAL_MS = 100; // ~10 Hz
 
-export function useWaterwayFlow(prepared: PreparedFlowLine[], visible: boolean): {
+export function useWaterwayFlow(
+  prepared: PreparedFlowLine[],
+  visible: boolean,
+  pausedRef?: { current: boolean },
+): {
   layer: ScatterplotLayer<WaterwayFlowDot> | null;
 } {
   const [layer, setLayer] = useState<ScatterplotLayer<WaterwayFlowDot> | null>(null);
   const rafRef = useRef<number | null>(null);
+  const localPaused = pausedRef ?? { current: false };
 
   useEffect(() => {
     if (!visible || prepared.length === 0) {
@@ -29,6 +34,10 @@ export function useWaterwayFlow(prepared: PreparedFlowLine[], visible: boolean):
     const start = performance.now();
     let lastUpdate = 0;
     const tick = (now: number) => {
+      if (localPaused.current) {
+        rafRef.current = requestAnimationFrame(tick);
+        return;
+      }
       if (now - lastUpdate >= UPDATE_INTERVAL_MS) {
         lastUpdate = now;
         setLayer(waterwayFlowLayer(waterwayFlowDots(prepared, now - start)));
