@@ -44,6 +44,9 @@ function sum(over: Partial<ZoneSummary>): ZoneSummary {
     gaugeCount: 1,
     topStation: "Khiri Wong",
     modelled: false,
+    dischargeCms: null,
+    fullnessPct: null,
+    qmaxCms: null,
     ...over,
   };
 }

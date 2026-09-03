@@ -225,6 +225,7 @@ describe("LENSES", () => {
     for (const id of ["flood-risk-zones", "south-province-watch", "street-flood-sim", "watershed-nodes", "flood-extent-2025", "national-flood-prone", "hii-tambon-risk"] as const) {
       expect(flood!.layers, `flood must not default ${id}`).not.toContain(id);
     }
+
   });
 
   it("environment lens includes AirDash concentration heatmap", () => {

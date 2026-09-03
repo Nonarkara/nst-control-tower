@@ -1,57 +1,47 @@
 import { useEffect, useRef, useState } from "react";
-import type { ScatterplotLayer } from "@deck.gl/layers";
-import { waterwayFlowDots, waterwayFlowLayer, type PreparedFlowLine, type WaterwayFlowDot } from "./layers";
+import type { Layer } from "@deck.gl/core";
+import {
+  riverArrowGlyphs,
+  riverArrowLayer,
+  type PreparedRiver,
+} from "./riverArrows";
 import { usePrefersReducedMotion } from "../hooks/usePrefersReducedMotion";
 
 /**
- * Animates flow dots along EVERY waterway (direction + speed), generalising the
- * single Tha Dee cascade in useFlowAnimation. Same isolation contract: owns its
- * own rAF loop, and the returned `layer` reference is the ONLY thing that
- * changes per frame — the caller appends it in `allLayers` OUTSIDE the big
- * `layers` useMemo so a tick never rebuilds the ~30 other layers.
+ * Animates blinking downhill arrows along every prepared waterway.
+ * Same isolation contract as the old flow-dot hook: owns its own rAF loop,
+ * and the returned `layer` reference is the ONLY thing that changes per
+ * frame — the caller appends it in `allLayers` OUTSIDE the big `layers`
+ * useMemo so a tick never rebuilds the rest of the map.
  *
- * The expensive geometry digest (prepareWaterwayFlows) is done by the caller and
- * passed in as `prepared`; this hook only advances the shared clock. Prepared
- * changes only when the waterway set or gauge state changes, restarting the loop.
- *
- * prefers-reduced-motion: the dots render once as a still frame (direction is
- * still legible from dot spacing along the line) and no loop runs.
+ * Geometry + gauge matching (prepareRiverArrows) is done by the caller and
+ * passed in as `prepared`. Prepared changes only when the waterway set or
+ * gauge state changes, restarting the loop.
  */
 const UPDATE_INTERVAL_MS = 100; // ~10 Hz
 
 export function useWaterwayFlow(
-  prepared: PreparedFlowLine[],
+  prepared: PreparedRiver[],
   visible: boolean,
-  zoomBucket: 0 | 1 | 2 = 2,
-  /** The caller passes a pre-thinned trunk set at province/city zoom
-   *  (lib/thaDee.ts isTrunkWaterway) and sets this so the LOD gate lifts —
-   *  a few hundred dots on the main rivers is the "which way is the water
-   *  going" cue the operator asked for; the full ~4k-dot network still waits
-   *  for street zoom. */
-  overview = false,
-  /** Shared drag flag — a REF, not a boolean. Toggling it during a drag must
-   *  not re-render App; the first pan froze the dashboard when it did. */
   pausedRef?: { current: boolean },
 ): {
-  layer: ScatterplotLayer<WaterwayFlowDot> | null;
+  layer: Layer | null;
 } {
-  const [layer, setLayer] = useState<ScatterplotLayer<WaterwayFlowDot> | null>(null);
+  const [layer, setLayer] = useState<Layer | null>(null);
   const rafRef = useRef<number | null>(null);
-  const reducedMotion = usePrefersReducedMotion();
+
   const localPaused = pausedRef ?? { current: false };
+  const reducedMotion = usePrefersReducedMotion();
 
   useEffect(() => {
-    // LOD: skip the heavy ~4k-dot animation at province/city scale (zoom 0/1)
-    // unless the caller handed us the trunk subset. waterwayFlowLayer applies
-    // the same gate, but stopping the rAF loop entirely saves the per-frame
-    // work too.
-    if (!visible || prepared.length === 0 || (zoomBucket !== 2 && !overview)) {
+    if (!visible || prepared.length === 0) {
       setLayer(null);
       return;
     }
-    const opts = { overview };
+    // Reduced motion: ONE static frame of arrows, no blink and no rAF loop.
+    // The glyphs are placed the same way; only the phase is frozen.
     if (reducedMotion) {
-      setLayer(waterwayFlowLayer(waterwayFlowDots(prepared, 0), zoomBucket, opts));
+      setLayer(riverArrowLayer(riverArrowGlyphs(prepared, 0)) as Layer);
       return;
     }
     const start = performance.now();
@@ -63,7 +53,7 @@ export function useWaterwayFlow(
       }
       if (now - lastUpdate >= UPDATE_INTERVAL_MS) {
         lastUpdate = now;
-        setLayer(waterwayFlowLayer(waterwayFlowDots(prepared, now - start), zoomBucket, opts));
+        setLayer(riverArrowLayer(riverArrowGlyphs(prepared, now - start)) as Layer);
       }
       rafRef.current = requestAnimationFrame(tick);
     };
@@ -71,7 +61,7 @@ export function useWaterwayFlow(
     return () => {
       if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
     };
-  }, [visible, prepared, zoomBucket, reducedMotion, overview]);
+  }, [visible, prepared, reducedMotion]);
 
   return { layer };
 }

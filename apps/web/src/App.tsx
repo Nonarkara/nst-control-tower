@@ -55,10 +55,6 @@ import {
   terrain3dLayer,
   type TerrainGrid,
   waqiAirFieldLayer,
-  prepareWaterwayFlows,
-  waterwayFlowDots,
-  waterwayFlowLayer,
-  waterwayFlowDirectionLayer,
   esriSatelliteLayer,
   gibsLayer,
   googleTilesLayer,
@@ -231,7 +227,15 @@ import { rankFfpi } from "./lib/flashFlood";
 import { PredictivePanel, METRIC_LAYER_MAP, METRIC_LABEL, type ForecastMetric } from "./components/PredictivePanel";
 import { ExecutiveBriefing } from "./components/ExecutiveBriefing";
 import { API_BASE } from "./lib/apiBase";
-import { summarizeWatershed, isThaDeeZone, worstStatus, ZONE_STATUS_RGB } from "./lib/watershed";
+import { summarizeWatershed, summarizeCityInflow, isThaDeeZone, worstStatus, ZONE_STATUS_RGB } from "./lib/watershed";
+import {
+  prepareRiverArrows,
+  riverFlowWidthLayer,
+  riverTypographyData,
+  riverTypographyLayer,
+  type WaterwayArrowProps,
+  type PreparedRiver,
+} from "./map/riverArrows";
 import { buildSensorInsights } from "./lib/sensorInsights";
 import { SensorInsightsPanel } from "./components/SensorInsightsPanel";
 import { SensorSituationBoard } from "./components/SensorSituationBoard";
@@ -835,11 +839,18 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
         sub = wt.toUpperCase() + (pick("intermittent") === "yes" ? " · intermittent" : "");
         // Flow enrichment (scripts/enrich-nst-waterways.mjs): direction + speed.
         const fclass = (p as { flowClass?: string }).flowClass;
+        const elevStart = num("elevStart");
+        const elevEnd = num("elevEnd");
+        if (elevStart != null || elevEnd != null) {
+          lines.push(
+            `high ${elevStart != null ? Math.round(elevStart) : "—"} m → low ${elevEnd != null ? Math.round(elevEnd) : "—"} m MSL (water runs downhill)`,
+          );
+        }
         if (fclass) {
           const slope = num("slopePct");
           const confident = (p as { downhillConfident?: boolean }).downhillConfident;
           lines.push(`flow ${fclass.toUpperCase()}${slope != null ? ` · slope ${slope.toFixed(2)}%` : ""}`);
-          lines.push(confident ? "direction: downhill (DEM), MODELLED speed" : "direction: uncertain (near-flat) — MODELLED");
+          lines.push(confident ? "direction: downhill (DEM), MODELLED speed unless a nearby gauge rates discharge" : "direction: uncertain (near-flat) — MODELLED");
         }
         break;
       }
@@ -1628,24 +1639,29 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
     color: thaDeeFlowColor,
   });
 
-  // ALL-waterways flow (direction + speed). Prepared once per data/gauge change
-  // (the expensive geometry digest), then animated by useWaterwayFlow into ONE
-  // layer appended in allLayers. Gauged Tha Dee reaches take the live cascade
-  // color; the modelled majority is coloured by slope class inside the builder.
+  // ALL-waterways blinking arrows (direction + amount). Prepared once per
+  // waterway/gauge change, then blinked by useWaterwayFlow into ONE TextLayer
+  // appended in allLayers so a 10 Hz tick never rebuilds the rest of the map.
+  // Thickness = live discharge (or fullness × qmax) when a gauge is near the
+  // reach; MODELLED from slope class otherwise.
   const waterwayFlowEnabled = enabledLayers.has("waterway-flow");
-  // Tha Dee reaches take the live cascade colour and speed up in flood. OSM
-  // doesn't name the Tha Dee here, so this matches the curated way ids in
-  // lib/thaDee.ts (a name match found nothing and the line stayed grey).
-  const thaDeeOverride = useMemo<NonNullable<Parameters<typeof prepareWaterwayFlows>[1]>>(() => {
-    const worst = worstStatus(watershedSummaries.filter(isThaDeeZone));
-    const speed = worst === "flood" ? 2.2 : worst === "high" ? 1.6 : 1.1;
-    const color = thaDeeFlowColor;
-    return (f) => {
-      const id = (f.properties as { id?: string }).id;
-      return id && THA_DEE_WAY_IDS.has(id) ? { speed, color } : null;
-    };
-  }, [thaDeeFlowColor, watershedSummaries]);
-  type FlowFeature = Feature<LineString, { waterway?: string; name?: string | null; nameTh?: string | null; flowClass?: "slow" | "medium" | "fast"; slopePct?: number; downhillConfident?: boolean }>;
+  // The branch's arrow system supersedes the dot-cloud + chevron renderers:
+  // the same job (which way, how much) with discharge instead of a flow class,
+  // plus labels and a city-inflow number. Its own MAX_TOTAL_ARROWS cap is the
+  // scale guard, so main's trunk-thinning LOD is not needed here.
+  const preparedArrows = useMemo(() => {
+    if (!waterways?.features?.length) return [] as PreparedRiver[];
+    return prepareRiverArrows(
+      waterways.features as unknown as Parameters<typeof prepareRiverArrows>[0],
+      waterGauges.data,
+    );
+  }, [waterways, waterGauges.data]);
+  const cityInflow = useMemo(() => summarizeCityInflow(waterGauges.data), [waterGauges.data]);
+  const waterwayFlow = useWaterwayFlow(preparedArrows, waterwayFlowEnabled, mapBusyRef);
+  const riverLabels = useMemo(() => {
+    if (!waterwayFlowEnabled || preparedArrows.length === 0) return [] as Layer[];
+    return [riverTypographyLayer(riverTypographyData(preparedArrows, cityInflow))];
+  }, [waterwayFlowEnabled, preparedArrows, cityInflow]);
 
 
   // RainViewer live radar nowcast (animated precipitation).
@@ -1662,34 +1678,6 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
   // so the ~4k-dot animation doesn't drown the watershed cascade). Use the
   // bucket here too — same LOD contract as the buildings/roads above.
   const flowOverview = zoomBucket !== 2;
-  // Province/city zoom gets the TRUNK rivers only (Tha Dee, named rivers,
-  // fast reaches, ≥8 km) — ~200 of 843 ways. That's the "simple lines with
-  // arrows from Khiri Wong to the city, and from the other sources" view;
-  // the full network still waits for street zoom. Only ONE of the two sets
-  // is ever rendered (activeFlows picks by flowOverview) — prepare only that
-  // one. `prepareWaterwayFlows` walks the full waterways feature list, so
-  // computing both unconditionally on every waterways/thaDeeOverride change
-  // was double the geometry work (and double the main-thread stall) for no
-  // reason: the other half was thrown away every render.
-  const trunkBucket: 0 | 1 = zoomBucket === 0 ? 0 : 1;
-  const activeFlows = useMemo(() => {
-    if (!waterwayFlowEnabled || !waterways?.features?.length) return [];
-    if (flowOverview) {
-      const trunk = (waterways.features as unknown as ThaDeeWaterwayFeature[]).filter((f) => isTrunkWaterway(f, trunkBucket));
-      return prepareWaterwayFlows(trunk as unknown as FlowFeature[], thaDeeOverride);
-    }
-    return prepareWaterwayFlows(waterways.features as unknown as FlowFeature[], thaDeeOverride);
-  }, [waterwayFlowEnabled, waterways, thaDeeOverride, flowOverview, trunkBucket]);
-  const waterwayFlow = useWaterwayFlow(activeFlows, waterwayFlowEnabled, zoomBucket, flowOverview, mapBusyRef);
-
-  // Lines + chevrons in ONE PathLayer, recomputed only when the active flow
-  // set or zoom bucket changes. At overview zoom the set is the thinned trunk
-  // list (so the gate is lifted); at street zoom it's everything. Static — no
-  // rAF loop, so it's just a useMemo, not a hook.
-  const waterwayFlowDirection = useMemo(
-    () => waterwayFlowDirectionLayer(activeFlows, zoomBucket, { overview: flowOverview }),
-    [activeFlows, zoomBucket, flowOverview],
-  );
 
   // Pre-memoize the two largest layers (20,877 buildings each). The umbrella
   // `layers` memo below has ~40 deps including SWR feed polls — if any of those
@@ -1812,13 +1800,17 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
     // Waterways (canals + rivers + drains)
     if (enabledLayers.has("waterways") && waterways) out.push(waterwaysLayer(waterways) as Layer);
     // Kid-readable flood risk overlay — paints the same waterways as wide
-    // status-coloured bands (calm = thin cyan, critical = thick red) so a
-    // child can see "which rivers are flooding right now" without reading
-    // any gauge data. Sized for city zoom (4-12 px), rides the same
-    // toggle as the regular waterways layer so the two stay coherent.
+    // status bands (GREEN / AMBER / RED) with a legend. It replaces the
+    // line-width trick for "how bad", so the operator can read it at a glance.
     if (enabledLayers.has("flood-risk-overlay") && waterways) {
       out.push(...(floodRiskOverlayLayer(waterways, waterGauges.data) as Layer[]));
     }
+    // River thickness by discharge — the amount signal on the water itself.
+    // A separate toggle from the arrow layer so the operator can turn the
+    // "how much" signal off.
+    if (waterwayFlowEnabled && preparedArrows.length > 0)
+      out.push(riverFlowWidthLayer(preparedArrows) as Layer);
+
     // National waterways (NST province from Overpass API)
     if (enabledLayers.has("national-waterways") && nationalWaterways.data.length > 0)
       out.push(nationalWaterwaysLayer(nationalWaterways.data) as Layer);
@@ -2103,6 +2095,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
     presence.lng, presence.lat, presence.accuracyM,
     tile3d.layer, gpuHeatmapOk, terrainGrid,
     googleSatSession, googleTrafficSession,
+    waterwayFlowEnabled, preparedArrows,
   ]);
 
   // Street-flood scenario layer — composed OUTSIDE the big memo above so a
@@ -2117,29 +2110,30 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
     [enabledLayers, roadLevels, scenarioLevel],
   );
   // Fast-cadence layers are concatenated OUTSIDE the big memo above: the
-  // street wash PREPENDED (renders beneath marks/gauges/labels), the animated
-  // flow dots APPENDED (must draw above the cascade line). This concat is the
-  // ONLY work their updates cost — the ~30 builder calls above never re-run
-  // for a slider tick or an animation frame.
+  // street wash PREPENDED (renders beneath marks/gauges/labels), the blinking
+  // river arrows APPENDED then labelled on top. This concat is the ONLY work
+  // their updates cost — the ~30 builder calls above never re-run for a slider
+  // tick or an animation frame.
   const allLayers = useMemo<Layer[]>(() => {
     // Each animated/hook layer is already null when its layer is disabled —
-    // the hooks own those gates. Rain radar sits under the vectors; the flow
-    // dot clouds sit on top.
+    // the hooks own those gates. Rain radar sits under the vectors; arrows
+    // sit on the waterways; typography sits above the arrows.
     const radar = rainRadar.layer as Layer | null;
     const wwFlow = waterwayFlow.layer as Layer | null;
-    const wwDir = waterwayFlowDirection as Layer[] | null;
     const cctvPulse = cctvPulseLayer(highlightedCctvId, cctv.data, cctvPulseRadius);
-    if (!streetFloodSimLayer && !flowAnim.layer && !radar && !wwFlow && !wwDir && !cctvPulse) return layers;
+    if (!streetFloodSimLayer && !flowAnim.layer && !radar && !wwFlow && riverLabels.length === 0 && !cctvPulse) {
+      return layers;
+    }
     return [
       ...(radar ? [radar] : []),
       ...(streetFloodSimLayer ? [streetFloodSimLayer] : []),
       ...layers,
       ...(wwFlow ? [wwFlow] : []),
-      ...(wwDir ?? []),
+      ...riverLabels,
       ...(cctvPulse ? [cctvPulse] : []),
       ...(flowAnim.layer ? [flowAnim.layer as Layer] : []),
     ];
-  }, [layers, streetFloodSimLayer, flowAnim.layer, rainRadar.layer, waterwayFlow.layer, waterwayFlowDirection, highlightedCctvId, cctv.data, cctvPulseRadius]);
+  }, [layers, streetFloodSimLayer, flowAnim.layer, rainRadar.layer, waterwayFlow.layer, riverLabels, highlightedCctvId, cctv.data, cctvPulseRadius]);
 
   // Feature counts — passed to LayerPalette so every toggle shows a number,
   // making it immediately obvious whether the layer has data or not.

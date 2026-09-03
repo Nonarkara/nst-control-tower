@@ -17,9 +17,15 @@ import { PanelHeader } from "./PanelHeader";
 import { MixedText } from "./MixedText";
 import {
   summarizeWatershed,
+  summarizeCityInflow,
   leadTimeToCity,
   ZONE_STATUS_LABEL,
   type ZoneStatus,
+  fmtCityInflowShort,
+  fmtCityInflowVolume,
+  fmtCms,
+  effectiveCms,
+
   type ZoneSummary,
 } from "../lib/watershed";
 import { rainStatus } from "../lib/water";
@@ -131,7 +137,14 @@ function ZoneRow({ s, isLast, precip }: { s: ZoneSummary; isLast: boolean; preci
           {s.soil != null && (
             <Reading level={s.soil >= SOIL_PRIMED_PCT ? "watch" : "normal"}>soil {Math.round(s.soil)}%</Reading>
           )}
+          {s.dischargeCms != null && (
+            <Reading level="normal">
+              <span className="num">{fmtCms(s.dischargeCms)} m³/s</span>
+              {s.qmaxCms != null && ` / ${fmtCms(s.qmaxCms)}`}
+            </Reading>
+          )}
         </ul>
+
         {s.topStation && (
           <p className="flood-meta watershed-station"><MixedText text={s.topStation} /></p>
         )}
@@ -151,6 +164,10 @@ export function UpstreamWatershed({ waterGauges, rainfall, ews = [], floodGauges
   const upstream = summaries.filter((s) => !s.zone.isCity);
   const upstreamAlert = upstream.find((s) => s.status === "flood" || s.status === "high");
   const alertStatus = upstreamAlert ? STATUS[ZONE_STATUS[upstreamAlert.status]] : null;
+  const inflow = useMemo(() => summarizeCityInflow(waterGauges), [waterGauges]);
+  const cms = effectiveCms(inflow);
+  const volume = fmtCityInflowVolume(inflow);
+
 
   return (
     <section className="panel" aria-label="Upstream watershed">
@@ -180,6 +197,34 @@ export function UpstreamWatershed({ waterGauges, rainfall, ews = [], floodGauges
               "Upstream calm — Tha Dee headwaters within banks"
             )}
           </p>
+
+          <div
+            aria-label="Water to the city"
+            style={{
+              border: "1px solid var(--line)",
+              background: "var(--ground-soft)",
+              padding: "8px 10px",
+              display: "flex",
+              flexDirection: "column",
+              gap: 4,
+            }}
+          >
+            <div className="eyebrow mono" style={{ color: "var(--ink-low)" }}>WATER TO THE CITY</div>
+            <div className="mono" style={{ fontSize: "0.95rem", fontWeight: 700, color: "var(--ink)" }}>
+              {fmtCityInflowShort(inflow)}
+            </div>
+            <div className="eyebrow mono" style={{ color: "var(--ink-low)", lineHeight: 1.45 }}>
+              {cms != null && volume
+                ? `${volume}${inflow.volumeM3PerDay != null ? ` · ${Math.round(inflow.volumeM3PerDay).toLocaleString("en")} m³/day` : ""}`
+                : "No rated discharge at the city node yet."}
+              {inflow.channelPct != null ? ` · ${Math.round(inflow.channelPct)}% of channel` : ""}
+              {inflow.stationName ? ` · ${inflow.stationName}` : ""}
+            </div>
+            <div className="eyebrow mono" style={{ color: "var(--ink-low)", lineHeight: 1.45 }}>
+              Water runs high → low: Khao Luang / คีรีวง down คลองท่าดี into the Nakhon Si Thammarat city lowland.
+              {!inflow.live && " Ungauged arrows are MODELLED from DEM slope."}
+            </div>
+          </div>
 
           {/* The cascade */}
           <ol className="watershed-cascade" aria-label="Flow order, upstream to city">

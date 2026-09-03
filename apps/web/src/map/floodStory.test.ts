@@ -29,6 +29,7 @@ function zone(key: string, lng: number, lat: number, status: ZoneSummary["status
     diffFromBank: -1.0,
     rain24h: null, soil: null, ewsStatus: 0,
     rising: false, gaugeCount: 1, topStation: key, modelled: false,
+    dischargeCms: null, fullnessPct: null, qmaxCms: null,
   };
 }
 
