@@ -216,6 +216,35 @@ input:focus-visible,
   display: flex;
   align-items: center;
 }
+
+/* System health pill — replaces the inline live-count. Same green dot when
+   healthy; switches to the new `.dot.stale` (amber, faster pulse) when any
+   feed is degraded; switches to `.dot.unavailable` (red, hard flash) when
+   the system is down. The pill itself is a button so the operator can click
+   it to jump straight to the SOURCES catalog. */
+.health-pill {
+  background: transparent;
+  border: 1px solid transparent;
+  padding: 3px 8px;
+  margin: 0;
+  font: inherit;
+  font-size: 0.75rem;
+  color: var(--accent);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  transition: background var(--t-state) var(--ease-hover),
+              border-color var(--t-state) var(--ease-hover);
+}
+.health-pill:hover { background: var(--ground); }
+.health-pill:focus-visible { outline: 1px solid var(--ink); outline-offset: 2px; }
+.health-pill.health-degraded { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 35%, transparent); }
+.health-pill.health-degraded:hover { background: color-mix(in srgb, var(--warn) 12%, transparent); }
+.health-pill.health-down { color: var(--neg); border-color: color-mix(in srgb, var(--neg) 45%, transparent); }
+.health-pill.health-down:hover { background: color-mix(in srgb, var(--neg) 12%, transparent); }
+.health-pill.health-unknown { color: var(--ink-2); border-color: var(--line-2); }
 /* Amber clock — the heartbeat of the board */
 .topbar .clock {
   display: flex;
@@ -739,11 +768,40 @@ input:focus-visible,
   text-transform: uppercase;
 }
 .dot { width: 7px; height: 7px; display: inline-block; }
-.dot.live        { background: var(--accent); animation: live-pulse 2s ease-in-out infinite; }
+
+/* Live-pulse: the steady 2-second heartbeat for healthy data. Slower than
+   the classic 1s blinker so it reads as "calm, monitored" rather than
+   "alarm, alarming". Honours `prefers-reduced-motion` further down. */
+@keyframes live-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.45; }
+}
+/* Stale-pulse: the faster, more urgent flicker for data that hasn't refreshed
+   in a while. Slower than the unavailable-flash (which is for genuinely
+   dead feeds) so the eye can tell the two apart at a glance. */
+@keyframes stale-pulse {
+  0%, 100% { opacity: 1; }
+  35%      { opacity: 0.35; }
+  70%      { opacity: 0.7; }
+}
+/* Unavailable-flash: the only animation that should feel alarming. 0.9 s
+   period with a hard cut — different rhythm from live-pulse and stale-pulse
+   so the operator's eye catches the change without reading text. */
+@keyframes unavailable-flash {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.2; }
+}
+
+.dot.live        { background: var(--accent);          animation: live-pulse 2s ease-in-out infinite; }
 .dot.cache       { background: var(--accent); opacity: 0.6; }
-.dot.scenario    { background: var(--accent); }
-.dot.unavailable { background: var(--neg); }
-.dot.loading     { background: var(--ink-3); }
+.dot.scenario    { background: var(--accent);          animation: stale-pulse 2.4s ease-in-out infinite; }
+.dot.stale       { background: var(--warn);            animation: stale-pulse 2.4s ease-in-out infinite; }
+.dot.unavailable { background: var(--neg);             animation: unavailable-flash 0.9s ease-in-out infinite; }
+.dot.loading     { background: var(--ink-3);           animation: live-pulse 2s ease-in-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .dot.live, .dot.scenario, .dot.stale, .dot.unavailable, .dot.loading { animation: none; }
+}
 
 /* ── AQI display — crime-board spotlight number ── */
 .aqi-badge {
@@ -885,6 +943,115 @@ input:focus-visible,
 }
 .modal-filter button { font-size: 0.79rem; padding: 5px 10px; letter-spacing: 0.08em; }
 .modal-body { overflow: auto; padding: 10px 20px 20px; }
+
+/* ── Keyboard shortcuts dialog ── */
+.shortcuts-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.78);
+  z-index: 95;
+  display: grid;
+  place-items: center;
+  padding: 32px;
+}
+.shortcuts-modal {
+  width: min(720px, 100%);
+  background: var(--paper);
+  border: 1px solid var(--line-2);
+  position: relative;
+  padding: 22px 24px 18px;
+}
+.shortcuts-modal::before {
+  content: "";
+  position: absolute;
+  top: 0; left: 0;
+  width: 80px; height: 3px;
+  background: var(--accent);
+}
+.shortcuts-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 12px;
+  margin-bottom: 16px;
+}
+.shortcuts-title {
+  font-family: var(--font-mono);
+  font-size: 1.5rem;
+  letter-spacing: -0.01em;
+  font-weight: 600;
+  margin: 4px 0 0;
+  color: var(--ink);
+}
+.shortcuts-close {
+  background: transparent;
+  border: 1px solid var(--line-2);
+  color: var(--text-2);
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  padding: 4px 8px;
+  cursor: pointer;
+}
+.shortcuts-close:hover { color: var(--ink); border-color: var(--ink); }
+.shortcuts-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+@media (max-width: 640px) {
+  .shortcuts-grid { grid-template-columns: 1fr; gap: 18px; }
+}
+.shortcuts-section-title {
+  color: var(--ink-3);
+  margin-bottom: 8px;
+}
+.shortcuts-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.shortcuts-list li {
+  display: grid;
+  grid-template-columns: 56px 1fr;
+  align-items: center;
+  gap: 12px;
+}
+.shortcuts-kbd {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-align: center;
+  background: var(--ground);
+  border: 1px solid var(--line-2);
+  color: var(--ink);
+  padding: 4px 8px;
+  min-width: 36px;
+}
+.shortcuts-lens-label {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  font-size: 0.88rem;
+  color: var(--ink);
+}
+.shortcuts-lens-id {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--ink-3);
+  letter-spacing: 0.05em;
+}
+.shortcuts-foot {
+  margin-top: 20px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+  font-size: 0.78rem;
+  color: var(--ink-2);
+  letter-spacing: 0.05em;
+}
 
 /* ── Layer count badge ───────────────────────────── */
 .layer-count      { font-size: 0.75rem; letter-spacing: 0.04em; padding: 0 4px; }
@@ -2198,6 +2365,7 @@ input:focus-visible,
   }
   .shell.mobile .topbar .feeds { display: none; }
   .shell.mobile .live-count { display: none; }
+  .shell.mobile .health-pill { display: inline-flex; padding: 2px 6px; font-size: 0.7rem; }
   .shell.mobile .topbar .brand .sponsor-seal { height: 34px; padding: 2px 3px; }
   .shell.mobile .topbar .brand .sponsor-seal img { height: 30px; }
   .shell.mobile .topbar .brand a.sponsor:not(.sponsor-seal) { display: none; }
@@ -2214,6 +2382,7 @@ input:focus-visible,
   .shell.mobile .topbar-right { flex: 0 0 auto; display: flex; align-items: center; gap: 6px; }
   .shell.mobile .topbar-right > * { display: none; }
   .shell.mobile .topbar-right > .system-status-badge,
+  .shell.mobile .topbar-right > .health-pill,
   .shell.mobile .topbar-right > .dim-toggle,
   .shell.mobile .topbar-right > .theme-toggle { display: inline-flex; align-items: center; justify-content: center; }
   .shell.mobile .topbar-right > .dim-toggle,

@@ -164,6 +164,7 @@ const SituationDigest = lazy(() => import("./components/SituationDigest").then((
 const AtlasView = lazy(() => import("./components/atlas/AtlasView").then((m) => ({ default: m.AtlasView })));
 const FloodOpsBoard = lazy(() => import("./components/FloodOpsBoard").then((m) => ({ default: m.FloodOpsBoard })));
 const PlatformView = lazy(() => import("./components/platform/PlatformView").then((m) => ({ default: m.PlatformView })));
+const ShortcutsDialog = lazy(() => import("./components/ShortcutsDialog").then((m) => ({ default: m.ShortcutsDialog })));
 
 // Inline the SheetsPanel URL check so we don't eagerly load the whole module.
 const SHEETS_STORAGE_KEY = "nst:sheets-url-v1";
@@ -341,7 +342,7 @@ const MemoTrendsPanel = memo(TrendsPanel);
 const MemoExecutiveBriefing = memo(ExecutiveBriefing);
 
 export default function App({ onFlip }: { onFlip?: () => void } = {}) {
-  const { theme } = useTheme();
+  const { theme, toggle: toggleTheme } = useTheme();
   const mapStyle = useMemo(() => basemapStyle(theme), [theme]);
   const { health: systemHealth, error: systemHealthError } = useSystemHealth(60_000);
   // Municipal boundary — real Mueang Chon Buri District perimeter (OSM relation
@@ -396,6 +397,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
   const [sheetsOpen, setSheetsOpen] = useState(false);
   const [atlasOpen, setAtlasOpen] = useState(false);
   const [platformOpen, setPlatformOpen] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [sheetsConfigured, setSheetsConfigured] = useState(() => {
     try { return Boolean(localStorage.getItem(SHEETS_STORAGE_KEY)); } catch { return false; }
   });
@@ -608,20 +610,56 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
     });
   }, [viewMode, flyCamera]);
 
-  // ESC closes the topmost overlay.
+  // Global keyboard shortcuts.
+  //   ?   → open the shortcuts help dialog
+  //   1-9 → switch to lens N (matches the order in presets.ts)
+  //   ESC → close the topmost overlay (modals, panels, popups)
+  //   D   → toggle 2D / 3D view mode
+  //   T   → toggle dark / light theme
   useEffect(() => {
+    const lensKeys: LensId[] = LENSES.map((l) => l.id);
     const onKey = (e: KeyboardEvent) => {
-      if (e.key !== "Escape") return;
-      if (manualOpen) setManualOpen(false);
-      else if (floodGuideOpen) setFloodGuideOpen(false);
-      else if (whitepaperOpen) setWhitepaperOpen(false);
-      else if (catalogOpen) setCatalogOpen(false);
-      else if (selectedIncident) setSelectedIncident(null);
-      else if (selectedBuilding) setSelectedBuilding(null);
+      // Ignore when the user is typing in a form field
+      const t = e.target as HTMLElement | null;
+      if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+
+      if (e.key === "Escape") {
+        if (manualOpen) setManualOpen(false);
+        else if (floodGuideOpen) setFloodGuideOpen(false);
+        else if (whitepaperOpen) setWhitepaperOpen(false);
+        else if (catalogOpen) setCatalogOpen(false);
+        else if (selectedIncident) setSelectedIncident(null);
+        else if (selectedBuilding) setSelectedBuilding(null);
+        else if (shortcutsOpen) setShortcutsOpen(false);
+        return;
+      }
+
+      // `?` opens the shortcuts help dialog. (Shift+/ on most keyboards.)
+      if (e.key === "?") { setShortcutsOpen(true); return; }
+
+      // `1`–`9` switch lenses by index in the LENSES array.
+      if (e.key >= "1" && e.key <= "9") {
+        const idx = Number(e.key) - 1;
+        const target = lensKeys[idx];
+        if (target) { setLens(target); e.preventDefault(); }
+        return;
+      }
+
+      // `D` toggles 2D / 3D
+      if (e.key === "d" || e.key === "D") {
+        setViewMode((m) => (m === "2D" ? "3D" : "2D"));
+        return;
+      }
+
+      // `T` toggles theme
+      if (e.key === "t" || e.key === "T") {
+        toggleTheme();
+        return;
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [catalogOpen, selectedBuilding, selectedIncident, manualOpen, floodGuideOpen, whitepaperOpen]);
+  }, [catalogOpen, selectedBuilding, selectedIncident, manualOpen, floodGuideOpen, whitepaperOpen, shortcutsOpen]);
 
   // Lookup table for hover tooltips — keeps DeckGL declarative.
   const tooltipForPickMemo = useCallback((info: { layer?: { id?: string } | null; object?: unknown }) => {
@@ -1664,6 +1702,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
         viewMode={viewMode}
         onCycleViewMode={cycleViewMode}
         onOpenManual={useCallback(() => setManualOpen(true), [])}
+        onOpenShortcuts={useCallback(() => setShortcutsOpen(true), [])}
         onOpenFloodGuide={useCallback(() => setFloodGuideOpen(true), [])}
         onOpenWhitepaper={useCallback(() => setWhitepaperOpen(true), [])}
         onOpenAtlas={useCallback(() => setAtlasOpen(true), [])}
@@ -2256,6 +2295,12 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
           />
         )}
       </Suspense>
+      {shortcutsOpen && (
+        <ShortcutsDialog
+          lenses={LENSES}
+          onClose={() => setShortcutsOpen(false)}
+        />
+      )}
       <ChatBox apiBase={API_BASE} />
       {isMobile && <MobileNav panel={mobilePanel} onChange={setMobilePanel} />}
     </div>

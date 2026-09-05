@@ -17,6 +17,7 @@ interface Props {
   viewMode: "2D" | "3D";
   onCycleViewMode: () => void;
   onOpenManual: () => void;
+  onOpenShortcuts: () => void;
   onOpenWhitepaper: () => void;
   onOpenSheets: () => void;
   onOpenAtlas: () => void;
@@ -36,7 +37,7 @@ const TEMPO_COLOR: Record<AcademicSnapshot["tempo"], string> = {
   peak: "var(--bad)",
 };
 
-export function TopBar({ feeds, onOpenCatalog, catalogCount, viewMode, onCycleViewMode, onOpenManual, onOpenWhitepaper, onOpenSheets, onOpenAtlas, onOpenPlatform, onOpenFloodGuide, onFlip, sheetsConfigured, academic, systemStatus }: Props) {
+export function TopBar({ feeds, onOpenCatalog, catalogCount, viewMode, onCycleViewMode, onOpenManual, onOpenShortcuts, onOpenWhitepaper, onOpenSheets, onOpenAtlas, onOpenPlatform, onOpenFloodGuide, onFlip, sheetsConfigured, academic, systemStatus }: Props) {
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 1000);
@@ -107,23 +108,51 @@ export function TopBar({ feeds, onOpenCatalog, catalogCount, viewMode, onCycleVi
       </div>
 
       <div className="topbar-right">
-        <span
-          className="live-count mono"
+        <button
+          onClick={onOpenCatalog}
+          className={`live-count mono health-pill health-${systemStatus ?? "unknown"}`}
           role="status"
-          aria-label={`${liveCount} of ${feeds.length} data feeds live`}
+          aria-label={
+            systemStatus === "healthy"
+              ? `${liveCount} of ${feeds.length} data feeds live — all systems nominal`
+              : systemStatus === "degraded"
+                ? `System degraded — ${feeds.length - liveCount} of ${feeds.length} feeds not live`
+                : systemStatus === "down"
+                  ? `System down — feeds not reachable`
+                  : `Data status unknown`
+          }
+          title={
+            systemStatus === "healthy"
+              ? "All feeds live — click for the SOURCES catalog"
+              : systemStatus === "degraded"
+                ? "Some feeds are stale or unavailable — click for the SOURCES catalog"
+                : systemStatus === "down"
+                  ? "Multiple feeds down — click for the SOURCES catalog"
+                  : "Click for the SOURCES catalog"
+          }
         >
-          <span className="dot live" style={{ marginRight: 5 }} />
-          {liveCount}/{feeds.length} LIVE
-        </span>
-        {systemStatus && systemStatus !== "healthy" && (
-          <span
-            className={`system-status-badge status-${systemStatus}`}
-            title={`System ${systemStatus.toUpperCase()} — check /api/health/detailed`}
-          >
-            <span className={`dot ${systemStatus}`} />
-            {systemStatus.toUpperCase()}
-          </span>
-        )}
+          {systemStatus === "healthy" ? (
+            <>
+              <span className="dot live" style={{ marginRight: 6 }} />
+              {liveCount}/{feeds.length} LIVE
+            </>
+          ) : systemStatus === "degraded" ? (
+            <>
+              <span className="dot stale" style={{ marginRight: 6 }} />
+              DEGRADED · {liveCount}/{feeds.length}
+            </>
+          ) : systemStatus === "down" ? (
+            <>
+              <span className="dot unavailable" style={{ marginRight: 6 }} />
+              DOWN · {liveCount}/{feeds.length}
+            </>
+          ) : (
+            <>
+              <span className="dot loading" style={{ marginRight: 6 }} />
+              {liveCount}/{feeds.length}
+            </>
+          )}
+        </button>
         <button
           onClick={onOpenSheets}
           className={`mono sheets-btn ${sheetsConfigured ? "sheets-btn-live" : ""}`}
@@ -186,10 +215,10 @@ export function TopBar({ feeds, onOpenCatalog, catalogCount, viewMode, onCycleVi
           WP
         </button>
         <button
-          onClick={onOpenManual}
-          className="mono manual-trigger"
-          aria-label="Open user manual"
-          title="Manual — every button, color, acronym"
+          onClick={onOpenShortcuts}
+          className="mono shortcuts-trigger"
+          aria-label="Keyboard shortcuts — press ? to open"
+          title="Keyboard shortcuts — press ? to open"
         >
           ?
         </button>
