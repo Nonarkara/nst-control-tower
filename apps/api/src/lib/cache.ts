@@ -8,6 +8,20 @@ interface CacheEntry<T> {
 }
 
 const MAX_ENTRIES = 200;
+// How long a FAILED result may be cached.
+//
+// Adapters signal "the upstream gave us nothing usable" by RETURNING a
+// NormalizedFeed with `unavailable`/`scenario` tier and no features, rather
+// than throwing. Without this cap, a brief upstream wobble during a cold
+// start would leave /api/weather, /api/air-quality, /api/datago/* etc.
+// serving an empty payload for the adapter's full TTL (30 min – 1 h),
+// which reads to a user as "this town has no weather" rather than "we
+// could not reach the source just now".
+//
+// 60 s is long enough to stop a request flood hammering a downed upstream,
+// short enough that the panel recovers on its own within a minute.
+const FAILURE_RETRY_SECONDS = 60;
+
 // When a background stale-while-revalidate refresh fails, we re-cache the
 // stale data with this SHORT cooldown instead of the full staleTtlSeconds.
 // Otherwise a permanently broken upstream (decommissioned endpoint, revoked
@@ -46,6 +60,21 @@ function evictIfNeeded() {
     store.delete(key);
     i++;
   }
+}
+
+/** Duck-typed: is this value a NormalizedFeed that represents a failure? */
+function isFailedFeed(v: unknown): boolean {
+  if (!v || typeof v !== "object") return false;
+  const meta = (v as { meta?: { fallbackTier?: string } }).meta;
+  const features = (v as { features?: unknown }).features;
+  if (!meta || !Array.isArray(features)) return false;
+  const failed = meta.fallbackTier === "unavailable" || meta.fallbackTier === "scenario";
+  return failed && features.length === 0;
+}
+
+/** TTL to actually use for a computed value — short if it failed. */
+function effectiveTtl(value: unknown, ttlSeconds: number): number {
+  return isFailedFeed(value) ? Math.min(FAILURE_RETRY_SECONDS, ttlSeconds) : ttlSeconds;
 }
 
 export function setCache<T>(key: string, data: T, ttlSeconds: number): void {
@@ -98,7 +127,7 @@ export async function cached<T>(
 
   const promise = compute()
     .then((result) => {
-      setCache(key, result, ttlSeconds);
+      setCache(key, result, effectiveTtl(result, ttlSeconds));
       pending.delete(key);
       return result;
     })
@@ -178,7 +207,7 @@ export async function cachedWithStale<T>(
   const staleEntry = entry; // capture before async gap
   const promise = compute()
     .then((fresh) => {
-      setCache(key, fresh, ttlSeconds);
+      setCache(key, fresh, effectiveTtl(fresh, ttlSeconds));
       pending.delete(key);
       return fresh;
     })

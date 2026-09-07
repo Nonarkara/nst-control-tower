@@ -780,6 +780,27 @@ export interface NasaEarthReadings {
   source: "nasa-power-merra2";
 }
 
+// ── Earthquakes (USGS FDSN) ──────────────────────────────────────────────────
+
+/**
+ * A recent earthquake near the region of interest.
+ * Source: USGS Earthquake Hazards FDSN event service (GeoJSON), no API key.
+ * Real-time; typical publication latency is minutes.
+ */
+export interface EarthquakeEvent {
+  id: string;
+  magnitude: number | null;
+  place: string;          // USGS human-readable locality, e.g. "112 km W of Bang Sak, Thailand"
+  time: string;           // ISO 8601
+  depthKm: number | null;
+  lat: number;
+  lng: number;
+  distanceKm: number;     // great-circle distance from the city centroid
+  tsunamiFlag: boolean;   // USGS tsunami:1 — an alert was issued, not a prediction
+  url: string;            // event page on earthquake.usgs.gov
+  source: "usgs-fdsn";
+}
+
 // ── Isochrone (Geoapify) ─────────────────────────────────────────────────────
 
 export type IsochroneMode = "walk" | "bicycle" | "drive" | "approximated_transit";

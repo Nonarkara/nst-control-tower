@@ -31,7 +31,7 @@ import {
   type BuildingProperties,
   type LandmarkKind,
 } from "../lib/building";
-import { ZONE_STATUS_RGB, ZONE_STATUS_LABEL, isThaDeeZone, type ZoneSummary } from "../lib/watershed";
+import { ZONE_STATUS_RGB, ZONE_STATUS_LABEL, isThaDeeZone, leadTimeToCity, type ZoneSummary } from "../lib/watershed";
 
 export interface CctvCamera {
   id: string;
@@ -2935,10 +2935,16 @@ interface WatershedMarker {
   toBankM: number | null;  // freeboard (positive) when below bank
   rain24h: number | null;
   soil: number | null;
+  /** Estimated lead-time from this zone to the city, in hours. The visible
+   *  "ETA" pill on the map marker. `null` for the city itself. */
+  etaH: number | null;
+  /** Channel distance (km) used to compute the ETA — surfaced in tooltips. */
+  etaChannelKm: number | null;
 }
 
 function toMarker(s: ZoneSummary): WatershedMarker {
   const rgb = ZONE_STATUS_RGB[s.status];
+  const lt = leadTimeToCity(s.zone.key);
   return {
     key: s.zone.key,
     name: s.zone.th,
@@ -2955,6 +2961,8 @@ function toMarker(s: ZoneSummary): WatershedMarker {
     toBankM: s.diffFromBank != null ? -s.diffFromBank : null,
     rain24h: s.rain24h,
     soil: s.soil,
+    etaH: lt ? Math.round(((lt.minH + lt.maxH) / 2) * 10) / 10 : null,
+    etaChannelKm: lt ? Math.round(lt.channelKm * 10) / 10 : null,
   };
 }
 

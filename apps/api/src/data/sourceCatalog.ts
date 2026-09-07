@@ -492,6 +492,17 @@ export const ATLAS_SOURCES: AtlasSource[] = [
     note: "National open-data portal waste datasets by province; solid waste, hazardous waste, plastic.",
   },
   {
+    id: "usgs-quakes",
+    name: "USGS Earthquake Hazards (FDSN)",
+    domain: "Disaster & Environment",
+    url: "https://earthquake.usgs.gov/fdsnws/event/1/",
+    auth: "Open",
+    format: "JSON",
+    free: "Free",
+    status: "integrated",
+    note: "Real-time quakes M≥2.5, Andaman/Sunda-arc bbox (0–22°N, 88–108°E) — the region's tsunami source zone.",
+  },
+  {
     id: "nasa-power-solar",
     name: "NASA POWER Solar & Climate",
     domain: "Waste Management",

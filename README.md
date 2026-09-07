@@ -10,7 +10,7 @@ defining risk.**
 [![React 19](https://img.shields.io/badge/Web-React%2019%20+%20Vite-blue)](https://react.dev)
 [![deck.gl](https://img.shields.io/badge/Map-deck.gl%209%20+%20MapLibre-blue)](https://deck.gl)
 [![Hono](https://img.shields.io/badge/API-Hono%20%2F%20Cloudflare%20Workers-orange)](https://hono.dev)
-[![Tests](https://img.shields.io/badge/tests-1%2C168%20passing-2DAA9E)](#proof)
+[![Tests](https://img.shields.io/badge/tests-1%2C220%20passing-2DAA9E)](#proof)
 [![License: MIT](https://img.shields.io/badge/license-MIT-1A1A1A)](LICENSE)
 
 **[🇹🇭 อ่านภาษาไทย → README.th.md](README.th.md)** · 🇬🇧 English (this page)
@@ -41,7 +41,7 @@ explicitly labeled as modelled/scenario — see [Data honesty](#honesty) below.
 |---|---|
 | **1,927** | tappable 3D building footprints |
 | **70** | cataloged data sources (27 live today) |
-| **1,168** | automated unit tests, plus 18 Playwright E2E smoke tests |
+| **1,220** | automated unit tests, plus 20 Playwright E2E smoke tests |
 | **9** | map lenses — one city, many views |
 | **0** | secrets in the repo — every key is an environment variable |
 

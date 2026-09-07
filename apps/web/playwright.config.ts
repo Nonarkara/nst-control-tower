@@ -1,7 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
 /**
- * Playwright config for Chonburi Town Center smoke tests.
+ * Playwright config for NST smoke tests.
  *
  * Spawns its own Vite dev server on a non-default port so a developer running
  * `pnpm dev` in another terminal isn't interrupted. The backend API at :8788

@@ -37,7 +37,34 @@ jobs:
         env:
           VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
 
+      - name: Record local index hash
+        id: hash
+        run: |
+          HASH=$(ls apps/web/dist/assets/index-*.js | head -1 | sed 's/.*\///')
+          echo "value=$HASH" >> $GITHUB_OUTPUT
+          echo "Built index: $HASH"
+
       - name: Deploy to Cloudflare Pages
         run: npx wrangler pages deploy apps/web/dist --project-name nst-control-tower --commit-dirty=true
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+
+      # No-deploy detection: confirm Cloudflare is actually serving the build we
+      # just pushed. Without this, a transient CI failure (cached edge, failed
+      # upload, wrong project name) silently leaves the live site stale and the
+      # next push lands on top of it. The recurrence mode is "I shipped code,
+      # the deploy silently didn't run, I'm now debugging the old build" — this
+      # step turns that into a loud red ❌ on PR/main instead of a 3-week drift.
+      - name: Verify live bundle hash matches local
+        run: |
+          LIVE=$(curl -sSL "https://nst-control-tower.pages.dev/" | grep -oE 'index-[A-Za-z0-9_-]+\.js' | head -1)
+          if [ -z "$LIVE" ]; then
+            echo "::error::Live site returned no index-*.js hash — site is broken or unreachable"
+            exit 1
+          fi
+          if [ "$LIVE" != "${{ steps.hash.outputs.value }}" ]; then
+            echo "::error::Live site is serving $LIVE but we just built ${{ steps.hash.outputs.value }}"
+            echo "::error::Deploy did NOT take. Investigate before pushing the next commit."
+            exit 1
+          fi
+          echo "✅ Live site is serving $LIVE — matches local build"

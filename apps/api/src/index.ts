@@ -54,6 +54,7 @@ import { fetchGistdaPoi, fetchGistdaSolar, fetchGistdaLandUse } from "./adapters
 import { fetchAqicnNst } from "./adapters/aqicn.js";
 import { fetchAir4Thai } from "./adapters/air4thai.js";
 import { fetchNasaEarth } from "./adapters/nasa-power.js";
+import { fetchQuakes } from "./adapters/usgsQuakes.js";
 import { SOURCE_CATALOG, CHONBURI } from "@nst/shared";
 import type { NormalizedFeed, AirQualityPoint, IncidentFeature, IntelligenceItem, ExecutiveSnapshot, MarketSnapshot } from "@nst/shared";
 import { recordAdapterSuccess, recordAdapterError, getAllHealth, getSystemStatus } from "./lib/health.js";
@@ -166,6 +167,7 @@ app.get("/", (c) =>
       "/api/gistda/solar",
       "/api/gistda/landuse",
       "/api/nasa/earth-readings",
+      "/api/quakes",
     ],
   }),
 );
@@ -550,6 +552,7 @@ app.get("/api/gistda/solar",   async (c) => {
 });
 app.get("/api/gistda/landuse", async (c) => safeFeed(c, fetchGistdaLandUse, "gistda-landuse"));
 app.get("/api/nasa/earth-readings", async (c) => safeFeed(c, fetchNasaEarth, "nasa-power"));
+app.get("/api/quakes", async (c) => safeFeed(c, fetchQuakes, "usgs-quakes"));
 app.get("/api/social/facebook", async (c) =>
   safeFeed(c, () => fetchFacebookPosts({ FACEBOOK_PAGE_ID: c.env.FACEBOOK_PAGE_ID, FACEBOOK_PAGE_TOKEN: c.env.FACEBOOK_PAGE_TOKEN }), "facebook"),
 );
