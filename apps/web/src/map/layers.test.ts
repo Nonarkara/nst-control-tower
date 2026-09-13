@@ -1,6 +1,7 @@
 import { describe, test, expect } from "vitest";
-import { flowDotPositions, thaDeeFlowPath } from "./layers";
+import { flowDotPositions, thaDeeFlowPath, etaArcRingsLayer, watershedNodesLayer } from "./layers";
 import type { ZoneSummary } from "../lib/watershed";
+import type { BasinWaterBalance } from "@nst/shared";
 
 /**
  * flowDotPositions — pure lerp-along-path function driving the watershed
@@ -104,5 +105,96 @@ describe("thaDeeFlowPath", () => {
 
   test("returns an empty path when no zones are on the Tha Dee river", () => {
     expect(thaDeeFlowPath([zone("thung-song", "คลองท่าเลา / ท่าโลน", 99.679, 8.175)])).toEqual([]);
+  });
+});
+
+/** A ZoneSummary with `isCity` set — required for etaArcRingsLayer to find
+ *  the city anchor and emit its three concentric rings. */
+function cityZone(lng: number, lat: number): ZoneSummary {
+  return {
+    zone: { key: "city", th: "เมือง", en: "City", role: "", river: "คลองท่าดี", lat, lng, amphoe: [], isCity: true, basinId: "city_tha_dee" },
+    status: "normal",
+    situation: 0,
+    levelMsl: null,
+    diffFromBank: null,
+    rain24h: null,
+    soil: null,
+    ewsStatus: 0,
+    rising: false,
+    gaugeCount: 0,
+    topStation: "",
+    modelled: false,
+  };
+}
+
+/** Builds a minimal BasinWaterBalance — the basin-band wiring in
+ *  watershedNodesLayer reads horizons[0].band + verdictEn + basinId. */
+function basinBalance(basinId: BasinWaterBalance["basinId"], band: BasinWaterBalance["horizons"][number]["band"], verdictEn = "test verdict"): BasinWaterBalance {
+  return {
+    basinId,
+    nameTh: basinId,
+    nameEn: basinId,
+    areaKm2: 100,
+    areaProvenance: "test",
+    runoffCLo: 0.4,
+    runoffCHi: 0.7,
+    wetness: "moist",
+    soilMoisturePct: null,
+    tidal: false,
+    tideFactor: null,
+    horizons: [{ horizonH: 24, rainObservedMm: 0, rainForecastMm: 0, inflowM3Lo: 0, inflowM3Hi: 0, conveyanceM3: null, reservoirHeadroomM3: 0, stressLo: null, stressHi: null, band }],
+    gauges: [],
+    chokeStationCode: null,
+    chokeUtilizationPct: null,
+    worstEtaOvertopH: null,
+    suggestedScenarioM: null,
+    hasReservoir: false,
+    reservoirs: [],
+    verdictTh: verdictEn,
+    verdictEn,
+    assumptions: [],
+  };
+}
+
+describe("etaArcRingsLayer", () => {
+  test("returns 4 layers (3 ring PathLayers + 1 label TextLayer) when a city zone is present", () => {
+    const layers = etaArcRingsLayer([cityZone(99.9631, 8.4364)]);
+    expect(layers).toHaveLength(4);
+    const ids = layers.map((l) => String((l as unknown as { id: string }).id));
+    expect(ids).toEqual(["eta-arc-1h", "eta-arc-3h", "eta-arc-6h", "eta-arc-labels"]);
+  });
+
+  test("returns an empty array when no zone has isCity set", () => {
+    const layers = etaArcRingsLayer([zone("khiri-wong", "คลองท่าดี", 99.7833, 8.4338)]);
+    expect(layers).toEqual([]);
+  });
+});
+
+describe("watershedNodesLayer — basin-band bridge", () => {
+  test("does not throw when called with an empty basin balance (cold start / network error)", () => {
+    // The function still has to render — the markers fall back to the
+    // observational status colour when the ledger is empty.
+    const summaries = [
+      zone("khiri-wong", "คลองท่าดี", 99.7833, 8.4338),
+      cityZone(99.9631, 8.4364),
+    ];
+    expect(() => watershedNodesLayer(summaries, [])).not.toThrow();
+    const layers = watershedNodesLayer(summaries, []);
+    // 4 layers: flow line + nodes scatter + zone labels + verdict pills.
+    // (The verdict pill emits for the upstream zone with a real ETA; the
+    // city has no upstream ETA so it gets filtered.)
+    expect(layers).toHaveLength(4);
+    const ids = layers.map((l) => String((l as unknown as { id: string }).id));
+    expect(ids).toEqual(["watershed-flow", "watershed-nodes", "watershed-node-labels", "watershed-verdict-pills"]);
+  });
+
+  test("accepts the basin balance without crashing when summaries are empty", () => {
+    expect(() => watershedNodesLayer([], [basinBalance("city_tha_dee", "tight")])).not.toThrow();
+  });
+
+  test("accepts the basin balance without crashing when the cascade has only the city", () => {
+    expect(() =>
+      watershedNodesLayer([cityZone(99.9631, 8.4364)], [basinBalance("city_tha_dee", "overflow")]),
+    ).not.toThrow();
   });
 });

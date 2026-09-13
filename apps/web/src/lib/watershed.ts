@@ -46,6 +46,10 @@ export interface WatershedZone {
   nameExclude?: string[];
   /** The downstream target (the city itself). */
   isCity?: boolean;
+  /** Links this zone to a basin in the water-balance ledger — used to colour
+   *  the watershed flow line by the basin's stress band (ok / tight / overflow).
+   *  Unset = no live ledger yet, falls back to the zone's observational status. */
+  basinId?: "city_tha_dee" | "pak_phanang" | "klai_north" | "northwest_tapi";
 }
 
 /**
@@ -64,6 +68,7 @@ export const WATERSHED_ZONES: WatershedZone[] = [
     river: "คลองท่าเลา / ท่าโลน",
     ...forecastPoint("thung-song"),
     amphoe: ["ทุ่งสง", "Thung Song"],
+    basinId: "northwest_tapi",
   },
   {
     key: "khiri-wong",
@@ -74,6 +79,7 @@ export const WATERSHED_ZONES: WatershedZone[] = [
     ...forecastPoint("khiri-wong"),
     amphoe: ["ลานสกา", "Lan Saka"],
     nameInclude: ["คีรีวง"],
+    basinId: "city_tha_dee",
   },
   {
     key: "lan-saka",
@@ -84,6 +90,7 @@ export const WATERSHED_ZONES: WatershedZone[] = [
     ...forecastPoint("lan-saka"),
     amphoe: ["ลานสกา", "Lan Saka"],
     nameExclude: ["คีรีวง"],
+    basinId: "city_tha_dee",
   },
   {
     key: "city",
@@ -97,6 +104,7 @@ export const WATERSHED_ZONES: WatershedZone[] = [
     amphoe: ["เมืองนครศรีธรรมราช", "Mueang Nakhon Si Thammarat"],
     nameInclude: ["ท่าดี", "นาป่า"],
     isCity: true,
+    basinId: "city_tha_dee",
   },
 ];
 

@@ -105,6 +105,7 @@ import {
   riverBufferLayer,
   floodGaugesLayer,
   watershedNodesLayer,
+  etaArcRingsLayer,
   waterGaugesLayer,
   waterLevelHeatmapLayer,
   waterLevelDensityFallbackLayer,
@@ -1301,7 +1302,6 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
       },
     );
   }, [waterwayFlowEnabled, waterways, thaDeeFlowColor, watershedSummaries]);
-  const waterwayFlow = useWaterwayFlow(preparedFlows, waterwayFlowEnabled);
 
   // RainViewer live radar nowcast (animated precipitation).
   const rainRadar = useRainRadar(enabledLayers.has("precip-radar"));
@@ -1313,6 +1313,10 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
   // Quantized zoom level — only changes when crossing the discrete thresholds
   // used for maxRoofs. Prevents the layers useMemo from firing on every zoom tick.
   const zoomBucket = observed.zoomBucket;
+  // waterway-flow layer is gated on zoomBucket (skipped at province/city scale
+  // so the ~4k-dot animation doesn't drown the watershed cascade). Use the
+  // bucket here too — same LOD contract as the buildings/roads above.
+  const waterwayFlow = useWaterwayFlow(preparedFlows, waterwayFlowEnabled, zoomBucket);
 
   // Pre-memoize the two largest layers (20,877 buildings each). The umbrella
   // `layers` memo below has ~40 deps including SWR feed polls — if any of those
@@ -1473,10 +1477,17 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
     if (enabledLayers.has("security-news") && news.data.length > 0)
       out.push(securityNewsLayer(news.data) as Layer);
     // ── Watershed upstream→city cascade (Tha Dee flow nodes) ──────────────
-    // (The animated flow dots are composed OUTSIDE this memo — see allLayers
-    // below — so their ~10 Hz layer swaps never rebuild this whole array.)
-    if (enabledLayers.has("watershed-nodes") && waterGauges.data.length > 0)
-      out.push(...(watershedNodesLayer(watershedSummaries) as Layer[]));
+    // ETA-arc rings render first so the markers/verdict pills stay on top:
+    // the rings are the "exposure envelope" backdrop, the markers carry the
+    // per-zone status + verdict. Both come from the same `summaries` so they
+    // share their lifecycle (turn on/off together when `watershed-nodes`
+    // toggles). (The animated flow dots are composed OUTSIDE this memo —
+    // see allLayers below — so their ~10 Hz layer swaps never rebuild this
+    // whole array.)
+    if (enabledLayers.has("watershed-nodes") && waterGauges.data.length > 0) {
+      out.push(...(etaArcRingsLayer(watershedSummaries) as Layer[]));
+      out.push(...(watershedNodesLayer(watershedSummaries, waterBalance.data) as Layer[]));
+    }
     // ── Live sensor telemetry dots — every dot hovers to a real reading ────
     if (enabledLayers.has("rain-stations") && waterRain.data.length > 0)
       out.push(rainStationsLayer(waterRain.data) as Layer);
@@ -1532,6 +1543,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
     air4thai.data, airQuality.data,
     southernRisk.data, southernRivers.data,
     watershedSummaries,
+    waterBalance.data,
     floodMarks, wrfGrid.data,
     presence.lng, presence.lat, presence.accuracyM,
     tile3d.layer, gpuHeatmapOk, terrainGrid,

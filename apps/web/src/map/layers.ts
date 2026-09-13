@@ -31,7 +31,8 @@ import {
   type BuildingProperties,
   type LandmarkKind,
 } from "../lib/building";
-import { ZONE_STATUS_RGB, ZONE_STATUS_LABEL, isThaDeeZone, leadTimeToCity, type ZoneSummary } from "../lib/watershed";
+import { ZONE_STATUS_RGB, ZONE_STATUS_LABEL, isThaDeeZone, leadTimeToCity, worstStatus, CELERITY_MIN_MS, type ZoneSummary } from "../lib/watershed";
+import type { BasinWaterBalance } from "@nst/shared";
 
 export interface CctvCamera {
   id: string;
@@ -1975,13 +1976,17 @@ export function civicPointsLayer(collection: FeatureCollection<Point, Record<str
   });
 }
 
-// Waterways — colour by type (rivers blue, canals brand-cyan, drains green)
+// Waterways — colour by type (rivers blue, canals brand-cyan, drains green).
+// Tuned to read clearly on both the dark earth background (terrain) and the
+// pale Esri canvas: rivers are saturated deep-blue, canals a brighter cyan,
+// streams a pale sky so the river/canal hierarchy reads at a glance. The old
+// [56, 189, 248, 200] for river was almost invisible at province scale.
 const WATERWAY_COLOR: Record<string, [number, number, number, number]> = {
-  river:  [56, 189, 248, 200],
-  canal:  [14, 165, 233, 220],
-  stream: [125, 211, 252, 170],
-  drain:  [13, 148, 136, 170],
-  ditch:  [13, 148, 136, 140],
+  river:  [29,  78, 216, 235], // blue-700 — anchors the watershed visually
+  canal:  [ 2, 132, 199, 240], // sky-600 — a clear step lighter than river
+  stream: [125, 211, 252, 190],
+  drain:  [13,  148, 136, 180],
+  ditch:  [13,  148, 136, 150],
 };
 
 export function waterwaysLayer(collection: FeatureCollection<LineString, Record<string, unknown>>) {
@@ -2940,10 +2945,30 @@ interface WatershedMarker {
   etaH: number | null;
   /** Channel distance (km) used to compute the ETA — surfaced in tooltips. */
   etaChannelKm: number | null;
+  /** Linked basin's stress band (from the FloodDash water-balance ledger).
+   *  Drives both the verdict pill on the marker and the colour of the
+   *  flow line. `undefined` = no live ledger yet for this basin. */
+  basinBand: "ok" | "tight" | "overflow" | "unknown" | undefined;
+  /** Verdict text from the linked basin's first horizon (English). */
+  basinVerdict: string | null;
 }
 
-function toMarker(s: ZoneSummary): WatershedMarker {
-  const rgb = ZONE_STATUS_RGB[s.status];
+/** Map a basin's first-horizon stress band to an RGB. Mirrors the colour
+ *  language used by WaterBalancePanel so the on-map flow line and the
+ *  side panel read identically. */
+const BASIN_BAND_RGB: Record<"ok" | "tight" | "overflow" | "unknown", [number, number, number]> = {
+  ok:       [31, 122, 78],   // same green as --good
+  tight:    [232, 168, 36],  // amber, same family as --warn
+  overflow: [204, 58, 38],  // brick red, same family as --neg
+  unknown:  [125, 125, 125],
+};
+
+function toMarker(s: ZoneSummary, basinBand?: "ok" | "tight" | "overflow" | "unknown", basinVerdict?: string | null): WatershedMarker {
+  // When the FloodDash water-balance ledger has a verdict for this zone's
+  // basin, that verdict dominates the marker colour — it's the modelled
+  // 24-72h answer, not just the observational "what's the river doing right
+  // now" status. So an "ok" status with an "overflow" band paints red.
+  const rgb = basinBand ? BASIN_BAND_RGB[basinBand] : ZONE_STATUS_RGB[s.status];
   const lt = leadTimeToCity(s.zone.key);
   return {
     key: s.zone.key,
@@ -2963,6 +2988,8 @@ function toMarker(s: ZoneSummary): WatershedMarker {
     soil: s.soil,
     etaH: lt ? Math.round(((lt.minH + lt.maxH) / 2) * 10) / 10 : null,
     etaChannelKm: lt ? Math.round(lt.channelKm * 10) / 10 : null,
+    basinBand,
+    basinVerdict: basinVerdict ?? null,
   };
 }
 
@@ -2974,11 +3001,51 @@ export function thaDeeFlowPath(summaries: ZoneSummary[]): [number, number][] {
   return summaries.filter(isThaDeeZone).map((s) => [s.zone.lng, s.zone.lat] as [number, number]);
 }
 
-export function watershedNodesLayer(summaries: ZoneSummary[]): Layer[] {
-  const markers = summaries.map(toMarker);
+export function watershedNodesLayer(summaries: ZoneSummary[], basinBalance?: BasinWaterBalance[]): Layer[] {
+  // Build a basinId → first-horizon (24h) stress band map from the FloodDash
+  // water-balance ledger. Falls back to undefined when the ledger hasn't
+  // landed yet (cold start, network error) — markers then use the
+  // observational status colour from the gauge cascade, not a synthetic zero.
+  const bandByBasin = new Map<string, { band: BasinStressBandLike; verdict: string }>();
+  if (basinBalance) {
+    for (const b of basinBalance) {
+      const h0 = b.horizons[0];
+      if (!h0) continue;
+      bandByBasin.set(b.basinId, { band: h0.band, verdict: b.verdictEn });
+    }
+  }
+  const lookUp = (basinId: string | undefined): { band: BasinStressBandLike; verdict: string } | null =>
+    basinId ? bandByBasin.get(basinId) ?? null : null;
+
+  const markers = summaries.map((s) => {
+    const bv = lookUp(s.zone.basinId);
+    return toMarker(s, bv?.band, bv?.verdict);
+  });
   const flowPath = thaDeeFlowPath(summaries);
 
   const layers: Layer[] = [];
+
+  // ── Flow line colour ────────────────────────────────────────────────────
+  // When the FloodDash water-balance ledger is live, the line is coloured by
+  // the WORST basin stress band along the path (overflow > tight > ok > unknown).
+  // This is the modelled 24-72h outlook, not just the right-now gauge status —
+  // a calm cascade with an "overflow" verdict on its basin paints red, so the
+  // operator sees the storm that's coming, not the lull that's here. Falls
+  // back to the cascade's observational status colour when no ledger is in.
+  const pathZones = summaries.filter(isThaDeeZone);
+  let flowRgb: [number, number, number] = ZONE_STATUS_RGB[worstStatus(pathZones)];
+  let flowBand: BasinStressBandLike | null = null;
+  for (const s of pathZones) {
+    const bv = lookUp(s.zone.basinId);
+    if (!bv) continue;
+    if (flowBand === null || bandRank(bv.band) > bandRank(flowBand)) {
+      flowBand = bv.band;
+      flowRgb = BASIN_BAND_RGB[bv.band];
+    }
+  }
+  // Soften the alpha when on a band so the line doesn't shout at the markers
+  // — the markers carry the verdict, the line is the connective tissue.
+  const flowColor: [number, number, number, number] = [flowRgb[0], flowRgb[1], flowRgb[2], 225];
 
   if (flowPath.length >= 2) {
     layers.push(
@@ -2986,7 +3053,7 @@ export function watershedNodesLayer(summaries: ZoneSummary[]): Layer[] {
         id: "watershed-flow",
         data: [{ path: flowPath }],
         getPath: (d: { path: [number, number][] }) => d.path,
-        getColor: [56, 189, 248, 200], // sky — the Tha Dee
+        getColor: flowColor,
         getWidth: 3,
         widthUnits: "pixels",
         widthMinPixels: 2,
@@ -2994,6 +3061,7 @@ export function watershedNodesLayer(summaries: ZoneSummary[]): Layer[] {
         jointRounded: true,
         parameters: { depthTest: false },
         pickable: false,
+        updateTriggers: { getColor: [flowBand, ZONE_STATUS_RGB[worstStatus(pathZones)].join(",")] },
       }) as Layer,
     );
   }
@@ -3013,6 +3081,9 @@ export function watershedNodesLayer(summaries: ZoneSummary[]): Layer[] {
       getLineWidth: (m) => (m.isCity ? 3 : 1.5),
       lineWidthMinPixels: 1.5,
       pickable: true,
+      updateTriggers: {
+        getFillColor: [basinBalance?.map((b) => `${b.basinId}:${b.horizons[0]?.band}`).join("|") ?? ""],
+      },
     }) as Layer,
   );
 
@@ -3033,12 +3104,218 @@ export function watershedNodesLayer(summaries: ZoneSummary[]): Layer[] {
       getBackgroundColor: [10, 14, 20, 170],
       background: true,
       backgroundPadding: [4, 2],
-      parameters: { depthTest: false },
+      parameters: { depthWriteEnabled: false, depthCompare: "always" },
       pickable: false,
     }) as Layer,
   );
 
+  // ── Verdict pill (the FloodDash water-balance verdict, on the map) ───────
+  // One small uppercase mono-cased string per zone: either the basin verdict
+  // (when the ledger is live) or "ETA X.Xh" (when only lead time is computable).
+  // The city shows the SHORTEST upstream ETA instead of a verdict — that's the
+  // number an operator wants when the wave is already arriving.
+  const pillData = markers
+    .map((m) => {
+      let text: string;
+      if (m.basinVerdict) {
+        text = `${shortVerdict(m.basinVerdict)}${m.etaH != null ? ` · ETA ${m.etaH.toFixed(1)}h` : ""}`;
+      } else if (m.etaH != null) {
+        text = `ETA ${m.etaH.toFixed(1)}h`;
+      } else {
+        return null; // city with no upstream ETA — nothing to say
+      }
+      return { ...m, pill: text };
+    })
+    .filter((m): m is WatershedMarker & { pill: string } => m != null);
+
+  if (pillData.length > 0) {
+    layers.push(
+      new TextLayer<WatershedMarker & { pill: string }>({
+        id: "watershed-verdict-pills",
+        data: pillData,
+        getPosition: (m) => [m.lng, m.lat],
+        getText: (m) => m.pill,
+        getSize: 10.5,
+        getColor: (m) => [m.rgb[0], m.rgb[1], m.rgb[2], 245],
+        getPixelOffset: [0, 18],
+        getTextAnchor: "middle",
+        getAlignmentBaseline: "top",
+        billboard: true,
+        fontFamily: "'Inter', 'IBM Plex Sans Thai', sans-serif",
+        fontWeight: "bold",
+        characterSet: "auto",
+        getBackgroundColor: [10, 14, 20, 215],
+        background: true,
+        backgroundPadding: [4, 1],
+        parameters: { depthWriteEnabled: false, depthCompare: "always" },
+        pickable: false,
+      }) as Layer,
+    );
+  }
+
   return layers;
+}
+
+// Local alias so the helpers below don't reach into @nst/shared's full type
+// namespace — keeps the basin-band vocabulary in one place near the colours.
+type BasinStressBandLike = "ok" | "tight" | "overflow" | "unknown";
+
+// Severity rank for "worst across the cascade" comparisons.
+function bandRank(b: BasinStressBandLike): number {
+  if (b === "overflow") return 3;
+  if (b === "tight") return 2;
+  if (b === "ok") return 1;
+  return 0;
+}
+
+// Shorten long verdicts for the on-map pill. The full text lives in the
+// WaterBalancePanel — the pill only needs the actionable lead phrase.
+function shortVerdict(v: string): string {
+  const upper = v.toUpperCase();
+  if (upper.includes("OVERFLOW")) return "OVERFLOW";
+  if (upper.includes("TIGHT")) return "TIGHT";
+  if (upper.includes("ABSORB") || upper.includes("OK")) return "ABSORBS";
+  return upper.length > 14 ? upper.slice(0, 13) + "…" : upper;
+}
+
+// ── ETA ARC RINGS — concentric "flood front" reach envelopes ───────────────
+// Three concentric rings around the city centre at radii corresponding to the
+// distance a flood wave would travel in 1h / 3h / 6h at the slowest published
+// celerity (1.5 m/s, the conservative end of the band in lib/watershed.ts).
+// The semantics: anything upstream of the 1h ring can still reach the city in
+// 1h, anything between the 1h and 3h rings can reach it in 3h, etc.
+//
+// This is the WORST-CASE ARRIVAL ENVELOPE — a "where the wave could be right
+// now and still hit you in N hours" reading. It does not depend on which
+// upstream zone is actually flooding; it's the geometry of the city's
+// exposure surface. Combined with the watershed markers (which carry the
+// per-zone ETA), the operator gets both the per-zone estimate AND the
+// envelope — "Khiri Wong is 2.5h away" and "anything within 16 km of the
+// city centre could reach it within 3h" simultaneously.
+const ETA_RING_HOURS: (1 | 3 | 6)[] = [1, 3, 6];
+
+// Distance the wave travels in `h` hours at `celerityMs` metres/sec, in km.
+function waveReachKm(h: number, celerityMs: number): number {
+  return (h * celerityMs * 3600) / 1000;
+}
+
+// One closed-loop polygon ring (lng/lat, ~96 vertices) at radius `km` around
+// `centerLng`/`centerLat`. Equirectangular — fine at this scale (~5–30 km)
+// since we only care about the visual envelope, not geodesic accuracy.
+function circlePathKm(centerLng: number, centerLat: number, km: number, steps = 96): [number, number][] {
+  // 1° latitude ≈ 111.32 km. 1° longitude at NST latitude (≈8.43° N) is
+  // 111.32 × cos(8.43°) ≈ 110.10 km. We use a single local factor for both
+  // axes (good to ~0.2% at this latitude) — keeps the path generator simple
+  // and the test cheap.
+  const kmPerDegLat = 111.32;
+  const kmPerDegLng = 111.32 * Math.cos((centerLat * Math.PI) / 180);
+  const dLat = km / kmPerDegLat;
+  const dLng = km / kmPerDegLng;
+  const out: [number, number][] = [];
+  for (let i = 0; i < steps; i++) {
+    const a = (i / steps) * 2 * Math.PI;
+    out.push([centerLng + dLng * Math.cos(a), centerLat + dLat * Math.sin(a)]);
+  }
+  return out;
+}
+
+// (No anchor helper — ringLabelPos below handles label placement directly.)
+
+/**
+ * Three concentric "flood front arrival" rings (1h / 3h / 6h) centred on the
+ * city zone. Coloured by ETA urgency: red (1h), amber (3h), pale amber (6h).
+ * Returns an empty array when there's no city zone in `summaries`.
+ *
+ * Pushed into the layer stack beneath the watershed markers so the rings read
+ * as a backdrop and the markers + verdict pills remain the foreground.
+ */
+export function etaArcRingsLayer(summaries: ZoneSummary[]): Layer[] {
+  const city = summaries.find((s) => s.zone.isCity);
+  if (!city) return [];
+
+  // Use the slowest celerity for the envelope — it gives the LARGEST rings,
+  // which is the safe/conservative reading. A flood moving at CELERITY_MAX_MS
+  // (3 m/s) would be inside the 1h ring, not outside it, so the slower
+  // envelope strictly contains the faster one.
+  const slowestCelerity = CELERITY_MIN_MS;
+
+  const rings: { hours: 1 | 3 | 6; km: number; color: [number, number, number, number] }[] = ETA_RING_HOURS.map(
+    (h) => {
+      const km = waveReachKm(h, slowestCelerity);
+      // 1h: brick red (overflow family), 3h: warm amber (tight family),
+      // 6h: pale amber (the warning-but-not-urgent bucket).
+      const color: [number, number, number, number] =
+        h === 1 ? [204, 58, 38, 215] :
+        h === 3 ? [232, 168, 36, 195] :
+                  [232, 168, 36, 140];
+      return { hours: h, km, color };
+    },
+  );
+
+  const out: Layer[] = [];
+
+  // The rings themselves — three closed-loop PathLayers.
+  for (const r of rings) {
+    const path = circlePathKm(city.zone.lng, city.zone.lat, r.km);
+    out.push(
+      new PathLayer<{ path: [number, number][] }>({
+        id: `eta-arc-${r.hours}h`,
+        data: [{ path }],
+        getPath: (d) => d.path,
+        getColor: r.color,
+        getWidth: 1.4,
+        widthUnits: "pixels",
+        widthMinPixels: 1,
+        capRounded: true,
+        jointRounded: true,
+        parameters: { depthWriteEnabled: false, depthCompare: "always" },
+        pickable: false,
+      }) as Layer,
+    );
+  }
+
+  // One label per ring, anchored to the north of the ring at the city centre's
+  // longitude (so all three stack vertically above the city — a glanceable
+  // "1h above 3h above 6h" ladder). Offset slightly inside each ring so the
+  // label sits ON the line, not floating above it.
+  const labelData = rings.map((r) => ({
+    position: ringLabelPos(city.zone.lng, city.zone.lat, r.km),
+    text: `${r.hours}h · ${r.km.toFixed(1)} km`,
+    color: r.color,
+  }));
+  out.push(
+    new TextLayer<{ position: [number, number]; text: string; color: [number, number, number, number] }>({
+      id: "eta-arc-labels",
+      data: labelData,
+      getPosition: (d) => d.position,
+      getText: (d) => d.text,
+      getSize: 10,
+      getColor: (d) => [d.color[0], d.color[1], d.color[2], 230],
+      getTextAnchor: "middle",
+      getAlignmentBaseline: "bottom",
+      billboard: true,
+      fontFamily: "'Inter', 'IBM Plex Sans Thai', sans-serif",
+      fontWeight: "bold",
+      characterSet: "0123456789.h km",
+      getBackgroundColor: [10, 14, 20, 200],
+      background: true,
+      backgroundPadding: [3, 1],
+      parameters: { depthWriteEnabled: false, depthCompare: "always" },
+      pickable: false,
+    }) as Layer,
+  );
+
+  return out;
+}
+
+// Anchor the label slightly inside the ring (north of centre), so it sits ON
+// the line rather than above it. Same equirectangular approximation as the
+// path generator.
+function ringLabelPos(centerLng: number, centerLat: number, km: number): [number, number] {
+  const kmPerDegLat = 111.32;
+  // Pull the label inside by 0.4 km so it doesn't clip the outer edge.
+  const offsetKm = km - 0.4;
+  return [centerLng, centerLat + offsetKm / kmPerDegLat];
 }
 
 /** Linearly interpolates `dotCount` evenly-spaced dots along `path` at phase
@@ -3207,8 +3484,13 @@ export function waterwayFlowDots(prepared: PreparedFlowLine[], tMs: number): Wat
   return dots;
 }
 
-/** One ScatterplotLayer for ALL waterway flow dots (per-dot color = speed class). */
-export function waterwayFlowLayer(dots: WaterwayFlowDot[]) {
+/** One ScatterplotLayer for ALL waterway flow dots (per-dot color = speed class).
+ *  `zoomBucket` gates the layer: 0 (province scale) and 1 (city scale) skip the
+ *  dots — at those zoom levels 843 waterways × ~5 dots = ~4,200 points all
+ *  animate, drowning the more important watershed cascade and rendering the
+ *  rain radar unreadable. City-scale (zoomBucket 2) renders normally. */
+export function waterwayFlowLayer(dots: WaterwayFlowDot[], zoomBucket: 0 | 1 | 2 = 2) {
+  if (zoomBucket !== 2) return null;
   return new ScatterplotLayer<WaterwayFlowDot>({
     id: "waterway-flow",
     data: dots,

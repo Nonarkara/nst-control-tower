@@ -15,14 +15,21 @@ import { waterwayFlowDots, waterwayFlowLayer, type PreparedFlowLine, type Waterw
  */
 const UPDATE_INTERVAL_MS = 100; // ~10 Hz
 
-export function useWaterwayFlow(prepared: PreparedFlowLine[], visible: boolean): {
+export function useWaterwayFlow(
+  prepared: PreparedFlowLine[],
+  visible: boolean,
+  zoomBucket: 0 | 1 | 2 = 2,
+): {
   layer: ScatterplotLayer<WaterwayFlowDot> | null;
 } {
   const [layer, setLayer] = useState<ScatterplotLayer<WaterwayFlowDot> | null>(null);
   const rafRef = useRef<number | null>(null);
 
   useEffect(() => {
-    if (!visible || prepared.length === 0) {
+    // LOD: skip the heavy ~4k-dot animation at province/city scale (zoom 0/1).
+    // waterwayFlowLayer also returns null when zoomBucket !== 2, but stopping
+    // the rAF loop entirely saves the per-frame work too.
+    if (!visible || prepared.length === 0 || zoomBucket !== 2) {
       setLayer(null);
       return;
     }
@@ -31,7 +38,7 @@ export function useWaterwayFlow(prepared: PreparedFlowLine[], visible: boolean):
     const tick = (now: number) => {
       if (now - lastUpdate >= UPDATE_INTERVAL_MS) {
         lastUpdate = now;
-        setLayer(waterwayFlowLayer(waterwayFlowDots(prepared, now - start)));
+        setLayer(waterwayFlowLayer(waterwayFlowDots(prepared, now - start), zoomBucket));
       }
       rafRef.current = requestAnimationFrame(tick);
     };
@@ -39,7 +46,7 @@ export function useWaterwayFlow(prepared: PreparedFlowLine[], visible: boolean):
     return () => {
       if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
     };
-  }, [visible, prepared]);
+  }, [visible, prepared, zoomBucket]);
 
   return { layer };
 }
