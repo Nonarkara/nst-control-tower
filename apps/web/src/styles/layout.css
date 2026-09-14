@@ -5058,6 +5058,24 @@ input:focus-visible,
 .cctv-cell.is-offline .cctv-cell__viewport {
   background: var(--ground);
 }
+/* Standby / retrying states — clean placeholders that don't try to talk
+   to the upstream MediaMTX reader (which would 429 us). The user sees a
+   quiet grid that fills in as cells scroll into view + slots free up. */
+.cctv-cell__standby,
+.cctv-cell__no-stream {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink-3);
+  letter-spacing: 0.12em;
+  font-size: var(--text-xs);
+  font-weight: 700;
+}
+.cctv-cell__standby { background: var(--ground); }
+.cctv-cell.is-error .cctv-cell__viewport { background: var(--ground); }
+.cctv-cell.is-error .cctv-cell__no-stream { color: var(--warn); }
 /* BLINK — old-school map↔wall sync. When the operator clicks a CCTV dot
    on the map, both the dot AND the matching wall cell blink in sync for
    ~2.4 s. The deck.gl side animates the radius via rAF; this side
@@ -5095,17 +5113,6 @@ input:focus-visible,
   border: 0;
   display: block;
   object-fit: cover;
-}
-.cctv-cell__no-stream {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--ink-3);
-  letter-spacing: 0.12em;
-  font-size: var(--text-xs);
-  font-weight: 700;
 }
 .cctv-cell__meta {
   display: grid;
