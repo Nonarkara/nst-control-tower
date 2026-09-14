@@ -389,6 +389,18 @@ kbd {
 .topbar-settings { padding-left: var(--s-4); border-left: 1px solid var(--line); }
 .topbar-health__count { color: var(--ink-2); }
 
+/* CCTV Command Center button — distinct outline so the operator can find
+   it without scanning the nav. One accent (--cctv-water, the Okabe–Ito
+   sky family) so it reads as a different kind of action from the rest. */
+.topbar-cctv {
+  border: 1px solid var(--cctv-water);
+  color: var(--cctv-water);
+}
+.topbar-cctv:hover {
+  background: var(--cctv-water);
+  color: var(--on-status, #111);
+}
+
 .topbar-more { position: relative; }
 .topbar-more__menu {
   position: absolute;

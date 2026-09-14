@@ -174,6 +174,7 @@ import { AqiBadge, type AqiTrend } from "./components/AqiBadge";
 import { BuildingCard } from "./components/BuildingCard";
 import { CctvStreamModal } from "./components/CctvStreamModal";
 import { CctvDirectory } from "./components/CctvDirectory";
+import { CctvCommandCenter } from "./components/CctvCommandCenter";
 import { RailSection } from "./components/RailSection";
 import { WeatherPanel } from "./components/WeatherPanel";
 import { prefersReducedMotion } from "./hooks/usePrefersReducedMotion";
@@ -515,6 +516,9 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
   // Selected incident — drives the IncidentCard with its "Open report ↗" link.
   const [selectedIncident, setSelectedIncident] = useState<IncidentFeature | null>(null);
   const [selectedCctv, setSelectedCctv] = useState<CctvCamera | null>(null);
+  const [cctvCommandOpen, setCctvCommandOpen] = useState(false);
+
+
 
   // Camera helpers — all command the uncontrolled camera via flyCamera.
   // prefers-reduced-motion: camera commands jump instead of gliding.
@@ -1039,6 +1043,47 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
   const airQuality = useFeed<AirQualityPoint>(`${API_BASE}/api/air-quality`, 15 * 60_000);
   const air4thai = useFeed<AirQualityPoint>(`${API_BASE}/api/air-quality/air4thai`, 30 * 60_000);
   const cctv = useFeed<CctvCamera>(`${API_BASE}/api/cctv`, 10 * 60_000);
+
+  // CCTV Command Center — compute the bbox of every camera position plus
+  // the city centre, then fly to a zoom that fits them all. Called from
+  // the small TopBar button; opens the wall overlay that replaces both rails.
+  const openCctvCommandCenter = useCallback(() => {
+    if (cctv.data.length === 0) {
+      // No cameras yet — still open the overlay (the empty state is honest).
+      setCctvCommandOpen(true);
+      return;
+    }
+    let minLng = Infinity, maxLng = -Infinity, minLat = Infinity, maxLat = -Infinity;
+    for (const c of cctv.data) {
+      if (c.lng < minLng) minLng = c.lng;
+      if (c.lng > maxLng) maxLng = c.lng;
+      if (c.lat < minLat) minLat = c.lat;
+      if (c.lat > maxLat) maxLat = c.lat;
+    }
+    // Always include the city centre so the operator sees the urban focus,
+    // even when the camera set is biased to the periphery.
+    const cityLng = CHONBURI.center[0];
+    const cityLat = CHONBURI.center[1];
+    minLng = Math.min(minLng, cityLng); maxLng = Math.max(maxLng, cityLng);
+    minLat = Math.min(minLat, cityLat); maxLat = Math.max(maxLat, cityLat);
+    const cx = (minLng + maxLng) / 2;
+    const cy = (minLat + maxLat) / 2;
+    // Crude lon/lat → zoom. NST latitude ≈ 8.4°N so 1° lat ≈ 111 km,
+    // 1° lng ≈ 110 km. We aim for the camera bbox to fill ~75% of the
+    // viewport at the chosen zoom; tuned by eye for a 1440×900 desktop.
+    // The operator can zoom back in if they want detail.
+    const spanKm = Math.max(maxLat - minLat, (maxLng - minLng) * 1.012) * 111;
+    const zoom = Math.max(11.0, Math.min(15.0, 11.5 - Math.log2(spanKm / 9)));
+    flyCamera({
+      longitude: cx,
+      latitude: cy,
+      zoom,
+      bearing: 0,
+      pitch: 0,
+      transitionDuration: prefersReducedMotion() ? 0 : 1100,
+    });
+    setCctvCommandOpen(true);
+  }, [cctv.data, flyCamera, prefersReducedMotion]);
   const aqiTrend = useFeed<AqiTrend>(`${API_BASE}/api/air-quality/trend`, 15 * 60_000);
   const trends = useFeed<TrendsSnapshot>(`${API_BASE}/api/trends`, 15 * 60_000);
   const executive = useFeed<ExecutiveSnapshot>(`${API_BASE}/api/executive`, 15 * 60_000);
@@ -1732,6 +1777,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
         onOpenManual={useCallback(() => setManualOpen(true), [])}
         onOpenShortcuts={useCallback(() => setShortcutsOpen(true), [])}
         onOpenFloodGuide={useCallback(() => setFloodGuideOpen(true), [])}
+        onOpenCctvCommand={openCctvCommandCenter}
         onOpenWhitepaper={useCallback(() => setWhitepaperOpen(true), [])}
         onOpenAtlas={useCallback(() => setAtlasOpen(true), [])}
         onOpenPlatform={useCallback(() => setPlatformOpen(true), [])}
@@ -1776,7 +1822,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
           layer set (EXEC = strategic, OPS = day-to-day). The legacy Chula
           ExecutiveBrief / StrategicAlerts / PeerComparison panels were built
           for a university and don't belong on a city mayor's desk. ── */}
-      <aside id="rail-left" className="left-bar" aria-label="City panels" aria-hidden={isMobile && mobilePanel !== "brief"}>
+      <aside id="rail-left" className="left-bar" aria-label="City panels" aria-hidden={cctvCommandOpen || (isMobile && mobilePanel !== "brief")}>
         {/* ── Mobile only: the world strip (weather + clocks), feed health, and
             the secondary actions relocate here so the Map tab stays a clean,
             full-screen map. Reflowed into readable blocks by CSS. ── */}
@@ -2206,6 +2252,13 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
             onClose={() => setSelectedCctv(null)}
             apiBase={API_BASE}
           />
+          {cctvCommandOpen && (
+            <CctvCommandCenter
+              cameras={cctv.data}
+              onClose={() => setCctvCommandOpen(false)}
+              onSelect={(c) => setSelectedCctv(c)}
+            />
+          )}
           {forecastAlerts.size > 0 && (
             <div className="map-alerts" role="status">
               {[...forecastAlerts].map((m) => (
@@ -2221,7 +2274,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
       {/* ── Right sidebar: news (scrollable) + layer controls.
           StrategicAlerts and PeerComparison were Chula-university panels —
           removed until rebuilt with provincial peer data (Rayong, Chachoengsao). ── */}
-      <aside className="right-bar" aria-label="Cameras, news and map layers" aria-hidden={isMobile && mobilePanel !== "layers"}>
+      <aside className="right-bar" aria-label="Cameras, news and map layers" aria-hidden={cctvCommandOpen || (isMobile && mobilePanel !== "layers")}>
         <div className="right-sections">
         <RailSection sectionKey="right-cctv" lens={lens} title="CCTV">
           <CctvDirectory

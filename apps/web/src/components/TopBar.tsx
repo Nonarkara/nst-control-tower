@@ -37,6 +37,7 @@ interface Props {
   onOpenAtlas: () => void;
   onOpenPlatform: () => void;
   onOpenFloodGuide: () => void;
+  onOpenCctvCommand: () => void;
   onFlip?: () => void;
   sheetsConfigured: boolean;
   /** Retained for API compatibility with the university fork; not shown. */
@@ -138,6 +139,7 @@ export function TopBar({
   onOpenSheets,
   onOpenAtlas,
   onOpenFloodGuide,
+  onOpenCctvCommand,
   onFlip,
   sheetsConfigured,
   systemStatus = "unknown",
@@ -202,6 +204,14 @@ export function TopBar({
       </button>
 
       <nav className="topbar-nav" aria-label="Tools">
+        <button
+          type="button"
+          className="btn topbar-cctv"
+          onClick={onOpenCctvCommand}
+          aria-label="Open CCTV command center — full-screen wall of live camera feeds"
+        >
+          CCTV
+        </button>
         <button type="button" className="btn" onClick={onOpenCatalog} aria-label="Open source catalog">
           Source catalog
         </button>
