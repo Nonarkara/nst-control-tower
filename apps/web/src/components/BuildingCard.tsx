@@ -2,6 +2,7 @@ import type { BuildingProperties } from "../map/layers";
 import { useTwinBuilding } from "../hooks/useTwinBuilding";
 import { API_BASE } from "../lib/apiBase";
 import { StreetViewThumb } from "./StreetViewThumb";
+import { Dialog } from "./Dialog";
 
 interface Props {
   building: BuildingProperties | null;
@@ -11,18 +12,18 @@ interface Props {
 }
 
 /**
- * Right-anchored card showing the picked building's metadata.
+ * Right-anchored, non-modal card showing the picked building's metadata.
  * Enhanced with digital-twin data: related sensors + live state from the twin store.
- * Closes on backdrop click or ESC (wired in App.tsx).
+ * Escape or the Close button closes it; focus moves to the card and back.
  */
 export function BuildingCard({ building, coord, onClose }: Props) {
+  // Query the semantic twin for this building (hook runs unconditionally).
+  const twin = useTwinBuilding(building?.id ?? null);
   if (!building) return null;
+
   const name = building.nameEn || building.name || building.nameTh || "Untitled building";
   const altName = building.nameTh && building.nameTh !== name ? building.nameTh : null;
   const osmId = building.id;
-
-  // Query the semantic twin for this building
-  const twin = useTwinBuilding(osmId);
 
   // Find sensors that monitor this building
   const sensors = twin.related.filter(
@@ -30,18 +31,16 @@ export function BuildingCard({ building, coord, onClose }: Props) {
   );
 
   return (
-    <aside className="building-card" role="dialog" aria-label={`Building: ${name}`}>
-      <header className="building-card-head">
-        <div>
-          <span className="eyebrow mono">NST · BUILDING</span>
-          <h3 className="building-card-title">{name}</h3>
-          {altName && <div className="building-card-alt">{altName}</div>}
-        </div>
-        <button onClick={onClose} aria-label="Close" className="building-card-close mono">
-          ESC
-        </button>
-      </header>
-      <dl className="building-card-meta mono">
+    <Dialog
+      open
+      modal={false}
+      size="sm"
+      onClose={onClose}
+      eyebrow="NST · Building"
+      title={name}
+      description={altName ? <span lang="th">{altName}</span> : undefined}
+    >
+      <dl className="building-card-meta">
         {building.building && building.building !== "yes" && (
           <>
             <dt>TYPE</dt>
@@ -67,22 +66,22 @@ export function BuildingCard({ building, coord, onClose }: Props) {
           </>
         )}
         <dt>OSM</dt>
-        <dd className="mono">{osmId}</dd>
+        <dd className="num">{osmId}</dd>
       </dl>
 
       {/* ── Ground truth: Google Street View at this location ── */}
       {coord && (
-        <div className="building-card-section">
-          <span className="eyebrow mono">STREET VIEW</span>
+        <section className="building-card-section" aria-label="Street View">
+          <h3 className="eyebrow">STREET VIEW</h3>
           <StreetViewThumb coord={coord} />
-        </div>
+        </section>
       )}
 
       {/* ── Digital Twin: Related Sensors ── */}
       {sensors.length > 0 && (
-        <div className="building-card-section">
-          <span className="eyebrow mono">SENSORS ({sensors.length})</span>
-          <ul className="building-card-sensors mono">
+        <section className="building-card-section">
+          <h3 className="eyebrow">SENSORS ({sensors.length})</h3>
+          <ul className="building-card-sensors">
             {sensors.map((s) => (
               <li key={s.object.id}>
                 <span className="sensor-name">{s.object.name}</span>
@@ -90,28 +89,28 @@ export function BuildingCard({ building, coord, onClose }: Props) {
               </li>
             ))}
           </ul>
-        </div>
+        </section>
       )}
 
       {/* ── Digital Twin: Latest State ── */}
       {twin.state.length > 0 && (
-        <div className="building-card-section">
-          <span className="eyebrow mono">LIVE STATE</span>
+        <section className="building-card-section">
+          <h3 className="eyebrow">LIVE STATE</h3>
           <div className="building-card-state">
             {twin.state.map((pt) => (
-              <div key={`${pt.metric}-${pt.time}`} className="state-row mono">
+              <div key={`${pt.metric}-${pt.time}`} className="state-row">
                 <span className="state-metric">{pt.metric}</span>
-                <span className="state-value">{pt.value.toFixed(1)}</span>
+                <span className="state-value num">{pt.value.toFixed(1)}</span>
                 <span className="state-source">{pt.source}</span>
               </div>
             ))}
           </div>
-        </div>
+        </section>
       )}
 
       {twin.loading && (
-        <div className="building-card-loading mono">
-          <span className="dot loading" /> Querying twin…
+        <div className="building-card-loading" role="status">
+          <span className="dot loading" aria-hidden="true" /> Querying twin…
         </div>
       )}
 
@@ -121,11 +120,11 @@ export function BuildingCard({ building, coord, onClose }: Props) {
           href={`${API_BASE}/api/twin/objects/${encodeURIComponent(osmId)}`}
           target="_blank"
           rel="noreferrer"
-          className="building-card-link mono"
+          className="link"
         >
           Open in Twin API →
         </a>
       )}
-    </aside>
+    </Dialog>
   );
 }

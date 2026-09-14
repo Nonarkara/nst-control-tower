@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { AtlasSnapshot, AtlasSource, AtlasSourceStatus } from "@nst/shared";
 import { API_BASE } from "../../lib/apiBase";
 import { AtlasModuleView } from "./charts";
+import { Dialog } from "../Dialog";
 
 /**
  * Nakhon Si Thammarat Data Atlas — full-bleed overlay turning the Municipal Data Source Bible's
@@ -34,19 +35,19 @@ function SourceCatalogExplorer({ sources }: { sources: AtlasSource[] }) {
   return (
     <section className="atlas-sources" id="atlas-sources">
       <header className="atlas-module-head">
-        <h3>Data Source Catalog <span className="atlas-module-th">บัญชีแหล่งข้อมูล</span></h3>
+        <h3>Data Source Catalog <span className="atlas-module-th" lang="th">บัญชีแหล่งข้อมูล</span></h3>
         <p className="atlas-module-summary caption">
           {sources.length} sources from the Nakhon Si Thammarat Municipal Data Source Bible — filter by domain or integration status.
         </p>
       </header>
-      <div className="atlas-sources-filters">
+      <div className="atlas-sources-filters" role="group" aria-label="Filter by domain">
         {domains.map((d) => (
-          <button key={d} className={domain === d ? "on" : ""} onClick={() => setDomain(d)}>{d === "all" ? "all domains" : d}</button>
+          <button key={d} type="button" className={domain === d ? "on" : ""} aria-pressed={domain === d} onClick={() => setDomain(d)}>{d === "all" ? "all domains" : d}</button>
         ))}
       </div>
-      <div className="atlas-sources-filters">
+      <div className="atlas-sources-filters" role="group" aria-label="Filter by status">
         {statuses.map((st) => (
-          <button key={st} className={status === st ? "on" : ""} onClick={() => setStatus(st)}>{st}</button>
+          <button key={st} type="button" className={status === st ? "on" : ""} aria-pressed={status === st} onClick={() => setStatus(st)}>{st}</button>
         ))}
       </div>
       <table className="atlas-source-table">
@@ -86,38 +87,31 @@ export function AtlasView({ onClose }: { onClose: () => void }) {
     return () => { alive = false; };
   }, []);
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
-
   const moduleCount = snap?.modules.length ?? 0;
   const sourceCount = snap?.sources.length ?? 0;
 
   return (
-    <div className="atlas-overlay" role="dialog" aria-label="Nakhon Si Thammarat Data Atlas">
-      <header className="atlas-header">
-        <h2>Nakhon Si Thammarat Data Atlas <span className="atlas-header-th">แผนที่ข้อมูลเมืองนครศรีธรรมราช</span></h2>
-        <span className="atlas-sub">
-          {moduleCount} domains · {sourceCount} sources · outcome intelligence from the Municipal Data Source Bible
-        </span>
-        <button className="atlas-close" onClick={onClose}>CLOSE ✕</button>
-      </header>
-
+    <Dialog
+      open
+      onClose={onClose}
+      size="full"
+      className="dialog--atlas"
+      title={<>Nakhon Si Thammarat Data Atlas <span lang="th">แผนที่ข้อมูลเมืองนครศรีธรรมราช</span></>}
+      description={`${moduleCount} domains · ${sourceCount} sources · outcome intelligence from the Municipal Data Source Bible`}
+    >
       {snap ? (
-        <nav className="atlas-nav">
+        <nav className="atlas-nav" aria-label="Atlas sections">
           {snap.modules.map((m) => <a key={m.id} href={`#atlas-${m.id}`}>{m.title}</a>)}
           <a href="#atlas-sources">Sources</a>
         </nav>
       ) : null}
 
       <div className="atlas-body">
-        {err ? <p className="caption" style={{ color: "var(--bad)" }}>Atlas data unavailable: {err}. Is the API running?</p> : null}
-        {!snap && !err ? <p className="caption">Loading atlas…</p> : null}
+        {err ? <p className="caption dialog-summary__bad" role="alert">Atlas data unavailable: {err}. Is the API running?</p> : null}
+        {!snap && !err ? <p className="caption" role="status">Loading atlas…</p> : null}
         {snap?.modules.map((m) => <AtlasModuleView key={m.id} module={m} />)}
         {snap ? <SourceCatalogExplorer sources={snap.sources} /> : null}
       </div>
-    </div>
+    </Dialog>
   );
 }

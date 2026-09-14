@@ -24,55 +24,22 @@ export class ErrorBoundary extends Component<Props, State> {
   render() {
     if (this.state.hasError) {
       return (
-        <div style={{
-          minHeight: "100vh",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          background: "var(--paper)",
-          color: "var(--ink)",
-          fontFamily: "'IBM Plex Sans', system-ui, sans-serif",
-          padding: 24,
-        }}>
-          <div style={{ maxWidth: 520, textAlign: "center" }}>
-            <div style={{ fontSize: "2.5rem", marginBottom: 12 }}>⚠</div>
-            <h1 style={{ fontSize: "1.25rem", fontWeight: 600, marginBottom: 8 }}>
-              Dashboard encountered an error
-            </h1>
-            <p style={{ color: "var(--ink-3)", marginBottom: 20, lineHeight: 1.5 }}>
+        <main className="error-screen">
+          <div className="error-screen__inner" role="alert">
+            <span className="error-screen__glyph" aria-hidden="true">⚠</span>
+            <h1 className="error-screen__title">Dashboard encountered an error</h1>
+            <p className="error-screen__text">
               Something went wrong while rendering the map or data panels.
               Try reloading the page.
             </p>
-            <button
-              onClick={() => window.location.reload()}
-              style={{
-                padding: "10px 18px",
-                borderRadius: 6,
-                border: "1px solid var(--line)",
-                background: "var(--ground)",
-                color: "var(--ink)",
-                cursor: "pointer",
-                fontFamily: "'IBM Plex Mono', monospace",
-              }}
-            >
+            <button type="button" className="btn" onClick={() => window.location.reload()}>
               Reload page
             </button>
             {this.state.error && (
-              <pre style={{
-                marginTop: 20,
-                padding: 12,
-                background: "var(--ground)",
-                borderRadius: 6,
-                fontSize: "0.75rem",
-                color: "var(--ink-3)",
-                overflow: "auto",
-                textAlign: "left",
-              }}>
-                {this.state.error.message}
-              </pre>
+              <pre className="error-screen__detail">{this.state.error.message}</pre>
             )}
           </div>
-        </div>
+        </main>
       );
     }
     return this.props.children;

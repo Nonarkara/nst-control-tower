@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { alertLevel } from "./water";
+import { alertLevel, situationStatus, reservoirStatus, storageStatus, rainStatus } from "./water";
 
 /**
  * water.ts contract tests.
@@ -59,5 +59,23 @@ describe("alertLevel", () => {
     expect(alertLevel(120)).toBe("ok");
     expect(alertLevel(365)).toBe("ok");
     expect(alertLevel(1000)).toBe("ok");
+  });
+});
+
+describe("status mapping", () => {
+  it("separates drought from overbank flooding", () => {
+    expect(situationStatus(5)).toBe("critical");
+    expect(situationStatus(1)).toBe("warning");
+    expect(situationStatus(3)).toBe("normal");
+    expect(situationStatus(undefined)).toBe("unknown");
+  });
+
+  it("maps reservoir, storage and rain scales", () => {
+    expect(reservoirStatus("low")).toBe("warning");
+    expect(storageStatus(95)).toBe("critical");
+    expect(storageStatus(null)).toBe("unknown");
+    expect(rainStatus(90)).toBe("critical");
+    expect(rainStatus(35)).toBe("warning");
+    expect(rainStatus(9.9)).toBe("normal");
   });
 });

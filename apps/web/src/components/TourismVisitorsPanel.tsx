@@ -42,11 +42,11 @@ function YoyBadge({ pct }: { pct: number }) {
   const up = pct >= 0;
   const abs = Math.abs(pct).toFixed(1);
   return (
-    <span
-      className={`tourism-yoy mono ${up ? "tourism-yoy--up" : "tourism-yoy--down"}`}
-      aria-label={`${up ? "increase" : "decrease"} of ${abs}% year-over-year`}
-    >
-      {up ? "▲" : "▼"} {abs}%
+    <span className="tour-yoy num">
+      <span aria-hidden="true">{up ? "▲" : "▼"} </span>
+      <span className="visually-hidden">{up ? "increase of" : "decrease of"} </span>
+      {abs}%
+      <span className="visually-hidden"> year-over-year</span>
     </span>
   );
 }
@@ -60,15 +60,15 @@ export function TourismVisitorsPanel({ records, loading, ageMinutes, fallbackTie
 
   if (loading && records.length === 0) {
     return (
-      <section className="tourism-panel" aria-busy="true">
+      <section className="panel" aria-label="Tourism visitors" aria-busy="true">
         <PanelHeader
           title="TOURISM VISITORS"
           source="data.go.th/tourism"
           fallbackTier={fallbackTier}
         />
-        <div className="skeleton" style={{ height: 24, marginTop: 8 }} />
-        <div className="skeleton" style={{ height: 16, marginTop: 6 }} />
-        <div className="skeleton" style={{ height: 16, marginTop: 4 }} />
+        <span className="skeleton pc-skeleton pc-skeleton--tall" />
+        <span className="skeleton pc-skeleton" />
+        <span className="skeleton pc-skeleton" />
       </section>
     );
   }
@@ -78,7 +78,7 @@ export function TourismVisitorsPanel({ records, loading, ageMinutes, fallbackTie
   const maxVisitors = peakYear?.visitors ?? records[0]!.visitors;
 
   return (
-    <section className="tourism-panel">
+    <section className="panel" aria-label="Tourism visitors">
       <PanelHeader
         title="TOURISM VISITORS"
         ageMinutes={ageMinutes ?? undefined}
@@ -87,62 +87,57 @@ export function TourismVisitorsPanel({ records, loading, ageMinutes, fallbackTie
       />
 
       {latest && (
-        <div className="tourism-hero" aria-label={`Latest year: ${latest.yearBE}, ${fmtVisitors(latest.visitors)} visitors`}>
-          <div className="tourism-hero-count mono">
-            {fmtVisitors(latest.visitors)}
-          </div>
-          <div className="tourism-hero-label">
-            <span className="eyebrow">VISITORS · {latest.yearBE}</span>
-            {latest.yoyPct != null && <YoyBadge pct={latest.yoyPct} />}
-          </div>
-        </div>
+        <p className="stat-line">
+          <span className="stat-line__value num">{fmtVisitors(latest.visitors)}</span>
+          <span className="pc-label">VISITORS · {latest.yearBE}</span>
+          {latest.yoyPct != null && <YoyBadge pct={latest.yoyPct} />}
+        </p>
       )}
 
-      {/* Bar chart — horizontal bars, newest year at top, COVID years dimmed */}
-      <div className="tourism-chart" role="img" aria-label="Annual visitor bar chart">
+      {/* Bar chart — horizontal bars, newest year at top, COVID years muted */}
+      <ol className="tour-chart" aria-label="Annual visitors by year (Buddhist Era)">
         {records.map((r) => {
           const barPct = maxVisitors > 0 ? (r.visitors / maxVisitors) * 100 : 0;
           const isCovid = COVID_YEARS_BE.has(r.yearBE);
           const isPeak = r.yearBE === PEAK_YEAR_BE;
           const isLatest = r === latest;
+          const modifier = isLatest
+            ? " tour-row--latest"
+            : isPeak
+              ? " tour-row--peak"
+              : isCovid
+                ? " tour-row--covid"
+                : "";
           return (
-            <div
-              key={r.yearBE}
-              className={`tourism-row${isCovid ? " tourism-row--covid" : ""}${isPeak && !isLatest ? " tourism-row--peak" : ""}`}
-            >
-              <span className="tourism-year mono" aria-hidden="true">
-                {r.yearBE}
+            <li key={r.yearBE} className={`tour-row${modifier}`}>
+              <span className="tour-row__year num">{r.yearBE}</span>
+              <span className="pc-bar" aria-hidden="true">
+                <span className="pc-bar__fill" style={{ width: `${barPct.toFixed(1)}%` }} />
               </span>
-              <div className="tourism-bar-track" aria-hidden="true">
-                <div
-                  className={`tourism-bar${isPeak && !isLatest ? " tourism-bar--peak" : ""}${isLatest ? " tourism-bar--latest" : ""}`}
-                  style={{ width: `${barPct.toFixed(1)}%` }}
-                />
-              </div>
-              <span className="tourism-val mono">
+              <span className="tour-row__val num">
                 {fmtVisitors(r.visitors)}
+                {isPeak && !isLatest && <span className="visually-hidden"> (peak year)</span>}
+                {isCovid && <span className="visually-hidden"> (COVID year)</span>}
               </span>
-            </div>
+            </li>
           );
         })}
-      </div>
+      </ol>
 
       {/* Annotations */}
       {peakYear && peakYear.yearBE !== latest?.yearBE && (
-        <div className="tourism-note">
+        <p className="pc-meta">
           Peak: {peakYear.yearBE} · {fmtVisitors(peakYear.visitors)} visitors
-        </div>
+        </p>
       )}
-      {(records.some((r) => COVID_YEARS_BE.has(r.yearBE))) && (
-        <div className="tourism-note tourism-note--covid">
-          <span className="eyebrow">▼ COVID impact</span>
-          <span className="mono"> 2563–2564 dip visible</span>
-        </div>
+      {records.some((r) => COVID_YEARS_BE.has(r.yearBE)) && (
+        <p className="pc-meta">
+          <span aria-hidden="true">▼ </span>COVID impact · 2563–2564 dip visible
+        </p>
       )}
-      <div className="tourism-note">
-        <span className="eyebrow">SOURCE</span>
-        <span className="mono"> สทกจ.นศ · data.go.th</span>
-      </div>
+      <p className="pc-meta">
+        SOURCE · <span lang="th">สทกจ.นศ</span> · data.go.th
+      </p>
     </section>
   );
 }

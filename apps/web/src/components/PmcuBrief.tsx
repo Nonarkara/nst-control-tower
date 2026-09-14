@@ -1,6 +1,8 @@
 import type { IncidentFeature } from "@nst/shared";
 import { PanelHeader } from "./PanelHeader";
 import { hourlyLoad, zoneOccupancy, type ParkingZone } from "../lib/pmcu";
+import { STATUS, type StatusLevel } from "../lib/status";
+import { StatusText, loadStatus, statusStyle } from "../lib/cityStatus";
 
 interface Props {
   hour: number;
@@ -57,11 +59,27 @@ const DEVELOPMENTS: Development[] = [
   { id: "digital-svc",   name: "Digital Services",     status: "open",        describe: "Online permits, payments, citizen reporting" },
   { id: "rail-corridor", name: "Rail Corridor Upgrade", status: "planned",     describe: "Southern Line modernisation — passenger + freight through NST city" },
 ];
-const DEV_COLOR: Record<Development["status"], string> = {
-  open: "var(--good)",
-  "in-progress": "var(--warn)",
-  planned: "var(--ink-low)",
+const DEV_STATUS: Record<Development["status"], StatusLevel> = {
+  open: "normal",
+  "in-progress": "watch",
+  planned: "unknown",
 };
+
+function LoadRow({ name, title, share, level, value }: { name: string; title?: string; share: number; level: StatusLevel; value: string }) {
+  return (
+    <li className="ops-row">
+      <span className="ops-row__name" title={title}>{name}</span>
+      <span className="pc-bar" aria-hidden="true">
+        <span className="pc-bar__fill" style={{ ...statusStyle(level), width: `${Math.round(share * 100)}%` }} />
+      </span>
+      <span className="ops-row__val num">
+        <span className="pc-glyph" style={statusStyle(level)} aria-hidden="true">{STATUS[level].glyph}</span>
+        {value}
+        {level !== "normal" && <span className="visually-hidden"> {STATUS[level].en}</span>}
+      </span>
+    </li>
+  );
+}
 
 export function PmcuBrief({ hour, isWeekend, iticEvents, cityReports, trafficSampleCount }: Props) {
   const load = hourlyLoad(hour, isWeekend);
@@ -73,7 +91,7 @@ export function PmcuBrief({ hour, isWeekend, iticEvents, cityReports, trafficSam
   const openIncidents = cityReports.filter((r) => r.status !== "resolved").length + iticEvents.length;
 
   return (
-    <div className="pmcu-brief">
+    <section className="panel" aria-label="Municipality operations">
       <PanelHeader
         title="MUNICIPALITY OPS"
         fallbackTier="scenario"
@@ -89,115 +107,111 @@ export function PmcuBrief({ hour, isWeekend, iticEvents, cityReports, trafficSam
         }
       />
       {/* ── Municipality overview ── */}
-      <section className="pmcu-section">
-        <header className="pmcu-h">
-          <span className="eyebrow mono">Municipality overview</span>
-          <span className="mono caption">เทศบาลนครนครศรีธรรมราช</span>
+      <section className="pc-section" aria-labelledby="ops-overview">
+        <header className="pc-spread">
+          <h3 className="pc-label" id="ops-overview">Municipality overview</h3>
+          <span className="pc-meta" lang="th">เทศบาลนครนครศรีธรรมราช</span>
         </header>
-        <div className="pmcu-kv-grid">
-          <div className="pmcu-kv">
-            <div className="num">{trafficSampleCount || "—"}</div>
-            <div className="lbl">ROAD SAMPLES</div>
+        <dl className="pc-stats pc-stats--pair pc-stats--xl">
+          <div>
+            <dt>Road samples</dt>
+            <dd className="num">{trafficSampleCount || "—"}</dd>
           </div>
-          <div className="pmcu-kv">
-            <div className="num">{openIncidents}</div>
-            <div className="lbl">OPEN INCIDENTS</div>
+          <div>
+            <dt>Open incidents</dt>
+            <dd className="num">{openIncidents}</dd>
           </div>
-        </div>
+        </dl>
       </section>
 
       {/* ── Arterial load ── */}
-      <section className="pmcu-section">
-        <header className="pmcu-h">
-          <span className="eyebrow mono">Arterial load</span>
-          <span className="mono caption">hour {String(hour).padStart(2, "0")}{isWeekend ? " · weekend" : ""}</span>
+      <section className="pc-section" aria-labelledby="ops-arterial">
+        <header className="pc-spread">
+          <h3 className="pc-label" id="ops-arterial">Arterial load</h3>
+          <span className="pc-meta num">hour {String(hour).padStart(2, "0")}{isWeekend ? " · weekend" : ""}</span>
         </header>
-        <ul className="pmcu-rows">
+        <ul className="pc-list">
           {CORRIDORS.map((c) => {
             const pct = Math.min(1, c.base * load * 1.4);
-            const colour =
-              pct > 0.8 ? "var(--bad)" : pct > 0.6 ? "var(--warn)" : pct > 0.4 ? "var(--data)" : "var(--good)";
             return (
-              <li key={c.id} className="pmcu-row">
-                <span className="pmcu-row-name">{c.name}</span>
-                <span className="pmcu-row-bar">
-                  <span className="pmcu-row-fill" style={{ width: `${Math.round(pct * 100)}%`, background: colour }} />
-                </span>
-                <span className="pmcu-row-val mono">{Math.round(pct * 100)}%</span>
-              </li>
+              <LoadRow
+                key={c.id}
+                name={c.name}
+                share={pct}
+                level={loadStatus(pct, 0.6, 0.8)}
+                value={`${Math.round(pct * 100)}%`}
+              />
             );
           })}
         </ul>
-        <div className="pmcu-foot mono">
+        <p className="pc-meta num">
           {trafficSampleCount} road samples · modeled · iTIC live: {iticEvents.length}
-        </div>
+        </p>
       </section>
 
       {/* ── Parking zones ── */}
-      <section className="pmcu-section">
-        <header className="pmcu-h">
-          <span className="eyebrow mono">Parking zones</span>
-          <span className="mono caption">{totalOccupied}/{totalParkingCapacity} · {totalOccupancyPct}%</span>
+      <section className="pc-section" aria-labelledby="ops-parking">
+        <header className="pc-spread">
+          <h3 className="pc-label" id="ops-parking">Parking zones</h3>
+          <span className="pc-meta num">{totalOccupied}/{totalParkingCapacity} · {totalOccupancyPct}%</span>
         </header>
-        <ul className="pmcu-rows">
+        <ul className="pc-list">
           {PARKING_ZONES.map((zone) => {
             const occ = zoneOccupancy(zone, hour, isWeekend);
             const filled = Math.round(zone.capacity * occ);
-            const colour = occ > 0.9 ? "var(--bad)" : occ > 0.75 ? "var(--warn)" : "var(--good)";
             return (
-              <li key={zone.id} className="pmcu-row">
-                <span className="pmcu-row-name" title={zone.name}>{zone.id}</span>
-                <span className="pmcu-row-bar">
-                  <span className="pmcu-row-fill" style={{ width: `${Math.round(occ * 100)}%`, background: colour }} />
-                </span>
-                <span className="pmcu-row-val mono">{filled}/{zone.capacity}</span>
-              </li>
+              <LoadRow
+                key={zone.id}
+                name={zone.id}
+                title={zone.name}
+                share={occ}
+                level={loadStatus(occ, 0.75, 0.9)}
+                value={`${filled}/${zone.capacity}`}
+              />
             );
           })}
         </ul>
-        <div className="pmcu-foot mono">modeled · sensor feed pending integration</div>
+        <p className="pc-meta">modeled · sensor feed pending integration</p>
       </section>
 
       {/* ── Transport fleet ── */}
-      <section className="pmcu-section">
-        <header className="pmcu-h">
-          <span className="eyebrow mono">Transport fleet</span>
-          <span className="mono caption">Nakhon Si Thammarat city area</span>
+      <section className="pc-section" aria-labelledby="ops-fleet">
+        <header className="pc-spread">
+          <h3 className="pc-label" id="ops-fleet">Transport fleet</h3>
+          <span className="pc-meta">Nakhon Si Thammarat city area</span>
         </header>
-        <ul className="pmcu-fleet">
+        <ul className="pc-list">
           {FLEET.map((f) => (
-            <li key={f.id} className="pmcu-fleet-row">
-              <span className="pmcu-fleet-name">{f.label}</span>
-              <span className="mono pmcu-fleet-count">{f.count}</span>
-              <span className="pmcu-fleet-unit caption">{f.unit}</span>
-              <span className="pmcu-fleet-note caption">{f.note}</span>
+            <li key={f.id} className="ops-fleet">
+              <span>{f.label}</span>
+              <span className="ops-fleet__count num">
+                {f.count} <span className="pc-meta">{f.unit}</span>
+              </span>
+              <span className="ops-fleet__note">{f.note}</span>
             </li>
           ))}
         </ul>
       </section>
 
       {/* ── Active developments ── */}
-      <section className="pmcu-section">
-        <header className="pmcu-h">
-          <span className="eyebrow mono">Active developments</span>
-          <span className="mono caption">municipal pipeline</span>
+      <section className="pc-section" aria-labelledby="ops-dev">
+        <header className="pc-spread">
+          <h3 className="pc-label" id="ops-dev">Active developments</h3>
+          <span className="pc-meta">municipal pipeline</span>
         </header>
-        <ul className="pmcu-dev-list">
+        <ul className="pc-list">
           {DEVELOPMENTS.map((d) => (
-            <li key={d.id} className="pmcu-dev-item">
-              <div className="pmcu-dev-header">
-                <span className="pmcu-dev-dot" style={{ background: DEV_COLOR[d.status] }} />
-                <span className="pmcu-row-name">{d.name}</span>
-                <span className="mono caption" style={{ color: DEV_COLOR[d.status], marginLeft: "auto" }}>
-                  {d.status}
-                </span>
-              </div>
-              <div className="pmcu-dev-desc caption">{d.describe}</div>
+            <li key={d.id} className="ops-dev">
+              <span className="pc-spread">
+                <span className="ops-dev__name">{d.name}</span>
+                <StatusText level={DEV_STATUS[d.status]}>{d.status}</StatusText>
+              </span>
+              <span className="pc-meta">{d.describe}</span>
             </li>
           ))}
         </ul>
-        <div className="pmcu-foot mono">municipal pipeline · data: official comms</div>
+        <p className="pc-meta">municipal pipeline · data: official comms</p>
       </section>
-    </div>
+    </section>
   );
 }

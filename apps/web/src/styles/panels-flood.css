@@ -1,0 +1,326 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   panels-flood.css — FLOOD lens panels (water, posture, brief, risk,
+   damage, watershed, command, water balance, ops board).
+   Composes tokens.css + system.css. Loaded after layout.css, so rules here
+   also neutralise the legacy .wb-* / .ops-* / .fc-impact styles.
+   Colour appears only for data and status; status colour is always paired
+   with a glyph or a word (lib/status.ts).
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ── 1. Shared flood primitives ──────────────────────────────────────── */
+
+.flood-label {
+  margin: 0;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--ink-2);
+  line-height: 1.3;
+}
+.flood-meta { margin: 0; font-size: var(--text-xs); color: var(--ink-3); line-height: 1.45; }
+.flood-value { margin: 0; font-size: var(--text-md); font-weight: var(--weight-medium); color: var(--ink); line-height: 1.3; }
+.flood-value--lg { font-size: var(--text-lg); font-weight: var(--weight-bold); }
+.flood-empty { margin: 0; font-size: var(--text-sm); color: var(--ink-3); }
+.flood-footnote {
+  margin: 0;
+  padding-top: var(--s-2);
+  border-top: 1px solid var(--line);
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+  line-height: 1.5;
+}
+
+/* Status word/figure: colour comes inline from STATUS[level].color, the
+   glyph beside it carries the same meaning without colour. */
+.flood-status { display: inline-flex; align-items: baseline; gap: var(--s-1); font-weight: var(--weight-bold); }
+.flood-status--quiet { font-weight: var(--weight-regular); }
+
+/* Provenance chip (MODELLED) — neutral, not a status. */
+.flood-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 var(--s-1);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--ink-2);
+  border: 1px solid var(--line-2);
+}
+
+.flood-section { display: flex; flex-direction: column; gap: var(--s-2); min-width: 0; }
+.flood-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--s-2); }
+.flood-item { display: flex; flex-direction: column; gap: var(--s-1); min-width: 0; }
+.flood-row-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s-2); min-width: 0; }
+.flood-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-sm);
+  color: var(--ink);
+}
+.flood-figure { flex: none; font-size: var(--text-sm); color: var(--ink); white-space: nowrap; }
+.flood-more { align-self: flex-start; }
+
+/* Horizontal data bar — width (and a status/data colour) set per datum. */
+.flood-bar { position: relative; height: var(--s-1); background: var(--line); overflow: hidden; }
+.flood-bar__fill { position: absolute; top: 0; bottom: 0; left: 0; background: var(--data); }
+
+/* Figure grid: <dl> of label/value pairs */
+.flood-stats { margin: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: var(--s-3); }
+.flood-stats--2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.flood-stat { display: flex; flex-direction: column; gap: var(--s-1); min-width: 0; }
+.flood-stat dd { margin: 0; }
+
+/* Numeric tables */
+.flood-table-wrap { overflow-x: auto; }
+.flood-table { width: 100%; border-collapse: collapse; font-size: var(--text-sm); color: var(--ink); }
+.flood-table th,
+.flood-table td { padding: var(--s-1) var(--s-2) var(--s-1) 0; text-align: left; vertical-align: middle; border-top: 1px solid var(--line); }
+.flood-table th:last-child,
+.flood-table td:last-child { padding-right: 0; }
+.flood-table thead th {
+  border-top: 0;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.flood-table tbody th { font-weight: var(--weight-regular); }
+.flood-table .is-num { text-align: right; white-space: nowrap; }
+.flood-table .is-rank { width: 2ch; color: var(--ink-3); }
+
+.flood-legend { display: flex; flex-wrap: wrap; gap: var(--s-1) var(--s-3); margin: 0; padding: 0; list-style: none; font-size: var(--text-xs); color: var(--ink-2); }
+.flood-legend li { display: inline-flex; align-items: center; gap: var(--s-1); }
+
+.flood-skeleton { height: var(--s-3); }
+.flood-skeleton--short { width: 80%; }
+
+/* ── 2. WaterPanel ───────────────────────────────────────────────────── */
+
+.water-tabs { display: flex; border: 1px solid var(--line-2); }
+.water-tab {
+  flex: 1 1 0;
+  min-height: var(--hit);
+  padding: 0 var(--s-2);
+  border: 0;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--ink-2);
+  background: transparent;
+  white-space: nowrap;
+}
+.water-tab + .water-tab { border-left: 1px solid var(--line-2); }
+.water-tab[aria-selected="true"],
+.water-tab[aria-selected="true"]:hover { background: var(--ink); color: var(--paper); }
+.water-tab .num { color: inherit; font-weight: var(--weight-regular); }
+
+.water-alert-box {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding: var(--s-2) var(--s-3);
+  border: 1px solid var(--line-2);
+  border-left-width: 3px;
+}
+.water-trend { flex: none; width: 1.2ch; color: var(--ink-2); }
+.water-key { flex: none; color: var(--ink-2); }
+.water-name-group { display: flex; align-items: baseline; gap: var(--s-1); min-width: 0; flex: 1 1 auto; }
+.water-figures { display: flex; align-items: baseline; gap: var(--s-2); flex: none; font-size: var(--text-xs); }
+.water-figures .flood-meta { white-space: nowrap; }
+
+/* ── 3. FloodAnalysisPanel ───────────────────────────────────────────── */
+
+.flood-analysis { gap: var(--s-6); }
+.flood-analysis .flood-table td.flood-analysis-bar-cell { width: 55%; }
+.flood-analysis-max { font-weight: var(--weight-bold); }
+.flood-analysis-months {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: var(--s-2) var(--s-1);
+}
+.flood-analysis-month { display: flex; flex-direction: column; align-items: center; gap: var(--s-1); font-size: var(--text-xs); }
+.flood-analysis-month__label { color: var(--ink-3); }
+.flood-analysis-month__track { width: 100%; height: var(--s-6); display: flex; align-items: flex-end; justify-content: center; border-bottom: 1px solid var(--line); }
+.flood-analysis-month__bar { width: var(--s-3); background: var(--fill-2); }
+.flood-analysis-month__bar.is-wet { background: var(--data); }
+.flood-analysis-swatch--wet { background: var(--data); }
+.flood-analysis-swatch--dry { background: var(--fill-2); }
+.flood-analysis-cause { display: flex; flex-direction: column; gap: var(--s-1); }
+.flood-analysis-cause__name { font-size: var(--text-sm); color: var(--ink); }
+.flood-analysis-cause__th { margin-left: var(--s-2); font-size: var(--text-xs); color: var(--ink-3); }
+.flood-analysis-risk { display: flex; flex-wrap: wrap; gap: var(--s-1) var(--s-3); margin: 0; padding: 0; list-style: none; font-size: var(--text-sm); }
+.flood-analysis-risk li { display: inline-flex; align-items: baseline; gap: var(--s-1); }
+.flood-analysis-risk .num { color: var(--ink-2); }
+
+/* ── 4. FloodPosture ─────────────────────────────────────────────────── */
+
+.flood-posture-level {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  padding: var(--s-2) var(--s-3);
+  background: var(--ground);
+  border: 1px solid var(--line-2);
+  border-left-width: 3px;
+}
+.flood-posture-level__row { display: flex; align-items: baseline; gap: var(--s-2); flex-wrap: wrap; }
+.flood-posture-level__num { font-size: var(--text-xl); font-weight: var(--weight-bold); line-height: 1; }
+.flood-posture-level__name { display: flex; flex-direction: column; gap: var(--s-1); }
+.flood-posture-level__title { font-size: var(--text-md); font-weight: var(--weight-bold); line-height: 1.3; }
+.flood-posture-action { margin: 0; font-size: var(--text-sm); color: var(--ink-2); line-height: 1.45; }
+
+.flood-posture-ladder { display: flex; align-items: flex-end; gap: var(--s-1); height: var(--s-3); }
+.flood-posture-step { flex: 1 1 0; height: 6px; background: var(--line); }
+.flood-posture-step.is-here { height: var(--s-3); }
+
+.flood-posture-body { margin: 0; font-size: var(--text-sm); color: var(--ink-2); line-height: 1.5; }
+.flood-posture-upland { display: flex; flex-direction: column; gap: var(--s-1); padding-top: var(--s-2); border-top: 1px solid var(--line); }
+.flood-posture-slope { display: flex; align-items: baseline; gap: var(--s-2); font-size: var(--text-xs); }
+.flood-posture-slope .flood-name { font-size: var(--text-xs); color: var(--ink-3); }
+.flood-posture-soil { font-size: var(--text-sm); color: var(--ink-2); }
+
+/* ── 5. FloodRiskPanel ───────────────────────────────────────────────── */
+
+.flood-risk-chips { margin: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--s-2); }
+.flood-risk-chip { display: flex; flex-direction: column; gap: var(--s-1); padding: var(--s-2); border: 1px solid var(--line); border-top-width: 3px; min-width: 0; }
+.flood-risk-chip dd { margin: 0; }
+.flood-risk-chip__count { font-size: var(--text-lg); font-weight: var(--weight-bold); line-height: 1.1; color: var(--ink); }
+.flood-risk-chip__label { display: flex; gap: var(--s-1); align-items: baseline; font-size: var(--text-xs); color: var(--ink-2); }
+
+.flood-risk-flags { display: flex; flex-wrap: wrap; gap: var(--s-2); margin: 0; padding: 0; list-style: none; }
+.flood-risk-flag { padding: 0 var(--s-2); font-size: var(--text-xs); color: var(--ink-3); border: 1px dashed var(--line-2); }
+.flood-risk-flag.is-active { color: var(--ink); font-weight: var(--weight-medium); border-style: solid; border-color: var(--ink); }
+
+.flood-risk-village { display: flex; align-items: baseline; gap: var(--s-2); font-size: var(--text-sm); }
+.flood-risk-village .flood-meta { flex: none; }
+
+.flood-risk-district { display: flex; flex-direction: column; gap: var(--s-1); padding: var(--s-1) 0 var(--s-2); border-bottom: 1px solid var(--line); }
+.flood-risk-stack { display: flex; gap: 1px; height: 6px; overflow: hidden; }
+
+/* ── 6. DamageHotspotPanel ───────────────────────────────────────────── */
+
+.damage-district { display: flex; flex-direction: column; gap: var(--s-1); min-width: 0; }
+.damage-district .flood-bar { min-width: var(--s-12); }
+
+/* ── 7. UpstreamWatershed ────────────────────────────────────────────── */
+
+.watershed-headline { margin: 0; font-size: var(--text-sm); color: var(--ink-2); line-height: 1.45; }
+.watershed-cascade { list-style: none; margin: 0; padding: 0; }
+.watershed-zone { display: flex; gap: var(--s-2); }
+.watershed-rail { display: flex; flex-direction: column; align-items: center; width: var(--s-3); flex: none; }
+.watershed-node { width: 10px; height: 10px; margin-top: var(--s-1); border-radius: 50% !important; }
+.watershed-node.is-city { width: var(--s-3); height: var(--s-3); outline: 2px solid var(--ink); outline-offset: 1px; }
+.watershed-connector { flex: 1; width: 2px; min-height: var(--s-4); background: var(--line); }
+.watershed-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--s-1); padding-bottom: var(--s-3); }
+.watershed-zone:last-child .watershed-body { padding-bottom: 0; }
+.watershed-zone__name { font-size: var(--text-sm); font-weight: var(--weight-medium); color: var(--ink); }
+.watershed-zone.is-city .watershed-zone__name { font-weight: var(--weight-bold); }
+.watershed-zone__en { font-size: var(--text-xs); color: var(--ink-3); }
+.watershed-zone__status { margin-left: auto; font-size: var(--text-xs); }
+.watershed-readings { display: flex; flex-wrap: wrap; gap: var(--s-1) var(--s-3); margin: 0; padding: 0; list-style: none; font-size: var(--text-xs); color: var(--ink-2); }
+.watershed-readings li { display: inline-flex; align-items: baseline; gap: var(--s-1); }
+.watershed-station { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ── 8. FloodCommand ─────────────────────────────────────────────────── */
+
+.flood-cmd-slider { width: 100%; min-height: var(--hit); margin: 0; accent-color: var(--ink); }
+
+/* .fc-impact stays as the e2e hook; this replaces its legacy look */
+.fc-impact {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  margin: 0;
+  padding: var(--s-2) var(--s-3);
+  background: var(--ground);
+  border: 0;
+  border-left: 3px solid var(--line-2);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-bold);
+  font-style: normal;
+  letter-spacing: 0;
+  color: var(--ink);
+}
+.fc-impact-sub,
+.flood-cmd-impact-sub { font-size: var(--text-xs); font-weight: var(--weight-regular); letter-spacing: 0; color: var(--ink-2); }
+
+/* Map legend — reproduces the deck.gl ramps in map/layers.ts
+   (scenarioColor / elevationRamp). Data colours, not interface colours:
+   keep in sync with that file. */
+.flood-cmd-swatch--dry     { background: var(--good); }
+.flood-cmd-swatch--shallow { background: var(--warn); }
+.flood-cmd-swatch--car     { background: var(--alert); }
+.flood-cmd-swatch--deep    { background: var(--bad); }
+.flood-cmd-swatch--low     { background: var(--map-elev-low); }
+.flood-cmd-swatch--median  { background: var(--map-elev-median); }
+.flood-cmd-swatch--high    { background: var(--map-elev-high); }
+.flood-cmd-swatch--none    { background: var(--ground-soft); }
+
+.flood-cmd-days { display: flex; flex-wrap: wrap; gap: var(--s-1); }
+.flood-cmd-day {
+  flex: 1 1 0;
+  display: inline-flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: var(--s-1);
+  min-height: var(--hit);
+  padding: 0 var(--s-2);
+  font-size: var(--text-xs);
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--ink);
+  white-space: nowrap;
+}
+.flood-cmd-day.is-past { border-style: dashed; color: var(--ink-low); }
+.flood-cmd-day__mm { font-size: var(--text-md); font-weight: var(--weight-bold); }
+.flood-cmd-day__max { color: inherit; }
+
+.flood-cmd-calendar { width: 100%; table-layout: fixed; border-collapse: separate; border-spacing: 2px; font-size: var(--text-xs); }
+.flood-cmd-calendar th { padding: 0; font-weight: var(--weight-regular); color: var(--ink-3); text-align: center; }
+.flood-cmd-calendar th.is-now { color: var(--ink); font-weight: var(--weight-bold); }
+.flood-cmd-calendar .flood-cmd-cal-name { width: 6.5em; text-align: left; color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.flood-cmd-cal-cell { height: var(--s-3); padding: 0; background: var(--ground-soft); }
+.flood-cmd-cal-cell.is-now { outline: 1px solid var(--ink); outline-offset: -1px; }
+
+/* ── 9. WaterBalancePanel ────────────────────────────────────────────── */
+
+.wb-row { display: flex; flex-direction: column; gap: var(--s-1); padding: var(--s-2) 0; border-bottom: 1px solid var(--line); }
+.water-bal-head { display: flex; align-items: baseline; gap: var(--s-2); min-width: 0; }
+.water-bal-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--text-sm); font-weight: var(--weight-bold); color: var(--ink); }
+.water-bal-band { flex: none; font-size: var(--text-xs); }
+.water-bal-bar { position: relative; height: var(--s-2); background: var(--ground); overflow: hidden; }
+.water-bal-bar__in { position: absolute; top: 0; bottom: 0; left: 0; opacity: 0.35; }
+.water-bal-bar__in--lo { opacity: 1; }
+/* the 100 %-of-capacity tick sits at 1/1.4 of the track (bar headroom = 1.4×) */
+.water-bal-bar__cap { position: absolute; top: 0; bottom: 0; left: 71.4%; width: 2px; background: var(--ink); }
+.water-bal-verdict { margin: 0; font-size: var(--text-sm); color: var(--ink-2); line-height: 1.45; }
+.water-bal-assumptions { margin: 0; padding-left: var(--s-4); font-size: var(--text-xs); color: var(--ink-3); line-height: 1.5; }
+
+/* ── 10. FloodOpsBoard (rides the atlas-overlay shell) ───────────────── */
+
+.ops-card { border-top-width: 3px; }
+.ops-card-head h3 { font-size: var(--text-md); }
+.ops-band { font-size: var(--text-sm); font-weight: var(--weight-bold); letter-spacing: 0; }
+.ops-verdict { font-size: var(--text-md); }
+.ops-verdict-en { font-size: var(--text-sm); color: var(--ink-2); }
+.ops-ledger b { font-size: var(--text-md); font-weight: var(--weight-bold); }
+.ops-ledger-label { font-size: var(--text-xs); color: var(--ink-3); line-height: 1.4; }
+.ops-stress { font-size: var(--text-sm); color: var(--ink-2); }
+.ops-gauges { font-size: var(--text-sm); }
+.ops-gauges th,
+.ops-gauges td { padding: var(--s-1) var(--s-2) var(--s-1) 0; border-top: 1px solid var(--line); text-align: left; }
+.ops-gauges thead th { border-top: 0; font-size: var(--text-xs); font-weight: var(--weight-bold); color: var(--ink-3); }
+.ops-gauges tbody th { font-weight: var(--weight-regular); }
+.ops-res { font-size: var(--text-xs); letter-spacing: 0; text-transform: none; }
+.ops-apply-btn { width: 100%; margin-top: var(--s-2); }
+.ops-note { margin: 0; font-size: var(--text-sm); color: var(--ink-2); line-height: 1.6; }

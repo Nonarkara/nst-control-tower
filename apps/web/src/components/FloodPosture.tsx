@@ -33,8 +33,10 @@ import type {
   FallbackTier,
 } from "@nst/shared";
 import { PanelHeader } from "./PanelHeader";
+import { MixedText } from "./MixedText";
 import { LADDER, computePosture, leadSignal, SOIL_PRIMED, type Level } from "../lib/floodPosture";
 import { leadTimeToCity, CELERITY_MIN_MS, CELERITY_MAX_MS } from "../lib/watershed";
+import { STATUS, type StatusLevel } from "../lib/status";
 
 interface Props {
   waterGauges: WaterGauge[];
@@ -46,12 +48,15 @@ interface Props {
   fallbackTier?: FallbackTier;
 }
 
-const EWS_STATUS: Record<0 | 1 | 2 | 3, { label: string; color: string }> = {
-  0: { label: "เฝ้าระวังปกติ NORMAL", color: "var(--good)" },
-  1: { label: "เฝ้าระวัง WATCH", color: "var(--data)" },
-  2: { label: "เตรียมพร้อม PREPARE", color: "var(--warn)" },
-  3: { label: "วิกฤติ CRITICAL", color: "var(--bad)" },
+// DWR EWS official status (0-3) → shared status + bilingual label.
+const EWS_STATUS: Record<0 | 1 | 2 | 3, { th: string; en: string; level: StatusLevel }> = {
+  0: { th: "เฝ้าระวังปกติ", en: "NORMAL", level: "normal" },
+  1: { th: "เฝ้าระวัง", en: "WATCH", level: "watch" },
+  2: { th: "เตรียมพร้อม", en: "PREPARE", level: "warning" },
+  3: { th: "วิกฤติ", en: "CRITICAL", level: "critical" },
 };
+
+const LEVELS: Level[] = [1, 2, 3, 4, 5];
 
 export function FloodPosture({ waterGauges, rainfall, ews = [], dam, precip, ageMinutes, fallbackTier }: Props) {
   const posture = useMemo(
@@ -71,14 +76,16 @@ export function FloodPosture({ waterGauges, rainfall, ews = [], dam, precip, age
 
   const hasData = waterGauges.length > 0 || rainfall.length > 0 || ews.length > 0;
   const step = LADDER[posture.level];
+  const stepStatus = STATUS[step.status];
   const lead = leadSignal(precip, posture.risingCount);
   const ewsStat = EWS_STATUS[posture.worstEwsStatus];
+  const ewsStatus = STATUS[ewsStat.level];
   // Auditable lead-time estimate: how far ahead the Tha Dee source (คีรีวง) leads
   // the city, from channel distance ÷ a labelled flood-wave celerity band.
   const leadKW = leadTimeToCity("khiri-wong");
 
   return (
-    <div className="col" style={{ gap: 8 }}>
+    <section className="panel" aria-label="Flood posture decision support">
       <PanelHeader
         title="FLOOD POSTURE // DECISION SUPPORT"
         source="synthesis · jma/jaxa ladder"
@@ -86,12 +93,8 @@ export function FloodPosture({ waterGauges, rainfall, ews = [], dam, precip, age
         fallbackTier={fallbackTier}
         actions={
           <span
-            className="mono"
+            className="flood-tag"
             title="A derived guidance level computed from live feeds on the JMA/JAXA ladder — not a live gauge reading or an official order."
-            style={{
-              fontSize: "0.6rem", letterSpacing: "0.08em", fontWeight: 600,
-              color: "var(--warn)", border: "1px solid var(--warn)", padding: "1px 5px",
-            }}
           >
             MODELLED
           </span>
@@ -99,160 +102,148 @@ export function FloodPosture({ waterGauges, rainfall, ews = [], dam, precip, age
       />
 
       {!hasData ? (
-        <div className="eyebrow mono" style={{ color: "var(--ink-low)" }}>
-          Awaiting gauge + rainfall feeds to compute posture.
-        </div>
+        <p className="flood-empty">Awaiting gauge + rainfall feeds to compute posture.</p>
       ) : (
         <>
           {/* Current level — the headline */}
-          <div
-            style={{
-              border: `1px solid ${step.color}`,
-              borderLeft: `3px solid ${step.color}`,
-              padding: "8px 10px",
-              background: "var(--ground)",
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-              <span className="mono" style={{ fontSize: "1.5rem", fontWeight: 700, color: step.color }}>
-                L{posture.level}
+          <div className="flood-posture-level" style={{ borderColor: stepStatus.color }}>
+            <div className="flood-posture-level__row">
+              <span className="flood-posture-level__num flood-status" style={{ color: stepStatus.color }}>
+                <span aria-hidden="true">{stepStatus.glyph}</span>
+                <span><span className="visually-hidden">Level </span>L{posture.level}</span>
               </span>
-              <div style={{ display: "flex", flexDirection: "column" }}>
-                <span className="mono" style={{ fontSize: "0.86rem", color: step.color, fontWeight: 600 }}>
-                  {step.th} · {step.en}
+              <div className="flood-posture-level__name">
+                <span className="flood-posture-level__title" style={{ color: stepStatus.color }}>
+                  <span lang="th">{step.th}</span> · {step.en}
                 </span>
-                <span className="eyebrow mono" style={{ color: "var(--ink-low)" }}>
-                  {step.issuer}
-                </span>
+                <span className="flood-meta">{step.issuer}</span>
               </div>
             </div>
-            <div style={{ fontSize: "var(--size-eyebrow)", color: "var(--ink-3)", marginTop: 4, lineHeight: 1.4 }}>
-              ▸ {step.action}
-            </div>
+            <p className="flood-posture-action">
+              <span aria-hidden="true">▸ </span>{step.action}
+            </p>
           </div>
 
           {/* 5-step ladder strip */}
-          <div style={{ display: "flex", gap: 3 }}>
-            {([1, 2, 3, 4, 5] as Level[]).map((lv) => {
+          <div
+            className="flood-posture-ladder"
+            role="img"
+            aria-label={`Alert ladder: level ${posture.level} of 5, ${step.en}`}
+          >
+            {LEVELS.map((lv) => {
               const on = lv <= posture.level;
               const here = lv === posture.level;
               return (
-                <div
+                <span
                   key={lv}
                   title={`${LADDER[lv].en} — ${LADDER[lv].action}`}
-                  style={{
-                    flex: 1,
-                    height: 6,
-                    background: on ? LADDER[posture.level].color : "var(--line)",
-                    opacity: on ? (here ? 1 : 0.55) : 0.3,
-                    borderRadius: 1,
-                  }}
+                  className={`flood-posture-step${here ? " is-here" : ""}`}
+                  style={on ? { background: stepStatus.color } : undefined}
                 />
               );
             })}
           </div>
 
           {/* Drivers — why this level (precautionary transparency) */}
-          <div>
-            <div className="eyebrow">DRIVERS</div>
-            <div style={{ fontSize: "var(--size-eyebrow)", color: "var(--ink-3)", lineHeight: 1.5 }}>
-              {posture.drivers.join(" · ")}
-            </div>
+          <div className="flood-section">
+            <p className="flood-label">Drivers</p>
+            <p className="flood-posture-body">
+              <MixedText text={posture.drivers.join(" · ")} />
+            </p>
           </div>
 
           {/* Signal grid */}
-          <div style={{ display: "flex", gap: 12 }}>
-            <div style={{ flex: 1 }}>
-              <div className="eyebrow">LEAD SIGNAL</div>
-              <div className="mono" style={{ fontSize: "0.82rem" }}>{lead}</div>
-              <div className="eyebrow mono" style={{ color: "var(--ink-low)" }}>
+          <dl className="flood-stats flood-stats--2">
+            <div className="flood-stat">
+              <dt className="flood-label">Lead signal</dt>
+              <dd className="flood-value">{lead}</dd>
+              <dd className="flood-meta">
                 {leadKW
-                  ? `คีรีวง → city ≈ ${leadKW.minH.toFixed(1)}–${leadKW.maxH.toFixed(1)} h (est. @ ${CELERITY_MIN_MS}–${CELERITY_MAX_MS} m/s)`
+                  ? <><span lang="th">คีรีวง</span> → city ≈ {leadKW.minH.toFixed(1)}–{leadKW.maxH.toFixed(1)} h (est. @ {CELERITY_MIN_MS}–{CELERITY_MAX_MS} m/s)</>
                   : "upland rain leads city by hours"}
-              </div>
+              </dd>
             </div>
-            <div style={{ flex: 1 }}>
-              <div className="eyebrow">RIVER STATE</div>
-              <div className="mono" style={{ fontSize: "0.82rem" }}>
+            <div className="flood-stat">
+              <dt className="flood-label">River state</dt>
+              <dd className="flood-value">
                 {posture.overbankCount > 0
                   ? `${posture.overbankCount} overbank`
                   : posture.worstSit >= 4
                     ? "high water"
                     : "within banks"}
-              </div>
-              <div className="eyebrow mono" style={{ color: "var(--ink-low)" }}>
+              </dd>
+              <dd className="flood-meta num">
                 {posture.risingCount} rising · max {Math.round(posture.rain24hMax)} mm/24h
-              </div>
+              </dd>
             </div>
-          </div>
+          </dl>
 
           {/* Upland flash-flood watch — DWR EWS (Khao Luang headwaters) */}
           {ews.length > 0 && (
-            <div style={{ borderTop: "1px solid var(--line)", paddingTop: 6 }}>
-              <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
-                <span className="eyebrow">UPLAND FLASH-FLOOD</span>
-                <span className="eyebrow mono" style={{ color: ewsStat.color, marginLeft: "auto" }}>
-                  {ewsStat.label}
+            <div className="flood-posture-upland">
+              <div className="flood-row-head">
+                <p className="flood-label">Upland flash-flood</p>
+                <span className="flood-status" style={{ color: ewsStatus.color }}>
+                  <span aria-hidden="true">{ewsStatus.glyph}</span>
+                  <span lang="th">{ewsStat.th}</span> {ewsStat.en}
                 </span>
               </div>
-              <div className="eyebrow mono" style={{ color: "var(--ink-low)", marginTop: 2 }}>
+              <p className="flood-meta num">
                 {ews.length} DWR EWS stations
                 {posture.maxSoil != null ? ` · soil max ${Math.round(posture.maxSoil)}%` : ""}
                 {posture.primedCount > 0 ? ` · ${posture.primedCount} primed` : ""}
-              </div>
+              </p>
               {topUpland.length > 0 && (
-                <div style={{ marginTop: 4, display: "flex", flexDirection: "column", gap: 2 }}>
-                  {topUpland.map((s) => {
-                    const primed = (s.soilMoisture ?? 0) >= SOIL_PRIMED;
-                    return (
-                      <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        <span className="eyebrow mono" style={{ color: "var(--ink-low)", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                          {s.amphoe || s.name}
-                        </span>
-                        {s.rain12h != null && s.rain12h > 0 && (
-                          <span className="eyebrow mono" style={{ color: "var(--ink-low)" }}>
-                            {Math.round(s.rain12h)}mm/12h
-                          </span>
-                        )}
-                        <span
-                          className="mono"
-                          style={{ fontSize: "0.72rem", color: primed ? "var(--warn)" : "var(--ink-3)", fontWeight: primed ? 600 : 400 }}
-                        >
-                          {Math.round(s.soilMoisture ?? 0)}%
-                        </span>
-                      </div>
-                    );
-                  })}
-                  <div className="eyebrow mono" style={{ color: "var(--ink-low)" }}>
-                    soil ≥ {SOIL_PRIMED}% + rain = flash-flood primed
-                  </div>
-                </div>
+                <>
+                  <ul className="flood-list">
+                    {topUpland.map((s) => {
+                      const primed = (s.soilMoisture ?? 0) >= SOIL_PRIMED;
+                      return (
+                        <li key={s.id} className="flood-posture-slope">
+                          <span className="flood-name"><MixedText text={s.amphoe || s.name} /></span>
+                          {s.rain12h != null && s.rain12h > 0 && (
+                            <span className="flood-meta num">{Math.round(s.rain12h)}mm/12h</span>
+                          )}
+                          {primed ? (
+                            <span className="flood-status num" style={{ color: STATUS.watch.color }}>
+                              <span aria-hidden="true">{STATUS.watch.glyph}</span>
+                              {Math.round(s.soilMoisture ?? 0)}%
+                              <span className="visually-hidden"> soil, primed</span>
+                            </span>
+                          ) : (
+                            <span className="flood-posture-soil num">
+                              {Math.round(s.soilMoisture ?? 0)}%<span className="visually-hidden"> soil</span>
+                            </span>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                  <p className="flood-meta">soil ≥ {SOIL_PRIMED}% + rain = flash-flood primed</p>
+                </>
               )}
             </div>
           )}
 
           {/* Runoff context */}
           {dam && (
-            <div className="eyebrow mono" style={{ color: "var(--ink-low)" }}>
+            <p className="flood-meta">
               Khao Luang runoff {dam.status.toUpperCase()}
               {dam.outflowCms != null ? ` · outflow ${Math.round(dam.outflowCms)} m³/s` : ""}
               {" "}— rising outflow precedes city flooding
-            </div>
+            </p>
           )}
 
           {/* Methodology — honest provenance */}
-          <div
-            className="eyebrow mono"
-            style={{ color: "var(--ink-low)", marginTop: 4, lineHeight: 1.5, borderTop: "1px solid var(--line)", paddingTop: 6 }}
-          >
+          <p className="flood-footnote">
             Decision support, not an official order. Composite of observed river
             state + forecast rain on the JMA evacuation ladder (act by L4),
             cross-walked to JAXA Today's Earth return-period levels. SE-Asia
             climate context: a former 1-in-100-yr flood now recurs roughly every
             2–25 yr (Hirabayashi et al. 2013).
-          </div>
+          </p>
         </>
       )}
-    </div>
+    </section>
   );
 }

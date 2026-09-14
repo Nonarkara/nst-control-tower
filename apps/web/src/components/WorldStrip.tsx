@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useCustomClocks, searchCities, type ClockSpec } from "../hooks/useCustomClocks";
 import type { PrecipNowcast } from "@nst/shared";
-import { windDirLabel, uvBand, pulseColor, aqiBand, rainBadge, hmFromIso, timeInTz } from "../lib/worldStrip";
+import { windDirLabel, uvBand, aqiBand, rainBadge, hmFromIso, timeInTz } from "../lib/worldStrip";
+import { useFocusTrap } from "../hooks/useFocusTrap";
 
 interface Props {
   hostAqi: number | null;
@@ -94,20 +95,20 @@ export function WorldStrip({ hostAqi, hostPm25, hostWeather, hostPulse, precipNo
             </div>
             <div className="world-stat">
               <span className="lbl">UV</span>
-              <span className="val mono" style={{ color: uv.color }}>{fmtFix(hostWeather?.uv ?? null, 1)}</span>
-              <span className="sub mono" style={{ color: uv.color }}>{uv.label}</span>
+              <span className="val mono">{fmtFix(hostWeather?.uv ?? null, 1)}</span>
+              <span className="sub mono">{uv.label}</span>
             </div>
             <div className="world-stat">
               <span className="lbl">AQI</span>
-              <span className="val mono" style={{ color: aqi.color }}>{hostAqi ?? "—"}</span>
-              <span className="sub mono" style={{ color: aqi.color }}>
+              <span className="val mono">{hostAqi ?? "—"}</span>
+              <span className="sub mono">
                 {hostPm25 != null ? `PM2.5 ${hostPm25.toFixed(1)}` : aqi.label}
               </span>
             </div>
             <div className="world-stat">
               <span className="lbl">NOWCAST</span>
-              <span className="val mono" style={{ color: rain.color }}>{rain.label}</span>
-              <span className="sub mono" style={{ color: rain.color }}>{rain.sub}</span>
+              <span className="val mono">{rain.label}</span>
+              <span className="sub mono">{rain.sub}</span>
             </div>
             <div className="world-stat">
               <span className="lbl">RAIN NOW</span>
@@ -137,7 +138,6 @@ export function WorldStrip({ hostAqi, hostPm25, hostWeather, hostPulse, precipNo
                 <span className="lbl">iTIC EVT</span>
                 <span
                   className="val mono"
-                  style={{ color: pulseColor(hostPulse.iticEvents, 5, 15) }}
                 >
                   {hostPulse.iticEvents}
                 </span>
@@ -146,7 +146,6 @@ export function WorldStrip({ hostAqi, hostPm25, hostWeather, hostPulse, precipNo
                 <span className="lbl">CR OPEN</span>
                 <span
                   className="val mono"
-                  style={{ color: pulseColor(hostPulse.openReports, 6, 21) }}
                 >
                   {hostPulse.openReports}
                 </span>
@@ -159,7 +158,7 @@ export function WorldStrip({ hostAqi, hostPm25, hostWeather, hostPulse, precipNo
                 <span className="lbl">MUNI BUS</span>
                 {/* Shuttle GPS feed not yet integrated — show the no-data convention
                     ("—"), never a hard 0 that reads as "zero buses running". */}
-                <span className="val mono" style={hostPulse.shuttleLive === 0 ? { color: "var(--ink-low)" } : undefined}>
+                <span className="val mono">
                   {hostPulse.shuttleLive > 0 ? hostPulse.shuttleLive : "—"}
                 </span>
               </div>
@@ -172,13 +171,7 @@ export function WorldStrip({ hostAqi, hostPm25, hostWeather, hostPulse, precipNo
                 <span className="world-day-bar" title={`${d.precipProb}% rain · ${d.precipMm.toFixed(1)}mm`}>
                   <span
                     className="world-day-fill"
-                    style={{
-                      height: `${Math.max(6, Math.round(d.precipProb))}%`,
-                      background:
-                        d.precipProb >= 70 ? "var(--bad)"
-                          : d.precipProb >= 40 ? "var(--warn)"
-                            : "var(--data)",
-                    }}
+                    style={{ height: `${Math.max(6, Math.round(d.precipProb))}%`, background: "var(--data)" }}
                   />
                 </span>
                 <span className="world-day-pct mono">{Math.round(d.precipProb)}%</span>
@@ -258,6 +251,7 @@ function ClockPicker({ existing, onClose, onPick, onClear }: ClockPickerProps) {
   const [loading, setLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const debounce = useRef<number | null>(null);
+  const trapRef = useFocusTrap(true);
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -294,19 +288,20 @@ function ClockPicker({ existing, onClose, onPick, onClear }: ClockPickerProps) {
 
   return (
     <div className="clock-picker-backdrop" onClick={onClose}>
-      <div className="clock-picker" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Choose a city">
+      <div ref={trapRef} className="clock-picker" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Choose a city">
         <header className="clock-picker-head">
           <div>
             <span className="eyebrow mono">Add city clock</span>
             {existing && <div className="clock-picker-cur">{existing.label} · {existing.tz}</div>}
           </div>
-          <button onClick={onClose} className="mono clock-picker-close" aria-label="Close">ESC</button>
+          <button type="button" onClick={onClose} className="btn">Close <kbd>Esc</kbd></button>
         </header>
         <input
           ref={inputRef}
           type="search"
           className="clock-picker-input mono"
           placeholder="Search any city…"
+          aria-label="Search any city"
           value={q}
           onChange={(e) => setQ(e.target.value)}
           autoComplete="off"

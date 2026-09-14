@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { safeUrl } from "../lib/safeUrl";
 import { PanelHeader } from "./PanelHeader";
 import type { FallbackTier } from "@nst/shared";
+import { seriesSummary } from "../lib/cityStatus";
 
 interface TrendPoint { time: string; value: number }
 interface RelatedQuery { query: string; value: number; link?: string | null }
@@ -25,11 +26,39 @@ interface Props {
   fallbackTier?: FallbackTier;
 }
 
-const LANGS: Array<{ id: TrendsSnapshot["lang"]; label: string }> = [
-  { id: "en",    label: "EN" },
-  { id: "th",    label: "TH" },
-  { id: "zh-CN", label: "CN" },
+const LANGS: Array<{ id: TrendsSnapshot["lang"]; label: string; name: string }> = [
+  { id: "en",    label: "EN", name: "English" },
+  { id: "th",    label: "TH", name: "Thai" },
+  { id: "zh-CN", label: "CN", name: "Chinese" },
 ];
+
+const RELATED_LIMIT = 6;
+const BREAKOUT = 5000;
+
+function exploreUrl(q: RelatedQuery): string {
+  return safeUrl(q.link) ?? `https://trends.google.com/trends/explore?q=${encodeURIComponent(q.query)}`;
+}
+
+function RelatedList({ title, queries, lang, rising }: { title: string; queries: RelatedQuery[]; lang: string; rising?: boolean }) {
+  if (queries.length === 0) return null;
+  return (
+    <div className="pc-section">
+      <h3 className="pc-label">{title}</h3>
+      <ul className="pc-list">
+        {queries.slice(0, RELATED_LIMIT).map((q, i) => (
+          <li key={`${title}-${q.query}-${i}`}>
+            <a className="trd-link" href={exploreUrl(q)} target="_blank" rel="noreferrer noopener">
+              <span className="trd-link__q" lang={lang}>{q.query}</span>
+              <span className="trd-link__v num">
+                {rising ? (q.value >= BREAKOUT ? "Breakout" : `+${q.value}%`) : q.value}
+              </span>
+            </a>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
 
 /**
  * Trends panel — top of the right rail. Shows what people are searching for
@@ -59,11 +88,13 @@ export function TrendsPanel({ snapshots, loading, ageMinutes, onRefresh, fallbac
       .join(" ");
     const peak = Math.max(...values);
     const last = values[values.length - 1];
-    return { pts, w, h, peak, last };
+    return { pts, w, h, peak, last, summary: seriesSummary(values) };
   }, [active]);
 
+  const activeLang = active?.lang ?? lang;
+
   return (
-    <section className="trends-panel">
+    <section className="panel" aria-label="Google Trends" aria-busy={loading}>
       <PanelHeader
         title="TRENDS · #NST · 90 D"
         ageMinutes={ageMinutes}
@@ -71,29 +102,30 @@ export function TrendsPanel({ snapshots, loading, ageMinutes, onRefresh, fallbac
         source="google-trends"
         actions={
           <>
-            {active && <span className="trends-keyword">{active.keyword}</span>}
+            {active && <span className="trd-keyword" lang={activeLang}>{active.keyword}</span>}
             <button
               type="button"
-              className="trends-refresh mono"
+              className="btn btn--quiet pc-icon-btn"
               onClick={onRefresh}
               disabled={loading}
               aria-label={loading ? "Refreshing trends, please wait" : `Refresh Google Trends data — last refreshed ${ageMinutes}m ago`}
-              aria-busy={loading}
               title={`Refreshed ${ageMinutes}m ago — click to refresh`}
             >
-              {loading ? "…" : "↻"}
+              <span aria-hidden="true">{loading ? "…" : "↻"}</span>
             </button>
           </>
         }
       />
 
-      <div className="trends-lang">
+      <div className="segmented" role="group" aria-label="Search language">
         {LANGS.map((l) => (
           <button
             key={l.id}
+            type="button"
             onClick={() => setLang(l.id)}
-            className={`trends-lang-btn mono ${lang === l.id ? "active" : ""}`}
+            className="segmented__btn"
             aria-pressed={lang === l.id}
+            aria-label={`${l.name} searches`}
           >
             {l.label}
           </button>
@@ -103,72 +135,34 @@ export function TrendsPanel({ snapshots, loading, ageMinutes, onRefresh, fallbac
       {active ? (
         <>
           {sparkline ? (
-            <div className="trends-spark">
-              <svg viewBox={`0 0 ${sparkline.w} ${sparkline.h}`} aria-hidden="true">
-                <polyline
-                  points={sparkline.pts}
-                  stroke="var(--accent)"
-                  strokeWidth="1.5"
-                  fill="none"
-                />
+            <figure className="pc-section">
+              <svg
+                className="pc-spark"
+                viewBox={`0 0 ${sparkline.w} ${sparkline.h}`}
+                preserveAspectRatio="none"
+                aria-hidden="true"
+              >
+                <polyline className="pc-spark__line" points={sparkline.pts} />
               </svg>
-              <div className="trends-spark-foot mono">
-                <span>peak {sparkline.peak}</span>
-                <span>now {sparkline.last}</span>
-              </div>
-            </div>
+              <figcaption className="pc-spread">
+                <span className="visually-hidden">Search interest, last 90 days: {sparkline.summary}</span>
+                <span className="pc-meta num" aria-hidden="true">peak {sparkline.peak}</span>
+                <span className="pc-meta num" aria-hidden="true">now {sparkline.last}</span>
+              </figcaption>
+            </figure>
           ) : (
-            <div className="trends-empty">
+            <p className="note">
               {active.err
                 ? `Trends unavailable: ${active.err}`
                 : "No interest data yet — refresh to retry."}
-            </div>
+            </p>
           )}
 
-          {active.relatedTop.length > 0 && (
-            <div>
-              <div className="eyebrow mono trends-section-label">Top related</div>
-              <ul className="trends-related">
-                {active.relatedTop.slice(0, 6).map((q, i) => (
-                  <li key={`top-${q.query}-${i}`}>
-                    <a
-                      href={safeUrl(q.link) ?? `https://trends.google.com/trends/explore?q=${encodeURIComponent(q.query)}`}
-                      target="_blank"
-                      rel="noreferrer noopener"
-                    >
-                      <span className="trends-q">{q.query}</span>
-                      <span className="trends-v mono">{q.value}</span>
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          {active.relatedRising.length > 0 && (
-            <div>
-              <div className="eyebrow mono trends-section-label">Rising ↑</div>
-              <ul className="trends-related">
-                {active.relatedRising.slice(0, 6).map((q, i) => (
-                  <li key={`rise-${q.query}-${i}`}>
-                    <a
-                      href={safeUrl(q.link) ?? `https://trends.google.com/trends/explore?q=${encodeURIComponent(q.query)}`}
-                      target="_blank"
-                      rel="noreferrer noopener"
-                    >
-                      <span className="trends-q">{q.query}</span>
-                      <span className="trends-v mono trends-v-rise">
-                        {q.value >= 5000 ? "Breakout" : `+${q.value}%`}
-                      </span>
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
+          <RelatedList title="Top related" queries={active.relatedTop} lang={activeLang} />
+          <RelatedList title="Rising ↑" queries={active.relatedRising} lang={activeLang} rising />
         </>
       ) : (
-        <div className="trends-empty">Loading Google Trends…</div>
+        <p className="note">Loading Google Trends…</p>
       )}
     </section>
   );

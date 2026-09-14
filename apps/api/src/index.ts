@@ -22,7 +22,8 @@ import {
   fetchStreetViewMeta,
   streetViewImageUrl,
 } from "./adapters/google.js";
-import { fetchCctv } from "./adapters/cctv.js";
+import { fetchCctv, fetchCctvAll } from "./adapters/cctv.js";
+import { fetchNstCctv } from "./adapters/cctvNst.js";
 import { fetchTrends } from "./adapters/trends.js";
 import { fetchExecutiveSnapshot, deriveAlerts } from "./adapters/executive.js";
 import { fetchMarkets } from "./adapters/markets.js";
@@ -352,6 +353,8 @@ app.get("/api/air-quality/trend", async (c) => safeFeed(c, fetchAirQualityTrend,
 app.get("/api/air-quality/aqicn", async (c) => safeFeed(c, () => fetchAqicnNst({ AQICN_TOKEN: c.env.AQICN_TOKEN }), "aqicn"));
 app.get("/api/air-quality/air4thai", async (c) => safeFeed(c, fetchAir4Thai, "air4thai"));
 app.get("/api/cctv/longdo", async (c) => safeFeed(c, fetchCctv, "cctv"));
+app.get("/api/cctv/nst-municipality", async (c) => safeFeed(c, fetchNstCctv, "cctv-nst"));
+app.get("/api/cctv", async (c) => safeFeed(c, fetchCctvAll, "cctv-combined"));
 app.get("/api/trends", async (c) => safeFeed(c, fetchTrends, "trends"));
 app.get("/api/flood/gauges", async (c) => safeFeed(c, fetchFloodGauges, "flood-gauges"));
 app.get("/api/flood/dam", async (c) => safeFeed(c, fetchDamStatus, "flood-dam"));

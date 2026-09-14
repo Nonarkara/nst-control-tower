@@ -78,6 +78,12 @@ export function BuildingSearch({ buildings, onSelect }: Props) {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!open && e.key === "ArrowDown" && results.length > 0) {
+      e.preventDefault();
+      setOpen(true);
+      setFocusedIndex(0);
+      return;
+    }
     if (!open || results.length === 0) return;
     if (e.key === "ArrowDown") {
       e.preventDefault();
@@ -97,7 +103,7 @@ export function BuildingSearch({ buildings, onSelect }: Props) {
   return (
     <div className="building-search">
       <input
-        className="building-search-input mono"
+        className="building-search-input"
         type="search"
         role="combobox"
         aria-label="Search buildings by name"
@@ -139,18 +145,13 @@ export function BuildingSearch({ buildings, onSelect }: Props) {
               key={h.feature.properties.id}
               role="option"
               aria-selected={i === focusedIndex}
-              tabIndex={0}
+              // Focus stays in the combobox (aria-activedescendant); keep it there on click.
+              onMouseDown={(e) => e.preventDefault()}
               onClick={() => pick(h)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  pick(h);
-                }
-              }}
               className="building-search-row"
             >
               <span className="building-search-name">{h.display}</span>
-              {h.alt && <span className="building-search-alt mono">{h.alt}</span>}
+              {h.alt && <span className="building-search-alt">{h.alt}</span>}
             </li>
           ))}
         </ul>

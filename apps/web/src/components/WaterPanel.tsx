@@ -1,9 +1,9 @@
 /**
  * WaterPanel — comprehensive real-time water monitoring for NST.
  *
- * Three sections shown inline (no tabs, panel scrolls):
+ * Three tabbed sections:
  *   1. River Gauges  — 26 telemetry stations from HII ThaiWater, 10-min updates,
- *                      colour-coded by situation_level (5=overbank/flood).
+ *                      status by situation_level (5=overbank/flood).
  *   2. Reservoirs    — RID + data.go.th reservoir levels (% capacity, volume).
  *   3. Rainfall      — 24h accumulation across 130 NST stations from ThaiWater.
  *
@@ -12,10 +12,12 @@
  * situation_level is the primary leading indicator.
  */
 
-import { useState } from "react";
+import { useId, useRef, useState, type KeyboardEvent } from "react";
 import { PanelHeader } from "./PanelHeader";
+import { MixedText } from "./MixedText";
 import type { WaterGauge, RainfallStation, RidReservoir, FallbackTier } from "@nst/shared";
-import { alertLevel } from "../lib/water";
+import { alertLevel, rainStatus, reservoirStatus, situationStatus, storageStatus } from "../lib/water";
+import { STATUS, type StatusLevel } from "../lib/status";
 
 export interface ReservoirStatus {
   name: string;
@@ -38,16 +40,7 @@ interface Props {
   fallbackTier?: FallbackTier;
 }
 
-// situation_level → CSS colour token
-const SIT_COLOR: Record<number, string> = {
-  5: "var(--bad)",    // overbank / flood
-  4: "var(--warn)",   // high water
-  3: "var(--good)",   // normal
-  2: "var(--data)",   // low
-  1: "var(--bad)",    // critical drought
-};
-
-// situation_level → short English label
+// situation_level → short English label (always shown beside the colour)
 const SIT_LABEL: Record<number, string> = {
   5: "FLOOD",
   4: "HIGH",
@@ -62,68 +55,68 @@ const TREND_ARROW: Record<WaterGauge["trend"], string> = {
   stable: "—",
 };
 
-const TREND_COL: Record<WaterGauge["trend"], string> = {
-  rising: "var(--bad)",
-  falling: "var(--data)",
-  stable: "var(--ink-low)",
-};
+const GAUGE_PREVIEW = 5;
+const RAIN_PREVIEW = 8;
 
 type Tab = "gauges" | "reservoirs" | "rain";
 
-function Bar({ pct, color }: { pct: number | null; color: string }) {
+function Bar({ pct, level }: { pct: number | null; level: StatusLevel }) {
   const w = Math.max(0, Math.min(100, pct ?? 0));
+  const background = STATUS[level].color;
   return (
-    <div style={{ height: 3, background: "var(--line)", position: "relative", marginTop: 2 }}>
-      <div style={{ position: "absolute", left: 0, top: 0, height: "100%", width: `${w}%`, background: color }} />
+    <div className="flood-bar" aria-hidden="true">
+      <div className="flood-bar__fill" style={{ width: `${w}%`, background }} />
     </div>
+  );
+}
+
+function StatusWord({ level, children }: { level: StatusLevel; children: React.ReactNode }) {
+  const st = STATUS[level];
+  return (
+    <span className="flood-status" style={{ color: st.color }}>
+      <span aria-hidden="true">{st.glyph}</span>
+      {children}
+    </span>
   );
 }
 
 // ─── Gauge section ───────────────────────────────────────────────────────────
 
 function GaugeRow({ g }: { g: WaterGauge }) {
-  const col = SIT_COLOR[g.situationLevel] ?? "var(--ink-low)";
+  const level = situationStatus(g.situationLevel);
   const warningPct = g.warningMsl && g.levelMsl != null
     ? Math.min(100, Math.max(0, (g.levelMsl / g.warningMsl) * 100))
     : null;
   const shortName = g.name.replace(/^สถานีโทรมาตร\s*/u, "").replace(/สถานีวัดน้ำ\s*/u, "");
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
-      <div className="spread" style={{ alignItems: "center", gap: 4 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 4, minWidth: 0, flex: 1 }}>
-          <span style={{ color: TREND_COL[g.trend], fontFamily: "var(--font-mono)", fontSize: "var(--size-eyebrow)", flexShrink: 0 }}>
-            {TREND_ARROW[g.trend]}
-          </span>
-          <span style={{ fontSize: "var(--size-eyebrow)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-            {shortName || g.name}
-          </span>
+    <li className="flood-item">
+      <div className="flood-row-head">
+        <span className="water-name-group">
+          <span className="water-trend" aria-hidden="true">{TREND_ARROW[g.trend]}</span>
+          <span className="visually-hidden">{g.trend}, </span>
+          <span className="flood-name" lang="th">{shortName || g.name}</span>
           {g.isKeyStation && (
-            <span style={{ fontSize: "0.6rem", color: "var(--accent)", flexShrink: 0 }}>★</span>
-          )}
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
-          {g.levelMsl != null && (
-            <span className="eyebrow mono" style={{ color: "var(--ink-low)" }}>
-              {g.levelMsl.toFixed(2)} m
+            <span className="water-key">
+              <span aria-hidden="true">★</span>
+              <span className="visually-hidden"> key station</span>
             </span>
           )}
-          <span className="eyebrow mono" style={{ color: col, fontWeight: 700 }}>
-            {SIT_LABEL[g.situationLevel]}
-          </span>
-        </div>
+        </span>
+        <span className="water-figures">
+          {g.levelMsl != null && <span className="flood-meta num">{g.levelMsl.toFixed(2)} m</span>}
+          <StatusWord level={level}>{SIT_LABEL[g.situationLevel] ?? STATUS.unknown.en}</StatusWord>
+        </span>
       </div>
-      {warningPct != null && (
-        <Bar pct={warningPct} color={col} />
-      )}
+      {warningPct != null && <Bar pct={warningPct} level={level} />}
       {g.diffFromBank != null && (
-        <div className="eyebrow mono" style={{ color: "var(--ink-low)" }}>
+        <p className="flood-meta">
           {g.diffFromBank >= 0
             ? `${g.diffFromBank.toFixed(2)} m above bank`
             : `${Math.abs(g.diffFromBank).toFixed(2)} m below bank`}
-          {g.amphoe ? ` · ${g.amphoe}` : ""}
-        </div>
+          {g.amphoe ? <> · <MixedText text={g.amphoe} /></> : ""}
+        </p>
       )}
-    </div>
+    </li>
   );
 }
 
@@ -132,63 +125,55 @@ function GaugesSection({ gauges }: { gauges: WaterGauge[] }) {
 
   if (gauges.length === 0) {
     return (
-      <div className="eyebrow mono" style={{ color: "var(--ink-low)" }}>
-        ── ไม่มีข้อมูลสถานี ── no gauge data
-      </div>
+      <p className="flood-empty">
+        <span lang="th">ไม่มีข้อมูลสถานี</span> · no gauge data
+      </p>
     );
   }
 
   const atRisk = gauges.filter((g) => g.situationLevel >= 4);
   const normal = gauges.filter((g) => g.situationLevel < 4);
-  const displayNormal = showAll ? normal : normal.slice(0, 5);
+  const displayNormal = showAll ? normal : normal.slice(0, GAUGE_PREVIEW);
 
   const worstSit = Math.max(...gauges.map((g) => g.situationLevel));
-  const worstColor = SIT_COLOR[worstSit] ?? "var(--ink-low)";
+  const worstLevel = situationStatus(worstSit);
+  const boxLevel: StatusLevel = worstSit >= 5 ? "critical" : "warning";
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-      {/* Status bar */}
-      <div className="spread" style={{ alignItems: "center" }}>
-        <div className="eyebrow mono" style={{ color: "var(--ink-low)" }}>
-          {gauges.length} สถานี · {gauges.filter((g) => g.isKeyStation).length} key
-        </div>
-        <div className="eyebrow mono" style={{ color: worstColor, fontWeight: 700 }}>
-          WORST: {SIT_LABEL[worstSit]}
-        </div>
+    <div className="flood-section">
+      <div className="flood-row-head">
+        <p className="flood-meta">
+          {gauges.length} <span lang="th">สถานี</span> · {gauges.filter((g) => g.isKeyStation).length} key
+        </p>
+        <span className="flood-figure">
+          <StatusWord level={worstLevel}>WORST: {SIT_LABEL[worstSit] ?? STATUS.unknown.en}</StatusWord>
+        </span>
       </div>
 
-      {/* At-risk stations (situation 4–5) */}
       {atRisk.length > 0 && (
-        <div style={{
-          border: `1px solid ${worstSit >= 5 ? "var(--bad)" : "var(--warn)"}`,
-          padding: "6px 8px",
-          display: "flex",
-          flexDirection: "column",
-          gap: 5,
-        }}>
-          <div className="eyebrow mono" style={{ color: worstSit >= 5 ? "var(--bad)" : "var(--warn)" }}>
-            {worstSit >= 5 ? "⚠ OVERBANK / น้ำล้นตลิ่ง" : "⚠ HIGH WATER / น้ำมาก"}
-          </div>
-          {atRisk.map((g) => <GaugeRow key={g.id} g={g} />)}
+        <div className="water-alert-box" style={{ borderColor: STATUS[boxLevel].color }}>
+          <p className="flood-label">
+            <StatusWord level={boxLevel}>
+              {worstSit >= 5 ? <>OVERBANK / <span lang="th">น้ำล้นตลิ่ง</span></> : <>HIGH WATER / <span lang="th">น้ำมาก</span></>}
+            </StatusWord>
+          </p>
+          <ul className="flood-list">
+            {atRisk.map((g) => <GaugeRow key={g.id} g={g} />)}
+          </ul>
         </div>
       )}
 
-      {/* Normal stations */}
-      {displayNormal.map((g) => <GaugeRow key={g.id} g={g} />)}
+      <ul className="flood-list">
+        {displayNormal.map((g) => <GaugeRow key={g.id} g={g} />)}
+      </ul>
 
-      {normal.length > 5 && (
-        <button
-          onClick={() => setShowAll(!showAll)}
-          className="eyebrow mono"
-          style={{ color: "var(--accent)", background: "none", border: "none", cursor: "pointer", textAlign: "left", padding: 0 }}
-        >
-          {showAll ? "▲ show less" : `▼ +${normal.length - 5} more stations`}
+      {normal.length > GAUGE_PREVIEW && (
+        <button type="button" className="btn btn--quiet flood-more" aria-expanded={showAll} onClick={() => setShowAll(!showAll)}>
+          {showAll ? "Show fewer stations" : `Show ${normal.length - GAUGE_PREVIEW} more stations`}
         </button>
       )}
 
-      <div className="eyebrow mono" style={{ color: "var(--ink-low)" }}>
-        SOURCE · HII ThaiWater · api-v3.thaiwater.net · province 80
-      </div>
+      <p className="flood-footnote">SOURCE · HII ThaiWater · api-v3.thaiwater.net · province 80</p>
     </div>
   );
 }
@@ -196,91 +181,90 @@ function GaugesSection({ gauges }: { gauges: WaterGauge[] }) {
 // ─── Reservoir section ────────────────────────────────────────────────────────
 
 function ReservoirSection({ reservoirs, ridReservoirs }: { reservoirs: ReservoirStatus[]; ridReservoirs: RidReservoir[] }) {
-  const LEVEL_COLOR = {
-    critical: "var(--bad)",
-    low:      "var(--warn)",
-    watch:    "var(--accent)",
-    ok:       "var(--good)",
-  };
-
   if (reservoirs.length === 0 && ridReservoirs.length === 0) {
-    return <div className="eyebrow mono" style={{ color: "var(--ink-low)" }}>── no reservoir data</div>;
+    return <p className="flood-empty">No reservoir data</p>;
   }
 
   // Province total from datago source
   const totalCurrent = reservoirs.reduce((s, r) => s + (r.currentVolMCM ?? 0), 0);
   const totalMax     = reservoirs.reduce((s, r) => s + (r.maxVolMCM ?? 0), 0);
   const totalPct     = totalMax > 0 ? Math.round((totalCurrent / totalMax) * 100) : null;
+  const totalLevel: StatusLevel = totalPct != null && totalPct < 30 ? "watch" : "normal";
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+    <div className="flood-section">
       {totalPct != null && (
-        <div>
-          <div className="spread" style={{ alignItems: "center" }}>
-            <div className="eyebrow">PROVINCE TOTAL</div>
-            <div className="eyebrow mono" style={{ color: totalPct < 30 ? "var(--warn)" : "var(--data)" }}>
-              {totalPct}%
-            </div>
+        <div className="flood-item">
+          <div className="flood-row-head">
+            <span className="flood-label">Province total</span>
+            <span className="flood-figure num">
+              <StatusWord level={totalLevel}>{totalPct}%{totalLevel === "watch" ? " low" : ""}</StatusWord>
+            </span>
           </div>
-          <Bar pct={totalPct} color={totalPct < 30 ? "var(--warn)" : "var(--good)"} />
-          <div className="eyebrow mono" style={{ color: "var(--ink-low)" }}>
-            {totalCurrent.toFixed(1)} / {totalMax.toFixed(1)} MCM
-          </div>
+          <Bar pct={totalPct} level={totalLevel} />
+          <p className="flood-meta num">{totalCurrent.toFixed(1)} / {totalMax.toFixed(1)} MCM</p>
         </div>
       )}
 
-      {/* datago reservoirs */}
-      {reservoirs.map((r) => {
-        const level = alertLevel(r.daysRemaining);
-        const col = LEVEL_COLOR[level];
-        const name = r.name.replace(/อ่างเก็บน้ำ/g, "").replace(/อ่างเก้บน้ำ/g, "").trim();
-        const arrow = r.trend === "rising" ? "↑" : r.trend === "falling" ? "↓" : "—";
-        return (
-          <div key={r.name} style={{ display: "flex", flexDirection: "column", gap: 1 }}>
-            <div className="spread" style={{ alignItems: "center" }}>
-              <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                <span style={{ color: col, fontFamily: "var(--font-mono)", fontSize: "var(--size-eyebrow)" }}>{arrow}</span>
-                <span style={{ fontSize: "var(--size-eyebrow)" }}>{name}</span>
-              </span>
-              <span className="eyebrow mono" style={{ color: col }}>
-                {r.capacityPct != null ? `${r.capacityPct.toFixed(0)}%` : "—"}
-                {r.daysRemaining != null ? ` · ${r.daysRemaining}d` : ""}
-              </span>
-            </div>
-            <Bar pct={r.capacityPct} color={col} />
-          </div>
-        );
-      })}
-
-      {/* RID reservoirs (deduped by id) */}
-      {ridReservoirs.map((r) => {
-        const pct = r.storagePct ?? null;
-        const col = pct == null ? "var(--ink-low)" : pct > 90 ? "var(--bad)" : pct > 70 ? "var(--warn)" : pct > 40 ? "var(--good)" : "var(--data)";
-        const name = r.name.replace(/^อ่างเก็บน้ำ\s*/u, "").replace(/^อ่างเก้บน้ำ\s*/u, "").trim();
-        return (
-          <div key={r.id} style={{ display: "flex", flexDirection: "column", gap: 1 }}>
-            <div className="spread" style={{ alignItems: "center" }}>
-              <span className="eyebrow" style={{ fontSize: "var(--size-eyebrow)" }}>{name}</span>
-              <span className="eyebrow mono" style={{ color: col }}>
-                {pct != null ? `${pct.toFixed(0)}%` : "—"}
-                {r.volumeMcm != null ? ` · ${r.volumeMcm.toFixed(1)} MCM` : ""}
-              </span>
-            </div>
-            <Bar pct={pct} color={col} />
-            {(r.inflowMcm != null || r.outflowMcm != null) && (
-              <div className="eyebrow mono" style={{ color: "var(--ink-low)" }}>
-                {r.inflowMcm != null ? `in ${r.inflowMcm.toFixed(2)}` : ""}
-                {r.inflowMcm != null && r.outflowMcm != null ? " / " : ""}
-                {r.outflowMcm != null ? `out ${r.outflowMcm.toFixed(2)} MCM/d` : ""}
+      <ul className="flood-list">
+        {/* datago reservoirs */}
+        {reservoirs.map((r) => {
+          const level = reservoirStatus(alertLevel(r.daysRemaining));
+          const name = r.name.replace(/อ่างเก็บน้ำ/g, "").replace(/อ่างเก้บน้ำ/g, "").trim();
+          return (
+            <li key={r.name} className="flood-item">
+              <div className="flood-row-head">
+                <span className="water-name-group">
+                  <span className="water-trend" aria-hidden="true">{TREND_ARROW[r.trend]}</span>
+                  <span className="visually-hidden">{r.trend}, </span>
+                  <span className="flood-name" lang="th">{name}</span>
+                </span>
+                <span className="flood-figure num">
+                  <StatusWord level={level}>
+                    {r.capacityPct != null ? `${r.capacityPct.toFixed(0)}%` : "—"}
+                    {r.daysRemaining != null ? ` · ${r.daysRemaining}d` : ""}
+                  </StatusWord>
+                  <span className="visually-hidden"> {STATUS[level].en}</span>
+                </span>
               </div>
-            )}
-          </div>
-        );
-      })}
+              <Bar pct={r.capacityPct} level={level} />
+            </li>
+          );
+        })}
 
-      <div className="eyebrow mono" style={{ color: "var(--ink-low)" }}>
-        SOURCE · data.go.th · RID กรมชลประทาน · app.rid.go.th
-      </div>
+        {/* RID reservoirs (deduped by id) */}
+        {ridReservoirs.map((r) => {
+          const pct = r.storagePct ?? null;
+          const level = storageStatus(pct);
+          const name = r.name.replace(/^อ่างเก็บน้ำ\s*/u, "").replace(/^อ่างเก้บน้ำ\s*/u, "").trim();
+          return (
+            <li key={r.id} className="flood-item">
+              <div className="flood-row-head">
+                <span className="flood-name" lang="th">{name}</span>
+                <span className="flood-figure num">
+                  <StatusWord level={level}>
+                    {pct != null ? `${pct.toFixed(0)}%` : "—"}
+                    {r.volumeMcm != null ? ` · ${r.volumeMcm.toFixed(1)} MCM` : ""}
+                  </StatusWord>
+                  <span className="visually-hidden"> {STATUS[level].en}</span>
+                </span>
+              </div>
+              <Bar pct={pct} level={level} />
+              {(r.inflowMcm != null || r.outflowMcm != null) && (
+                <p className="flood-meta num">
+                  {r.inflowMcm != null ? `in ${r.inflowMcm.toFixed(2)}` : ""}
+                  {r.inflowMcm != null && r.outflowMcm != null ? " / " : ""}
+                  {r.outflowMcm != null ? `out ${r.outflowMcm.toFixed(2)} MCM/d` : ""}
+                </p>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+
+      <p className="flood-footnote">
+        SOURCE · data.go.th · RID <span lang="th">กรมชลประทาน</span> · app.rid.go.th
+      </p>
     </div>
   );
 }
@@ -290,74 +274,66 @@ function ReservoirSection({ reservoirs, ridReservoirs }: { reservoirs: Reservoir
 function RainfallSection({ rain }: { rain: RainfallStation[] }) {
   const [showAll, setShowAll] = useState(false);
   if (rain.length === 0) {
-    return <div className="eyebrow mono" style={{ color: "var(--ink-low)" }}>── no rainfall data</div>;
+    return <p className="flood-empty">No rainfall data</p>;
   }
 
   const withRain = rain.filter((r) => (r.rain24h ?? 0) > 0);
   const totalStations = rain.length;
   const maxRain = Math.max(...rain.map((r) => r.rain24h ?? 0));
   const totalRain24h = rain.reduce((s, r) => s + (r.rain24h ?? 0), 0) / totalStations;
-  const display = showAll ? withRain : withRain.slice(0, 8);
-
-  function rainColor(mm: number | null): string {
-    if (mm == null) return "var(--ink-low)";
-    if (mm > 90) return "var(--bad)";
-    if (mm > 35) return "var(--warn)";
-    if (mm > 10) return "var(--data)";
-    return "var(--good)";
-  }
+  const display = showAll ? withRain : withRain.slice(0, RAIN_PREVIEW);
+  const maxLevel = rainStatus(maxRain);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-      <div className="spread" style={{ alignItems: "center" }}>
-        <div className="eyebrow mono" style={{ color: "var(--ink-low)" }}>
-          {totalStations} สถานี · avg {totalRain24h.toFixed(1)} mm/24h
-        </div>
-        <div className="eyebrow mono" style={{ color: rainColor(maxRain) }}>
-          MAX {maxRain.toFixed(1)} mm
-        </div>
+    <div className="flood-section">
+      <div className="flood-row-head">
+        <p className="flood-meta num">
+          {totalStations} <span lang="th">สถานี</span> · avg {totalRain24h.toFixed(1)} mm/24h
+        </p>
+        <span className="flood-figure num">
+          <StatusWord level={maxLevel}>MAX {maxRain.toFixed(1)} mm</StatusWord>
+        </span>
       </div>
 
       {withRain.length === 0 && (
-        <div className="eyebrow mono" style={{ color: "var(--good)" }}>ไม่มีฝน — no rain across all {totalStations} stations</div>
+        <p className="flood-empty">
+          <span lang="th">ไม่มีฝน</span> — no rain across all {totalStations} stations
+        </p>
       )}
 
-      {display.map((r) => {
-        const col = rainColor(r.rain24h);
-        const barPct = maxRain > 0 ? ((r.rain24h ?? 0) / maxRain) * 100 : 0;
-        const name = r.name.replace(/^สถานีโทรมาตร\s*/u, "").replace(/สถานีวัดน้ำ\s*/u, "");
-        return (
-          <div key={r.id} style={{ display: "flex", flexDirection: "column", gap: 1 }}>
-            <div className="spread" style={{ alignItems: "center" }}>
-              <span style={{ fontSize: "var(--size-eyebrow)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>
-                {name || r.name}
-              </span>
-              <span className="eyebrow mono" style={{ color: col, flexShrink: 0 }}>
-                {r.rain24h?.toFixed(1)} mm
-                {r.rain1h != null && r.rain1h > 0 ? ` · ${r.rain1h.toFixed(1)}/h` : ""}
-              </span>
-            </div>
-            <Bar pct={barPct} color={col} />
-            {r.amphoe && (
-              <div className="eyebrow mono" style={{ color: "var(--ink-low)" }}>{r.amphoe}</div>
-            )}
-          </div>
-        );
-      })}
+      <ul className="flood-list">
+        {display.map((r) => {
+          const level = rainStatus(r.rain24h);
+          const barPct = maxRain > 0 ? ((r.rain24h ?? 0) / maxRain) * 100 : 0;
+          const name = r.name.replace(/^สถานีโทรมาตร\s*/u, "").replace(/สถานีวัดน้ำ\s*/u, "");
+          return (
+            <li key={r.id} className="flood-item">
+              <div className="flood-row-head">
+                <span className="flood-name" lang="th">{name || r.name}</span>
+                <span className="flood-figure num">
+                  <StatusWord level={level}>
+                    {r.rain24h?.toFixed(1)} mm
+                    {r.rain1h != null && r.rain1h > 0 ? ` · ${r.rain1h.toFixed(1)}/h` : ""}
+                  </StatusWord>
+                  <span className="visually-hidden"> {STATUS[level].en}</span>
+                </span>
+              </div>
+              <Bar pct={barPct} level={level} />
+              {r.amphoe && <p className="flood-meta"><MixedText text={r.amphoe} /></p>}
+            </li>
+          );
+        })}
+      </ul>
 
-      {withRain.length > 8 && (
-        <button
-          onClick={() => setShowAll(!showAll)}
-          className="eyebrow mono"
-          style={{ color: "var(--accent)", background: "none", border: "none", cursor: "pointer", textAlign: "left", padding: 0 }}
-        >
-          {showAll ? "▲ show less" : `▼ +${withRain.length - 8} more stations`}
+      {withRain.length > RAIN_PREVIEW && (
+        <button type="button" className="btn btn--quiet flood-more" aria-expanded={showAll} onClick={() => setShowAll(!showAll)}>
+          {showAll ? "Show fewer stations" : `Show ${withRain.length - RAIN_PREVIEW} more stations`}
         </button>
       )}
 
-      <div className="eyebrow mono" style={{ color: "var(--ink-low)" }}>
-        SOURCE · HII ThaiWater · ฝน 24 ชม. · province 80
-      </div>
+      <p className="flood-footnote">
+        SOURCE · HII ThaiWater · <span lang="th">ฝน 24 ชม.</span> · province 80
+      </p>
     </div>
   );
 }
@@ -368,14 +344,16 @@ export function WaterPanel({
   reservoirs, ridReservoirs, waterGauges, waterRain, loading, ageMinutes, fallbackTier,
 }: Props) {
   const [tab, setTab] = useState<Tab>("gauges");
+  const baseId = useId();
+  const tabRefs = useRef<Record<Tab, HTMLButtonElement | null>>({ gauges: null, reservoirs: null, rain: null });
 
   if (loading && waterGauges.length === 0 && reservoirs.length === 0) {
     return (
-      <div className="col">
-        <div className="eyebrow">WATER MONITORING // NST</div>
-        <div className="skeleton" style={{ height: 12, marginTop: 8 }} />
-        <div className="skeleton" style={{ height: 12, marginTop: 6, width: "80%" }} />
-      </div>
+      <section className="panel" aria-label="Water monitoring" aria-busy="true">
+        <p className="eyebrow">WATER MONITORING // NST</p>
+        <div className="skeleton flood-skeleton" />
+        <div className="skeleton flood-skeleton flood-skeleton--short" />
+      </section>
     );
   }
 
@@ -384,14 +362,29 @@ export function WaterPanel({
     : null;
   const atRiskCount = waterGauges.filter((g) => g.situationLevel >= 4).length;
 
-  const TABS: { id: Tab; label: string; badge?: number | null }[] = [
-    { id: "gauges",     label: "GAUGES",      badge: waterGauges.length || null },
-    { id: "reservoirs", label: "อ่างเก็บน้ำ",  badge: (reservoirs.length + ridReservoirs.length) || null },
-    { id: "rain",       label: "RAINFALL",    badge: waterRain.filter((r) => (r.rain24h ?? 0) > 0).length || null },
+  const TABS: { id: Tab; label: React.ReactNode; badge?: number | null }[] = [
+    { id: "gauges",     label: "Gauges",                           badge: waterGauges.length || null },
+    { id: "reservoirs", label: <span lang="th">อ่างเก็บน้ำ</span>,   badge: (reservoirs.length + ridReservoirs.length) || null },
+    { id: "rain",       label: "Rainfall",                         badge: waterRain.filter((r) => (r.rain24h ?? 0) > 0).length || null },
   ];
 
+  const onTabKey = (e: KeyboardEvent<HTMLButtonElement>) => {
+    const i = TABS.findIndex((t) => t.id === tab);
+    const next =
+      e.key === "ArrowRight" ? (i + 1) % TABS.length :
+      e.key === "ArrowLeft" ? (i - 1 + TABS.length) % TABS.length :
+      e.key === "Home" ? 0 :
+      e.key === "End" ? TABS.length - 1 :
+      -1;
+    if (next < 0) return;
+    e.preventDefault();
+    const id = TABS[next].id;
+    setTab(id);
+    tabRefs.current[id]?.focus();
+  };
+
   return (
-    <div className="col" style={{ gap: 8 }}>
+    <section className="panel" aria-label="Water monitoring">
       <PanelHeader
         title="WATER MONITORING // NST"
         ageMinutes={ageMinutes}
@@ -399,44 +392,50 @@ export function WaterPanel({
         source="thaiwater·rid·datago"
         actions={
           worstSit != null && worstSit >= 4 ? (
-            <span
-              className="eyebrow mono"
-              style={{ color: worstSit >= 5 ? "var(--bad)" : "var(--warn)", fontWeight: 700 }}
-            >
-              ⚠ {atRiskCount} STATIONS HIGH
-            </span>
+            <StatusWord level={worstSit >= 5 ? "critical" : "warning"}>
+              {atRiskCount} STATIONS HIGH
+            </StatusWord>
           ) : undefined
         }
       />
 
-      {/* Tab bar */}
-      <div role="tablist" style={{ display: "flex", gap: 4 }}>
-        {TABS.map((t) => (
-          <button
-            key={t.id}
-            role="tab"
-            aria-selected={tab === t.id}
-            aria-controls={`water-panel-section-${t.id}`}
-            onClick={() => setTab(t.id)}
-            className="eyebrow mono"
-            style={{
-              background: tab === t.id ? "var(--ink)" : "transparent",
-              color: tab === t.id ? "var(--ground)" : "var(--ink-low)",
-              border: `1px solid ${tab === t.id ? "var(--ink)" : "var(--line)"}`,
-              padding: "2px 7px",
-              cursor: "pointer",
-              fontSize: "0.62rem",
-              letterSpacing: "0.05em",
-            }}
-          >
-            {t.label}{t.badge != null ? ` (${t.badge})` : ""}
-          </button>
-        ))}
+      <div role="tablist" aria-label="Water data" className="water-tabs">
+        {TABS.map((t) => {
+          const selected = tab === t.id;
+          return (
+            <button
+              key={t.id}
+              ref={(el) => { tabRefs.current[t.id] = el; }}
+              type="button"
+              role="tab"
+              id={`${baseId}-tab-${t.id}`}
+              aria-selected={selected}
+              aria-controls={`${baseId}-panel-${t.id}`}
+              tabIndex={selected ? 0 : -1}
+              onClick={() => setTab(t.id)}
+              onKeyDown={onTabKey}
+              className="water-tab"
+            >
+              {t.label}{t.badge != null ? <> <span className="num">({t.badge})</span></> : null}
+            </button>
+          );
+        })}
       </div>
 
-      {tab === "gauges" && <div id="water-panel-section-gauges"><GaugesSection gauges={waterGauges} /></div>}
-      {tab === "reservoirs" && <div id="water-panel-section-reservoirs"><ReservoirSection reservoirs={reservoirs} ridReservoirs={ridReservoirs} /></div>}
-      {tab === "rain" && <div id="water-panel-section-rain"><RainfallSection rain={waterRain} /></div>}
-    </div>
+      {TABS.map((t) => (
+        <div
+          key={t.id}
+          role="tabpanel"
+          id={`${baseId}-panel-${t.id}`}
+          aria-labelledby={`${baseId}-tab-${t.id}`}
+          tabIndex={0}
+          hidden={tab !== t.id}
+        >
+          {tab === t.id && t.id === "gauges" && <GaugesSection gauges={waterGauges} />}
+          {tab === t.id && t.id === "reservoirs" && <ReservoirSection reservoirs={reservoirs} ridReservoirs={ridReservoirs} />}
+          {tab === t.id && t.id === "rain" && <RainfallSection rain={waterRain} />}
+        </div>
+      ))}
+    </section>
   );
 }

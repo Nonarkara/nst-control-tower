@@ -11,6 +11,10 @@
  * data is shown above the iframe (richer formatting, action-tagged).
  */
 
+import { PanelHeader } from "./PanelHeader";
+import type { FallbackTier } from "@nst/shared";
+import { ago } from "../lib/time";
+
 interface FbPost {
   id: string;
   message: string;
@@ -21,10 +25,6 @@ interface FbPost {
   shares?: number;
 }
 
-import { PanelHeader } from "./PanelHeader";
-import type { FallbackTier } from "@nst/shared";
-import { ago } from "../lib/time";
-
 interface Props {
   posts: FbPost[];
   loading: boolean;
@@ -34,72 +34,67 @@ interface Props {
 
 const PAGE_URL = "https://www.facebook.com/pr.nakhoncity1";
 const PAGE_USERNAME = "pr.nakhoncity1";
+const POST_LIMIT = 4;
+const MESSAGE_LIMIT = 240;
+const EMBED_HEIGHT = 420;
 
+function engagement(p: FbPost): string {
+  const parts: string[] = [];
+  if (p.reactions != null) parts.push(`${p.reactions} reactions`);
+  if (p.comments != null) parts.push(`${p.comments} comments`);
+  if (p.shares != null) parts.push(`${p.shares} shares`);
+  return parts.join(" · ");
+}
 
 export function FacebookPanel({ posts, loading, ageMinutes, fallbackTier }: Props) {
   const embedSrc = `https://www.facebook.com/plugins/page.php?` +
     `href=${encodeURIComponent(PAGE_URL)}` +
-    `&tabs=timeline&width=320&height=420&locale=th_TH` +
+    `&tabs=timeline&width=320&height=${EMBED_HEIGHT}&locale=th_TH` +
     `&small_header=true&adapt_container_width=true&hide_cover=true&show_facepile=false`;
 
   return (
-    <div className="col" style={{ gap: 8 }}>
+    <section className="panel" aria-label="City Facebook page" aria-busy={loading}>
       <PanelHeader
         title="FACEBOOK // เทศบาลนครนครศรีธรรมราช"
         ageMinutes={ageMinutes}
         fallbackTier={fallbackTier}
         source="facebook-graph"
         actions={
-          <a
-            href={PAGE_URL}
-            target="_blank"
-            rel="noreferrer noopener"
-            className="mono caption"
-            style={{ color: "var(--accent)", letterSpacing: "0.05em" }}
-          >
-            @{PAGE_USERNAME} ↗
+          <a href={PAGE_URL} target="_blank" rel="noreferrer noopener" className="link pc-meta">
+            @{PAGE_USERNAME} <span aria-hidden="true">↗</span>
           </a>
         }
       />
 
       {/* Server-side posts via Graph API (only when token configured) */}
       {posts.length > 0 && (
-        <div>
-          {posts.slice(0, 4).map((p) => (
-            <a key={p.id} href={p.permalink} target="_blank" rel="noreferrer noopener" className="news-item">
-              <div className="news-header" style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <span className="eyebrow mono" style={{ color: "var(--accent)" }}>
-                  ▶ POST
+        <ul className="pc-list">
+          {posts.slice(0, POST_LIMIT).map((p) => (
+            <li key={p.id}>
+              <a href={p.permalink} target="_blank" rel="noreferrer noopener" className="desk-item">
+                <span className="pc-spread">
+                  <span className="pc-label">Post</span>
+                  <span className="pc-meta num">{ago(p.createdAt)}</span>
                 </span>
-                <span className="eyebrow mono" style={{ marginLeft: "auto", color: "var(--ink-low)" }}>
-                  {ago(p.createdAt)}
+                <span className="fb-post__msg" lang="th">
+                  {p.message.slice(0, MESSAGE_LIMIT)}{p.message.length > MESSAGE_LIMIT ? "…" : ""}
                 </span>
-              </div>
-              <div className="title" style={{ whiteSpace: "pre-wrap" }}>{p.message.slice(0, 240)}{p.message.length > 240 ? "…" : ""}</div>
-              <div className="eyebrow mono">
-                {p.reactions != null && <span>❤ {p.reactions}</span>}
-                {p.comments != null && <span style={{ marginLeft: 8 }}>💬 {p.comments}</span>}
-                {p.shares != null && <span style={{ marginLeft: 8 }}>↻ {p.shares}</span>}
-              </div>
-            </a>
+                {engagement(p) && <span className="pc-meta num">{engagement(p)}</span>}
+              </a>
+            </li>
           ))}
-        </div>
+        </ul>
       )}
 
       {/* Meta's free page-plugin iframe — always works, no token needed.
           Width sized to column minus a 12 px right gutter so it never
           bleeds past the right edge of the news rail. Wrapper clips any
           overflow so the iframe never pushes into adjacent layout zones. */}
-      <div style={{ overflow: "hidden", maxWidth: 320, width: "calc(100% - 12px)" }}>
+      <div className="fb-embed">
         <iframe
+          className="fb-embed__frame"
           src={embedSrc}
-          height="420"
-          style={{
-            border: "1px solid var(--line)",
-            background: "var(--ground)",
-            display: "block",
-            width: "100%",
-          }}
+          height={EMBED_HEIGHT}
           title="Nakhon Si Thammarat City Facebook page timeline"
           allow="encrypted-media"
           loading="lazy"
@@ -107,11 +102,11 @@ export function FacebookPanel({ posts, loading, ageMinutes, fallbackTier }: Prop
       </div>
 
       {posts.length === 0 && !loading && (
-        <div className="eyebrow mono" style={{ color: "var(--ink-low)" }}>
+        <p className="pc-meta">
           Live timeline above via Meta page plugin. For server-side tagged posts,
           set <code>FACEBOOK_PAGE_TOKEN</code> in the API env.
-        </div>
+        </p>
       )}
-    </div>
+    </section>
   );
 }

@@ -33,15 +33,93 @@ import {
 } from "../lib/building";
 import { ZONE_STATUS_RGB, ZONE_STATUS_LABEL, isThaDeeZone, leadTimeToCity, worstStatus, CELERITY_MIN_MS, type ZoneSummary } from "../lib/watershed";
 import type { BasinWaterBalance } from "@nst/shared";
+import { STATUS, statusRgba, type StatusLevel } from "../lib/status";
 
+export type CctvCategory = "traffic" | "school" | "safety" | "water" | "other";
+export type CctvStatus = "online" | "offline" | "unknown";
+
+/** Mirrors apps/api adapters/cctv.ts CctvCamera. */
 export interface CctvCamera {
   id: string;
+  sourceId?: string;
   name: string;
   lat: number;
   lng: number;
   vendor: string;
+  category?: CctvCategory;
+  status?: CctvStatus;
   imageUrl?: string;
+  hlsUrl?: string;
+  embedUrl?: string;
+  embedHdUrl?: string;
+  organization?: string;
 }
+
+/** Okabe–Ito hues (colour-vision-deficiency safe) — one per camera purpose. */
+export const CCTV_CATEGORY_RGB: Record<CctvCategory, [number, number, number]> = {
+  traffic: [230, 159, 0],
+  school: [240, 228, 66],
+  safety: [204, 121, 167],
+  water: [86, 180, 233],
+  other: [200, 196, 184],
+};
+// ─── Map colour system (MoMA rules) ─────────────────────────────────────────
+// Only three kinds of colour are drawn on the map:
+//  1. STATUS (lib/status.ts) — every severity scale is mapped explicitly onto
+//     its five levels via statusRgbMap(); no layer invents a status colour.
+//  2. CAT — Okabe–Ito categorical hues (mirror tokens.css --cat-*), safe for
+//     colour-vision deficiency. When a palette has more categories than hues,
+//     related categories share a hue family at distinct lightness steps
+//     (tint/shade) — never the same RGB.
+//  3. Neutral greys + ink for context (roads, outlines, grids, labels).
+// Continuous ramps are monotonic in luminance so they read in greyscale.
+type RGB = [number, number, number];
+type RGBA = [number, number, number, number];
+
+const CAT: Record<"orange" | "sky" | "green" | "yellow" | "blue" | "vermil" | "pink", RGB> = {
+  orange: [230, 159, 0],
+  sky: [86, 180, 233],
+  green: [0, 158, 115],
+  yellow: [240, 228, 66],
+  blue: [0, 114, 178],
+  vermil: [213, 94, 0],
+  pink: [204, 121, 167],
+};
+
+/** Mix toward white: t = 0 → the colour, t = 1 → white. */
+function tint(c: readonly number[], t: number): RGB {
+  return [0, 1, 2].map((i) => Math.round(c[i] + (255 - c[i]) * t)) as RGB;
+}
+/** Mix toward black: t = 0 → the colour, t = 1 → black. */
+function shade(c: readonly number[], t: number): RGB {
+  return [0, 1, 2].map((i) => Math.round(c[i] * (1 - t))) as RGB;
+}
+function grey(v: number): RGB {
+  return [v, v, v];
+}
+function withAlpha(c: readonly number[], a: number): RGBA {
+  return [c[0], c[1], c[2], a];
+}
+/** Domain scale → StatusLevel map, resolved to STATUS map colours. */
+function statusRgbMap<K extends string | number>(levels: Record<K, StatusLevel>): Record<K, RGB> {
+  const out = {} as Record<K, RGB>;
+  for (const k of Object.keys(levels) as K[]) out[k] = STATUS[levels[k]].rgb;
+  return out;
+}
+
+/** Map ink — tokens.css --paper / --ink — for outlines, label grounds and text. */
+const INK_DARK: RGB = [14, 14, 14];
+const INK_LIGHT: RGB = [244, 244, 244];
+/** One type family on the map, same as the interface. */
+const MAP_FONT = "'Libre Franklin Variable', 'IBM Plex Sans Thai', system-ui, sans-serif";
+/** "Beyond critical" (PM2.5 hazardous > 150): the critical hue, darkened — still
+ *  reads as critical, and darker keeps intensity ramps monotonic in luminance. */
+const CRITICAL_DEEP: RGB = shade(STATUS.critical.rgb, 0.4);
+/** Pale end of intensity ramps (luminance above STATUS.watch, so
+ *  pale → watch → warning → critical → deep only ever gets darker). */
+const RAMP_PALE_WATER: RGB = tint(CAT.sky, 0.6);
+const RAMP_PALE_GOOD: RGB = tint(STATUS.normal.rgb, 0.6);
+
 export interface ShuttleVehicle {
   id: string;
   line: string;
@@ -60,13 +138,13 @@ export interface ClassifiedRoadProps { name: string | null; nameEn: string | nul
 export interface NeighborhoodBuildingProps { id: string; name: string | null; nameEn: string | null; height: number; levels: number | null; building: string }
 
 const ZONE_COLORS: Record<string, [number, number, number]> = {
-  academic: [56, 189, 248],
-  residential: [167, 139, 250],
-  athletic: [245, 158, 11],
-  park: [52, 211, 153],
-  commercial: [14, 165, 233],
-  service: [122, 132, 151],
-  perimeter: [14, 165, 233],
+  academic: CAT.sky,
+  residential: CAT.pink,
+  athletic: CAT.orange,
+  park: CAT.green,
+  commercial: CAT.blue,
+  service: grey(130),
+  perimeter: grey(220),
 };
 
 export function campusBoundaryLayer(
@@ -105,12 +183,13 @@ export function trafficHeatmapLayer(data: HeatPoint[]) {
     threshold: 0.04,
     aggregation: "SUM",
     colorRange: [
-      [56, 189, 248, 0],
-      [56, 189, 248, 120],
-      [167, 139, 250, 180],
-      [245, 158, 11, 210],
-      [248, 113, 113, 235],
-      [239, 68, 68, 255],
+      // Congestion → watch → warning → critical: luminance only ever falls.
+      statusRgba("watch", 0),
+      statusRgba("watch", 120),
+      statusRgba("warning", 180),
+      statusRgba("critical", 215),
+      statusRgba("critical", 240),
+      withAlpha(CRITICAL_DEEP, 255),
     ],
   });
 }
@@ -135,10 +214,10 @@ export function trafficDensityFallbackLayer(data: HeatPoint[]) {
     radiusMaxPixels: 14,
     getFillColor: (d) => {
       const w = d.weight;
-      if (w >= 0.75) return [239, 68, 68, 180];
-      if (w >= 0.5) return [245, 158, 11, 150];
-      if (w >= 0.25) return [167, 139, 250, 120];
-      return [56, 189, 248, 90];
+      if (w >= 0.75) return statusRgba("critical", 180);
+      if (w >= 0.5) return statusRgba("warning", 150);
+      if (w >= 0.25) return statusRgba("watch", 120);
+      return statusRgba("watch", 70);
     },
     stroked: false,
     pickable: false,
@@ -147,16 +226,16 @@ export function trafficDensityFallbackLayer(data: HeatPoint[]) {
 }
 
 const INCIDENT_COLORS: Record<IncidentFeature["category"], [number, number, number]> = {
-  "traffic-accident": [239, 68, 68],
-  "traffic-congestion": [245, 158, 11],
-  construction: [251, 191, 36],
-  flooding: [56, 189, 248],
-  waste: [168, 162, 158],
-  lighting: [253, 224, 71],
-  sidewalk: [167, 139, 250],
-  drainage: [125, 211, 252],
-  trees: [52, 211, 153],
-  other: [148, 163, 184],
+  "traffic-accident": CAT.vermil,
+  "traffic-congestion": CAT.orange,
+  construction: CAT.yellow,
+  flooding: CAT.sky,
+  waste: shade(CAT.orange, 0.35),
+  lighting: tint(CAT.yellow, 0.5),
+  sidewalk: CAT.pink,
+  drainage: CAT.blue,
+  trees: CAT.green,
+  other: grey(150),
 };
 
 export function incidentLayer(id: string, data: IncidentFeature[]) {
@@ -172,7 +251,7 @@ export function incidentLayer(id: string, data: IncidentFeature[]) {
     radiusMinPixels: 4,
     radiusMaxPixels: 22,
     stroked: true,
-    getLineColor: [10, 14, 20, 230],
+    getLineColor: [14, 14, 14, 230],
     lineWidthMinPixels: 1,
     pickable: true,
   });
@@ -228,9 +307,9 @@ export function shuttleStopsLayer(collection: FeatureCollection<Point, StopProps
     getRadius: 18,
     radiusMinPixels: 3,
     radiusMaxPixels: 7,
-    getFillColor: [251, 191, 36, 230],
+    getFillColor: withAlpha(CAT.yellow, 230),
     stroked: true,
-    getLineColor: [10, 14, 20, 255],
+    getLineColor: [14, 14, 14, 255],
     lineWidthMinPixels: 1,
     pickable: true,
   });
@@ -244,9 +323,9 @@ export function shuttleVehiclesLayer(vehicles: ShuttleVehicle[]) {
     getRadius: 38,
     radiusMinPixels: 6,
     radiusMaxPixels: 12,
-    getFillColor: [34, 211, 238, 240],
+    getFillColor: withAlpha(CAT.sky, 240),
     stroked: true,
-    getLineColor: [10, 14, 20, 255],
+    getLineColor: [14, 14, 14, 255],
     lineWidthMinPixels: 2,
     pickable: true,
   });
@@ -262,10 +341,10 @@ export function transitStationsLayer(collection: FeatureCollection<Point, Statio
     radiusMaxPixels: 10,
     getFillColor: ((f: Feature<Point, StationProps>) =>
       f.properties.system === "BTS"
-        ? [56, 189, 248, 240]
-        : [96, 165, 250, 240]) as unknown as [number, number, number, number],
+        ? withAlpha(CAT.sky, 240)
+        : withAlpha(CAT.blue, 240)) as unknown as [number, number, number, number],
     stroked: true,
-    getLineColor: [10, 14, 20, 255],
+    getLineColor: [14, 14, 14, 255],
     lineWidthMinPixels: 1.5,
     pickable: true,
   });
@@ -309,31 +388,34 @@ export type { BuildingProperties, LandmarkKind };
 // Landmark fill colours — one decision per category, legible in dark 3D.
 // Reading guide: red=health, gold=culture, cyan=civic, violet=education,
 //                amber=commerce, steel=industry, teal=office, sand=fabric.
+// Building types → Okabe–Ito hue families (distinct RGB per type):
+//   orange = commerce + housing · vermillion = health + fire · yellow = worship
+//   blue/sky = civic, police, skyline · green = work + infrastructure · pink = education
 export const LANDMARK_COLOR: Record<NonNullable<LandmarkKind>, [number, number, number]> = {
-  "ms-generic":  [165, 138, 112],  // warm sand — background residential fabric (20K buildings)
-  residential:   [210, 110,  65],  // terracotta — OSM-tagged houses / apartments
-  commercial:    [245, 158,  11],  // amber — shops, retail, markets, F&B
-  industrial:    [120, 130, 140],  // steel grey — warehouses, factories
-  office:        [ 45, 170, 160],  // teal — offices, banks, post offices
-  hotel:         [251, 191,  36],  // gold — tourism anchor
-  temple:        [253, 224,  71],  // bright gold — cultural backbone
-  church:        [253, 186, 116],  // pale peach — Christian worship
-  mosque:        [134, 239, 172],  // mint green — Islamic worship
-  government:    [ 56, 189, 248],  // sky-400 — city hall + public institutions
-  police:        [ 34, 211, 238],  // cyan — safety infrastructure
-  fire:          [251, 146,  60],  // orange — emergency response
-  hospital:      [239,  68,  68],  // red — health anchor
-  clinic:        [251, 113, 133],  // pink-red — clinics / doctors
-  school:        [167, 139, 250],  // violet — education
-  university:    [196, 181, 253],  // light violet
-  power:         [245, 158,  11],  // amber — EGAT / PEA infrastructure
-  tall:          [125, 211, 252],  // sky-300 — skyline height marker
+  "ms-generic":  shade(CAT.orange, 0.55),  // background residential fabric (20K buildings)
+  residential:   shade(CAT.orange, 0.3),  // OSM-tagged houses / apartments
+  commercial:    CAT.orange,  // shops, retail, markets, F&B
+  industrial:    shade(CAT.green, 0.35),  // warehouses, factories
+  office:        CAT.green,  // offices, banks, post offices
+  hotel:         tint(CAT.orange, 0.45),  // tourism anchor
+  temple:        CAT.yellow,  // cultural backbone
+  church:        tint(CAT.yellow, 0.5),  // Christian worship
+  mosque:        shade(CAT.yellow, 0.3),  // Islamic worship
+  government:    CAT.blue,  // city hall + public institutions
+  police:        CAT.sky,  // safety infrastructure
+  fire:          shade(CAT.vermil, 0.3),  // emergency response
+  hospital:      CAT.vermil,  // health anchor
+  clinic:        tint(CAT.vermil, 0.4),  // clinics / doctors
+  school:        CAT.pink,  // education
+  university:    tint(CAT.pink, 0.4),
+  power:         tint(CAT.green, 0.45),  // EGAT / PEA infrastructure
+  tall:          tint(CAT.sky, 0.5),  // skyline height marker
 };
 
-// Neutral slate for buildings with no known type (OSM `building=yes`, unclassified).
+// Neutral grey for buildings with no known type (OSM `building=yes`, unclassified).
 // Keeping these muted lets the genuinely-typed buildings carry the colour signal —
 // the map now reads by TYPE, not by height.
-export const UNTYPED_COLOR: [number, number, number] = [99, 110, 124];
+export const UNTYPED_COLOR: [number, number, number] = grey(110);
 
 // On-map legend — the canonical band → colour key, consumed by <BuildingLegend>.
 // Representative bands (some fine OSM categories collapse into one row); order is
@@ -449,8 +531,8 @@ export function buildingsLayer(
         return [c[0], c[1], c[2], lineA] as [number, number, number, number];
       }
       return f.properties.name
-        ? [14, 165, 233, lineA] as [number, number, number, number]
-        : [15, 23, 42, lineA] as [number, number, number, number];
+        ? withAlpha(grey(200), lineA) as [number, number, number, number]
+        : withAlpha(INK_DARK, lineA) as [number, number, number, number];
     }) as unknown as [number, number, number, number],
     getLineWidth: ((f: Feature<Polygon | MultiPolygon, BuildingProperties>) =>
       _kindCache.get(f as typeof filtered[number])?.kind ? 1.2 : 0.6) as unknown as number,
@@ -507,14 +589,15 @@ export function buildingRoofsLayer(
   // Heritage roof colours — bright, pure, recognisable at distance
   // Declared BEFORE the cache loop because the cache reads from it.
   const HERITAGE_ROOF: Partial<Record<NonNullable<LandmarkKind>, [number, number, number, number]>> = {
-    temple:     [255, 235,  50, 240],  // blazing gold — chedi, prang
-    church:     [255, 200, 100, 220],  // warm amber — bell tower
-    mosque:     [160, 255, 200, 220],  // mint — minaret
-    government: [ 80, 200, 255, 220],  // bright sky — city hall, court
-    police:     [ 50, 230, 250, 210],  // cyan — police stations
-    fire:       [255, 160,  60, 220],  // orange — fire stations
-    hospital:   [255, 100, 100, 220],  // coral red — hospital crowns
-    hotel:      [255, 220,  80, 210],  // gold — hotel landmark
+    // Brighter tints of each type's LANDMARK_COLOR — same hue, reads as a crown.
+    temple:     withAlpha(tint(LANDMARK_COLOR.temple, 0.2), 240),
+    church:     withAlpha(tint(LANDMARK_COLOR.church, 0.2), 220),
+    mosque:     withAlpha(tint(LANDMARK_COLOR.mosque, 0.2), 220),
+    government: withAlpha(tint(LANDMARK_COLOR.government, 0.2), 220),
+    police:     withAlpha(tint(LANDMARK_COLOR.police, 0.2), 210),
+    fire:       withAlpha(tint(LANDMARK_COLOR.fire, 0.2), 220),
+    hospital:   withAlpha(tint(LANDMARK_COLOR.hospital, 0.2), 220),
+    hotel:      withAlpha(tint(LANDMARK_COLOR.hotel, 0.2), 210),
   };
 
   // Per-building roof elevation bonus (meters, before elevationScale is applied)
@@ -603,8 +686,8 @@ export function electricityPathLayer(collection: FeatureCollection) {
       getPath: (d) => d.path,
       getColor: (d) =>
         (d.properties as ElectricityProps).kind === "hv-backbone"
-          ? [245, 158, 11, 255]
-          : [253, 186, 116, 230],
+          ? withAlpha(CAT.orange, 255)
+          : withAlpha(tint(CAT.orange, 0.45), 230),
       getWidth: (d) => ((d.properties as ElectricityProps).kind === "hv-backbone" ? 14 : 8),
       widthUnits: "pixels",
       widthMinPixels: 4,
@@ -619,13 +702,13 @@ export function electricityPathLayer(collection: FeatureCollection) {
       },
       getText: (d) => (d.properties as unknown as ElectricityProps).name || "",
       getSize: 14,
-      getColor: [245, 158, 11, 240],
+      getColor: withAlpha(CAT.orange, 240),
       getAngle: 0,
       getTextAnchor: "middle",
       getAlignmentBaseline: "center",
       billboard: true,
-      fontFamily: "monospace",
-      fontWeight: "bold",
+      fontFamily: MAP_FONT,
+      fontWeight: 600,
       parameters: { depthTest: false },
       pickable: false,
     }),
@@ -641,8 +724,8 @@ export function waterPathLayer(collection: FeatureCollection) {
       getPath: (d) => d.path,
       getColor: (d) =>
         (d.properties as WaterProps).kind === "main"
-          ? [56, 189, 248, 250]
-          : [147, 197, 253, 220],
+          ? withAlpha(CAT.sky, 250)
+          : withAlpha(tint(CAT.sky, 0.45), 220),
       getWidth: (d) => ((d.properties as WaterProps).kind === "main" ? 12 : 7),
       widthUnits: "pixels",
       widthMinPixels: 4,
@@ -663,13 +746,13 @@ export function waterPathLayer(collection: FeatureCollection) {
         return parts.join(" ");
       },
       getSize: 13,
-      getColor: [56, 189, 248, 235],
+      getColor: withAlpha(CAT.sky, 235),
       getAngle: 0,
       getTextAnchor: "middle",
       getAlignmentBaseline: "center",
       billboard: true,
-      fontFamily: "monospace",
-      fontWeight: "bold",
+      fontFamily: MAP_FONT,
+      fontWeight: 600,
       parameters: { depthTest: false },
       pickable: false,
     }),
@@ -685,8 +768,8 @@ export function drainagePathLayer(collection: FeatureCollection) {
       getPath: (d) => d.path,
       getColor: (d) =>
         (d.properties as DrainageProps).kind === "main"
-          ? [16, 185, 129, 250]
-          : [110, 231, 183, 220],
+          ? withAlpha(CAT.green, 250)
+          : withAlpha(tint(CAT.green, 0.45), 220),
       getWidth: (d) => ((d.properties as DrainageProps).kind === "main" ? 14 : 8),
       widthUnits: "pixels",
       widthMinPixels: 4,
@@ -708,13 +791,13 @@ export function drainagePathLayer(collection: FeatureCollection) {
         return parts.join(" ");
       },
       getSize: 13,
-      getColor: [16, 185, 129, 235],
+      getColor: withAlpha(CAT.green, 235),
       getAngle: 0,
       getTextAnchor: "middle",
       getAlignmentBaseline: "center",
       billboard: true,
-      fontFamily: "monospace",
-      fontWeight: "bold",
+      fontFamily: MAP_FONT,
+      fontWeight: 600,
       parameters: { depthTest: false },
       pickable: false,
     }),
@@ -744,19 +827,19 @@ export interface BmaPoi {
 }
 
 const POI_COLORS: Record<BmaPoi["kind"], [number, number, number]> = {
-  hospital:        [239, 68, 68],
-  "health-center": [248, 113, 113],
-  school:          [56, 189, 248],
-  "fire-station":  [251, 146, 60],
-  "police-station":[59, 130, 246],
-  park:            [52, 211, 153],
-  market:          [251, 191, 36],
-  "bma-office":    [168, 162, 158],
-  "flood-gate":    [34, 211, 238],
-  "pump-station":  [125, 211, 252],
-  cctv:            [229, 231, 235],
-  "bus-stop":      [167, 139, 250],
-  other:           [148, 163, 184],
+  hospital:        CAT.vermil,
+  "health-center": tint(CAT.vermil, 0.4),
+  school:          CAT.pink,
+  "fire-station":  shade(CAT.vermil, 0.3),
+  "police-station":CAT.sky,
+  park:            CAT.green,
+  market:          CAT.orange,
+  "bma-office":    CAT.blue,
+  "flood-gate":    shade(CAT.sky, 0.3),
+  "pump-station":  tint(CAT.sky, 0.5),
+  cctv:            grey(220),
+  "bus-stop":      tint(CAT.pink, 0.4),
+  other:           grey(150),
 };
 
 export function bmaPoiLayer(pois: BmaPoi[]) {
@@ -772,7 +855,7 @@ export function bmaPoiLayer(pois: BmaPoi[]) {
       return [c[0], c[1], c[2], 230] as [number, number, number, number];
     },
     stroked: true,
-    getLineColor: [10, 14, 20, 255],
+    getLineColor: [14, 14, 14, 255],
     lineWidthMinPixels: 1,
     pickable: true,
   });
@@ -785,8 +868,8 @@ export function bmaParksLayer(collection: FeatureCollection<Polygon | MultiPolyg
     stroked: true,
     filled: true,
     pickable: true,
-    getFillColor: [52, 211, 153, 50],
-    getLineColor: [52, 211, 153, 200],
+    getFillColor: withAlpha(CAT.green, 50),
+    getLineColor: withAlpha(CAT.green, 200),
     getLineWidth: 0.8,
     lineWidthMinPixels: 0.5,
   });
@@ -802,6 +885,9 @@ export interface AqStation {
   lng: number;
 }
 
+// PM2.5 (µg/m³) → StatusLevel: ≤12 good = normal · ≤35 moderate = watch ·
+// ≤55 unhealthy for sensitive groups = warning · ≤150 unhealthy = critical ·
+// >150 hazardous = critical, drawn darker (CRITICAL_DEEP).
 export function bmaAqStationsLayer(stations: AqStation[]) {
   return new ScatterplotLayer<AqStation>({
     id: "bma-aq-stations",
@@ -812,14 +898,14 @@ export function bmaAqStationsLayer(stations: AqStation[]) {
     radiusMaxPixels: 16,
     getFillColor: (s) => {
       const v = s.pm25 ?? 0;
-      if (v < 12) return [34, 197, 94, 255];
-      if (v < 35) return [250, 204, 21, 255];
-      if (v < 55) return [249, 115, 22, 255];
-      if (v < 150) return [239, 68, 68, 255];
-      return [127, 29, 29, 255];
+      if (v < 12) return statusRgba("normal", 255);
+      if (v < 35) return statusRgba("watch", 255);
+      if (v < 55) return statusRgba("warning", 255);
+      if (v < 150) return statusRgba("critical", 255);
+      return withAlpha(CRITICAL_DEEP, 255);
     },
     stroked: true,
-    getLineColor: [10, 14, 20, 255],
+    getLineColor: [14, 14, 14, 255],
     lineWidthMinPixels: 2,
     pickable: true,
   });
@@ -841,32 +927,43 @@ export function air4thaiLayer(stations: AirQualityPoint[]) {
     radiusMaxPixels: 20,
     getFillColor: (s) => {
       const v = s.pm25 ?? -1;
-      if (v < 0) return [148, 163, 184, 200]; // no reading — slate
-      if (v <= 12) return [34, 197, 94, 255];
-      if (v <= 35.4) return [250, 204, 21, 255];
-      if (v <= 55.4) return [249, 115, 22, 255];
-      if (v <= 150.4) return [239, 68, 68, 255];
-      return [127, 29, 29, 255];
+      if (v < 0) return statusRgba("unknown", 200); // no reading
+      if (v <= 12) return statusRgba("normal", 255);
+      if (v <= 35.4) return statusRgba("watch", 255);
+      if (v <= 55.4) return statusRgba("warning", 255);
+      if (v <= 150.4) return statusRgba("critical", 255);
+      return withAlpha(CRITICAL_DEEP, 255);
     },
     stroked: true,
-    getLineColor: [10, 14, 20, 255],
+    getLineColor: [14, 14, 14, 255],
     lineWidthMinPixels: 2,
     pickable: true,
   });
 }
 
-export function cctvLayer(cameras: CctvCamera[]) {
+/** Camera dots: hue = purpose, and an OFFLINE camera is a dark disc with a
+ *  coloured ring — status never rides on colour alone. */
+export function cctvLayer(cameras: CctvCamera[], id: "cctv-cameras" | "cctv-water-level" = "cctv-cameras") {
   return new ScatterplotLayer<CctvCamera>({
-    id: "cctv-cameras",
+    id,
     data: cameras,
     getPosition: (c) => [c.lng, c.lat],
-    getRadius: 24,
-    radiusMinPixels: 4,
-    radiusMaxPixels: 8,
-    getFillColor: [229, 231, 235, 220],
+    getRadius: 28,
+    radiusMinPixels: 5,
+    radiusMaxPixels: 9,
+    getFillColor: (c) => {
+      if (c.status === "offline") return [15, 13, 10, 210];
+      const [r, g, b] = CCTV_CATEGORY_RGB[c.category ?? "other"];
+      return [r, g, b, 240];
+    },
     stroked: true,
-    getLineColor: [10, 14, 20, 255],
-    lineWidthMinPixels: 1,
+    getLineColor: (c) => {
+      if (c.status !== "offline") return [15, 13, 10, 255];
+      const [r, g, b] = CCTV_CATEGORY_RGB[c.category ?? "other"];
+      return [r, g, b, 255];
+    },
+    lineWidthUnits: "pixels",
+    getLineWidth: (c) => (c.status === "offline" ? 2 : 1),
     pickable: true,
   });
 }
@@ -907,8 +1004,8 @@ export function electricityLineLayer(collection: FeatureCollection) {
     pickable: true,
     getLineColor: ((f: Feature<LineString, ElectricityProps>) =>
       f.properties.kind === "hv-backbone"
-        ? ([245, 158, 11, 240] as [number, number, number, number]) // amber HV
-        : ([253, 186, 116, 215] as [number, number, number, number])) as unknown as [number, number, number, number],
+        ? (withAlpha(CAT.orange, 240) as [number, number, number, number]) // amber HV
+        : (withAlpha(tint(CAT.orange, 0.45), 215) as [number, number, number, number])) as unknown as [number, number, number, number],
     getLineWidth: ((f: Feature<LineString, ElectricityProps>) =>
       f.properties.kind === "hv-backbone" ? 5 : 2.5) as unknown as number,
     lineWidthMinPixels: 2,
@@ -935,14 +1032,14 @@ export function electricityNodeLayer(collection: FeatureCollection) {
     radiusMaxPixels: 14,
     getFillColor: ((f: Feature<Point, ElectricityProps>) => {
       const k = f.properties.kind;
-      if (k === "substation") return [245, 158, 11, 240]; // amber
-      if (k === "delivery") return [251, 191, 36, 220];
-      if (k === "battery-storage") return [167, 139, 250, 230]; // violet
-      if (k === "solar-pv") return [250, 204, 21, 230]; // yellow
-      return [253, 186, 116, 220];
+      if (k === "substation") return withAlpha(CAT.orange, 240);
+      if (k === "delivery") return withAlpha(shade(CAT.orange, 0.3), 220);
+      if (k === "battery-storage") return withAlpha(CAT.pink, 230);
+      if (k === "solar-pv") return withAlpha(CAT.yellow, 230);
+      return withAlpha(tint(CAT.orange, 0.45), 220);
     }) as unknown as [number, number, number, number],
     stroked: true,
-    getLineColor: [10, 14, 20, 255],
+    getLineColor: [14, 14, 14, 255],
     lineWidthMinPixels: 1.5,
     pickable: true,
   });
@@ -969,8 +1066,8 @@ export function waterLineLayer(collection: FeatureCollection) {
     pickable: true,
     getLineColor: ((f: Feature<LineString, WaterProps>) =>
       f.properties.kind === "main"
-        ? ([56, 189, 248, 230] as [number, number, number, number]) // cyan main
-        : ([147, 197, 253, 200] as [number, number, number, number])) as unknown as [number, number, number, number],
+        ? (withAlpha(CAT.sky, 230) as [number, number, number, number]) // cyan main
+        : (withAlpha(tint(CAT.sky, 0.45), 200) as [number, number, number, number])) as unknown as [number, number, number, number],
     getLineWidth: ((f: Feature<LineString, WaterProps>) =>
       f.properties.kind === "main" ? 4 : 2) as unknown as number,
     lineWidthMinPixels: 1.5,
@@ -989,10 +1086,10 @@ export function waterNodeLayer(collection: FeatureCollection) {
     radiusMaxPixels: 10,
     getFillColor: ((f: Feature<Point, WaterProps>) =>
       f.properties.kind === "supply-point"
-        ? ([56, 189, 248, 240] as [number, number, number, number])
-        : ([147, 197, 253, 230] as [number, number, number, number])) as unknown as [number, number, number, number],
+        ? (withAlpha(CAT.sky, 240) as [number, number, number, number])
+        : (withAlpha(tint(CAT.sky, 0.45), 230) as [number, number, number, number])) as unknown as [number, number, number, number],
     stroked: true,
-    getLineColor: [10, 14, 20, 255],
+    getLineColor: [14, 14, 14, 255],
     lineWidthMinPixels: 1.5,
     pickable: true,
   });
@@ -1021,8 +1118,8 @@ export function drainageLineLayer(collection: FeatureCollection) {
     pickable: true,
     getLineColor: ((f: Feature<LineString, DrainageProps>) =>
       f.properties.kind === "main"
-        ? ([16, 185, 129, 230] as [number, number, number, number]) // emerald main
-        : ([110, 231, 183, 200] as [number, number, number, number])) as unknown as [number, number, number, number],
+        ? (withAlpha(CAT.green, 230) as [number, number, number, number]) // emerald main
+        : (withAlpha(tint(CAT.green, 0.45), 200) as [number, number, number, number])) as unknown as [number, number, number, number],
     getLineWidth: ((f: Feature<LineString, DrainageProps>) =>
       f.properties.kind === "main" ? 5 : 2.5) as unknown as number,
     lineWidthMinPixels: 2,
@@ -1042,13 +1139,13 @@ export function drainageNodeLayer(collection: FeatureCollection) {
     radiusMaxPixels: 16,
     getFillColor: ((f: Feature<Point, DrainageProps>) => {
       const k = f.properties.kind;
-      if (k === "retention-basin") return [16, 185, 129, 220];
-      if (k === "outfall") return [56, 189, 248, 230];
-      if (k === "pump-station") return [110, 231, 183, 230];
-      return [16, 185, 129, 220];
+      if (k === "retention-basin") return withAlpha(CAT.green, 220);
+      if (k === "outfall") return withAlpha(CAT.sky, 230);
+      if (k === "pump-station") return withAlpha(tint(CAT.green, 0.45), 230);
+      return withAlpha(shade(CAT.green, 0.3), 220);
     }) as unknown as [number, number, number, number],
     stroked: true,
-    getLineColor: [10, 14, 20, 255],
+    getLineColor: [14, 14, 14, 255],
     lineWidthMinPixels: 1.5,
     pickable: true,
   });
@@ -1080,11 +1177,12 @@ export function wifiHeatmapLayer(collection: FeatureCollection) {
     threshold: 0.05,
     aggregation: "MEAN",
     colorRange: [
-      [239, 68, 68, 0],
-      [239, 68, 68, 120],
-      [245, 158, 11, 180],
-      [56, 189, 248, 220],
-      [34, 197, 94, 240],
+      // Signal quality is data, not status: dark blue (weak) → pale sky (strong).
+      withAlpha(shade(CAT.blue, 0.35), 0),
+      withAlpha(CAT.blue, 120),
+      withAlpha(CAT.sky, 180),
+      withAlpha(tint(CAT.sky, 0.5), 220),
+      withAlpha(tint(CAT.sky, 0.8), 240),
     ],
   });
 }
@@ -1109,7 +1207,7 @@ export function devicePresenceLayer(
       radiusUnits: "meters",
       radiusMinPixels: 8,
       radiusMaxPixels: 240,
-      getFillColor: [56, 189, 248, 50],
+      getFillColor: withAlpha(CAT.sky, 50),
       stroked: false,
       pickable: false,
     }),
@@ -1119,7 +1217,7 @@ export function devicePresenceLayer(
       getPosition: (d) => [d.lng, d.lat] as [number, number],
       getRadius: 16,
       radiusUnits: "pixels",
-      getFillColor: [56, 189, 248, 240],
+      getFillColor: withAlpha(CAT.sky, 240),
       stroked: true,
       getLineColor: [255, 255, 255, 240],
       lineWidthUnits: "pixels",
@@ -1141,13 +1239,13 @@ export function wifiPointsLayer(collection: FeatureCollection) {
     radiusMaxPixels: 8,
     getFillColor: ((f: Feature<Point, WifiProps>) => {
       const m = f.properties.mbps;
-      if (m >= 120) return [34, 197, 94, 230];   // green — fast
-      if (m >= 80)  return [56, 189, 248, 230];  // cyan — ok
-      if (m >= 50)  return [245, 158, 11, 230];  // amber — meh
-      return [239, 68, 68, 230];                  // red — slow
+      if (m >= 120) return withAlpha(tint(CAT.sky, 0.6), 230); // fast
+      if (m >= 80)  return withAlpha(CAT.sky, 230);            // ok
+      if (m >= 50)  return withAlpha(CAT.blue, 230);           // meh
+      return withAlpha(shade(CAT.blue, 0.35), 230); // slow
     }) as unknown as [number, number, number, number],
     stroked: true,
-    getLineColor: [10, 14, 20, 255],
+    getLineColor: [14, 14, 14, 255],
     lineWidthMinPixels: 1,
     pickable: true,
   });
@@ -1317,14 +1415,15 @@ export interface TerrainGrid {
 const M_PER_DEG = 110_800;
 
 function terrainColor(elevM: number): [number, number, number] {
-  // Green (sea level) → olive → brown → grey (peaks). Khao Luang ≈ 1,835 m.
+  // Dark green (sea level) → olive → tan → pale grey (peaks); every stop is
+  // lighter than the one below so relief reads in greyscale. Khao Luang ≈ 1,835 m.
   const stops: Array<[number, [number, number, number]]> = [
-    [0, [56, 118, 63]],
-    [150, [104, 138, 58]],
-    [450, [150, 130, 62]],
-    [900, [140, 104, 72]],
-    [1400, [120, 100, 92]],
-    [1900, [180, 178, 176]],
+    [0, [40, 72, 52]],
+    [150, [70, 100, 60]],
+    [450, [110, 120, 70]],
+    [900, [145, 130, 95]],
+    [1400, [175, 165, 145]],
+    [1900, [215, 212, 208]],
   ];
   if (elevM <= stops[0][0]) return stops[0][1];
   for (let i = 1; i < stops.length; i++) {
@@ -1531,10 +1630,10 @@ export function campusGatesLayer(collection: FeatureCollection<Point, GateProps>
     radiusMaxPixels: 12,
     getFillColor: ((f: Feature<Point, GateProps>) =>
       f.properties.named
-        ? [251, 191, 36, 240]
-        : [148, 163, 184, 220]) as unknown as [number, number, number, number],
+        ? withAlpha(CAT.yellow, 240)
+        : withAlpha(grey(150), 220)) as unknown as [number, number, number, number],
     stroked: true,
-    getLineColor: [10, 14, 20, 255],
+    getLineColor: [14, 14, 14, 255],
     lineWidthMinPixels: 1.5,
     pickable: true,
   });
@@ -1545,12 +1644,13 @@ export function campusGatesLayer(collection: FeatureCollection<Point, GateProps>
 // scale by `priority`: motorway/primary = thick warm, secondary = medium
 // cyan, tertiary = thin cyan, residential/lane = thinnest neutral.
 
+// Roads are context, not data: neutral greys, brighter + wider = higher class.
 const ROAD_STYLE: Record<number, { color: [number, number, number]; width: number }> = {
-  6: { color: [251, 113, 133], width: 4.5 },  // motorway
-  5: { color: [251, 146, 60],  width: 3.5 },  // primary / secondary
-  4: { color: [125, 211, 252], width: 2.5 },  // tertiary
-  3: { color: [148, 163, 184], width: 1.5 },  // residential / lane
-  2: { color: [148, 163, 184], width: 1.0 },  // unclassified / minor
+  6: { color: grey(235), width: 4.5 },  // motorway
+  5: { color: grey(200),  width: 3.5 },  // primary / secondary
+  4: { color: grey(165), width: 2.5 },  // tertiary
+  3: { color: grey(130), width: 1.5 },  // residential / lane
+  2: { color: grey(105), width: 1.0 },  // unclassified / minor
 };
 
 export function roadNetworkLayer(
@@ -1609,10 +1709,10 @@ export function neighborhoodBuildingsLayer(
 
   const colorFor = (h: number): [number, number, number, number] => {
     const alpha = ghosted ? 32 : extruded ? 215 : 70;
-    if (h >= 150) return [186, 230, 253, alpha]; // supertall — pale sky
-    if (h >= 80)  return [125, 211, 252, alpha];
-    if (h >= 50)  return [56, 189, 248,  alpha];
-    return         [71, 85, 105,    alpha];
+    if (h >= 150) return withAlpha(tint(CAT.sky, 0.6), alpha); // supertall
+    if (h >= 80)  return withAlpha(tint(CAT.sky, 0.3), alpha);
+    if (h >= 50)  return withAlpha(CAT.sky, alpha);
+    return withAlpha(grey(90), alpha);
   };
 
   return new GeoJsonLayer({
@@ -1627,7 +1727,7 @@ export function neighborhoodBuildingsLayer(
       : false,
     getFillColor: ((f: Feature<Polygon | MultiPolygon, NeighborhoodBuildingProps>) =>
       colorFor(f.properties.height)) as unknown as [number, number, number, number],
-    getLineColor: [125, 211, 252, ghosted ? 90 : 200],
+    getLineColor: withAlpha(tint(CAT.sky, 0.3), ghosted ? 90 : 200),
     getLineWidth: 0.6,
     lineWidthMinPixels: 0.4,
     getElevation: ((f: Feature<Polygon | MultiPolygon, NeighborhoodBuildingProps>) =>
@@ -1699,8 +1799,8 @@ export function portInfrastructureLayer(collection: FeatureCollection<Polygon | 
     pickable: true,
     stroked: true,
     filled: true,
-    getFillColor: [245, 158, 11, 70],
-    getLineColor: [245, 158, 11, 220],
+    getFillColor: withAlpha(CAT.orange, 70),
+    getLineColor: withAlpha(CAT.orange, 220),
     getLineWidth: 2,
     lineWidthMinPixels: 1,
   });
@@ -1716,7 +1816,7 @@ export function ferryTerminalsLayer(collection: FeatureCollection<Point, Record<
     radiusUnits: "pixels",
     getPosition: (f) => f.geometry.coordinates as [number, number],
     getRadius: 7,
-    getFillColor: [251, 191, 36, 230],
+    getFillColor: withAlpha(tint(CAT.orange, 0.45), 230),
     getLineColor: [255, 255, 255, 180],
     stroked: true,
     lineWidthMinPixels: 1.5,
@@ -1735,9 +1835,9 @@ export function navigationAidsLayer(collection: FeatureCollection<Point, Record<
     getRadius: 6,
     getFillColor: (f) => {
       const t = String(f.properties?.["man_made"] ?? f.properties?.["seamark:type"] ?? "");
-      if (t === "lighthouse") return [250, 204, 21, 240];
-      if (t.includes("buoy")) return [56, 189, 248, 220];
-      return [250, 204, 21, 200];
+      if (t === "lighthouse") return withAlpha(CAT.yellow, 240);
+      if (t.includes("buoy")) return withAlpha(CAT.sky, 220);
+      return withAlpha(tint(CAT.yellow, 0.5), 200);
     },
     getLineColor: [255, 255, 255, 200],
     stroked: true,
@@ -1747,13 +1847,13 @@ export function navigationAidsLayer(collection: FeatureCollection<Point, Record<
 
 // AIS vessels — live ship positions
 const VESSEL_COLOR: Record<string, [number, number, number]> = {
-  cargo:     [16, 185, 129],   // green
-  tanker:    [239, 68, 68],    // red
-  passenger: [56, 189, 248],   // blue
-  fishing:   [251, 191, 36],   // amber
-  pleasure:  [167, 139, 250],  // purple
-  tug:       [122, 132, 151],  // grey
-  unknown:   [156, 163, 175],  // neutral
+  cargo:     CAT.green,
+  tanker:    CAT.vermil,
+  passenger: CAT.sky,
+  fishing:   CAT.orange,
+  pleasure:  CAT.pink,
+  tug:       CAT.blue,
+  unknown:   grey(150),  // neutral
 };
 
 export function aisVesselsLayer(vessels: AisVessel[]) {
@@ -1777,13 +1877,13 @@ export function aisVesselsLayer(vessels: AisVessel[]) {
 
 // data.go.th points — government POI markers
 const DATAGO_COLOR: Record<string, [number, number, number]> = {
-  school:    [167, 139, 250],
-  hospital:  [239, 68, 68],
-  health:    [251, 113, 133],
-  temple:    [251, 191, 36],
-  market:    [16, 185, 129],
-  office:    [56, 189, 248],
-  default:   [192, 132, 252],
+  school:    CAT.pink,
+  hospital:  CAT.vermil,
+  health:    tint(CAT.vermil, 0.4),
+  temple:    CAT.yellow,
+  market:    CAT.orange,
+  office:    CAT.blue,
+  default:   CAT.sky,
 };
 
 export function datagoPointsLayer(points: DatagoPoint[]) {
@@ -1814,9 +1914,9 @@ export function datagoPointsLayer(points: DatagoPoint[]) {
 import { PolygonLayer } from "@deck.gl/layers";
 
 const KM_RING_COLORS: Record<number, [number, number, number, number]> = {
-  1:  [14, 165, 233, 220],  // cerulean
-  5:  [56, 189, 248, 180],  // sky-400
-  10: [125, 211, 252, 140], // sky-300
+  1:  withAlpha(grey(235), 220),
+  5:  withAlpha(grey(195), 180),
+  10: withAlpha(grey(155), 140),
 };
 
 /** Build a ring polygon at `radiusKm` from [lng, lat]. 64-segment circle. */
@@ -1854,7 +1954,7 @@ export function distanceGridLayer(
     filled: false,
     stroked: true,
     getPolygon: (d) => d.contour,
-    getLineColor: (d) => KM_RING_COLORS[d.km] ?? [148, 163, 184, 160],
+    getLineColor: (d) => KM_RING_COLORS[d.km] ?? withAlpha(grey(150), 160),
     getLineWidth: (d) => (d.km === 10 ? 2.5 : d.km === 5 ? 2 : 1.5),
     lineWidthUnits: "pixels",
     lineWidthMinPixels: 1,
@@ -1886,16 +1986,16 @@ export function distanceGridLabelsLayer(
     pickable: false,
     getPosition: (d) => d.position,
     getText: (d) => `${d.km} km`,
-    getSize: 11,
+    getSize: 12,
     sizeUnits: "pixels",
-    getColor: (d) => KM_RING_COLORS[d.km] ?? [200, 220, 240, 220],
-    fontFamily: "IBM Plex Mono, monospace",
+    getColor: (d) => KM_RING_COLORS[d.km] ?? withAlpha(grey(200), 220),
+    fontFamily: MAP_FONT,
     fontWeight: 600,
     getTextAnchor: "start",
     getAlignmentBaseline: "bottom",
     background: true,
     backgroundPadding: [4, 2],
-    getBackgroundColor: [3, 16, 31, 220],
+    getBackgroundColor: [14, 14, 14, 220],
   });
 }
 
@@ -1924,27 +2024,27 @@ export type CivicKind =
 // = violet; Safety = amber/orange; Government = cerulean; Religion =
 // gold; Utility = teal; Transport = sky.
 export const CIVIC_PALETTE: Record<CivicKind, { color: [number, number, number]; glyph: string; label: string }> = {
-  hospital:         { color: [239, 68, 68],  glyph: "✚", label: "Hospital" },
-  clinic:           { color: [251, 113, 133], glyph: "✚", label: "Clinic" },
-  pharmacy:         { color: [253, 164, 175], glyph: "Rx", label: "Pharmacy" },
-  school:           { color: [167, 139, 250], glyph: "🅢", label: "School" },
-  university:       { color: [196, 181, 253], glyph: "Ⓤ", label: "University" },
-  kindergarten:     { color: [221, 214, 254], glyph: "Ⓚ", label: "Kindergarten" },
-  police:           { color: [56, 189, 248],  glyph: "P",  label: "Police" },
-  fire:             { color: [251, 146, 60],  glyph: "🜂", label: "Fire station" },
-  government:       { color: [14, 165, 233],  glyph: "⌬", label: "Government" },
-  courthouse:       { color: [3, 105, 161],   glyph: "⚖", label: "Courthouse" },
-  post:             { color: [125, 211, 252], glyph: "✉", label: "Post office" },
-  "temple-buddhist":{ color: [251, 191, 36],  glyph: "卐", label: "Temple" },
-  church:           { color: [253, 224, 71],  glyph: "✟", label: "Church" },
-  mosque:           { color: [250, 204, 21],  glyph: "☪", label: "Mosque" },
-  market:           { color: [16, 185, 129],  glyph: "▦", label: "Market" },
-  "bus-station":    { color: [125, 211, 252], glyph: "🚌", label: "Bus station" },
-  ferry:            { color: [251, 191, 36],  glyph: "⛴", label: "Ferry pier" },
-  "power-substation": { color: [245, 158, 11], glyph: "⚡", label: "Substation" },
-  "water-works":    { color: [34, 211, 238],  glyph: "💧", label: "Water works" },
-  wastewater:       { color: [13, 148, 136],  glyph: "♻", label: "Wastewater" },
-  other:            { color: [148, 163, 184], glyph: "○",  label: "Other" },
+  hospital:         { color: CAT.vermil,  glyph: "✚", label: "Hospital" },
+  clinic:           { color: tint(CAT.vermil, 0.4), glyph: "✚", label: "Clinic" },
+  pharmacy:         { color: tint(CAT.vermil, 0.65), glyph: "Rx", label: "Pharmacy" },
+  school:           { color: CAT.pink, glyph: "🅢", label: "School" },
+  university:       { color: tint(CAT.pink, 0.4), glyph: "Ⓤ", label: "University" },
+  kindergarten:     { color: tint(CAT.pink, 0.65), glyph: "Ⓚ", label: "Kindergarten" },
+  police:           { color: CAT.sky,  glyph: "P",  label: "Police" },
+  fire:             { color: shade(CAT.vermil, 0.3),  glyph: "🜂", label: "Fire station" },
+  government:       { color: CAT.blue,  glyph: "⌬", label: "Government" },
+  courthouse:       { color: shade(CAT.blue, 0.3),   glyph: "⚖", label: "Courthouse" },
+  post:             { color: tint(CAT.blue, 0.5), glyph: "✉", label: "Post office" },
+  "temple-buddhist":{ color: CAT.yellow,  glyph: "卐", label: "Temple" },
+  church:           { color: tint(CAT.yellow, 0.5),  glyph: "✟", label: "Church" },
+  mosque:           { color: shade(CAT.yellow, 0.3),  glyph: "☪", label: "Mosque" },
+  market:           { color: CAT.orange,  glyph: "▦", label: "Market" },
+  "bus-station":    { color: tint(CAT.sky, 0.5), glyph: "🚌", label: "Bus station" },
+  ferry:            { color: shade(CAT.sky, 0.3),  glyph: "⛴", label: "Ferry pier" },
+  "power-substation": { color: tint(CAT.green, 0.45), glyph: "⚡", label: "Substation" },
+  "water-works":    { color: CAT.green,  glyph: "💧", label: "Water works" },
+  wastewater:       { color: shade(CAT.green, 0.35),  glyph: "♻", label: "Wastewater" },
+  other:            { color: grey(150), glyph: "○",  label: "Other" },
 };
 
 function readKind(props: Record<string, unknown> | null | undefined): CivicKind {
@@ -1982,11 +2082,11 @@ export function civicPointsLayer(collection: FeatureCollection<Point, Record<str
 // streams a pale sky so the river/canal hierarchy reads at a glance. The old
 // [56, 189, 248, 200] for river was almost invisible at province scale.
 const WATERWAY_COLOR: Record<string, [number, number, number, number]> = {
-  river:  [29,  78, 216, 235], // blue-700 — anchors the watershed visually
-  canal:  [ 2, 132, 199, 240], // sky-600 — a clear step lighter than river
-  stream: [125, 211, 252, 190],
-  drain:  [13,  148, 136, 180],
-  ditch:  [13,  148, 136, 150],
+  river:  withAlpha(CAT.blue, 235),  // anchors the watershed visually
+  canal:  withAlpha(CAT.sky, 240),  // a clear step lighter than river
+  stream: withAlpha(tint(CAT.sky, 0.5), 190),
+  drain:  withAlpha(CAT.green, 180),
+  ditch:  withAlpha(shade(CAT.green, 0.3), 150),
 };
 
 export function waterwaysLayer(collection: FeatureCollection<LineString, Record<string, unknown>>) {
@@ -2015,11 +2115,11 @@ export function waterwaysLayer(collection: FeatureCollection<LineString, Record<
 // ═══════════════════════════════════════════════════════════════════════
 
 const FISHERY_COLOR: Record<string, [number, number, number, number]> = {
-  oyster:    [251, 191, 36, 110],
-  shrimp:    [251, 146, 60, 110],
-  mussel:    [167, 139, 250, 110],
-  artisanal: [56, 189, 248, 110],
-  offshore:  [14, 165, 233, 110],
+  oyster:    withAlpha(CAT.yellow, 110),
+  shrimp:    withAlpha(CAT.orange, 110),
+  mussel:    withAlpha(CAT.pink, 110),
+  artisanal: withAlpha(CAT.sky, 110),
+  offshore:  withAlpha(CAT.blue, 110),
 };
 
 export function fisheriesLayer(collection: FeatureCollection<Polygon | MultiPolygon, Record<string, unknown>>) {
@@ -2044,10 +2144,14 @@ export function fisheriesLayer(collection: FeatureCollection<Polygon | MultiPoly
   });
 }
 
-const FLOOD_COLOR: Record<string, [number, number, number, number]> = {
-  high:   [239, 68, 68, 130],
-  medium: [251, 146, 60, 110],
-  low:    [251, 191, 36, 90],
+// Coastal flood-risk severity → StatusLevel: high critical, medium warning, low watch.
+// Static hazard zones are context, not a live alarm — a faint fill with a clear
+// outline (floodRiskLayer lifts the outline alpha), so they never read as an
+// active emergency wash over the whole basin.
+export const FLOOD_COLOR: Record<string, [number, number, number, number]> = {
+  high:   statusRgba("critical", 44),
+  medium: statusRgba("warning", 36),
+  low:    statusRgba("watch", 28),
 };
 
 export function floodRiskLayer(collection: FeatureCollection<Polygon | MultiPolygon, Record<string, unknown>>) {
@@ -2091,10 +2195,12 @@ export interface RoadLevelProps {
   route: number;
 }
 
-const MARK_COLOR: Record<FloodMarkProps["set"], [number, number, number]> = {
-  pabuk: [239, 68, 68],   // red — the storm benchmark
-  normal: [251, 191, 36], // amber — ordinary flood season
-};
+// Surveyed flood-mark set → StatusLevel: the Pabuk storm benchmark is critical,
+// ordinary flood-season marks are watch.
+export const MARK_COLOR: Record<FloodMarkProps["set"], [number, number, number]> = statusRgbMap<FloodMarkProps["set"]>({
+  pabuk: "critical",
+  normal: "watch",
+});
 
 /** Surveyed high-water marks — real measured flood heights off walls/poles.
  *  The ground truth every scenario level is judged against. */
@@ -2113,7 +2219,7 @@ export function floodMarksLayer(collection: FeatureCollection<Point, FloodMarkPr
         return [c[0], c[1], c[2], 235] as [number, number, number, number];
       },
       stroked: true,
-      getLineColor: [10, 14, 20, 235],
+      getLineColor: [14, 14, 14, 235],
       lineWidthMinPixels: 1,
       pickable: true,
     }) as Layer,
@@ -2124,14 +2230,14 @@ export function floodMarksLayer(collection: FeatureCollection<Point, FloodMarkPr
       data: feats.filter((f) => f.properties.set === "pabuk"),
       getPosition: (f) => f.geometry.coordinates as [number, number],
       getText: (f) => `${f.properties.z.toFixed(2)} m`,
-      getSize: 11,
+      getSize: 12,
       getColor: [255, 255, 255, 225],
       getPixelOffset: [0, -12],
       getTextAnchor: "middle",
       getAlignmentBaseline: "bottom",
       billboard: true,
-      fontFamily: "'Inter', 'IBM Plex Sans Thai', sans-serif",
-      getBackgroundColor: [10, 14, 20, 160],
+      fontFamily: MAP_FONT,
+      getBackgroundColor: [14, 14, 14, 160],
       background: true,
       backgroundPadding: [3, 1],
       parameters: { depthWriteEnabled: false, depthCompare: "always" },
@@ -2153,10 +2259,11 @@ function elevationRamp(z: number): [number, number, number, number] {
 // Scenario coloring: depth below the scenario water level L.
 function scenarioColor(z: number, levelM: number): [number, number, number, number] {
   const depth = levelM - z;
-  if (depth <= 0) return [74, 222, 128, 90];   // dry — faint green
-  if (depth < 0.3) return [251, 191, 36, 210]; // shallow — amber (passable w/ care)
-  if (depth < 0.8) return [249, 115, 22, 230]; // deep — orange (impassable for cars)
-  return [220, 38, 38, 240];                   // very deep — red
+  // Submergence depth → StatusLevel.
+  if (depth <= 0) return statusRgba("normal", 90);    // dry
+  if (depth < 0.3) return statusRgba("watch", 210);   // shallow — passable with care
+  if (depth < 0.8) return statusRgba("warning", 230); // deep — impassable for cars
+  return statusRgba("critical", 240);                 // very deep
 }
 
 /**
@@ -2219,11 +2326,12 @@ export function wrfRainGridLayer(grid: {
     cellSize: cellMeters,
     extruded: false,
     getFillColor: (d) => {
-      // TMD-style rain intensity ramp, translucent wash.
-      if (d.mm >= 90) return [153, 27, 27, 190];  // violent
-      if (d.mm >= 35) return [239, 68, 68, 170];  // heavy
-      if (d.mm >= 10) return [249, 115, 22, 140]; // moderate
-      return [56, 189, 248, 110];                 // light
+      // TMD rain bands → StatusLevel; light rain is data (pale sky). Luminance
+      // falls with every step so the wash reads in greyscale.
+      if (d.mm >= 90) return withAlpha(CRITICAL_DEEP, 190); // violent
+      if (d.mm >= 35) return statusRgba("critical", 170);   // heavy
+      if (d.mm >= 10) return statusRgba("warning", 140);    // moderate
+      return withAlpha(RAMP_PALE_WATER, 110);               // light
     },
     pickable: true,
   });
@@ -2263,8 +2371,8 @@ export function templeSpiresLayer(
     radiusUnits: "meters",
     getPosition: (f) => f.geometry.coordinates as [number, number],
     getRadius: (f) => f.properties.kind === "temple-spire" ? 14 : 8,
-    getFillColor: [251, 191, 36, 200],
-    getLineColor: [245, 158, 11, 255],
+    getFillColor: withAlpha(CAT.yellow, 200),
+    getLineColor: withAlpha(CAT.orange, 255),
     stroked: true,
     lineWidthMinPixels: 1.5,
   });
@@ -2278,7 +2386,7 @@ export function templeSpiresLayer(
     getPosition: (f) => f.geometry.coordinates as [number, number],
     getRadius: (f) => f.properties.kind === "temple-spire" ? 5 : 3,
     getFillColor: [255, 255, 255, 240],
-    getLineColor: [251, 191, 36, 255],
+    getLineColor: withAlpha(CAT.yellow, 255),
     stroked: true,
     lineWidthMinPixels: 1.5,
   });
@@ -2304,8 +2412,8 @@ export function oldTownDistrictLayer(
     pickable: true,
     stroked: true,
     filled: true,
-    getFillColor: [245, 158, 11, 18],   // very low opacity — just a haze
-    getLineColor: [245, 158, 11, 200],
+    getFillColor: withAlpha(CAT.orange, 18),   // very low opacity — just a haze
+    getLineColor: withAlpha(CAT.orange, 200),
     getLineWidth: 2,
     lineWidthUnits: "pixels",
     lineWidthMinPixels: 1.5,
@@ -2319,14 +2427,14 @@ export function oldTownDistrictLayer(
 import type { IntelligenceItem } from "@nst/shared";
 
 const NEWS_TAG_COLOR: Record<string, [number, number, number]> = {
-  EM: [239, 68, 68],    // emergency — red
-  PO: [251, 146, 60],   // police — orange
-  FU: [167, 139, 250],  // funeral — violet
-  IN: [56, 189, 248],   // infrastructure — sky
-  BZ: [245, 158, 11],   // business — amber
-  PU: [251, 113, 133],  // public health — pink
-  FE: [250, 204, 21],   // festival — yellow
-  HO: [52, 211, 153],   // honour — green
+  EM: CAT.vermil,  // emergency
+  PO: CAT.blue,  // police
+  FU: shade(CAT.pink, 0.3),  // funeral
+  IN: CAT.sky,  // infrastructure
+  BZ: CAT.orange,  // business
+  PU: CAT.pink,  // public health
+  FE: CAT.yellow,  // festival
+  HO: CAT.green,  // honour
 };
 
 export function newsPinsLayer(items: IntelligenceItem[]) {
@@ -2345,7 +2453,7 @@ export function newsPinsLayer(items: IntelligenceItem[]) {
     radiusMaxPixels: 14,
     getFillColor: (it) => {
       const tag = it.tags.find((t) => t in NEWS_TAG_COLOR);
-      const c = tag ? NEWS_TAG_COLOR[tag] : [148, 163, 184];
+      const c = tag ? NEWS_TAG_COLOR[tag] : grey(150);
       return [c[0], c[1], c[2], 230] as [number, number, number, number];
     },
     stroked: true,
@@ -2362,18 +2470,18 @@ export function newsPinsLayer(items: IntelligenceItem[]) {
 import type { GistdaPoi, GistdaSolarBuilding, GistdaLandUse } from "@nst/shared";
 
 const GISTDA_POI_COLOR: Record<GistdaPoi["category"], [number, number, number]> = {
-  government: [56, 189, 248],   // sky-400
-  school: [167, 139, 250],      // violet
-  temple: [251, 191, 36],       // gold
-  hospital: [239, 68, 68],      // red
-  hotel: [245, 158, 11],        // amber
-  bank: [16, 185, 129],         // emerald
-  restaurant: [248, 113, 113],  // pink
-  shopping: [236, 72, 153],     // fuchsia
-  transport: [34, 211, 238],    // cyan
-  sport: [52, 211, 153],        // green
-  agency: [148, 163, 184],      // slate
-  other: [200, 200, 200],       // grey
+  government: CAT.blue,
+  school: CAT.pink,
+  temple: CAT.yellow,
+  hospital: CAT.vermil,
+  hotel: tint(CAT.orange, 0.45),
+  bank: CAT.green,
+  restaurant: shade(CAT.orange, 0.3),
+  shopping: CAT.orange,
+  transport: CAT.sky,
+  sport: tint(CAT.green, 0.45),
+  agency: tint(CAT.blue, 0.5),
+  other: grey(200),
 };
 
 export function gistdaPoiLayer(pois: GistdaPoi[]) {
@@ -2394,7 +2502,7 @@ export function gistdaPoiLayer(pois: GistdaPoi[]) {
       return [c[0], c[1], c[2], 220] as [number, number, number, number];
     },
     stroked: true,
-    getLineColor: [10, 14, 20, 240],
+    getLineColor: [14, 14, 14, 240],
     lineWidthMinPixels: 1.5,
     pickable: true,
   });
@@ -2405,6 +2513,8 @@ export function gistdaPoiLayer(pois: GistdaPoi[]) {
  * Each building is rendered as a vertical column whose height is proportional
  * to solar potential (kWh/m²). Colour: blue → green → yellow → red.
  */
+// Irradiance is a continuous quantity: blue → orange → yellow → pale yellow,
+// each step lighter than the last (monotonic luminance, no red–green reading).
 export function gistdaSolarLayer(buildings: GistdaSolarBuilding[]) {
   return new ScatterplotLayer<GistdaSolarBuilding>({
     id: "gistda-solar",
@@ -2416,28 +2526,28 @@ export function gistdaSolarLayer(buildings: GistdaSolarBuilding[]) {
     getFillColor: (b) => {
       const irr = b.solarIrr;
       // Blue (low) → green → yellow → red (high)
-      if (irr < 80) return [56, 189, 248, 200] as [number, number, number, number];
-      if (irr < 120) return [52, 211, 153, 210] as [number, number, number, number];
-      if (irr < 160) return [250, 204, 21, 220] as [number, number, number, number];
-      return [239, 68, 68, 230] as [number, number, number, number];
+      if (irr < 80) return withAlpha(CAT.blue, 200) as [number, number, number, number];
+      if (irr < 120) return withAlpha(CAT.orange, 210) as [number, number, number, number];
+      if (irr < 160) return withAlpha(CAT.yellow, 220) as [number, number, number, number];
+      return withAlpha(tint(CAT.yellow, 0.6), 230) as [number, number, number, number];
     },
     stroked: true,
-    getLineColor: [10, 14, 20, 200],
+    getLineColor: [14, 14, 14, 200],
     lineWidthMinPixels: 1,
     pickable: true,
   });
 }
 
 const LANDUSE_COLOR: Record<string, [number, number, number]> = {
-  residential: [210, 110, 65],   // warm terracotta
-  commercial:  [245, 158, 11],   // amber
-  industrial:  [148, 163, 184],  // slate
-  agricultural:[52, 211, 153],   // green
-  forest:      [16, 185, 129],   // emerald
-  water:       [56, 189, 248],   // sky
-  transport:   [167, 139, 250],  // violet
-  recreation:  [250, 204, 21],   // yellow
-  other:       [200, 200, 200],  // grey
+  residential: shade(CAT.orange, 0.3),
+  commercial:  CAT.orange,
+  industrial:  grey(150),
+  agricultural:CAT.yellow,
+  forest:      CAT.green,
+  water:       CAT.sky,
+  transport:   CAT.pink,
+  recreation:  tint(CAT.green, 0.45),
+  other:       grey(200),
 };
 
 export function gistdaLandUseLayer(parcels: GistdaLandUse[]) {
@@ -2472,15 +2582,15 @@ export function gistdaLandUseLayer(parcels: GistdaLandUse[]) {
 // ── Isochrone layer ───────────────────────────────────────────────────────────
 
 const ISOCHRONE_MODE_COLOR: Record<string, [number, number, number, number]> = {
-  walk:                   [59,  130, 246, 60],
-  bicycle:                [16,  185, 129, 60],
-  drive:                  [245, 158, 11,  60],
-  approximated_transit:   [139, 92,  246, 60],
+  walk:                   withAlpha(CAT.blue, 60),
+  bicycle:                withAlpha(CAT.green, 60),
+  drive:                  withAlpha(CAT.orange, 60),
+  approximated_transit:   withAlpha(CAT.pink, 60),
 };
 
 export function isochroneLayer(result: IsochroneResult | null) {
   if (!result) return null;
-  const color = ISOCHRONE_MODE_COLOR[result.mode] ?? [59, 130, 246, 60];
+  const color = ISOCHRONE_MODE_COLOR[result.mode] ?? withAlpha(CAT.blue, 60);
   const [r, g, b] = color;
   // IsochroneResult.geometry is a structural Polygon/MultiPolygon union;
   // cast to the geojson package's Geometry so deck.gl's data prop accepts it.
@@ -2530,8 +2640,8 @@ export function ringRoadsLayer(collection: FeatureCollection<LineString, RingRoa
     pickable: true,
     getLineColor: ((f: Feature<LineString, RingRoadProps>) =>
       f.properties.ring
-        ? ([255, 240, 150, 255] as [number, number, number, number]) // ring — bright cream
-        : ([251, 191, 36, 220] as [number, number, number, number])) as unknown as [number, number, number, number],
+        ? (withAlpha(tint(CAT.yellow, 0.5), 255) as [number, number, number, number]) // ring
+        : (withAlpha(CAT.yellow, 220) as [number, number, number, number])) as unknown as [number, number, number, number],
     getLineWidth: ((f: Feature<LineString, RingRoadProps>) => {
       if (f.properties.ring) return 5;
       return f.properties.priority >= 5 ? 4 : f.properties.priority >= 4 ? 3 : 2;
@@ -2554,8 +2664,8 @@ export function riverBufferLayer(collection: FeatureCollection<Polygon | MultiPo
     stroked: true,
     filled: true,
     pickable: true,
-    getFillColor: [56, 189, 248, 55],
-    getLineColor: [14, 165, 233, 180],
+    getFillColor: withAlpha(CAT.sky, 55),
+    getLineColor: withAlpha(CAT.sky, 180),
     getLineWidth: 1.5,
     lineWidthUnits: "pixels",
     lineWidthMinPixels: 1,
@@ -2584,9 +2694,9 @@ const CONFLICT_SHARE: Record<string, number> = {
   Songkhla: 3,
 };
 function conflictColor(share: number): [number, number, number, number] {
-  // muted red ramp by intensity (max ~36)
+  // Critical hue, opacity ramp by intensity (max ~36)
   const t = Math.min(share / 36, 1);
-  return [120 + Math.round(135 * t), 30 + Math.round(10 * (1 - t)), 30, 70 + Math.round(120 * t)];
+  return statusRgba("critical", 70 + Math.round(120 * t));
 }
 export function conflictChoroplethLayer(
   collection: FeatureCollection<Polygon | MultiPolygon, Record<string, unknown>>,
@@ -2604,7 +2714,7 @@ export function conflictChoroplethLayer(
       filled: true,
       pickable: true,
       getFillColor: (f) => conflictColor(CONFLICT_SHARE[String((f.properties as { name?: string })?.name ?? "")] ?? 0),
-      getLineColor: [220, 38, 38, 200],
+      getLineColor: statusRgba("critical", 200),
       getLineWidth: 1.5,
       lineWidthUnits: "pixels",
       lineWidthMinPixels: 1,
@@ -2615,12 +2725,12 @@ export function conflictChoroplethLayer(
       getPosition: (p: { position: [number, number] }) => p.position,
       getText: (p: { name: string; share: number }) => `${p.name}\n${p.share}%`,
       getSize: 12,
-      getColor: [245, 245, 245, 235],
-      fontFamily: "IBM Plex Mono, monospace",
+      getColor: withAlpha(INK_LIGHT, 235),
+      fontFamily: MAP_FONT,
       getTextAnchor: "middle",
       getAlignmentBaseline: "center",
       background: true,
-      getBackgroundColor: [10, 14, 20, 170],
+      getBackgroundColor: [14, 14, 14, 170],
       backgroundPadding: [4, 2],
     }),
   ];
@@ -2630,7 +2740,7 @@ export function conflictChoroplethLayer(
 const YALA_PROVINCE_MPI = 20.83; // % below the multidimensional poverty line
 function povertyColor(mpi: number): [number, number, number, number] {
   const t = Math.min(mpi / 30, 1); // ramp to 30%
-  return [120 + Math.round(48 * t), 40, 130 + Math.round(40 * t), 60 + Math.round(120 * t)];
+  return withAlpha(CAT.pink, 60 + Math.round(120 * t));
 }
 export function povertyChoroplethLayer(
   collection: FeatureCollection<Polygon | MultiPolygon, Record<string, unknown>>,
@@ -2644,7 +2754,7 @@ export function povertyChoroplethLayer(
     // Per-district TPMAP rates are not yet wired; shade at the province MPI so
     // the lens reads honestly. Uses properties.mpi if a future feed supplies it.
     getFillColor: (f) => povertyColor(Number((f.properties as { mpi?: number })?.mpi ?? YALA_PROVINCE_MPI)),
-    getLineColor: [168, 85, 247, 200],
+    getLineColor: withAlpha(CAT.pink, 200),
     getLineWidth: 1.2,
     lineWidthUnits: "pixels",
     lineWidthMinPixels: 1,
@@ -2652,13 +2762,14 @@ export function povertyChoroplethLayer(
 }
 
 // ── Flood gauges (river / canal water-level stations) ───────────────────────
-const GAUGE_COLOR: Record<FloodGauge["status"], [number, number, number]> = {
-  normal:  [52, 211, 153],  // green
-  watch:   [250, 204, 21],  // yellow
-  warning: [251, 146, 60],  // orange
-  flood:   [239, 68, 68],   // red
-  unknown: [148, 163, 184], // slate
-};
+// FloodGauge status → StatusLevel (flood = overbank = critical).
+export const GAUGE_COLOR: Record<FloodGauge["status"], [number, number, number]> = statusRgbMap<FloodGauge["status"]>({
+  normal: "normal",
+  watch: "watch",
+  warning: "warning",
+  flood: "critical",
+  unknown: "unknown",
+});
 
 export function floodGaugesLayer(gauges: FloodGauge[]) {
   return new ScatterplotLayer<FloodGauge>({
@@ -2673,20 +2784,22 @@ export function floodGaugesLayer(gauges: FloodGauge[]) {
       return [c[0], c[1], c[2], 230] as [number, number, number, number];
     },
     stroked: true,
-    getLineColor: [10, 14, 20, 255],
+    getLineColor: [14, 14, 14, 255],
     lineWidthMinPixels: 1.5,
     pickable: true,
   });
 }
 
 // ── Bang Lang Dam status (single station, upstream) ─────────────────────────
-const DAM_COLOR: Record<DamStatus["status"], [number, number, number]> = {
-  low:      [56, 189, 248],   // sky
-  normal:   [52, 211, 153],   // green
-  high:     [251, 146, 60],   // orange
-  spilling: [239, 68, 68],    // red
-  unknown:  [148, 163, 184],  // slate
-};
+// Dam / runoff status → StatusLevel. Low runoff is not a flood concern, so it
+// reads normal (the tooltip keeps the low/normal distinction); spilling is critical.
+export const DAM_COLOR: Record<DamStatus["status"], [number, number, number]> = statusRgbMap<DamStatus["status"]>({
+  low: "normal",
+  normal: "normal",
+  high: "warning",
+  spilling: "critical",
+  unknown: "unknown",
+});
 
 export function damStatusLayer(dams: DamStatus[]) {
   return new ScatterplotLayer<DamStatus>({
@@ -2708,16 +2821,18 @@ export function damStatusLayer(dams: DamStatus[]) {
 }
 
 // ── Live sensor telemetry dots (ported from FloodDash paint.js) ─────────────
-// FloodDash's LV_COLOR situation palette: 1 drought-tan, 2 low-grey,
-// 3 normal-green, 4 high-orange, 5 overbank-red. Every dot is pickable —
-// the whole point is hover → live reading.
-const SITUATION_RGB: Record<number, [number, number, number]> = {
-  1: [183, 175, 163],
-  2: [148, 140, 127],
-  3: [0, 147, 60],
-  4: [232, 106, 16],
-  5: [165, 25, 49],
-};
+// HII situation level → StatusLevel: 5 overbank = critical, 4 high = warning,
+// 1–3 (drought / low / normal) = normal. Drought is a water-supply signal, not
+// a flood one — painting it watch would make the flood map cry wolf in the dry
+// season; the tooltip still names the level. Every dot is pickable — the whole
+// point is hover → live reading.
+export const SITUATION_RGB: Record<number, [number, number, number]> = statusRgbMap<number>({
+  1: "normal",
+  2: "normal",
+  3: "normal",
+  4: "warning",
+  5: "critical",
+});
 
 /** All ~26 HII/RID telemetry water-level stations, coloured by situation level. */
 export function waterGaugesLayer(gauges: WaterGauge[]) {
@@ -2761,12 +2876,13 @@ export function waterLevelHeatmapLayer(gauges: WaterGauge[]) {
     threshold: 0.03,
     aggregation: "SUM",
     colorRange: [
-      [3, 105, 161, 0],
-      [14, 165, 233, 110],
-      [56, 189, 248, 160],
-      [251, 191, 36, 200],
-      [249, 115, 22, 230],
-      [220, 38, 38, 255],
+      // Channel fullness: pale water → watch → warning → critical (darker = fuller).
+      withAlpha(RAMP_PALE_WATER, 0),
+      withAlpha(RAMP_PALE_WATER, 110),
+      statusRgba("watch", 170),
+      statusRgba("warning", 210),
+      statusRgba("critical", 235),
+      withAlpha(CRITICAL_DEEP, 255),
     ],
   });
 }
@@ -2791,10 +2907,10 @@ export function waterLevelDensityFallbackLayer(gauges: WaterGauge[]) {
         g.fullnessPct != null
           ? Math.min(1, Math.max(0.05, g.fullnessPct / 120))
           : Math.min(1, Math.max(0.08, g.situationLevel / 5));
-      if (w >= 0.85) return [220, 38, 38, 170];
-      if (w >= 0.65) return [249, 115, 22, 150];
-      if (w >= 0.4) return [251, 191, 36, 130];
-      return [14, 165, 233, 110];
+      if (w >= 0.85) return statusRgba("critical", 170);
+      if (w >= 0.65) return statusRgba("warning", 150);
+      if (w >= 0.4) return statusRgba("watch", 130);
+      return withAlpha(RAMP_PALE_WATER, 110);
     },
     stroked: false,
     pickable: false,
@@ -2825,11 +2941,13 @@ export function airPm25HeatmapLayer(stations: AirQualityPoint[]) {
     threshold: 0.04,
     aggregation: "SUM",
     colorRange: [
-      [34, 197, 94, 0],
-      [250, 204, 21, 120],
-      [249, 115, 22, 180],
-      [239, 68, 68, 220],
-      [127, 29, 29, 255],
+      // PM2.5 bands (see bmaAqStationsLayer); pale good → watch → warning →
+      // critical → deep, luminance falling at every stop.
+      withAlpha(RAMP_PALE_GOOD, 0),
+      statusRgba("watch", 120),
+      statusRgba("warning", 180),
+      statusRgba("critical", 220),
+      withAlpha(CRITICAL_DEEP, 255),
     ],
   });
 }
@@ -2853,11 +2971,11 @@ export function airPm25DensityFallbackLayer(stations: AirQualityPoint[]) {
     radiusMaxPixels: 26,
     getFillColor: (s) => {
       const v = s.pm25 ?? (s.aqi != null ? s.aqi * 0.6 : 0);
-      if (v > 150) return [127, 29, 29, 180];
-      if (v > 55) return [239, 68, 68, 160];
-      if (v > 35) return [249, 115, 22, 140];
-      if (v > 12) return [250, 204, 21, 130];
-      return [34, 197, 94, 100];
+      if (v > 150) return withAlpha(CRITICAL_DEEP, 180);
+      if (v > 55) return statusRgba("critical", 160);
+      if (v > 35) return statusRgba("warning", 140);
+      if (v > 12) return statusRgba("watch", 130);
+      return withAlpha(RAMP_PALE_GOOD, 100);
     },
     stroked: false,
     pickable: false,
@@ -2875,12 +2993,12 @@ export function rainStationsLayer(stations: RainfallStation[]) {
     radiusMaxPixels: 20,
     getFillColor: (r) => {
       const mm = r.rain24h ?? 0;
-      // TMD bands: ≥90 very heavy (red), ≥35 heavy (orange), else rain-blue;
-      // dry stations fade back so wet cells pop.
-      if (mm >= 90) return [165, 25, 49, 235];
-      if (mm >= 35) return [232, 106, 16, 225];
-      if (mm >= 1) return [0, 57, 166, 200];
-      return [0, 57, 166, 70];
+      // TMD bands → StatusLevel: ≥90 very heavy = critical, ≥35 heavy = warning;
+      // lighter rain is data (sky), and dry stations fade back so wet cells pop.
+      if (mm >= 90) return statusRgba("critical", 235);
+      if (mm >= 35) return statusRgba("warning", 225);
+      if (mm >= 1) return withAlpha(CAT.sky, 200);
+      return withAlpha(CAT.sky, 70);
     },
     stroked: true,
     getLineColor: [255, 255, 255, 150],
@@ -2889,13 +3007,13 @@ export function rainStationsLayer(stations: RainfallStation[]) {
   });
 }
 
-// DWR EWS official alert-status palette (0 normal → 3 critical/siren).
-const EWS_STATUS_RGB: Record<number, [number, number, number]> = {
-  0: [148, 140, 127],
-  1: [240, 180, 0],
-  2: [232, 106, 16],
-  3: [165, 25, 49],
-};
+// DWR EWS alert status → StatusLevel: 0 normal · 1 watch · 2 prepare = warning · 3 siren = critical.
+export const EWS_STATUS_RGB: Record<number, [number, number, number]> = statusRgbMap<number>({
+  0: "normal",
+  1: "watch",
+  2: "warning",
+  3: "critical",
+});
 
 /** DWR community early-warning stations — the ones that trigger village sirens. */
 export function ewsStationsLayer(stations: EwsStation[]) {
@@ -2953,15 +3071,16 @@ interface WatershedMarker {
   basinVerdict: string | null;
 }
 
-/** Map a basin's first-horizon stress band to an RGB. Mirrors the colour
- *  language used by WaterBalancePanel so the on-map flow line and the
- *  side panel read identically. */
-const BASIN_BAND_RGB: Record<"ok" | "tight" | "overflow" | "unknown", [number, number, number]> = {
-  ok:       [31, 122, 78],   // same green as --good
-  tight:    [232, 168, 36],  // amber, same family as --warn
-  overflow: [204, 58, 38],  // brick red, same family as --neg
-  unknown:  [125, 125, 125],
-};
+/** Basin stress band → StatusLevel: ok = normal, tight = watch (--warn, as in
+ *  WaterBalancePanel), overflow = critical. Same vocabulary as the side panel
+ *  so the on-map flow line and the panel read identically. */
+export const BASIN_BAND_RGB: Record<"ok" | "tight" | "overflow" | "unknown", [number, number, number]> =
+  statusRgbMap<"ok" | "tight" | "overflow" | "unknown">({
+    ok: "normal",
+    tight: "watch",
+    overflow: "critical",
+    unknown: "unknown",
+  });
 
 function toMarker(s: ZoneSummary, basinBand?: "ok" | "tight" | "overflow" | "unknown", basinVerdict?: string | null): WatershedMarker {
   // When the FloodDash water-balance ledger has a verdict for this zone's
@@ -3076,7 +3195,7 @@ export function watershedNodesLayer(summaries: ZoneSummary[], basinBalance?: Bas
       radiusMaxPixels: 22,
       getFillColor: (m) => [m.rgb[0], m.rgb[1], m.rgb[2], 235] as [number, number, number, number],
       stroked: true,
-      getLineColor: (m) => (m.isCity ? [255, 255, 255, 255] : [10, 14, 20, 235]),
+      getLineColor: (m) => (m.isCity ? [255, 255, 255, 255] : [14, 14, 14, 235]),
       lineWidthUnits: "pixels",
       getLineWidth: (m) => (m.isCity ? 3 : 1.5),
       lineWidthMinPixels: 1.5,
@@ -3087,21 +3206,30 @@ export function watershedNodesLayer(summaries: ZoneSummary[], basinBalance?: Bas
     }) as Layer,
   );
 
+  // Label side per node: Khiri Wong sits NW of Lan Saka, so their labels go to
+  // opposite sides; the city label drops below (the ETA ring labels stack above).
+  const side = (m: WatershedMarker): "left" | "right" | "below" =>
+    m.isCity ? "below" : m.key === "khiri-wong" ? "left" : "right";
+  const anchorFor = (m: WatershedMarker) => (side(m) === "left" ? "end" : side(m) === "right" ? "start" : "middle");
+
   layers.push(
     new TextLayer({
       id: "watershed-node-labels",
       data: markers,
       getPosition: (m: WatershedMarker) => [m.lng, m.lat],
       getText: (m: WatershedMarker) => `${m.name} ${m.nameEn}`,
+      characterSet: "auto",
       getSize: 13,
       getColor: [255, 255, 255, 230],
-      getPixelOffset: [0, -16],
-      getTextAnchor: "middle",
-      getAlignmentBaseline: "bottom",
+      getPixelOffset: (m: WatershedMarker) =>
+        side(m) === "left" ? [-16, -8] : side(m) === "right" ? [16, -8] : [0, 18],
+      getTextAnchor: (m: WatershedMarker) => anchorFor(m),
+      getAlignmentBaseline: (m: WatershedMarker) => (side(m) === "below" ? "top" : "center"),
+      updateTriggers: { getPixelOffset: ["side-v1"], getTextAnchor: ["side-v1"], getAlignmentBaseline: ["side-v1"] },
       billboard: true,
-      fontFamily: "'Inter', 'IBM Plex Sans Thai', sans-serif",
-      fontWeight: "bold",
-      getBackgroundColor: [10, 14, 20, 170],
+      fontFamily: MAP_FONT,
+      fontWeight: 600,
+      getBackgroundColor: [14, 14, 14, 170],
       background: true,
       backgroundPadding: [4, 2],
       parameters: { depthWriteEnabled: false, depthCompare: "always" },
@@ -3135,16 +3263,18 @@ export function watershedNodesLayer(summaries: ZoneSummary[], basinBalance?: Bas
         data: pillData,
         getPosition: (m) => [m.lng, m.lat],
         getText: (m) => m.pill,
-        getSize: 10.5,
+        getSize: 12,
         getColor: (m) => [m.rgb[0], m.rgb[1], m.rgb[2], 245],
-        getPixelOffset: [0, 18],
-        getTextAnchor: "middle",
-        getAlignmentBaseline: "top",
+        getPixelOffset: (m) =>
+          side(m) === "left" ? [-16, 10] : side(m) === "right" ? [16, 10] : [0, 38],
+        getTextAnchor: (m) => anchorFor(m),
+        getAlignmentBaseline: (m) => (side(m) === "below" ? "top" : "center"),
+        updateTriggers: { getPixelOffset: ["side-v1"], getTextAnchor: ["side-v1"], getAlignmentBaseline: ["side-v1"] },
         billboard: true,
-        fontFamily: "'Inter', 'IBM Plex Sans Thai', sans-serif",
-        fontWeight: "bold",
+        fontFamily: MAP_FONT,
+        fontWeight: 600,
         characterSet: "auto",
-        getBackgroundColor: [10, 14, 20, 215],
+        getBackgroundColor: [14, 14, 14, 215],
         background: true,
         backgroundPadding: [4, 1],
         parameters: { depthWriteEnabled: false, depthCompare: "always" },
@@ -3175,7 +3305,15 @@ function shortVerdict(v: string): string {
   if (upper.includes("OVERFLOW")) return "OVERFLOW";
   if (upper.includes("TIGHT")) return "TIGHT";
   if (upper.includes("ABSORB") || upper.includes("OK")) return "ABSORBS";
-  return upper.length > 14 ? upper.slice(0, 13) + "…" : upper;
+  if (upper.includes("NEAR") || upper.includes("CAPACITY")) return "NEAR CAPACITY";
+  // Keep whole words up to ~16 characters.
+  const words = upper.split(/\s+/);
+  let out = "";
+  for (const w of words) {
+    if ((out ? out.length + 1 : 0) + w.length > 16) break;
+    out = out ? `${out} ${w}` : w;
+  }
+  return out || upper.slice(0, 16);
 }
 
 // ── ETA ARC RINGS — concentric "flood front" reach envelopes ───────────────
@@ -3223,7 +3361,7 @@ function circlePathKm(centerLng: number, centerLat: number, km: number, steps = 
 
 /**
  * Three concentric "flood front arrival" rings (1h / 3h / 6h) centred on the
- * city zone. Coloured by ETA urgency: red (1h), amber (3h), pale amber (6h).
+ * city zone. Coloured by ETA urgency: critical (1h), warning (3h), watch (6h).
  * Returns an empty array when there's no city zone in `summaries`.
  *
  * Pushed into the layer stack beneath the watershed markers so the rings read
@@ -3242,12 +3380,11 @@ export function etaArcRingsLayer(summaries: ZoneSummary[]): Layer[] {
   const rings: { hours: 1 | 3 | 6; km: number; color: [number, number, number, number] }[] = ETA_RING_HOURS.map(
     (h) => {
       const km = waveReachKm(h, slowestCelerity);
-      // 1h: brick red (overflow family), 3h: warm amber (tight family),
-      // 6h: pale amber (the warning-but-not-urgent bucket).
+      // Arrival urgency → StatusLevel: 1h critical, 3h warning, 6h watch.
       const color: [number, number, number, number] =
-        h === 1 ? [204, 58, 38, 215] :
-        h === 3 ? [232, 168, 36, 195] :
-                  [232, 168, 36, 140];
+        h === 1 ? statusRgba("critical", 215) :
+        h === 3 ? statusRgba("warning", 195) :
+                  statusRgba("watch", 160);
       return { hours: h, km, color };
     },
   );
@@ -3289,15 +3426,15 @@ export function etaArcRingsLayer(summaries: ZoneSummary[]): Layer[] {
       data: labelData,
       getPosition: (d) => d.position,
       getText: (d) => d.text,
-      getSize: 10,
+      getSize: 12,
       getColor: (d) => [d.color[0], d.color[1], d.color[2], 230],
       getTextAnchor: "middle",
       getAlignmentBaseline: "bottom",
       billboard: true,
-      fontFamily: "'Inter', 'IBM Plex Sans Thai', sans-serif",
-      fontWeight: "bold",
+      fontFamily: MAP_FONT,
+      fontWeight: 600,
       characterSet: "0123456789.h km",
-      getBackgroundColor: [10, 14, 20, 200],
+      getBackgroundColor: [14, 14, 14, 200],
       background: true,
       backgroundPadding: [3, 1],
       parameters: { depthWriteEnabled: false, depthCompare: "always" },
@@ -3414,9 +3551,9 @@ export interface PreparedFlowLine {
 // (the real transit time lives in the lead-time text, per useFlowAnimation).
 const FLOW_CLASS_SPEED: Record<WaterwayFlowClass, number> = { slow: 0.55, medium: 1, fast: 1.8 };
 const FLOW_CLASS_COLOR: Record<WaterwayFlowClass, [number, number, number]> = {
-  slow: [37, 99, 235], // deep blue
-  medium: [56, 189, 248], // cyan
-  fast: [224, 242, 254], // near-white — reads as "moving fast"
+  slow: CAT.blue,
+  medium: CAT.sky,
+  fast: tint(CAT.sky, 0.8),  // reads as "moving fast"
 };
 const FLOW_BASE_CYCLE_MS = 5200;
 const FLOW_REF_LEN_DEG = 0.05; // ~5.5 km reference line → base cycle
@@ -3505,16 +3642,16 @@ export function waterwayFlowLayer(dots: WaterwayFlowDot[], zoomBucket: 0 | 1 | 2
   });
 }
 
-// ── Conflict incidents (ACLED / Deep South) — RED palette, sized by deaths ──
+// ── Conflict incidents (ACLED / Deep South) — critical-hue lightness steps, sized by deaths ──
 const CONFLICT_COLOR: Record<ConflictIncident["eventType"], [number, number, number]> = {
-  "bombing-ied":     [220, 38, 38],    // red-600
-  shooting:          [239, 68, 68],    // red-500
-  "armed-clash":     [248, 113, 113],  // red-400
-  arson:             [251, 146, 60],   // orange — fire
-  "raid-arrest":     [252, 165, 165],  // red-300
-  abduction:         [185, 28, 28],    // red-700
-  "remote-violence": [153, 27, 27],    // red-800
-  other:             [254, 202, 202],  // red-200
+  "bombing-ied":     shade(STATUS.critical.rgb, 0.25),
+  shooting:          STATUS.critical.rgb,
+  "armed-clash":     tint(STATUS.critical.rgb, 0.25),
+  arson:             CAT.orange,  // fire
+  "raid-arrest":     tint(STATUS.critical.rgb, 0.45),
+  abduction:         shade(STATUS.critical.rgb, 0.4),
+  "remote-violence": shade(STATUS.critical.rgb, 0.55),
+  other:             tint(STATUS.critical.rgb, 0.65),
 };
 
 export function conflictIncidentsLayer(incidents: ConflictIncident[]) {
@@ -3531,7 +3668,7 @@ export function conflictIncidentsLayer(incidents: ConflictIncident[]) {
       return [c[0], c[1], c[2], 220] as [number, number, number, number];
     },
     stroked: true,
-    getLineColor: [10, 14, 20, 235],
+    getLineColor: [14, 14, 14, 235],
     lineWidthMinPixels: 1.5,
     pickable: true,
     updateTriggers: { getRadius: [], getFillColor: [] },
@@ -3553,7 +3690,7 @@ export function securityNewsLayer(items: IntelligenceItem[]) {
     getRadius: 26,
     radiusMinPixels: 5,
     radiusMaxPixels: 14,
-    getFillColor: [248, 113, 113, 230],
+    getFillColor: withAlpha(tint(STATUS.critical.rgb, 0.25), 230),
     stroked: true,
     getLineColor: [255, 255, 255, 240],
     lineWidthMinPixels: 2,
@@ -3575,11 +3712,11 @@ export function alphaEarthLandcoverLayer(
     filled: true,
     pickable: true,
     getFillColor: (f) => {
-      const c = hexToRgb(String(f.properties?.color ?? "#34d399"));
+      const c = hexToRgb(String(f.properties?.color ?? "#009e73"));
       return [c[0], c[1], c[2], 110] as [number, number, number, number];
     },
     getLineColor: (f) => {
-      const c = hexToRgb(String(f.properties?.color ?? "#34d399"));
+      const c = hexToRgb(String(f.properties?.color ?? "#009e73"));
       return [c[0], c[1], c[2], 180] as [number, number, number, number];
     },
     getLineWidth: 1,
@@ -3598,11 +3735,11 @@ export function alphaEarthFloodProneLayer(
     filled: true,
     pickable: true,
     getFillColor: (f) => {
-      const c = hexToRgb(String(f.properties?.color ?? "#60a5fa"));
+      const c = hexToRgb(String(f.properties?.color ?? "#56b4e9"));
       return [c[0], c[1], c[2], 120] as [number, number, number, number];
     },
     getLineColor: (f) => {
-      const c = hexToRgb(String(f.properties?.color ?? "#60a5fa"));
+      const c = hexToRgb(String(f.properties?.color ?? "#56b4e9"));
       return [c[0], c[1], c[2], 200] as [number, number, number, number];
     },
     getLineWidth: 1.2,
@@ -3618,11 +3755,11 @@ export function alphaEarthFloodProneLayer(
 import type { WaterwayFeature, FloodProneRecord, HiiTambonRisk, UnositTambonExposure } from "@nst/shared";
 
 const NATIONAL_WATERWAY_COLOR: Record<string, [number, number, number, number]> = {
-  river:  [14, 165, 233, 210],
-  canal:  [56,  189, 248, 185],
-  stream: [148, 163, 184, 150],
-  drain:  [13,  148, 136, 140],
-  ditch:  [13,  148, 136, 120],
+  river:  withAlpha(CAT.blue, 210),
+  canal:  withAlpha(CAT.sky, 185),
+  stream: withAlpha(tint(CAT.sky, 0.5), 150),
+  drain:  withAlpha(CAT.green, 140),
+  ditch:  withAlpha(shade(CAT.green, 0.3), 120),
 };
 
 // National waterways — PathLayer over the flat WaterwayFeature[] the adapter actually returns
@@ -3640,10 +3777,11 @@ export function nationalWaterwaysLayer(features: WaterwayFeature[]) {
 }
 
 // National flood-prone scatterplot — data.go.th provincial flood-prone points
-const FLOOD_PRONE_COLOR: Record<number, [number, number, number, number]> = {
-  1: [239, 68,  68,  200],  // high risk (red)
-  2: [251, 146, 60,  180],  // medium risk (amber)
-  3: [250, 204, 21,  160],  // low risk (yellow)
+// data.go.th risk level → StatusLevel: 1 high = critical, 2 medium = warning, 3 low = watch.
+export const FLOOD_PRONE_COLOR: Record<number, [number, number, number, number]> = {
+  1: statusRgba("critical", 200),
+  2: statusRgba("warning", 180),
+  3: statusRgba("watch", 160),
 };
 
 export function nationalFloodProneLayer(records: FloodProneRecord[]) {
@@ -3657,17 +3795,18 @@ export function nationalFloodProneLayer(records: FloodProneRecord[]) {
     getFillColor: (r) =>
       (FLOOD_PRONE_COLOR[r.riskLevel] ?? FLOOD_PRONE_COLOR[3]),
     stroked: true,
-    getLineColor: [10, 14, 20, 200],
+    getLineColor: [14, 14, 14, 200],
     lineWidthMinPixels: 1,
     pickable: true,
   });
 }
 
 // HII tambon risk scatterplot — 17-year flood frequency
-const HII_RISK_COLOR: Record<number, [number, number, number, number]> = {
-  1: [239, 68,  68,  210],  // high risk (red)
-  2: [251, 146, 60,  190],  // medium risk (amber)
-  3: [250, 204, 21,  170],  // low risk (yellow)
+// HII 17-yr risk level → StatusLevel (same scale as FLOOD_PRONE_COLOR).
+export const HII_RISK_COLOR: Record<number, [number, number, number, number]> = {
+  1: statusRgba("critical", 210),
+  2: statusRgba("warning", 190),
+  3: statusRgba("watch", 170),
 };
 
 export function hiiTambonRiskLayer(records: HiiTambonRisk[]) {
@@ -3686,18 +3825,19 @@ export function hiiTambonRiskLayer(records: HiiTambonRisk[]) {
     getFillColor: (r) =>
       (HII_RISK_COLOR[r.riskLevel] ?? HII_RISK_COLOR[3]),
     stroked: true,
-    getLineColor: [10, 14, 20, 200],
+    getLineColor: [14, 14, 14, 200],
     lineWidthMinPixels: 1,
     pickable: true,
   });
 }
 
 // UNOSAT 2021 population exposure scatterplot
-const UNOSAT_SEVERITY_COLOR: Record<string, [number, number, number, number]> = {
-  extreme: [239, 68,  68,  220],
-  high:    [251, 146, 60,  200],
-  medium:  [250, 204, 21,  180],
-  low:     [52,  211, 153, 160],
+// UNOSAT exposure severity → StatusLevel: extreme critical, high warning, medium watch, low normal.
+export const UNOSAT_SEVERITY_COLOR: Record<string, [number, number, number, number]> = {
+  extreme: statusRgba("critical", 220),
+  high:    statusRgba("warning", 200),
+  medium:  statusRgba("watch", 180),
+  low:     statusRgba("normal", 160),
 };
 
 export function unosatExposureLayer(records: UnositTambonExposure[]) {
@@ -3718,19 +3858,20 @@ export function unosatExposureLayer(records: UnositTambonExposure[]) {
     getFillColor: (r) =>
       (UNOSAT_SEVERITY_COLOR[r.severity] ?? UNOSAT_SEVERITY_COLOR.low),
     stroked: true,
-    getLineColor: [10, 14, 20, 220],
+    getLineColor: [14, 14, 14, 220],
     lineWidthMinPixels: 1.5,
     pickable: true,
   });
 }
 
 // ── Flooddash southern province watch scores ─────────────────────────────────
-const WATCH_BAND_RGB: Record<FloodWatchBand, [number, number, number]> = {
-  normal:   [52, 211, 153],
-  watch:    [56, 189, 248],
-  elevated: [251, 146, 60],
-  high:     [239, 68, 68],
-};
+// Flooddash province watch band → StatusLevel: elevated = warning, high = critical.
+export const WATCH_BAND_RGB: Record<FloodWatchBand, [number, number, number]> = statusRgbMap<FloodWatchBand>({
+  normal: "normal",
+  watch: "watch",
+  elevated: "warning",
+  high: "critical",
+});
 
 export function southProvinceWatchLayer(provinces: ProvinceWatchScore[]) {
   const data = provinces.filter((p) => p.band !== "normal");
@@ -3746,20 +3887,21 @@ export function southProvinceWatchLayer(provinces: ProvinceWatchScore[]) {
       return [c[0], c[1], c[2], 210] as [number, number, number, number];
     },
     stroked: true,
-    getLineColor: [10, 14, 20, 230],
+    getLineColor: [14, 14, 14, 230],
     lineWidthMinPixels: 1.5,
     pickable: true,
   });
 }
 
 // ── Flooddash southern GloFAS river reaches ──────────────────────────────────
-const DISCHARGE_BAND_RGB: Record<RiverDischargeBand, [number, number, number]> = {
-  normal:    [52, 211, 153],
-  watch:     [250, 204, 21],
-  warning:   [251, 146, 60],
-  emergency: [239, 68, 68],
-  unknown:   [148, 163, 184],
-};
+// GloFAS discharge band → StatusLevel: emergency = critical.
+export const DISCHARGE_BAND_RGB: Record<RiverDischargeBand, [number, number, number]> = statusRgbMap<RiverDischargeBand>({
+  normal: "normal",
+  watch: "watch",
+  warning: "warning",
+  emergency: "critical",
+  unknown: "unknown",
+});
 
 export function southRiverCascadeLayer(reaches: SouthernRiverReach[]): Layer[] {
   return [

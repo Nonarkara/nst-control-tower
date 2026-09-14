@@ -15,6 +15,8 @@ import { useMemo } from "react";
 import type { Feature, Polygon, MultiPolygon } from "geojson";
 import type { FloodGauge, DamStatus, PrecipNowcast, WaterGauge, FallbackTier } from "@nst/shared";
 import { PanelHeader } from "./PanelHeader";
+import { situationStatus } from "../lib/water";
+import { STATUS, type StatusLevel } from "../lib/status";
 
 interface Props {
   gauges: FloodGauge[];
@@ -26,12 +28,12 @@ interface Props {
   fallbackTier?: FallbackTier;
 }
 
-const GAUGE_STATUS_COLOR: Record<FloodGauge["status"], string> = {
-  normal: "var(--good)",
-  watch: "var(--warn)",
-  warning: "var(--warn)",
-  flood: "var(--bad)",
-  unknown: "var(--ink-low)",
+const GAUGE_STATUS: Record<FloodGauge["status"], StatusLevel> = {
+  normal: "normal",
+  watch: "watch",
+  warning: "warning",
+  flood: "critical",
+  unknown: "unknown",
 };
 
 const GAUGE_RANK: Record<FloodGauge["status"], number> = {
@@ -42,19 +44,27 @@ const GAUGE_RANK: Record<FloodGauge["status"], number> = {
   unknown: -1,
 };
 
-const DAM_STATUS_COLOR: Record<DamStatus["status"], string> = {
-  low: "var(--data)",
-  normal: "var(--good)",
-  high: "var(--warn)",
-  spilling: "var(--bad)",
-  unknown: "var(--ink-low)",
+const DAM_STATUS: Record<DamStatus["status"], StatusLevel> = {
+  low: "normal",
+  normal: "normal",
+  high: "warning",
+  spilling: "critical",
+  unknown: "unknown",
 };
 
-const INTENSITY_COLOR: Record<PrecipNowcast["intensity"], string> = {
-  dry: "var(--good)",
-  light: "var(--data)",
-  moderate: "var(--warn)",
-  heavy: "var(--bad)",
+const INTENSITY_STATUS: Record<PrecipNowcast["intensity"], StatusLevel> = {
+  dry: "normal",
+  light: "watch",
+  moderate: "warning",
+  heavy: "critical",
+};
+
+const SIT_LABEL: Record<number, { th: string; en: string }> = {
+  5: { th: "น้ำล้นตลิ่ง", en: "FLOOD" },
+  4: { th: "น้ำมาก", en: "HIGH" },
+  3: { th: "ปกติ", en: "NORMAL" },
+  2: { th: "น้ำน้อย", en: "LOW" },
+  1: { th: "ภัยแล้ง", en: "DROUGHT" },
 };
 
 function fmt(n: number | null | undefined, digits = 1, unit = ""): string {
@@ -62,18 +72,16 @@ function fmt(n: number | null | undefined, digits = 1, unit = ""): string {
   return `${n.toFixed(digits)}${unit}`;
 }
 
-// situation_level 1-5 from ThaiWater → FloodGauge status
-const SIT_TO_STATUS: Record<number, FloodGauge["status"]> = {
-  5: "flood", 4: "warning", 3: "normal", 2: "watch", 1: "watch",
-};
-
-const SIT_COLOR: Record<number, string> = {
-  5: "var(--bad)", 4: "var(--warn)", 3: "var(--good)", 2: "var(--data)", 1: "var(--data)",
-};
-
-const SIT_LABEL: Record<number, string> = {
-  5: "น้ำล้นตลิ่ง FLOOD", 4: "น้ำมาก HIGH", 3: "ปกติ NORMAL", 2: "น้ำน้อย LOW", 1: "ภัยแล้ง DROUGHT",
-};
+/** Headline figure in a status colour, with the level's glyph beside it. */
+function StatusValue({ level, children }: { level: StatusLevel; children: React.ReactNode }) {
+  const st = STATUS[level];
+  return (
+    <span className="flood-status" style={{ color: st.color }}>
+      <span aria-hidden="true">{st.glyph}</span>
+      {children}
+    </span>
+  );
+}
 
 export function FloodBrief({ gauges, waterGauges = [], dam, precip, floodRiskFeatures, ageMinutes, fallbackTier }: Props) {
   // Use ThaiWater gauges (real telemetry) when available; fall back to GloFAS gauges
@@ -106,8 +114,10 @@ export function FloodBrief({ gauges, waterGauges = [], dam, precip, floodRiskFea
     };
   }, [floodRiskFeatures]);
 
+  const sit = worstThaiWater ? SIT_LABEL[worstThaiWater.situationLevel] : null;
+
   return (
-    <div className="col flood-brief">
+    <section className="panel" aria-label="Flood brief">
       <PanelHeader
         title="FLOOD BRIEF // PAK PHANANG / THA DEE"
         source={useThaiWater ? "thaiwater.hii · open-meteo" : "open-meteo gloFAS"}
@@ -115,114 +125,99 @@ export function FloodBrief({ gauges, waterGauges = [], dam, precip, floodRiskFea
         fallbackTier={fallbackTier}
       />
 
-      {/* River gauge status — ThaiWater real telemetry preferred */}
-      <div className="flood-row" style={{ display: "flex", gap: 12, marginTop: 8 }}>
-        <div style={{ flex: 1 }}>
-          <div className="eyebrow">RIVER GAUGE</div>
+      <dl className="flood-stats flood-stats--2">
+        {/* River gauge status — ThaiWater real telemetry preferred */}
+        <div className="flood-stat">
+          <dt className="flood-label">River gauge</dt>
           {useThaiWater && worstThaiWater ? (
             <>
-              <div className="mono" style={{ color: SIT_COLOR[worstThaiWater.situationLevel], fontSize: "0.9rem" }}>
-                {SIT_LABEL[worstThaiWater.situationLevel]}
-              </div>
-              <div className="eyebrow mono" style={{ color: "var(--ink-low)" }}>
-                {worstThaiWater.name.replace(/^สถานีโทรมาตร\s*/u, "")}
+              <dd className="flood-value">
+                <StatusValue level={situationStatus(worstThaiWater.situationLevel)}>
+                  {sit ? <><span lang="th">{sit.th}</span> {sit.en}</> : STATUS.unknown.en}
+                </StatusValue>
+              </dd>
+              <dd className="flood-meta">
+                <span lang="th">{worstThaiWater.name.replace(/^สถานีโทรมาตร\s*/u, "")}</span>
                 {worstThaiWater.levelMsl != null ? ` · ${worstThaiWater.levelMsl.toFixed(2)} m MSL` : ""}
                 {worstThaiWater.warningMsl != null ? ` / warn ${worstThaiWater.warningMsl.toFixed(1)}` : ""}
-              </div>
+              </dd>
             </>
           ) : worstGauge ? (
             <>
-              <div className="mono" style={{ color: GAUGE_STATUS_COLOR[worstGauge.status], fontSize: "0.9rem" }}>
-                {worstGauge.status.toUpperCase()}
-              </div>
-              <div className="eyebrow mono" style={{ color: "var(--ink-low)" }}>
-                {worstGauge.name} · {fmt(worstGauge.levelM, 2, " m")}
-              </div>
+              <dd className="flood-value">
+                <StatusValue level={GAUGE_STATUS[worstGauge.status]}>{worstGauge.status.toUpperCase()}</StatusValue>
+              </dd>
+              <dd className="flood-meta">{worstGauge.name} · {fmt(worstGauge.levelM, 2, " m")}</dd>
             </>
           ) : (
-            <div className="mono eyebrow" style={{ color: "var(--ink-low)" }}>no gauge feed</div>
+            <dd className="flood-empty">no gauge feed</dd>
           )}
         </div>
-        <div style={{ flex: 1 }}>
-          <div className="eyebrow">GAUGES</div>
-          <div className="mono" style={{ fontSize: "0.9rem" }}>
-            {useThaiWater ? waterGauges.length : gauges.length || "—"}
-          </div>
-          <div className="eyebrow mono" style={{ color: "var(--ink-low)" }}>
+        <div className="flood-stat">
+          <dt className="flood-label">Gauges</dt>
+          <dd className="flood-value num">{useThaiWater ? waterGauges.length : gauges.length || "—"}</dd>
+          <dd className="flood-meta">
             {useThaiWater
               ? `${waterGauges.filter((g) => g.situationLevel >= 4).length} above warning`
               : `${gauges.filter((g) => g.status === "warning" || g.status === "flood").length} above warning`}
-          </div>
+          </dd>
         </div>
-      </div>
 
-      {/* Khao Luang runoff */}
-      <div className="flood-row" style={{ display: "flex", gap: 12, marginTop: 10 }}>
-        <div style={{ flex: 1 }}>
-          <div className="eyebrow">KHAO LUANG RUNOFF</div>
-          <div className="mono" style={{ color: dam ? DAM_STATUS_COLOR[dam.status] : "var(--ink-low)", fontSize: "0.9rem" }}>
-            {dam ? dam.status.toUpperCase() : "—"}
-          </div>
-          <div className="eyebrow mono" style={{ color: "var(--ink-low)" }}>
-            storage {fmt(dam?.storagePct, 0, "%")}
-          </div>
+        {/* Khao Luang runoff */}
+        <div className="flood-stat">
+          <dt className="flood-label">Khao Luang runoff</dt>
+          <dd className="flood-value">
+            {dam ? <StatusValue level={DAM_STATUS[dam.status]}>{dam.status.toUpperCase()}</StatusValue> : "—"}
+          </dd>
+          <dd className="flood-meta num">storage {fmt(dam?.storagePct, 0, "%")}</dd>
         </div>
-        <div style={{ flex: 1 }}>
-          <div className="eyebrow">OUTFLOW</div>
-          <div className="mono" style={{ fontSize: "0.9rem" }}>{fmt(dam?.outflowCms, 0, " m³/s")}</div>
-          <div className="eyebrow mono" style={{ color: "var(--ink-low)" }}>
-            rising outflow precedes city flooding
-          </div>
+        <div className="flood-stat">
+          <dt className="flood-label">Outflow</dt>
+          <dd className="flood-value num">{fmt(dam?.outflowCms, 0, " m³/s")}</dd>
+          <dd className="flood-meta">rising outflow precedes city flooding</dd>
         </div>
-      </div>
 
-      {/* Rainfall nowcast */}
-      <div className="flood-row" style={{ display: "flex", gap: 12, marginTop: 10 }}>
-        <div style={{ flex: 1 }}>
-          <div className="eyebrow">RAIN NOW</div>
-          <div
-            className="mono"
-            style={{ color: precip ? INTENSITY_COLOR[precip.intensity] : "var(--ink-low)", fontSize: "0.9rem" }}
-          >
-            {fmt(precip?.nowMm, 1, " mm")}
-          </div>
-          <div className="eyebrow mono" style={{ color: "var(--ink-low)" }}>
-            {precip ? precip.intensity.toUpperCase() : "—"}
-          </div>
+        {/* Rainfall nowcast */}
+        <div className="flood-stat">
+          <dt className="flood-label">Rain now</dt>
+          <dd className="flood-value num">
+            {precip
+              ? <StatusValue level={INTENSITY_STATUS[precip.intensity]}>{fmt(precip.nowMm, 1, " mm")}</StatusValue>
+              : fmt(null)}
+          </dd>
+          <dd className="flood-meta">{precip ? precip.intensity.toUpperCase() : "—"}</dd>
         </div>
-        <div style={{ flex: 1 }}>
-          <div className="eyebrow">NEXT 2H</div>
-          <div className="mono" style={{ fontSize: "0.9rem" }}>{fmt(precip?.total2hMm, 1, " mm")}</div>
-          <div className="eyebrow mono" style={{ color: "var(--ink-low)" }}>
+        <div className="flood-stat">
+          <dt className="flood-label">Next 2h</dt>
+          <dd className="flood-value num">{fmt(precip?.total2hMm, 1, " mm")}</dd>
+          <dd className="flood-meta">
             {precip?.minutesToSignificant != null ? `rain in ~${precip.minutesToSignificant} min` : "no rain forecast"}
-          </div>
+          </dd>
         </div>
-      </div>
+      </dl>
 
       {/* Household exposure — city headline, basin total as context */}
       {cityHouseholds != null && (
-        <div style={{ marginTop: 10 }}>
-          <div className="eyebrow">FLOOD-RISK EXPOSURE · CITY</div>
-          <div className="mono" style={{ fontSize: "1.0rem", color: "var(--warn)" }}>
-            ~{cityHouseholds.toLocaleString()} households
+        <dl className="flood-stats">
+          <div className="flood-stat">
+            <dt className="flood-label">Flood-risk exposure · city</dt>
+            <dd className="flood-value flood-value--lg num">~{cityHouseholds.toLocaleString()} households</dd>
+            <dd className="flood-meta">Old Town / city low-lying zone · reference</dd>
+            {provinceHouseholds != null && (
+              <dd className="flood-meta">
+                ~{provinceHouseholds.toLocaleString()} across {floodRiskFeatures?.length ?? 0} NST basin zones (provincial)
+              </dd>
+            )}
           </div>
-          <div className="eyebrow mono" style={{ color: "var(--ink-low)" }}>
-            Old Town / city low-lying zone · reference
-          </div>
-          {provinceHouseholds != null && (
-            <div className="eyebrow mono" style={{ color: "var(--ink-low)", marginTop: 4 }}>
-              ~{provinceHouseholds.toLocaleString()} across {floodRiskFeatures?.length ?? 0} NST basin zones (provincial)
-            </div>
-          )}
-        </div>
+        </dl>
       )}
 
-      <div className="eyebrow mono" style={{ color: "var(--ink-low)", marginTop: 8 }}>
+      <p className="flood-footnote">
         {useThaiWater
           ? `HII ThaiWater · ${waterGauges.length} stations · PAK PHANANG / THA DEE basin`
           : "Open-Meteo GloFAS discharge proxy · PAK PHANANG / THA DEE"
         }{" "}— flood is NST's headline risk
-      </div>
-    </div>
+      </p>
+    </section>
   );
 }

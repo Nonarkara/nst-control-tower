@@ -1,20 +1,22 @@
-// Typography: Inter — the neo-grotesque voice (Rams DNA §2.1). One family for
-// body, display, and tabular-numeral readouts; Sans Thai fills the one gap
-// Inter has (no Thai glyphs) so bilingual copy still renders natively.
-import "@fontsource/inter/400.css";
-import "@fontsource/inter/500.css";
-import "@fontsource/inter/600.css";
-import "@fontsource/inter/700.css";
+// Typography: one grotesque family, MoMA-style — Libre Franklin (Franklin
+// Gothic revival, self-hosted in styles/fonts.css) for Latin, IBM Plex Sans
+// Thai for Thai. Tabular numerals come from font-variant-numeric in tokens.css.
 import "@fontsource/ibm-plex-sans-thai/400.css";
 import "@fontsource/ibm-plex-sans-thai/500.css";
 import "@fontsource/ibm-plex-sans-thai/600.css";
-
+import "./styles/fonts.css";
 import "./styles/tokens.css";
 import "./styles/layout.css";
 import "./styles/atlas.css";
 import "./styles/platform.css";
 import "./styles/terminal.css";
 import "maplibre-gl/dist/maplibre-gl.css";
+// Panel/dialog styles composed from the system primitives.
+import "./styles/panels-flood.css";
+import "./styles/panels-city.css";
+import "./styles/dialogs.css";
+// Last on purpose: the shared primitives + accessibility floor override legacy rules.
+import "./styles/system.css";
 
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";

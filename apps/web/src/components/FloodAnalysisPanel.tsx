@@ -20,7 +20,7 @@ import type {
   UnositProvincialSummary,
 } from "@nst/shared";
 import { PanelHeader } from "./PanelHeader";
-import { fmtAge } from "@nst/shared";
+import { STATUS, type StatusLevel } from "../lib/status";
 
 // ─── Flood cause breakdown (HII/DPM synthesis) ──────────────────────────────
 
@@ -28,16 +28,18 @@ interface FloodCause {
   cause: string;
   causeTh: string;
   pct: number;
-  color: string;
 }
 
 const FLOOD_CAUSES: FloodCause[] = [
-  { cause: "Southwest monsoon rainfall", causeTh: "ฝนมรสุมตะวันตกเฉียงใต้", pct: 45, color: "var(--ink-2)" },
-  { cause: "Tropical storms / cyclones", causeTh: "พายุหมุนเขตร้อน", pct: 25, color: "var(--bad)" },
-  { cause: "Upstream watershed runoff", causeTh: "น้ำป่าจากลุ่มน้ำตอนบน", pct: 15, color: "var(--warn)" },
-  { cause: "Gulf storm surge", causeTh: "คลื่นพายุจากอ่าวไทย", pct: 10, color: "var(--data)" },
-  { cause: "Urban drainage failure", causeTh: "ระบบระบายน้ำเสียหาย", pct: 5,  color: "var(--fill-2)" },
+  { cause: "Southwest monsoon rainfall", causeTh: "ฝนมรสุมตะวันตกเฉียงใต้", pct: 45 },
+  { cause: "Tropical storms / cyclones", causeTh: "พายุหมุนเขตร้อน", pct: 25 },
+  { cause: "Upstream watershed runoff", causeTh: "น้ำป่าจากลุ่มน้ำตอนบน", pct: 15 },
+  { cause: "Gulf storm surge", causeTh: "คลื่นพายุจากอ่าวไทย", pct: 10 },
+  { cause: "Urban drainage failure", causeTh: "ระบบระบายน้ำเสียหาย", pct: 5 },
 ];
+
+const MONTH_LABELS_TH = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
+const MONTH_LABELS_EN = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -46,35 +48,58 @@ function fmtN(v: number | null | undefined, decimals = 1, suffix = ""): string {
   return `${v.toLocaleString("en", { maximumFractionDigits: decimals })}${suffix}`;
 }
 
-function BarChart({ value, max, color }: { value: number; max: number; color: string }) {
+function BarChart({ value, max }: { value: number; max: number }) {
   const pct = max > 0 ? Math.min((value / max) * 100, 100) : 0;
   return (
-    <div style={{ width: "100%", height: 6, background: "var(--rule)", borderRadius: 3, overflow: "hidden" }}>
-      <div style={{ width: `${pct}%`, height: "100%", background: color, borderRadius: 3, transition: "width 0.3s" }} />
+    <div className="flood-bar" aria-hidden="true">
+      <div className="flood-bar__fill" style={{ width: `${pct}%` }} />
     </div>
   );
 }
 
+/** Mean tambon severity score → status. */
+function severityStatus(s: UnositProvincialSummary): StatusLevel {
+  const score = s.severityScore / Math.max(s.tambonCount, 1);
+  if (score >= 3.5) return "critical";
+  if (score >= 2.5) return "warning";
+  if (score >= 1.5) return "watch";
+  return "normal";
+}
+
+/** Thai risk-class label (สูง / ปานกลาง / ต่ำ) → status. */
+function riskLabelStatus(label: string): StatusLevel {
+  if (label.includes("สูง")) return "critical";
+  if (label.includes("ปาน")) return "warning";
+  return "normal";
+}
+
 function SeverityBadge({ severity }: { severity: UnositProvincialSummary }) {
-  const score = severity.severityScore / Math.max(severity.tambonCount, 1);
-  const color =
-    score >= 3.5 ? "var(--bad)" :
-    score >= 2.5 ? "var(--warn)" :
-    score >= 1.5 ? "var(--data)" :
-    "var(--good)";
+  const st = STATUS[severityStatus(severity)];
   return (
-    <span style={{
-      display: "inline-block",
-      padding: "1px 6px",
-      borderRadius: 4,
-      fontSize: "0.65rem",
-      fontFamily: "var(--font-mono)",
-      color,
-      border: `1px solid ${color}`,
-      marginLeft: 4,
-    }}>
-      {severity.tambonCount} ตำบล
+    <span className="flood-status flood-status--quiet" style={{ color: st.color }}>
+      <span aria-hidden="true">{st.glyph}</span>
+      <span className="num">{severity.tambonCount}</span> <span lang="th">ตำบล</span>
+      <span className="visually-hidden">, severity {st.en}</span>
     </span>
+  );
+}
+
+function RiskList({ entries, unit }: { entries: [string, number][]; unit?: string }) {
+  return (
+    <ul className="flood-analysis-risk">
+      {entries.map(([label, count]) => {
+        const st = STATUS[riskLabelStatus(label)];
+        return (
+          <li key={label}>
+            <span aria-hidden="true" style={{ color: st.color }}>{st.glyph}</span>
+            <span lang="th">{label}</span>
+            <span className="num">
+              ({count.toLocaleString()}{unit ? <> <span lang="th">{unit}</span></> : null})
+            </span>
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 
@@ -85,9 +110,9 @@ interface Props {
   rainfallAge: number | null;
   rainfallFallback: FallbackTier | "loading" | null;
   floodProne: NationalFloodProneFeed | null;
- unosat: UnositRecord | null;
+  unosat: UnositRecord | null;
   unosatAge: number | null;
- unosatFallback: FallbackTier | "loading" | null;
+  unosatFallback: FallbackTier | "loading" | null;
 }
 
 export function FloodAnalysisPanel({
@@ -128,9 +153,6 @@ export function FloodAnalysisPanel({
     return Math.max(...monthlyNormals.map((m) => m.avgMm ?? 0), 1);
   }, [monthlyNormals]);
 
-  const MONTH_LABELS_TH = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
-  const MONTH_LABELS_EN = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-
   // UNOSAT top provinces
   const topProvinces = useMemo(() => {
     return unosat?.national.topProvinces.slice(0, 8) ?? [];
@@ -144,7 +166,7 @@ export function FloodAnalysisPanel({
     return { fp, hii };
   }, [floodProne]);
 
-  const rainfallSource = rainfallFallback === "unavailable" ? "open-meteo-archive" : "open-meteo-archive";
+  const rainfallSource = "open-meteo-archive";
   const unosatSource = "UNOSAT Thailand 2021";
 
   // PanelHeader's fallbackTier prop only understands FallbackTier — "loading" is a
@@ -152,10 +174,17 @@ export function FloodAnalysisPanel({
   const panelFallbackTier = (t: FallbackTier | "loading" | null): FallbackTier | undefined =>
     t === "loading" || t == null ? undefined : t;
 
+  const stats = [
+    { label: "Period", value: rainfall ? `${rainfall.startYear}–${rainfall.endYear}` : "—" },
+    { label: "All-time max", value: maxDailyAllTime ? `${Math.round(maxDailyAllTime.val)} mm` : "—", note: maxDailyAllTime ? `(${maxDailyAllTime.year})` : "" },
+    { label: "Wet season", value: rainfall?.wetSeasonAvgMm != null ? `${Math.round(rainfall.wetSeasonAvgMm * 10) / 10} mm/d` : "—", note: "May–Oct avg" },
+    { label: "Dry season", value: rainfall?.drySeasonAvgMm != null ? `${Math.round(rainfall.drySeasonAvgMm * 10) / 10} mm/d` : "—", note: "Nov–Apr avg" },
+  ];
+
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+    <div className="panel flood-analysis">
       {/* ── Historical Rainfall ─────────────────────────────────────────── */}
-      <div>
+      <section className="flood-section" aria-label="Historical rainfall">
         <PanelHeader
           title="HISTORICAL RAINFALL · OPEN-METEO"
           ageMinutes={rainfallAge}
@@ -165,221 +194,185 @@ export function FloodAnalysisPanel({
 
         {annualSummaries.length > 0 ? (
           <>
-            {/* Annual totals bar chart */}
-            <div style={{ marginBottom: 10 }}>
-              <div className="eyebrow" style={{ marginBottom: 4 }}>ANNUAL TOTALS (mm)</div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-                {annualSummaries.slice(-10).map((a) => {
-                  const isMax = a.totalMm === maxAnnualTotal;
-                  return (
-                    <div key={a.year} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <div className="mono" style={{ width: 32, fontSize: "0.65rem", color: "var(--ink-2)" }}>
-                        {a.year}
-                      </div>
-                      <div style={{ flex: 1 }}>
-                        <BarChart
-                          value={a.totalMm}
-                          max={maxAnnualTotal}
-                          color={isMax ? "var(--bad)" : "var(--data)"}
-                        />
-                      </div>
-                      <div className="mono" style={{ width: 52, fontSize: "0.65rem", textAlign: "right", color: isMax ? "var(--bad)" : "var(--ink)" }}>
-                        {Math.round(a.totalMm)}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+            <div className="flood-table-wrap">
+              <table className="flood-table">
+                <caption className="flood-label">Annual totals (mm)</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Year</th>
+                    <th scope="col"><span className="visually-hidden">Relative total</span></th>
+                    <th scope="col" className="is-num">mm</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {annualSummaries.slice(-10).map((a) => {
+                    const isMax = a.totalMm === maxAnnualTotal;
+                    return (
+                      <tr key={a.year}>
+                        <th scope="row" className="num">{a.year}</th>
+                        <td className="flood-analysis-bar-cell">
+                          <BarChart value={a.totalMm} max={maxAnnualTotal} />
+                        </td>
+                        <td className={`is-num num${isMax ? " flood-analysis-max" : ""}`}>
+                          {Math.round(a.totalMm)}
+                          {isMax && <> <span aria-hidden="true">▲</span><span className="visually-hidden"> wettest year</span></>}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
 
-            {/* Key stats row */}
-            <div style={{ display: "flex", gap: 12, marginBottom: 10 }}>
-              {[
-                { label: "PERIOD", value: rainfall ? `${rainfall.startYear}–${rainfall.endYear}` : "—" },
-                { label: "ALL-TIME MAX", value: maxDailyAllTime ? `${Math.round(maxDailyAllTime.val)} mm` : "—", note: maxDailyAllTime ? `(${maxDailyAllTime.year})` : "" },
-                { label: "WET SEASON", value: rainfall?.wetSeasonAvgMm != null ? `${Math.round(rainfall.wetSeasonAvgMm * 10) / 10} mm/d` : "—", note: "May–Oct avg" },
-                { label: "DRY SEASON", value: rainfall?.drySeasonAvgMm != null ? `${Math.round(rainfall.drySeasonAvgMm * 10) / 10} mm/d` : "—", note: "Nov–Apr avg" },
-              ].map((s) => (
-                <div key={s.label} style={{ flex: 1 }}>
-                  <div className="eyebrow">{s.label}</div>
-                  <div className="mono" style={{ fontSize: "0.72rem", color: "var(--ink)" }}>{s.value}</div>
-                  {s.note && <div className="mono" style={{ fontSize: "0.6rem", color: "var(--ink-low)" }}>{s.note}</div>}
+            <dl className="flood-stats">
+              {stats.map((s) => (
+                <div key={s.label} className="flood-stat">
+                  <dt className="flood-label">{s.label}</dt>
+                  <dd className="flood-value num">{s.value}</dd>
+                  {s.note && <dd className="flood-meta">{s.note}</dd>}
                 </div>
               ))}
-            </div>
+            </dl>
 
-            {/* Monthly normals */}
-            <div>
-              <div className="eyebrow" style={{ marginBottom: 4 }}>MONTHLY AVERAGES (mm)</div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 2 }}>
+            <div className="flood-section">
+              <p className="flood-label">Monthly averages (mm)</p>
+              <ol className="flood-analysis-months">
                 {monthlyNormals.slice(0, 12).map((m) => {
                   const pct = maxMonthlyAvg > 0 ? ((m.avgMm ?? 0) / maxMonthlyAvg) * 100 : 0;
                   const isWet = m.month >= 5 && m.month <= 10;
                   return (
-                    <div key={m.month} style={{ textAlign: "center", padding: "2px 1px" }}>
-                      <div className="mono" style={{ fontSize: "0.55rem", color: "var(--ink-low)" }}>{MONTH_LABELS_TH[m.month - 1]}</div>
-                      <div style={{ height: 18, display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
-                        <div
-                          style={{
-                            width: 10,
-                            height: `${Math.max(pct, 4)}%`,
-                            background: isWet ? "var(--data)" : "var(--rule)",
-                            borderRadius: "2px 2px 0 0",
-                          }}
+                    <li key={m.month} className="flood-analysis-month">
+                      <span className="flood-analysis-month__label" lang="th" aria-hidden="true">
+                        {MONTH_LABELS_TH[m.month - 1]}
+                      </span>
+                      <span className="visually-hidden">{MONTH_LABELS_EN[m.month - 1]}{isWet ? " (wet season)" : ""}: </span>
+                      <span className="flood-analysis-month__track" aria-hidden="true">
+                        <span
+                          className={`flood-analysis-month__bar${isWet ? " is-wet" : ""}`}
+                          style={{ height: `${Math.max(pct, 4)}%` }}
                         />
-                      </div>
-                      <div className="mono" style={{ fontSize: "0.55rem", color: "var(--ink)" }}>
-                        {m.avgMm != null ? Math.round(m.avgMm) : "—"}
-                      </div>
-                    </div>
+                      </span>
+                      <span className="num">{m.avgMm != null ? Math.round(m.avgMm) : "—"}</span>
+                    </li>
                   );
                 })}
-              </div>
+              </ol>
+              <ul className="flood-legend" aria-label="Month bar key">
+                <li><span className="swatch flood-analysis-swatch--wet" aria-hidden="true" /> Wet season (May–Oct)</li>
+                <li><span className="swatch flood-analysis-swatch--dry" aria-hidden="true" /> Dry season</li>
+              </ul>
             </div>
           </>
         ) : (
-          <div className="mono" style={{ color: "var(--ink-low)", fontSize: "0.8rem" }}>
-            No rainfall data available
-          </div>
+          <p className="flood-empty">No rainfall data available</p>
         )}
-      </div>
+      </section>
 
       {/* ── UNOSAT 2021 Exposure ────────────────────────────────────────── */}
       {unosat && (
-        <div>
+        <section className="flood-section" aria-label="UNOSAT 2021 population exposure">
           <PanelHeader
             title="UNOSAT 2021 POPULATION EXPOSURE"
             ageMinutes={unosatAge}
             fallbackTier={panelFallbackTier(unosatFallback)}
             source={unosatSource}
           />
-          {/* National summary */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 10 }}>
+          <dl className="flood-stats">
             {[
-              { label: "POP. EXPOSED", value: fmtN(unosat.national.totalPopExposed, 0, "") },
-              { label: "FLOODED KM²", value: fmtN(unosat.national.totalFloodedKm2, 1, " km²") },
-              { label: "HHs AFFECTED", value: fmtN(unosat.national.totalHouseholds, 0, "") },
+              { label: "Pop. exposed", value: fmtN(unosat.national.totalPopExposed, 0, "") },
+              { label: "Flooded km²", value: fmtN(unosat.national.totalFloodedKm2, 1, " km²") },
+              { label: "HHs affected", value: fmtN(unosat.national.totalHouseholds, 0, "") },
             ].map((s) => (
-              <div key={s.label}>
-                <div className="eyebrow">{s.label}</div>
-                <div className="mono" style={{ fontSize: "0.85rem", color: "var(--bad)", fontWeight: 600 }}>
-                  {s.value}
-                </div>
+              <div key={s.label} className="flood-stat">
+                <dt className="flood-label">{s.label}</dt>
+                <dd className="flood-value flood-value--lg num">{s.value}</dd>
               </div>
             ))}
+          </dl>
+
+          <div className="flood-table-wrap">
+            <table className="flood-table">
+              <caption className="flood-label">Top affected provinces</caption>
+              <thead>
+                <tr>
+                  <th scope="col" className="is-rank">#</th>
+                  <th scope="col">Province</th>
+                  <th scope="col" className="is-num">Exposed</th>
+                </tr>
+              </thead>
+              <tbody>
+                {topProvinces.map((p, i) => (
+                  <tr key={p.provCode}>
+                    <td className="is-rank num">{i + 1}</td>
+                    <th scope="row">
+                      <div className="flood-item">
+                        <span className="flood-row-head">
+                          <span><span lang="th">{p.provT}</span> / {p.provE}</span>
+                          <SeverityBadge severity={p} />
+                        </span>
+                        <BarChart value={p.totalPopExposed} max={topProvinces[0]?.totalPopExposed ?? 1} />
+                      </div>
+                    </th>
+                    <td className="is-num num">{p.totalPopExposed.toLocaleString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
 
-          {/* Top affected provinces */}
-          <div className="eyebrow" style={{ marginBottom: 4 }}>TOP AFFECTED PROVINCES</div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-            {topProvinces.map((p, i) => (
-              <div key={p.provCode} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <div className="mono" style={{ width: 14, fontSize: "0.6rem", color: "var(--ink-low)", textAlign: "right" }}>
-                  {i + 1}
-                </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
-                    <span className="mono" style={{ fontSize: "0.72rem", color: "var(--ink)" }}>
-                      {p.provT} / {p.provE}
-                    </span>
-                    <SeverityBadge severity={p} />
-                  </div>
-                  <BarChart
-                    value={p.totalPopExposed}
-                    max={topProvinces[0]?.totalPopExposed ?? 1}
-                    color={i === 0 ? "var(--bad)" : i < 3 ? "var(--warn)" : "var(--data)"}
-                  />
-                </div>
-                <div className="mono" style={{ fontSize: "0.65rem", color: "var(--ink-2)", width: 60, textAlign: "right" }}>
-                  {p.totalPopExposed.toLocaleString()}
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div className="mono" style={{ fontSize: "0.6rem", color: "var(--ink-low)", marginTop: 6 }}>
+          <p className="flood-footnote">
             UNOSAT Thailand 2021 SW Monsoon · {unosat.national.eventStartDate} – {unosat.national.eventEndDate}
-          </div>
-        </div>
+          </p>
+        </section>
       )}
 
       {/* ── Flood Cause Breakdown ──────────────────────────────────────── */}
-      <div>
+      <section className="flood-section" aria-label="Flood cause analysis">
         <PanelHeader title="FLOOD CAUSE ANALYSIS" source="HII/DPM synthesis" />
-        <div className="eyebrow" style={{ marginBottom: 6 }}>
+        <p className="flood-meta">
           Primary drivers of flood events in Nakhon Si Thammarat (literature synthesis)
-        </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        </p>
+        <ul className="flood-list">
           {FLOOD_CAUSES.map((c) => (
-            <div key={c.cause}>
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 2 }}>
-                <div>
-                  <span className="mono" style={{ fontSize: "0.72rem", color: "var(--ink)" }}>{c.cause}</span>
-                  <span className="mono" style={{ fontSize: "0.65rem", color: "var(--ink-low)", marginLeft: 6 }}>{c.causeTh}</span>
-                </div>
-                <span className="mono" style={{ fontSize: "0.72rem", color: c.color, fontWeight: 600 }}>
-                  {c.pct}%
+            <li key={c.cause} className="flood-analysis-cause">
+              <div className="flood-row-head">
+                <span>
+                  <span className="flood-analysis-cause__name">{c.cause}</span>
+                  <span className="flood-analysis-cause__th" lang="th">{c.causeTh}</span>
                 </span>
+                <span className="flood-figure num">{c.pct}%</span>
               </div>
-              <BarChart value={c.pct} max={100} color={c.color} />
-            </div>
+              <BarChart value={c.pct} max={100} />
+            </li>
           ))}
-        </div>
-        <div className="mono" style={{ fontSize: "0.6rem", color: "var(--ink-low)", marginTop: 8 }}>
+        </ul>
+        <p className="flood-footnote">
           Sources: HII MMS flood survey 2025 · DDPM situation reports · UNOSAT Thailand 2021 · Thai Meteorological Department
-        </div>
-      </div>
+        </p>
+      </section>
 
       {/* ── National Flood-Prone Summary ───────────────────────────────── */}
       {floodProneSummary && (
-        <div>
+        <section className="flood-section" aria-label="National flood-prone areas">
           <PanelHeader
             title="NATIONAL FLOOD-PRONE AREAS"
             source="data.go.th + HII 17-yr"
           />
           {floodProneSummary.fp && (
-            <div style={{ marginBottom: 8 }}>
-              <div className="eyebrow" style={{ marginBottom: 4 }}>data.go.th PROVINCIAL FLOOD-PRONE ({floodProneSummary.fp.totalRecords} records)</div>
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                {Object.entries(floodProneSummary.fp.byRiskLevel).map(([label, count]) => {
-                  const color =
-                    label.includes("สูง") ? "var(--bad)" :
-                    label.includes("ปาน") ? "var(--warn)" :
-                    "var(--good)";
-                  return (
-                    <div key={label} style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                      <div style={{ width: 8, height: 8, borderRadius: "50%", background: color }} />
-                      <span className="mono" style={{ fontSize: "0.7rem", color: "var(--ink)" }}>{label}</span>
-                      <span className="mono" style={{ fontSize: "0.7rem", color: "var(--ink-2)" }}>({count})</span>
-                    </div>
-                  );
-                })}
-              </div>
+            <div className="flood-section">
+              <p className="flood-label">data.go.th provincial flood-prone ({floodProneSummary.fp.totalRecords} records)</p>
+              <RiskList entries={Object.entries(floodProneSummary.fp.byRiskLevel)} />
             </div>
           )}
           {floodProneSummary.hii && (
-            <div>
-              <div className="eyebrow" style={{ marginBottom: 4 }}>
-                HII 17-YEAR TAMBON RISK ({floodProneSummary.hii.totalTambonRecords.toLocaleString()} ตำบล)
-              </div>
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                {Object.entries(floodProneSummary.hii.byRisk).map(([label, count]) => {
-                  const color =
-                    label.includes("สูง") ? "var(--bad)" :
-                    label.includes("ปาน") ? "var(--warn)" :
-                    "var(--good)";
-                  return (
-                    <div key={label} style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                      <div style={{ width: 8, height: 8, borderRadius: "50%", background: color }} />
-                      <span className="mono" style={{ fontSize: "0.7rem", color: "var(--ink)" }}>{label}</span>
-                      <span className="mono" style={{ fontSize: "0.7rem", color: "var(--ink-2)" }}>({count.toLocaleString()} ตำบล)</span>
-                    </div>
-                  );
-                })}
-              </div>
+            <div className="flood-section">
+              <p className="flood-label">
+                HII 17-year tambon risk ({floodProneSummary.hii.totalTambonRecords.toLocaleString()} <span lang="th">ตำบล</span>)
+              </p>
+              <RiskList entries={Object.entries(floodProneSummary.hii.byRisk)} unit="ตำบล" />
             </div>
           )}
-        </div>
+        </section>
       )}
     </div>
   );

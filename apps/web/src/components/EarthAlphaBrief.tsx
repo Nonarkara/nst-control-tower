@@ -4,6 +4,7 @@ import {
   type LayerId,
 } from "../map/presets";
 import { PanelHeader } from "./PanelHeader";
+import { StatusText } from "../lib/cityStatus";
 
 interface Props {
   enabledLayers: Set<LayerId>;
@@ -57,6 +58,10 @@ const WORKFLOWS = [
   },
 ];
 
+const HEAVY_PRECIP_MM = 20;
+const MANY_OPEN_REPORTS = 5;
+
+
 export function EarthAlphaBrief({
   enabledLayers,
   onToggleLayer,
@@ -81,139 +86,134 @@ export function EarthAlphaBrief({
     enabledLayers.has("satellite-lst") ||
     enabledLayers.has("satellite-aerosol") ||
     enabledLayers.has("satellite-no2");
+  const heavyPrecip = (nasaReadings?.precipMmDay ?? 0) > HEAVY_PRECIP_MM;
 
   return (
-    <div className="col" style={{ gap: 8 }}>
+    <section className="panel" aria-label="Earth observation">
       <PanelHeader
         title="EARTH OBS · NASA GIBS + GISTDA"
         source="nasa-gibs·gistda"
         ageMinutes={ageMinutes}
         fallbackTier={fallbackTier}
         actions={
-          <span className="eyebrow mono" style={{ color: sheetsConfigured ? "var(--good)" : "var(--warn)" }}>
+          <StatusText level={sheetsConfigured ? "normal" : "watch"}>
             SHEETS {sheetsConfigured ? "ON" : "READY"}
-          </span>
+          </StatusText>
         }
       />
 
       {/* ── LIVE READINGS — NASA MERRA-2 + GISTDA ── */}
-      <div style={{ borderTop: "2px solid var(--data)", paddingTop: 8 }}>
-        <div className="eyebrow mono" style={{ color: "var(--data)", marginBottom: 6 }}>
-          LIVE READINGS · NASA MERRA-2{nasaReadings?.dataDate ? ` · ${nasaReadings.dataDate}` : ""}
-        </div>
-        <div className="marine-detail-grid">
+      <div className="pc-section">
+        <h3 className="pc-label">
+          Live readings · NASA MERRA-2{nasaReadings?.dataDate ? ` · ${nasaReadings.dataDate}` : ""}
+        </h3>
+        <dl className="pc-stats pc-stats--pair">
           <div>
-            <div className="eyebrow">TEMP · 2M</div>
-            <div className="mono">
-              {nasaReadings?.tempC != null ? `${nasaReadings.tempC.toFixed(1)}°C` : "—"}
-            </div>
+            <dt>Temp · 2 m</dt>
+            <dd className="num">{nasaReadings?.tempC != null ? `${nasaReadings.tempC.toFixed(1)}°C` : "—"}</dd>
           </div>
           <div>
-            <div className="eyebrow">PRECIP · DAY</div>
-            <div className="mono" style={{
-              color: (nasaReadings?.precipMmDay ?? 0) > 20 ? "var(--warn)" : undefined,
-            }}>
-              {nasaReadings?.precipMmDay != null ? `${nasaReadings.precipMmDay.toFixed(1)} mm` : "—"}
-            </div>
-          </div>
-          <div>
-            <div className="eyebrow">SOLAR · GISTDA</div>
-            <div className="mono" style={{ color: "var(--warn)" }}>
-              {avgSolarIrrKWh != null ? `${avgSolarIrrKWh.toFixed(1)} kWh/m²` : "—"}
-            </div>
-          </div>
-          <div>
-            <div className="eyebrow">SKY CLEAR</div>
-            <div className="mono">
-              {nasaReadings?.clearnessIndex != null
-                ? `${(nasaReadings.clearnessIndex * 100).toFixed(0)}%`
-                : "—"}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="marine-detail-grid">
-        <div>
-          <div className="eyebrow">EO LAYERS ON</div>
-          <div className="mono" style={{ color: activeEarthLayers.length ? "var(--accent)" : "var(--ink-low)" }}>
-            {activeEarthLayers.length}/{EARTH_LAYERS.length}
-          </div>
-        </div>
-        <div>
-          <div className="eyebrow">GISTDA POINTS</div>
-          <div className="mono">{gistdaPoiCount.toLocaleString()}</div>
-        </div>
-        <div>
-          <div className="eyebrow">SOLAR ROOFS</div>
-          <div className="mono">{gistdaSolarCount.toLocaleString()}</div>
-        </div>
-        <div>
-          <div className="eyebrow">LAND USE</div>
-          <div className="mono">{gistdaLandUseCount.toLocaleString()}</div>
-        </div>
-        <div>
-          <div className="eyebrow">FLOOD AREAS</div>
-          <div className="mono" style={{ color: floodZoneCount ? "var(--warn)" : "var(--ink-low)" }}>
-            {floodZoneCount}
-          </div>
-        </div>
-        <div>
-          <div className="eyebrow">OPEN REPORTS</div>
-          <div className="mono" style={{ color: openIncidentCount >= 5 ? "var(--warn)" : "var(--ink)" }}>
-            {openIncidentCount}
-          </div>
-        </div>
-      </div>
-
-      <div className="eyebrow mono" style={{ color: "var(--ink-low)", lineHeight: 1.5, marginBottom: 2 }}>
-        Satellite earth-observation overlays (NASA GIBS). Each tints the whole map by
-        one measured signal — toggle one at a time to read it. Updates daily/sub-daily.
-      </div>
-      <div className="layer-toggles" style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 4 }}>
-        {EARTH_LAYERS.map((l) => {
-          const on = enabledLayers.has(l.id);
-          return (
-            <button
-              key={l.id}
-              className={`layer-toggle ${on ? "on" : "off"}`}
-              onClick={() => onToggleLayer(l.id)}
-              aria-pressed={on}
-              title={`${l.what} · ${on ? "tap to hide" : "tap to show"}`}
-              style={{ cursor: "pointer", textAlign: "left", width: "100%", flexDirection: "column", alignItems: "stretch", gap: 1 }}
-            >
-              <span className="row" style={{ justifyContent: "space-between", width: "100%" }}>
-                <span style={{ fontWeight: 600 }}>{l.label}</span>
-                <span className="mono caption" style={{ color: on ? "var(--accent)" : "var(--ink-low)" }}>{on ? "ON" : "off"}</span>
+            <dt>Precip · day</dt>
+            <dd>
+              <span className="num">
+                {nasaReadings?.precipMmDay != null ? `${nasaReadings.precipMmDay.toFixed(1)} mm` : "—"}
               </span>
-              <span className="eyebrow" style={{ color: "var(--ink-low)", lineHeight: 1.3, whiteSpace: "normal", textTransform: "none", letterSpacing: 0 }}>
-                {l.what}
-              </span>
-            </button>
-          );
-        })}
+              {heavyPrecip && <StatusText level="watch">Heavy</StatusText>}
+            </dd>
+          </div>
+          <div>
+            <dt>Solar · GISTDA</dt>
+            <dd className="num">{avgSolarIrrKWh != null ? `${avgSolarIrrKWh.toFixed(1)} kWh/m²` : "—"}</dd>
+          </div>
+          <div>
+            <dt>Sky clear</dt>
+            <dd className="num">
+              {nasaReadings?.clearnessIndex != null ? `${(nasaReadings.clearnessIndex * 100).toFixed(0)}%` : "—"}
+            </dd>
+          </div>
+        </dl>
       </div>
 
-      <div style={{ display: "grid", gap: 6 }}>
+      <div className="pc-section">
+        <dl className="pc-stats">
+          <div>
+            <dt>EO layers on</dt>
+            <dd className="num">{activeEarthLayers.length}/{EARTH_LAYERS.length}</dd>
+          </div>
+          <div>
+            <dt>GISTDA points</dt>
+            <dd className="num">{gistdaPoiCount.toLocaleString()}</dd>
+          </div>
+          <div>
+            <dt>Solar roofs</dt>
+            <dd className="num">{gistdaSolarCount.toLocaleString()}</dd>
+          </div>
+          <div>
+            <dt>Land use</dt>
+            <dd className="num">{gistdaLandUseCount.toLocaleString()}</dd>
+          </div>
+          <div>
+            <dt>Flood areas</dt>
+            <dd className="num">{floodZoneCount}</dd>
+          </div>
+          <div>
+            <dt>Open reports</dt>
+            <dd>
+              <span className="num">{openIncidentCount}</span>
+              {openIncidentCount >= MANY_OPEN_REPORTS && <StatusText level="watch">High</StatusText>}
+            </dd>
+          </div>
+        </dl>
+      </div>
+
+      <div className="pc-section">
+        <p className="note">
+          Satellite earth-observation overlays (NASA GIBS). Each tints the whole map by
+          one measured signal — toggle one at a time to read it. Updates daily/sub-daily.
+        </p>
+        <div className="layer-toggles eo-toggles" role="group" aria-label="Earth observation layers">
+          {EARTH_LAYERS.map((l) => {
+            const on = enabledLayers.has(l.id);
+            return (
+              <button
+                key={l.id}
+                type="button"
+                className={`layer-toggle ${on ? "on" : "off"}`}
+                onClick={() => onToggleLayer(l.id)}
+                aria-pressed={on}
+                title={`${l.what} · ${on ? "tap to hide" : "tap to show"}`}
+              >
+                <span className="eo-toggle__head">
+                  <span>{l.label}</span>
+                  <span className="eo-toggle__state" aria-hidden="true">{on ? "On" : "Off"}</span>
+                </span>
+                <span className="eo-toggle__what">{l.what}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <ul className="pc-list" aria-label="Earth observation workflows">
         {WORKFLOWS.map((w) => (
-          <div key={w.title} style={{ borderLeft: "2px solid var(--accent)", paddingLeft: 8 }}>
-            <div className="spread" style={{ gap: 8 }}>
-              <span>{w.title}</span>
-              <span className="eyebrow mono" style={{ color: "var(--ink-low)" }}>{w.layers}</span>
-            </div>
-            <div className="eyebrow mono" style={{ color: "var(--ink-low)" }}>{w.signal}</div>
-          </div>
+          <li key={w.title} className="eo-workflow">
+            <span className="pc-spread">
+              <span className="eo-workflow__title">{w.title}</span>
+              <span className="pc-meta">{w.layers}</span>
+            </span>
+            <span className="pc-meta">{w.signal}</span>
+          </li>
         ))}
-      </div>
+      </ul>
 
-      <div className="eyebrow mono" style={{ color: "var(--ink-low)" }}>
-        {hasFloodStack ? "FLOOD STACK ACTIVE" : "TURN ON EAR LENS FOR FLOOD STACK"}
+      <p className="pc-meta">
+        {hasFloodStack ? "Flood stack active" : "Turn on EAR lens for flood stack"}
         {" · "}
-        {hasHeatStack ? "HEAT/HAZE VISIBLE" : "HEAT/HAZE LAYERS AVAILABLE"}
-      </div>
-      <div className="eyebrow mono" style={{ color: "var(--ink-low)" }}>
-        IMERG {imergFreshness?.date ?? "n/a"} · FLOOD {floodFreshness?.date ?? "n/a"} · {waterwayCount.toLocaleString()} WATERWAYS · {fisheryZoneCount} FISHERY ZONES
-      </div>
-    </div>
+        {hasHeatStack ? "Heat/haze visible" : "Heat/haze layers available"}
+      </p>
+      <p className="pc-meta num">
+        IMERG {imergFreshness?.date ?? "n/a"} · FLOOD {floodFreshness?.date ?? "n/a"} · {waterwayCount.toLocaleString()} waterways · {fisheryZoneCount} fishery zones
+      </p>
+    </section>
   );
 }

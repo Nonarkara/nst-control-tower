@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { scoreColor } from "./newsDesk";
+import { scoreColor, scoreStatus } from "./newsDesk";
 
 /**
  * newsDesk.ts contract tests.
@@ -10,7 +10,7 @@ import { scoreColor } from "./newsDesk";
  * Covered:
  *   - score ≥ 1000 → --bad
  *   - score ≥ 500  → --warn
- *   - score < 500  → --ink-low
+ *   - score < 500  → --ink-3 (neutral)
  *   - Exact boundary values (500, 1000)
  */
 
@@ -27,10 +27,16 @@ describe("scoreColor", () => {
     expect(scoreColor(999)).toBe("var(--warn)");
   });
 
-  it("returns --ink-low for score < 500", () => {
-    expect(scoreColor(0)).toBe("var(--ink-low)");
-    expect(scoreColor(100)).toBe("var(--ink-low)");
-    expect(scoreColor(499)).toBe("var(--ink-low)");
+  it("returns neutral --ink-3 for score < 500", () => {
+    expect(scoreColor(0)).toBe("var(--ink-3)");
+    expect(scoreColor(100)).toBe("var(--ink-3)");
+    expect(scoreColor(499)).toBe("var(--ink-3)");
+  });
+
+  it("maps scores onto status levels", () => {
+    expect(scoreStatus(1000)).toBe("critical");
+    expect(scoreStatus(500)).toBe("watch");
+    expect(scoreStatus(499)).toBe("unknown");
   });
 
   it("returns --bad at exactly 1000 (boundary)", () => {

@@ -2,35 +2,24 @@ import type { AirQualityPoint, FallbackTier, RainfallStation, WaterGauge } from 
 import { PanelHeader } from "./PanelHeader";
 import {
   bandLabel,
+  bandStatus,
+  situationLevelStatus,
   summarizeAir,
   summarizeRain,
   summarizeWater,
   thaDeeFlowSteps,
   type SituationBand,
 } from "../lib/sensorSituation";
+import { STATUS } from "../lib/status";
+import { StatusText, statusStyle } from "../lib/cityStatus";
 
 /**
  * SENSOR SITUATION — graphic understanding of what the city is facing.
  *
  * Water (FloodDash) leads; air (AirDash) rides alongside. Numbers, flow
- * direction, and concentration bars — not just a station list. Rams
- * structure with Lichtenstein pop accents on severity so a serious board
- * can still feel alive.
+ * direction, and concentration bars — not just a station list. Severity is a
+ * plain label with its status glyph beside the figure; colour marks status only.
  */
-
-const BAND_VAR: Record<SituationBand, string> = {
-  calm: "var(--rt-green)",
-  watch: "var(--rt-yellow)",
-  elevated: "var(--rt-orange)",
-  critical: "var(--rt-red)",
-};
-
-const BAND_INK: Record<SituationBand, string> = {
-  calm: "var(--rt-glyph)",
-  watch: "var(--rt-glyph-dark)",
-  elevated: "var(--rt-glyph)",
-  critical: "var(--rt-glyph)",
-};
 
 interface Props {
   waterGauges: WaterGauge[];
@@ -42,6 +31,10 @@ interface Props {
   onShowWaterHeat?: () => void;
   onShowAirHeat?: () => void;
 }
+
+const WATER_BAR_MAX = 120;
+const RAIN_BAR_MAX = 120;
+const PM25_BAR_MAX = 150;
 
 function fmt1(n: number | null, unit = ""): string {
   if (n == null || !Number.isFinite(n)) return "—";
@@ -60,29 +53,31 @@ function trendGlyph(t: WaterGauge["trend"] | "unknown"): string {
   return "·";
 }
 
+function BandLabel({ band }: { band: SituationBand }) {
+  return <StatusText level={bandStatus(band)}>{bandLabel(band)}</StatusText>;
+}
+
 function ConcentrationBar({
   label,
   value,
   max,
-  color,
   unit,
 }: {
   label: string;
   value: number | null;
   max: number;
-  color: string;
   unit: string;
 }) {
   const pct = value == null ? 0 : Math.min(100, Math.max(0, (value / max) * 100));
   return (
-    <div className="ssb-bar" title={`${label}: ${fmt1(value, unit)}`}>
-      <div className="ssb-bar__meta mono">
+    <div className="sit-bar">
+      <div className="sit-bar__meta">
         <span>{label}</span>
-        <span>{fmt1(value, unit)}</span>
+        <span className="num">{fmt1(value, unit)}</span>
       </div>
-      <div className="ssb-bar__track">
-        <div className="ssb-bar__fill" style={{ width: `${pct}%`, background: color }} />
-      </div>
+      <span className="pc-bar" aria-hidden="true">
+        <span className="pc-bar__fill" style={{ width: `${pct}%` }} />
+      </span>
     </div>
   );
 }
@@ -112,192 +107,189 @@ export function SensorSituationBoard({
           : "calm";
 
   return (
-    <div className="ssb">
+    <section className="panel" aria-label="Sensor situation">
       <PanelHeader
         title="SENSOR SITUATION"
         ageMinutes={ageMinutes}
         fallbackTier={fallbackTier}
         source="flooddash·airdash"
         actions={
-          <span
-            className="ssb-burst mono"
-            style={{ background: BAND_VAR[overall], color: BAND_INK[overall] }}
-            aria-label={`Overall ${bandLabel(overall)}`}
-          >
-            {bandLabel(overall)}
+          <span aria-label={`Overall ${bandLabel(overall)}`}>
+            <BandLabel band={overall} />
           </span>
         }
       />
 
       {/* Water — FloodDash */}
-      <section className="ssb-pane ssb-pane--water" aria-label="Water situation">
-        <header className="ssb-pane__hdr">
-          <span className="ssb-pane__title mono">WATER</span>
-          <span className="ssb-pane__pow mono" style={{ background: BAND_VAR[water.band], color: BAND_INK[water.band] }}>
-            {bandLabel(water.band)}
-          </span>
+      <section className="pc-section" aria-label="Water situation">
+        <header className="sit-pane__hdr">
+          <h3 className="sit-pane__title">WATER</h3>
+          <BandLabel band={water.band} />
         </header>
 
-        <div className="ssb-kpi-row">
-          <div className="ssb-kpi">
-            <span className="ssb-kpi__label mono">STATIONS</span>
-            <span className="ssb-kpi__val mono">{water.stationCount}</span>
+        <dl className="pc-stats">
+          <div>
+            <dt>Stations</dt>
+            <dd className="num">{water.stationCount}</dd>
           </div>
-          <div className="ssb-kpi">
-            <span className="ssb-kpi__label mono">OVERBANK</span>
-            <span className="ssb-kpi__val mono" style={{ color: water.overbank > 0 ? "var(--rt-red)" : undefined }}>
-              {water.overbank}
-            </span>
+          <div>
+            <dt>Overbank</dt>
+            <dd>
+              <span className="num">{water.overbank}</span>
+              {water.overbank > 0 && <StatusText level="critical">Over bank</StatusText>}
+            </dd>
           </div>
-          <div className="ssb-kpi">
-            <span className="ssb-kpi__label mono">RISING</span>
-            <span className="ssb-kpi__val mono" style={{ color: water.rising > 0 ? "var(--rt-orange)" : undefined }}>
-              ▲{water.rising}
-            </span>
+          <div>
+            <dt>Rising</dt>
+            <dd className="num">
+              <span>
+                <span aria-hidden="true">▲</span>
+                {water.rising}
+              </span>
+            </dd>
           </div>
-          <div className="ssb-kpi">
-            <span className="ssb-kpi__label mono">MAX FULL</span>
-            <span className="ssb-kpi__val mono">{fmt0(water.maxFullnessPct, "%")}</span>
+          <div>
+            <dt>Max full</dt>
+            <dd className="num">{fmt0(water.maxFullnessPct, "%")}</dd>
           </div>
-        </div>
+        </dl>
 
         <ConcentrationBar
           label="Channel fullness (peak)"
           value={water.maxFullnessPct}
-          max={120}
-          color="var(--rt-blue)"
+          max={WATER_BAR_MAX}
           unit="%"
         />
         <ConcentrationBar
           label="Rain 24 h (peak station)"
           value={rain.maxRain24h}
-          max={120}
-          color="var(--rt-blue)"
+          max={RAIN_BAR_MAX}
           unit=" mm"
         />
 
         {flow.length >= 2 && (
-          <div className="ssb-flow" aria-label="Tha Dee flow direction">
-            <div className="ssb-flow__label mono">FLOW · คลองท่าดี → CITY</div>
-            <div className="ssb-flow__track">
-              {flow.map((step, i) => (
-                <button
-                  key={step.nameEn}
-                  type="button"
-                  className="ssb-flow__node"
-                  onClick={() => onFocus(step.lng, step.lat)}
-                  title={`${step.name} / ${step.nameEn}`}
-                  style={{
-                    borderColor: step.situationLevel >= 5
-                      ? "var(--rt-red)"
-                      : step.situationLevel >= 4
-                        ? "var(--rt-orange)"
-                        : "var(--ink)",
-                  }}
-                >
-                  <span className="ssb-flow__name">{step.name}</span>
-                  <span className="ssb-flow__num mono">
-                    {fmt1(step.levelM, " m")} {trendGlyph(step.trend)}
-                  </span>
-                  <span className="ssb-flow__fb mono">
-                    {step.freeboardM == null
-                      ? "—"
-                      : step.freeboardM >= 0
-                        ? `${fmt1(step.freeboardM)} m free`
-                        : `${fmt1(-step.freeboardM)} m OVER`}
-                  </span>
-                  {i < flow.length - 1 && <span className="ssb-flow__arrow" aria-hidden>》</span>}
-                </button>
-              ))}
-            </div>
+          <div className="pc-section">
+            <h4 className="pc-label" id="sit-flow-label">
+              FLOW · <span lang="th">คลองท่าดี</span> → CITY
+            </h4>
+            <ol className="sit-flow" aria-labelledby="sit-flow-label">
+              {flow.map((step, i) => {
+                const level = situationLevelStatus(step.situationLevel);
+                return (
+                  <li key={step.nameEn} className="sit-flow__item">
+                    <button
+                      type="button"
+                      className="sit-flow__node"
+                      onClick={() => onFocus(step.lng, step.lat)}
+                      title={`${step.name} / ${step.nameEn}`}
+                    >
+                      <span className="sit-flow__name" lang="th">{step.name}</span>
+                      <span className="sit-flow__num num">
+                        {fmt1(step.levelM, " m")} <span aria-hidden="true">{trendGlyph(step.trend)}</span>
+                        <span className="visually-hidden"> {step.trend}</span>
+                      </span>
+                      <span className="sit-flow__fb num">
+                        {step.freeboardM == null
+                          ? "—"
+                          : step.freeboardM >= 0
+                            ? `${fmt1(step.freeboardM)} m free`
+                            : `${fmt1(-step.freeboardM)} m OVER`}
+                      </span>
+                      {level !== "normal" && <StatusText level={level}>{STATUS[level].en}</StatusText>}
+                    </button>
+                    {i < flow.length - 1 && <span className="sit-flow__arrow" aria-hidden="true">→</span>}
+                  </li>
+                );
+              })}
+            </ol>
           </div>
         )}
 
         {water.worst && (
           <button
             type="button"
-            className="ssb-worst"
+            className="sit-worst"
             onClick={() => onFocus(water.worst!.lng, water.worst!.lat)}
           >
-            <span className="mono ssb-worst__tag">HOTTEST GAUGE</span>
-            <span className="ssb-worst__name">{water.worst.name}</span>
-            <span className="mono ssb-worst__meta">
+            <span className="pc-label">HOTTEST GAUGE</span>
+            <span className="sit-worst__name">{water.worst.name}</span>
+            <span className="sit-worst__meta num">
+              <span className="pc-glyph" style={statusStyle(situationLevelStatus(water.worst.situationLevel))} aria-hidden="true">
+                {STATUS[situationLevelStatus(water.worst.situationLevel)].glyph}{" "}
+              </span>
               L{water.worst.situationLevel} · {fmt1(water.worst.levelMsl, " m")} · {water.worst.trend}
             </span>
           </button>
         )}
 
         {onShowWaterHeat && (
-          <button type="button" className="ssb-heat-btn mono" onClick={onShowWaterHeat}>
-            SHOW WATER HEATMAP
+          <button type="button" className="btn" onClick={onShowWaterHeat}>
+            Show water heatmap
           </button>
         )}
       </section>
 
       {/* Air — AirDash */}
-      <section className="ssb-pane ssb-pane--air" aria-label="Air situation">
-        <header className="ssb-pane__hdr">
-          <span className="ssb-pane__title mono">AIR</span>
-          <span className="ssb-pane__pow mono" style={{ background: BAND_VAR[air.band], color: BAND_INK[air.band] }}>
-            {bandLabel(air.band)}
-          </span>
+      <section className="pc-section" aria-label="Air situation">
+        <header className="sit-pane__hdr">
+          <h3 className="sit-pane__title">AIR</h3>
+          <BandLabel band={air.band} />
         </header>
 
-        <div className="ssb-kpi-row">
-          <div className="ssb-kpi">
-            <span className="ssb-kpi__label mono">STATIONS</span>
-            <span className="ssb-kpi__val mono">{air.withReading}/{air.stationCount || "—"}</span>
+        <dl className="pc-stats">
+          <div>
+            <dt>Stations</dt>
+            <dd className="num">{air.withReading}/{air.stationCount || "—"}</dd>
           </div>
-          <div className="ssb-kpi">
-            <span className="ssb-kpi__label mono">PM2.5</span>
-            <span className="ssb-kpi__val mono">{fmt0(air.maxPm25)}</span>
+          <div>
+            <dt>PM2.5</dt>
+            <dd className="num">{fmt0(air.maxPm25)}</dd>
           </div>
-          <div className="ssb-kpi">
-            <span className="ssb-kpi__label mono">AQI</span>
-            <span className="ssb-kpi__val mono">{fmt0(air.maxAqi)}</span>
+          <div>
+            <dt>AQI</dt>
+            <dd className="num">{fmt0(air.maxAqi)}</dd>
           </div>
-          <div className="ssb-kpi">
-            <span className="ssb-kpi__label mono">UNHEALTHY</span>
-            <span className="ssb-kpi__val mono">{Math.round(air.unhealthyShare * 100)}%</span>
+          <div>
+            <dt>Unhealthy</dt>
+            <dd className="num">{Math.round(air.unhealthyShare * 100)}%</dd>
           </div>
-        </div>
+        </dl>
 
         <ConcentrationBar
           label="PM2.5 concentration (peak)"
           value={air.maxPm25}
-          max={150}
-          color="var(--rt-yellow)"
+          max={PM25_BAR_MAX}
           unit=" µg/m³"
         />
 
         {air.worst && (
           <button
             type="button"
-            className="ssb-worst"
+            className="sit-worst"
             onClick={() => onFocus(air.worst!.lng, air.worst!.lat)}
           >
-            <span className="mono ssb-worst__tag">HOTTEST AIR</span>
-            <span className="ssb-worst__name">{air.worst.station}</span>
-            <span className="mono ssb-worst__meta">
+            <span className="pc-label">HOTTEST AIR</span>
+            <span className="sit-worst__name">{air.worst.station}</span>
+            <span className="sit-worst__meta num">
               PM2.5 {fmt0(air.worst.pm25)} · AQI {fmt0(air.worst.aqi)}
             </span>
           </button>
         )}
 
         {onShowAirHeat && (
-          <button type="button" className="ssb-heat-btn mono" onClick={onShowAirHeat}>
-            SHOW AIR HEATMAP
+          <button type="button" className="btn" onClick={onShowAirHeat}>
+            Show air heatmap
           </button>
         )}
       </section>
 
-      <footer className="ssb-powered mono">
+      <footer className="pc-meta">
         Powered by{" "}
-        <a href="https://flood.nonarkara.org" target="_blank" rel="noreferrer">FloodDash</a>
+        <a className="link" href="https://flood.nonarkara.org" target="_blank" rel="noreferrer">FloodDash</a>
         {" · "}
         <span title="Air quality stack — Air4Thai PCD + AQICN, curated as AirDash">AirDash</span>
         {" by Dr.Non"}
       </footer>
-    </div>
+    </section>
   );
 }

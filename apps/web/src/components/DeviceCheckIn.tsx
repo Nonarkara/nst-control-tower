@@ -1,5 +1,6 @@
 import type { DevicePresence } from "../hooks/useDevicePresence";
 import { fmtCoord, fmtAccuracy, networkLabel } from "../lib/device";
+import { StatusText } from "../lib/cityStatus";
 
 interface Props {
   presence: DevicePresence;
@@ -17,19 +18,19 @@ export function DeviceCheckIn({ presence, onRequest, onClear }: Props) {
   const { state, lng, lat, accuracyM, fixedAt, network, insideArea } = presence;
 
   return (
-    <section className="device-card">
-      <header className="device-card-head">
-        <span className="eyebrow mono">Device check-in · GPS only</span>
+    <section className="panel" aria-labelledby="device-checkin-title" aria-busy={state === "asking"}>
+      <header className="pc-spread">
+        <h3 className="pc-label" id="device-checkin-title">Device check-in · GPS only</h3>
         {state === "granted" ? (
-          <button type="button" onClick={onClear} className="mono device-clear" aria-label="Clear GPS fix">
-            CLEAR
+          <button type="button" onClick={onClear} className="btn btn--quiet" aria-label="Clear GPS fix">
+            Clear
           </button>
         ) : null}
       </header>
 
       {state !== "granted" && (
-        <div className="device-empty">
-          <p className="device-explain">
+        <div className="pc-section">
+          <p className="note">
             Log this computer into the system by GPS. We read your fix locally
             (the browser permission popup gates it) — nothing is sent anywhere.
             Used to anchor the WiFi survey + identify which building you're in.
@@ -38,60 +39,59 @@ export function DeviceCheckIn({ presence, onRequest, onClear }: Props) {
             type="button"
             onClick={onRequest}
             disabled={state === "asking"}
-            className="device-go mono"
+            className="btn"
           >
             {state === "asking"
-              ? "WAITING FOR BROWSER…"
+              ? "Waiting for browser…"
               : state === "denied"
-                ? "PERMISSION DENIED — RETRY"
+                ? "Permission denied — retry"
                 : state === "unsupported"
-                  ? "GEOLOCATION UNSUPPORTED"
+                  ? "Geolocation unsupported"
                   : state === "error"
-                    ? "RETRY"
-                    : "REQUEST GPS FIX"}
+                    ? "Retry"
+                    : "Request GPS fix"}
           </button>
-          {presence.err && <div className="device-err mono">⚠ {presence.err}</div>}
+          {presence.err && (
+            <p role="alert">
+              <StatusText level="critical">Error</StatusText> <span className="pc-meta">{presence.err}</span>
+            </p>
+          )}
         </div>
       )}
 
       {state === "granted" && (
-        <div className="device-detail">
-          <div className="device-row">
-            <span className="lbl">FIX</span>
-            <span className="val mono">
-              {fmtCoord(lat)}, {fmtCoord(lng)}
-            </span>
-          </div>
-          <div className="device-row">
-            <span className="lbl">ACCURACY</span>
-            <span className="val mono">{fmtAccuracy(accuracyM)}</span>
-          </div>
-          <div className="device-row">
-            <span className="lbl">NETWORK</span>
-            <span className="val">{networkLabel(network)}</span>
-          </div>
-          {(network.downlinkMbps != null || network.rttMs != null) && (
-            <div className="device-row">
-              <span className="lbl">LINK</span>
-              <span className="val mono">
-                {network.downlinkMbps != null ? `${network.downlinkMbps} Mbps` : "—"}
-                {network.rttMs != null ? ` · ${network.rttMs} ms` : ""}
-              </span>
-            </div>
-          )}
-          <div className="device-row">
-            <span className="lbl">AREA</span>
-            <span
-              className="val mono"
-              style={{ color: insideArea ? "var(--good)" : "var(--bad)" }}
-            >
-              {insideArea == null ? "—" : insideArea ? "✓ IN AREA" : "OUT OF AREA"}
-            </span>
-          </div>
+        <div className="pc-section">
+          <dl className="dev-list">
+            <dt>Fix</dt>
+            <dd className="num">{fmtCoord(lat)}, {fmtCoord(lng)}</dd>
+            <dt>Accuracy</dt>
+            <dd className="num">{fmtAccuracy(accuracyM)}</dd>
+            <dt>Network</dt>
+            <dd>{networkLabel(network)}</dd>
+            {(network.downlinkMbps != null || network.rttMs != null) && (
+              <>
+                <dt>Link</dt>
+                <dd className="num">
+                  {network.downlinkMbps != null ? `${network.downlinkMbps} Mbps` : "—"}
+                  {network.rttMs != null ? ` · ${network.rttMs} ms` : ""}
+                </dd>
+              </>
+            )}
+            <dt>Area</dt>
+            <dd>
+              {insideArea == null ? (
+                "—"
+              ) : insideArea ? (
+                <StatusText level="normal">In area</StatusText>
+              ) : (
+                <StatusText level="critical">Out of area</StatusText>
+              )}
+            </dd>
+          </dl>
           {fixedAt && (
-            <div className="device-foot mono">
+            <p className="pc-meta num">
               FIX {new Date(fixedAt).toLocaleTimeString("en-GB")} · watching
-            </div>
+            </p>
           )}
         </div>
       )}

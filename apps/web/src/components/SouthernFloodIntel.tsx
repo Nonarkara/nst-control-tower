@@ -15,6 +15,8 @@ import type {
   RiverDischargeBand,
 } from "@nst/shared";
 import { PanelHeader } from "./PanelHeader";
+import { STATUS } from "../lib/status";
+import { StatusText, dischargeStatus, floodWatchStatus, statusStyle } from "../lib/cityStatus";
 
 interface Props {
   risk: SouthernFloodRiskFeed | null;
@@ -23,26 +25,19 @@ interface Props {
   fallbackTier?: FallbackTier;
 }
 
-const WATCH_COLOR: Record<FloodWatchBand, string> = {
-  normal: "var(--good)",
-  watch: "var(--data)",
-  elevated: "var(--warn)",
-  high: "var(--bad)",
+const WATCH_LABEL: Record<FloodWatchBand, { th: string; en: string }> = {
+  normal: { th: "ปกติ", en: "NORMAL" },
+  watch: { th: "เฝ้าระวัง", en: "WATCH" },
+  elevated: { th: "เสี่ยงสูง", en: "ELEVATED" },
+  high: { th: "วิกฤต", en: "CRITICAL" },
 };
 
-const WATCH_LABEL: Record<FloodWatchBand, string> = {
-  normal: "ปกติ NORMAL",
-  watch: "เฝ้าระวัง WATCH",
-  elevated: "เสี่ยงสูง ELEVATED",
-  high: "วิกฤต CRITICAL",
-};
-
-const DISCHARGE_COLOR: Record<RiverDischargeBand, string> = {
-  normal: "var(--good)",
-  watch: "var(--data)",
-  warning: "var(--warn)",
-  emergency: "var(--bad)",
-  unknown: "var(--ink-low)",
+const DISCHARGE_LABEL: Record<RiverDischargeBand, string> = {
+  normal: "normal",
+  watch: "watch",
+  warning: "warning",
+  emergency: "emergency",
+  unknown: "no data",
 };
 
 function fmtMm(n: number | null | undefined): string {
@@ -53,6 +48,23 @@ function fmtMm(n: number | null | undefined): string {
 function fmtCms(n: number | null | undefined): string {
   if (n == null || Number.isNaN(n)) return "—";
   return `${n.toFixed(0)} m³/s`;
+}
+
+function WatchLabel({ band }: { band: FloodWatchBand }) {
+  return (
+    <StatusText level={floodWatchStatus(band)}>
+      <span lang="th">{WATCH_LABEL[band].th}</span> {WATCH_LABEL[band].en}
+    </StatusText>
+  );
+}
+
+function RankGlyph({ level, label }: { level: ReturnType<typeof floodWatchStatus>; label: string }) {
+  return (
+    <span className="pc-glyph" style={statusStyle(level)}>
+      <span aria-hidden="true">{STATUS[level].glyph}</span>
+      <span className="visually-hidden">{label}</span>
+    </span>
+  );
 }
 
 export function SouthernFloodIntel({ risk, rivers, ageMinutes, fallbackTier }: Props) {
@@ -75,7 +87,7 @@ export function SouthernFloodIntel({ risk, rivers, ageMinutes, fallbackTier }: P
   const regionalBand = risk?.summary.regionalBand ?? "normal";
 
   return (
-    <section className="panel-section" aria-label="Southern flood intelligence">
+    <section className="panel" aria-label="Southern flood intelligence" aria-busy={!hasData}>
       <PanelHeader
         title="SOUTHERN FLOOD INTEL"
         ageMinutes={ageMinutes}
@@ -83,48 +95,46 @@ export function SouthernFloodIntel({ risk, rivers, ageMinutes, fallbackTier }: P
         source="flooddash · dr.non"
       />
 
-      {!hasData && (
-        <p className="panel-empty">Southern analytics loading — ThaiWater + GloFAS</p>
-      )}
+      {!hasData && <p className="note">Southern analytics loading — ThaiWater + GloFAS</p>}
 
       {hasData && (
         <>
-          <div className="kpi-row" style={{ marginBottom: "0.75rem" }}>
-            <div className="kpi-chip">
-              <span className="kpi-label">ภาคใต้ REGION</span>
-              <span className="kpi-value" style={{ color: WATCH_COLOR[regionalBand] }}>
-                {WATCH_LABEL[regionalBand]}
-              </span>
+          <dl className="pc-stats">
+            <div>
+              <dt><span lang="th">ภาคใต้</span> Region</dt>
+              <dd><WatchLabel band={regionalBand} /></dd>
             </div>
             {nstProvince && (
-              <div className="kpi-chip">
-                <span className="kpi-label">นครศรี NST</span>
-                <span className="kpi-value" style={{ color: WATCH_COLOR[nstProvince.band] }}>
-                  {nstProvince.score} · {WATCH_LABEL[nstProvince.band]}
-                </span>
+              <div>
+                <dt><span lang="th">นครศรี</span> NST</dt>
+                <dd>
+                  <span className="num">{nstProvince.score}</span>
+                  <WatchLabel band={nstProvince.band} />
+                </dd>
               </div>
             )}
             {risk?.summary.worstRain && (
-              <div className="kpi-chip">
-                <span className="kpi-label">ฝนสูงสุด MAX RAIN</span>
-                <span className="kpi-value">
-                  {risk.summary.worstRain.provinceTh} {fmtMm(risk.summary.worstRain.mm)}
-                </span>
+              <div>
+                <dt><span lang="th">ฝนสูงสุด</span> Max rain</dt>
+                <dd>
+                  <span className="num">{fmtMm(risk.summary.worstRain.mm)}</span>
+                  <span className="pc-stats__sub" lang="th">{risk.summary.worstRain.provinceTh}</span>
+                </dd>
               </div>
             )}
-          </div>
+          </dl>
 
           {topProvinces.length > 0 && (
-            <div className="panel-block">
-              <div className="eyebrow">Province watch ranking</div>
-              <ul className="rank-list">
+            <div className="pc-section">
+              <h3 className="pc-label">Province watch ranking</h3>
+              <ul className="pc-list">
                 {topProvinces.map((p) => (
-                  <li key={p.provinceCode} className="rank-row">
-                    <span className="rank-dot" style={{ background: WATCH_COLOR[p.band] }} />
-                    <span className="rank-name">{p.provinceTh}</span>
-                    <span className="rank-score">{p.score}</span>
-                    <span className="rank-meta">
-                      {p.maxRain24h != null ? fmtMm(p.maxRain24h) : "—"}
+                  <li key={p.provinceCode} className="sfi-rank">
+                    <RankGlyph level={floodWatchStatus(p.band)} label={`${WATCH_LABEL[p.band].en}: `} />
+                    <span className="sfi-rank__name" lang="th">{p.provinceTh}</span>
+                    <span className="sfi-rank__score num">{p.score}</span>
+                    <span className="sfi-rank__meta num">
+                      {WATCH_LABEL[p.band].en.toLowerCase()} · {p.maxRain24h != null ? fmtMm(p.maxRain24h) : "—"}
                       {p.stationsL5 > 0 ? ` · L5×${p.stationsL5}` : p.stationsL4 > 0 ? ` · L4×${p.stationsL4}` : ""}
                     </span>
                   </li>
@@ -134,16 +144,16 @@ export function SouthernFloodIntel({ risk, rivers, ageMinutes, fallbackTier }: P
           )}
 
           {rivers && rivers.reaches.length > 0 && (
-            <div className="panel-block">
-              <div className="eyebrow">Southern river discharge (GloFAS)</div>
-              <ul className="rank-list">
+            <div className="pc-section">
+              <h3 className="pc-label">Southern river discharge (GloFAS)</h3>
+              <ul className="pc-list">
                 {(risingReaches.length > 0 ? risingReaches : rivers.reaches.slice(0, 4)).map((r) => (
-                  <li key={r.id} className="rank-row">
-                    <span className="rank-dot" style={{ background: DISCHARGE_COLOR[r.band] }} />
-                    <span className="rank-name">{r.nameEn}</span>
-                    <span className="rank-score">{fmtCms(r.discharge)}</span>
-                    <span className="rank-meta">
-                      {r.trend !== "unknown" ? r.trend : "—"}
+                  <li key={r.id} className="sfi-rank">
+                    <RankGlyph level={dischargeStatus(r.band)} label={`${DISCHARGE_LABEL[r.band]}: `} />
+                    <span className="sfi-rank__name">{r.nameEn}</span>
+                    <span className="sfi-rank__score num">{fmtCms(r.discharge)}</span>
+                    <span className="sfi-rank__meta num">
+                      {DISCHARGE_LABEL[r.band]} · {r.trend !== "unknown" ? r.trend : "—"}
                       {r.forecastPeak != null ? ` · peak ${fmtCms(r.forecastPeak)}` : ""}
                     </span>
                   </li>
@@ -152,7 +162,7 @@ export function SouthernFloodIntel({ risk, rivers, ageMinutes, fallbackTier }: P
             </div>
           )}
 
-          <p className="panel-note">
+          <p className="pc-meta">
             Flooddash watch index — live observations + forecast heuristic, not an official evacuation order.
           </p>
         </>

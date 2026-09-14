@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { safeUrl } from "../lib/safeUrl";
+import { Dialog } from "./Dialog";
 import { friendlyError } from "../lib/chat";
 
 interface ChatMessage {
@@ -129,6 +130,7 @@ export function ChatBox({ apiBase }: Props) {
   const [error, setError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const transcriptRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => saveHistory(messages), [messages]);
 
@@ -138,16 +140,6 @@ export function ChatBox({ apiBase }: Props) {
     const t = transcriptRef.current;
     if (t) t.scrollTop = t.scrollHeight;
   }, [messages, busy, open]);
-
-  // ESC closes
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open]);
 
   const busyRef = useRef(busy);
   useEffect(() => { busyRef.current = busy; }, [busy]);
@@ -212,117 +204,111 @@ export function ChatBox({ apiBase }: Props) {
   const turnCount = messages.length;
 
   return (
-    <div className={`chatbox ${open ? "chatbox-open" : "chatbox-closed"}`}>
+    <>
       {!open && (
-        <button
-          type="button"
-          className="chat-handle"
-          onClick={() => setOpen(true)}
-          aria-label="Open concierge chat"
-        >
-          <span className="chat-handle-dot" />
-          <span className="chat-handle-label">
-            <strong>Ask NST</strong>
-            <span className="mono">
-              Concierge for Nakhon Si Thammarat · Southern Thailand · municipal ops · data
+        <div className="chatbox chatbox-closed">
+          <button
+            type="button"
+            className="chat-handle"
+            onClick={() => setOpen(true)}
+            aria-label="Ask NST: open concierge chat"
+          >
+            <span className="chat-handle-dot" aria-hidden="true" />
+            <span className="chat-handle-label">
+              <strong>Ask NST</strong>
+              <span>
+                Concierge for Nakhon Si Thammarat · Southern Thailand · municipal ops · data
+              </span>
             </span>
-          </span>
-          <span className="chat-handle-cta mono">[ASK →]</span>
-        </button>
-      )}
-
-      {open && (
-        <div className="chat-panel" role="dialog" aria-label="Concierge chat">
-          <header className="chat-head">
-            <div className="col">
-              <span className="eyebrow mono">NST-Concierge · Gemini 2.5 Flash</span>
-              <h2 className="chat-title">Ask anything about Nakhon Si Thammarat</h2>
-            </div>
-            <div className="chat-head-tools">
-              {turnCount > 0 && (
-                <button onClick={clear} className="mono chat-clear" aria-label="Clear conversation">
-                  CLEAR
-                </button>
-              )}
-              <button
-                onClick={() => setOpen(false)}
-                className="mono chat-close"
-                aria-label="Close chat"
-              >
-                [ESC] CLOSE
-              </button>
-            </div>
-          </header>
-
-          <div ref={transcriptRef} className="chat-transcript">
-            {messages.length === 0 && (
-              <div className="chat-empty">
-                <p className="chat-empty-lede">
-                  Live link to a municipal briefer. Free-tier model — clear,
-                  factual, no fluff. Try one of these or type your own:
-                </p>
-                <div className="chat-suggestions">
-                  {SUGGESTED_PROMPTS.map((p) => (
-                    <button
-                      key={p}
-                      type="button"
-                      className="chat-suggestion"
-                      onClick={() => send(p)}
-                      disabled={busy}
-                    >
-                      {p}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {messages.map((m, i) => (
-              <div key={i} className={`chat-msg chat-msg-${m.role}`}>
-                <span className="chat-msg-role mono">
-                  {m.role === "user" ? "YOU" : "CTM"}
-                </span>
-                <div className="chat-msg-body">
-                  {m.role === "model" ? renderMarkdownLite(m.content) : <p>{m.content}</p>}
-                </div>
-              </div>
-            ))}
-
-            {busy && (
-              <div className="chat-msg chat-msg-model chat-msg-busy">
-                <span className="chat-msg-role mono">CTM</span>
-                <div className="chat-msg-body">
-                  <span className="chat-typing">
-                    <span /><span /><span />
-                  </span>
-                </div>
-              </div>
-            )}
-
-            {error && (
-              <div className="chat-error mono" role="alert">
-                {error}
-              </div>
-            )}
-          </div>
-
-          <form className="chat-input" onSubmit={onSubmit}>
-            <input
-              type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="Ask about Nakhon Si Thammarat security, flooding, air quality, municipal data…"
-              maxLength={1200}
-              disabled={busy}
-              aria-label="Your message"
-              autoFocus
-            />
-            <button type="submit" className="mono" disabled={busy || !input.trim()}>
-              {busy ? "…" : "SEND"}
-            </button>
-          </form>
+            <span className="chat-handle-cta" aria-hidden="true">[ASK →]</span>
+          </button>
         </div>
       )}
-    </div>
+
+      <Dialog
+        open={open}
+        onClose={() => setOpen(false)}
+        size="md"
+        className="dialog--chat"
+        eyebrow="NST-Concierge · Gemini 2.5 Flash"
+        title="Ask anything about Nakhon Si Thammarat"
+        initialFocusRef={inputRef}
+        actions={
+          turnCount > 0 ? (
+            <button type="button" onClick={clear} className="btn btn--quiet">
+              Clear conversation
+            </button>
+          ) : null
+        }
+      >
+        <div ref={transcriptRef} className="chat-transcript" role="log" aria-live="polite">
+          {messages.length === 0 && (
+            <div className="chat-empty">
+              <p className="chat-empty-lede">
+                Live link to a municipal briefer. Free-tier model — clear,
+                factual, no fluff. Try one of these or type your own:
+              </p>
+              <div className="chat-suggestions">
+                {SUGGESTED_PROMPTS.map((p) => (
+                  <button
+                    key={p}
+                    type="button"
+                    className="chat-suggestion"
+                    onClick={() => send(p)}
+                    disabled={busy}
+                  >
+                    {p}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {messages.map((m, i) => (
+            <div key={i} className={`chat-msg chat-msg-${m.role}`}>
+              <span className="chat-msg-role">
+                {m.role === "user" ? "YOU" : "CTM"}
+              </span>
+              <div className="chat-msg-body">
+                {m.role === "model" ? renderMarkdownLite(m.content) : <p>{m.content}</p>}
+              </div>
+            </div>
+          ))}
+
+          {busy && (
+            <div className="chat-msg chat-msg-model chat-msg-busy">
+              <span className="chat-msg-role">CTM</span>
+              <div className="chat-msg-body">
+                <span className="chat-typing" role="status" aria-label="Concierge is typing">
+                  <span /><span /><span />
+                </span>
+              </div>
+            </div>
+          )}
+
+          {error && (
+            <div className="chat-error" role="alert">
+              {error}
+            </div>
+          )}
+        </div>
+
+        <form className="chat-input" onSubmit={onSubmit}>
+          <input
+            ref={inputRef}
+            type="text"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder="Ask about Nakhon Si Thammarat security, flooding, air quality, municipal data…"
+            maxLength={1200}
+            disabled={busy}
+            aria-label="Your message"
+          />
+          <button type="submit" disabled={busy || !input.trim()}>
+            {busy ? "Sending…" : "SEND"}
+          </button>
+        </form>
+      </Dialog>
+    </>
   );
 }

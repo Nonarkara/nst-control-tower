@@ -1,6 +1,8 @@
 import type { AirQualityPoint, FloodGauge, IncidentFeature, WeatherSnapshot } from "@nst/shared";
 import { PanelHeader } from './PanelHeader';
-import { aqiColor, aqiBand } from "../lib/coastal";
+import { aqiBand } from "../lib/coastal";
+import type { StatusLevel } from "../lib/status";
+import { StatusText, aqiStatus, gaugeStatus } from "../lib/cityStatus";
 
 interface Props {
   cityReports: IncidentFeature[];
@@ -18,14 +20,6 @@ const GAUGE_RANK: Record<FloodGauge["status"], number> = {
   unknown: -1,
 };
 
-const GAUGE_STATUS_COLOR: Record<FloodGauge["status"], string> = {
-  normal: "var(--good)",
-  watch: "var(--warn)",
-  warning: "var(--warn)",
-  flood: "var(--bad)",
-  unknown: "var(--ink-low)",
-};
-
 const GAUGE_STATUS_WORD: Record<FloodGauge["status"], string> = {
   normal: "NORMAL",
   watch: "WATCH",
@@ -34,6 +28,16 @@ const GAUGE_STATUS_WORD: Record<FloodGauge["status"], string> = {
   unknown: "—",
 };
 
+const REPORTS_CRITICAL = 20;
+const REPORTS_ELEVATED = 5;
+
+function reportsState(open: number): { level: StatusLevel | null; word: string } {
+  if (open > REPORTS_CRITICAL) return { level: "critical", word: "CRITICAL" };
+  if (open > REPORTS_ELEVATED) return { level: "watch", word: "ELEVATED" };
+  if (open > 0) return { level: null, word: "OPEN" };
+  return { level: "normal", word: "CLEAR" };
+}
+
 export function KpiStrip({ cityReports, floodGauges, airQuality, weather, ageMinutes }: Props) {
   const openReports = cityReports.filter((r) => r.status !== "resolved").length;
   const worstGauge = floodGauges.length
@@ -41,50 +45,60 @@ export function KpiStrip({ cityReports, floodGauges, airQuality, weather, ageMin
     : null;
   const aq = airQuality[0];
   const w = weather[0];
+  const reports = reportsState(openReports);
+  const gaugeAlert = floodGauges.some((g) => g.status === "warning" || g.status === "flood");
 
   return (
     <>
       <PanelHeader title="CITY PULSE" ageMinutes={ageMinutes} source="traffy·openmeteo·aqicn·glofast" />
-      <div className="kpi-grid">
-      <div className="kpi" role="status" aria-label={`Citizen reports: ${openReports} open`}>
-        <div className="label">TRAFFY:CR</div>
-        <div className="value" style={{ color: openReports > 20 ? "var(--bad)" : openReports > 5 ? "var(--warn)" : openReports > 0 ? "var(--ink)" : "var(--good)" }}>
-          {openReports}
-          <span className="kpi-status-word">{openReports > 20 ? "CRITICAL" : openReports > 5 ? "ELEVATED" : openReports > 0 ? "OPEN" : "CLEAR"}</span>
+      <dl className="pc-stats kpis">
+        <div>
+          <dt>Traffy:CR</dt>
+          <dd>
+            <span className="num">{openReports}</span>
+            {reports.level ? (
+              <StatusText level={reports.level}>{reports.word}</StatusText>
+            ) : (
+              <span className="pc-status">{reports.word}</span>
+            )}
+            <span className="pc-stats__sub num">{cityReports.length} total // open</span>
+          </dd>
         </div>
-        <div className="sub">{cityReports.length} TOTAL // OPEN</div>
-      </div>
 
-      <div className="kpi" role="status" aria-label={worstGauge ? `Flood gauge: ${worstGauge.status}` : "Flood status unavailable"}>
-        <div className="label">FLOOD:GAUGE</div>
-        <div className="value" style={{ color: worstGauge ? GAUGE_STATUS_COLOR[worstGauge.status] : "var(--ink-low)" }}>
-          {worstGauge ? GAUGE_STATUS_WORD[worstGauge.status] : "—"}
-          {worstGauge && worstGauge.status !== "unknown" && (
-            <span className="kpi-status-word">{floodGauges.filter(g => g.status === "warning" || g.status === "flood").length > 0 ? "ALERT" : "OK"}</span>
-          )}
+        <div>
+          <dt>Flood:gauge</dt>
+          <dd>
+            {worstGauge && worstGauge.status !== "unknown" ? (
+              <>
+                <StatusText level={gaugeStatus(worstGauge.status)}>{GAUGE_STATUS_WORD[worstGauge.status]}</StatusText>
+                <span className="pc-stats__sub">{gaugeAlert ? "ALERT" : "OK"}</span>
+              </>
+            ) : (
+              <span>—</span>
+            )}
+            <span className="pc-stats__sub">Pak Phanang / Tha Dee</span>
+          </dd>
         </div>
-        <div className="sub">PAK PHANANG / THA DEE</div>
-      </div>
 
-      <div className="kpi" role="status"
-        aria-label={aq?.aqi != null ? `AQI ${aq.aqi}, ${aqiBand(aq.aqi)}` : "AQI unavailable"}>
-        <div className="label">PM2.5:AQI</div>
-        <div className="value" style={{ color: aq?.aqi != null ? aqiColor(aq.aqi) : "var(--ink-low)" }}>
-          {aq?.aqi ?? "—"}
-          {aq?.aqi != null && (
-            <span className="kpi-status-word">{aqiBand(aq.aqi)}</span>
-          )}
+        <div>
+          <dt>PM2.5:AQI</dt>
+          <dd>
+            <span className="num">{aq?.aqi ?? "—"}</span>
+            {aq?.aqi != null && <StatusText level={aqiStatus(aq.aqi)}>{aqiBand(aq.aqi)}</StatusText>}
+            <span className="pc-stats__sub num">{aq?.pm25 != null ? `${aq.pm25.toFixed(1)} µg/m³` : "—"}</span>
+          </dd>
         </div>
-        <div className="sub">{aq?.pm25 != null ? `${aq.pm25.toFixed(1)} µg/m³` : "—"}</div>
-      </div>
 
-      <div className="kpi" role="status"
-        aria-label={w?.tempC != null ? `Temperature ${Math.round(w.tempC)} degrees` : "Temperature unavailable"}>
-        <div className="label">TEMP:WX</div>
-        <div className="value">{w?.tempC != null ? `${Math.round(w.tempC)}°` : "—"}</div>
-        <div className="sub">{w ? `FL ${Math.round((w.feelsLikeC ?? w.tempC) ?? 0)}° // ${(w.windKmh ?? 0).toFixed(0)} KMH` : "—"}</div>
-      </div>
-    </div>
+        <div>
+          <dt>Temp:WX</dt>
+          <dd>
+            <span className="num">{w?.tempC != null ? `${Math.round(w.tempC)}°` : "—"}</span>
+            <span className="pc-stats__sub num">
+              {w ? `Feels ${Math.round((w.feelsLikeC ?? w.tempC) ?? 0)}° // ${(w.windKmh ?? 0).toFixed(0)} km/h` : "—"}
+            </span>
+          </dd>
+        </div>
+      </dl>
     </>
   );
 }

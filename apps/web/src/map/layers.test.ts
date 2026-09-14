@@ -2,6 +2,8 @@ import { describe, test, expect } from "vitest";
 import { flowDotPositions, thaDeeFlowPath, etaArcRingsLayer, watershedNodesLayer } from "./layers";
 import type { ZoneSummary } from "../lib/watershed";
 import type { BasinWaterBalance } from "@nst/shared";
+import { STATUS, type StatusLevel } from "../lib/status";
+import * as L from "./layers";
 
 /**
  * flowDotPositions — pure lerp-along-path function driving the watershed
@@ -196,5 +198,99 @@ describe("watershedNodesLayer — basin-band bridge", () => {
     expect(() =>
       watershedNodesLayer([cityZone(99.9631, 8.4364)], [basinBalance("city_tha_dee", "overflow")]),
     ).not.toThrow();
+  });
+});
+
+describe("map colour system — severity maps derive from STATUS", () => {
+  const rgb = (l: StatusLevel) => STATUS[l].rgb;
+  const rgba = (l: StatusLevel, a: number) => [...STATUS[l].rgb, a];
+
+  test("flood gauges: flood (overbank) → critical", () => {
+    expect(L.GAUGE_COLOR).toEqual({
+      normal: rgb("normal"), watch: rgb("watch"), warning: rgb("warning"), flood: rgb("critical"), unknown: rgb("unknown"),
+    });
+  });
+
+  test("dam runoff: low + normal → normal, high → warning, spilling → critical", () => {
+    expect(L.DAM_COLOR).toEqual({
+      low: rgb("normal"), normal: rgb("normal"), high: rgb("warning"), spilling: rgb("critical"), unknown: rgb("unknown"),
+    });
+  });
+
+  test("HII situation: 5 → critical, 4 → warning, 1–3 → normal", () => {
+    expect(L.SITUATION_RGB[5]).toEqual(rgb("critical"));
+    expect(L.SITUATION_RGB[4]).toEqual(rgb("warning"));
+    for (const lvl of [1, 2, 3]) expect(L.SITUATION_RGB[lvl]).toEqual(rgb("normal"));
+  });
+
+  test("DWR EWS: 0 normal · 1 watch · 2 warning · 3 critical", () => {
+    expect([0, 1, 2, 3].map((k) => L.EWS_STATUS_RGB[k])).toEqual(
+      [rgb("normal"), rgb("watch"), rgb("warning"), rgb("critical")],
+    );
+  });
+
+  test("basin band: ok normal · tight watch · overflow critical", () => {
+    expect(L.BASIN_BAND_RGB).toEqual({ ok: rgb("normal"), tight: rgb("watch"), overflow: rgb("critical"), unknown: rgb("unknown") });
+  });
+
+  test("southern watch + discharge bands share one watch colour", () => {
+    expect(L.WATCH_BAND_RGB).toEqual({ normal: rgb("normal"), watch: rgb("watch"), elevated: rgb("warning"), high: rgb("critical") });
+    expect(L.DISCHARGE_BAND_RGB).toEqual({
+      normal: rgb("normal"), watch: rgb("watch"), warning: rgb("warning"), emergency: rgb("critical"), unknown: rgb("unknown"),
+    });
+    expect(L.WATCH_BAND_RGB.watch).toEqual(L.GAUGE_COLOR.watch);
+  });
+
+  test("flood risk / marks / flood-prone / HII / UNOSAT keep domain alpha on STATUS hues", () => {
+    expect(L.FLOOD_COLOR).toEqual({ high: rgba("critical", 44), medium: rgba("warning", 36), low: rgba("watch", 28) });
+    expect(L.MARK_COLOR).toEqual({ pabuk: rgb("critical"), normal: rgb("watch") });
+    expect(L.FLOOD_PRONE_COLOR).toEqual({ 1: rgba("critical", 200), 2: rgba("warning", 180), 3: rgba("watch", 160) });
+    expect(L.HII_RISK_COLOR).toEqual({ 1: rgba("critical", 210), 2: rgba("warning", 190), 3: rgba("watch", 170) });
+    expect(L.UNOSAT_SEVERITY_COLOR).toEqual({
+      extreme: rgba("critical", 220), high: rgba("warning", 200), medium: rgba("watch", 180), low: rgba("normal", 160),
+    });
+  });
+
+  test("ETA rings: 1h critical, 3h warning, 6h watch", () => {
+    const rings = etaArcRingsLayer([cityZone(99.9631, 8.4364)]).slice(0, 3);
+    const colors = rings.map((l) => (l as unknown as { props: { getColor: number[] } }).props.getColor.slice(0, 3));
+    expect(colors).toEqual([rgb("critical"), rgb("warning"), rgb("watch")]);
+  });
+});
+
+describe("map colour system — categorical palettes", () => {
+  const key = (c: readonly number[]) => c.slice(0, 3).join(",");
+
+  test("every building type has its own RGB, distinct from untyped", () => {
+    const keys = [...Object.values(L.LANDMARK_COLOR), L.UNTYPED_COLOR].map(key);
+    expect(new Set(keys).size).toBe(keys.length);
+  });
+
+  test("every civic POI kind has its own RGB", () => {
+    const keys = Object.values(L.CIVIC_PALETTE).map((p) => key(p.color));
+    expect(new Set(keys).size).toBe(keys.length);
+  });
+
+  test("CCTV categories stay on Okabe–Ito", () => {
+    expect(L.CCTV_CATEGORY_RGB.traffic).toEqual([230, 159, 0]);
+    expect(L.CCTV_CATEGORY_RGB.water).toEqual([86, 180, 233]);
+  });
+});
+
+describe("map text", () => {
+  test("labels use the interface type family, ≥ 12 px, weight ≤ 600", () => {
+    const layers = [
+      ...watershedNodesLayer([zone("khiri-wong", "คลองท่าดี", 99.7833, 8.4338), cityZone(99.9631, 8.4364)], []),
+      ...etaArcRingsLayer([cityZone(99.9631, 8.4364)]),
+    ];
+    const textLayers = layers
+      .map((l) => (l as unknown as { props: { fontFamily?: string; getSize?: number; fontWeight?: number | string } }).props)
+      .filter((p) => p.fontFamily !== undefined);
+    expect(textLayers.length).toBeGreaterThanOrEqual(3);
+    for (const p of textLayers) {
+      expect(p.fontFamily).toContain("Libre Franklin");
+      expect(p.getSize).toBeGreaterThanOrEqual(12);
+      expect(Number(p.fontWeight)).toBeLessThanOrEqual(600);
+    }
   });
 });

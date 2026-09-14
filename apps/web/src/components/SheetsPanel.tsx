@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
+import { Dialog } from "./Dialog";
 
 const STORAGE_KEY = "nst:sheets-url-v1";
 
@@ -29,16 +30,6 @@ export function SheetsPanel({ open, onClose }: Props) {
   const [input, setInput] = useState(() => loadUrl());
   const inputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
-    window.addEventListener("keydown", onKey);
-    setTimeout(() => inputRef.current?.focus(), 80);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
-
-  if (!open) return null;
-
   const isValid = (() => {
     try {
       const u = new URL(input.trim());
@@ -60,22 +51,15 @@ export function SheetsPanel({ open, onClose }: Props) {
   };
 
   return (
-    <div className="manual-backdrop" onClick={onClose}>
-      <div
-        className="sheets-panel"
-        role="dialog"
-        aria-label="Google Sheets integration"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <header className="manual-head">
-          <div className="col">
-            <span className="eyebrow mono">Live Data Export · Google Sheets</span>
-            <h2 className="manual-title">NST-CTM-01 Live Data Feed</h2>
-          </div>
-          <button onClick={onClose} className="mono manual-close" aria-label="Close">
-            [ESC] CLOSE
-          </button>
-        </header>
+    <Dialog
+      open={open}
+      onClose={onClose}
+      size="md"
+      className="dialog--sheets"
+      eyebrow="Live Data Export · Google Sheets"
+      title="NST-CTM-01 Live Data Feed"
+      initialFocusRef={inputRef}
+    >
 
         <div className="sheets-body">
           {!url ? (
@@ -131,6 +115,7 @@ export function SheetsPanel({ open, onClose }: Props) {
                   className="sheets-url-input"
                 />
                 <button
+                  type="button"
                   onClick={save}
                   disabled={!isValid}
                   className="mono sheets-save"
@@ -149,10 +134,11 @@ export function SheetsPanel({ open, onClose }: Props) {
                 </div>
                 <div className="sheets-url-display mono">{url}</div>
                 <div className="sheets-actions">
-                  <button onClick={openExisting} className="mono sheets-open">
+                  <button type="button" onClick={openExisting} className="mono sheets-open">
                     OPEN IN GOOGLE SHEETS →
                   </button>
                   <button
+                    type="button"
                     onClick={() => { setUrl(""); setInput(""); saveUrl(""); }}
                     className="mono sheets-reset"
                   >
@@ -188,7 +174,7 @@ export function SheetsPanel({ open, onClose }: Props) {
                     </li>
                   ))}
                 </ul>
-                <p className="caption" style={{ marginTop: 14 }}>Static + future tabs — ready for official municipal pipelines:</p>
+                <p className="caption sheets-info__second">Static + future tabs — ready for official municipal pipelines:</p>
                 <ul className="sheets-endpoints mono">
                   {[
                     ["Buildings",      "Static city footprint inventory"],
@@ -218,7 +204,6 @@ export function SheetsPanel({ open, onClose }: Props) {
             </>
           )}
         </div>
-      </div>
-    </div>
+    </Dialog>
   );
 }

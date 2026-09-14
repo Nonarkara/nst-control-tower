@@ -19,6 +19,7 @@
  */
 
 import type { WaterGauge, PrecipNowcast, RainfallStation, EwsStation } from "@nst/shared";
+import { STATUS, type StatusLevel } from "./status";
 
 export type Level = 1 | 2 | 3 | 4 | 5;
 
@@ -27,6 +28,9 @@ export interface LadderStep {
   th: string;
   en: string;
   action: string;
+  /** Position on the shared status vocabulary (lib/status.ts). */
+  status: StatusLevel;
+  /** CSS colour token — derived from `status`, never a local hue. */
   color: string;
   issuer: string;
 }
@@ -39,7 +43,8 @@ export const LADDER: Record<Level, LadderStep> = {
     th: "เฝ้าระวัง",
     en: "MONITOR",
     action: "Routine watch. Track upland rain + gauge trend.",
-    color: "var(--good)",
+    status: "normal",
+    color: STATUS.normal.color,
     issuer: "TMD / HII advisory",
   },
   2: {
@@ -47,7 +52,8 @@ export const LADDER: Record<Level, LadderStep> = {
     th: "เตรียมพร้อม",
     en: "STANDBY",
     action: "Brief response staff, pre-position pumps & barriers, verify shelters.",
-    color: "var(--data)",
+    status: "watch",
+    color: STATUS.watch.color,
     issuer: "TMD / HII advisory",
   },
   3: {
@@ -55,7 +61,8 @@ export const LADDER: Record<Level, LadderStep> = {
     th: "อพยพกลุ่มเปราะบาง",
     en: "EVAC VULNERABLE",
     action: "Move elderly, disabled & low-lying households early. Open shelters.",
-    color: "var(--warn)",
+    status: "warning",
+    color: STATUS.warning.color,
     issuer: "Municipality decision",
   },
   4: {
@@ -63,7 +70,8 @@ export const LADDER: Record<Level, LadderStep> = {
     th: "สั่งอพยพ",
     en: "EVACUATION ORDER",
     action: "Order evacuation of flood zones — complete movement before peak.",
-    color: "var(--bad)",
+    status: "critical",
+    color: STATUS.critical.color,
     issuer: "Municipality decision",
   },
   5: {
@@ -71,7 +79,8 @@ export const LADDER: Record<Level, LadderStep> = {
     th: "ภาวะฉุกเฉิน",
     en: "EMERGENCY",
     action: "Life-safety only. Vertical evacuation, swiftwater rescue, DDPM EOC.",
-    color: "var(--bad)",
+    status: "critical",
+    color: STATUS.critical.color,
     issuer: "Municipality / DDPM",
   },
 };

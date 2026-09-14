@@ -7,6 +7,9 @@
  * versions in coastal.ts ("MODERATE", "UNHEALTHY·SG", "HAZARDOUS").
  */
 
+import { STATUS } from "./status";
+import { aqiStatus } from "./cityStatus";
+
 /** AQI band label for the executive summary row (abbreviated). */
 export function execAqiBand(aqi: number): string {
   if (aqi <= 50)  return "GOOD";
@@ -16,12 +19,9 @@ export function execAqiBand(aqi: number): string {
   return "VERY UNHEALTHY";
 }
 
-/** AQI color token for the executive summary row. */
+/** AQI status colour token for the executive summary row (shared status vocabulary). */
 export function execAqiColor(aqi: number): string {
-  if (aqi <= 50)  return "var(--good)";
-  if (aqi <= 100) return "var(--data)";
-  if (aqi <= 150) return "var(--warn)";
-  return "var(--bad)";
+  return STATUS[aqiStatus(aqi)].color;
 }
 
 /** Format a nullable number to 1 decimal place; null → "—". */

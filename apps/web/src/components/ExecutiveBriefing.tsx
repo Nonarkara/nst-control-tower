@@ -16,7 +16,15 @@ import type {
 import type { ReservoirStatus } from "./WaterPanel";
 import type { AdapterHealth } from "../hooks/useSystemHealth";
 import { PanelHeader } from "./PanelHeader";
-import { execAqiBand, execAqiColor, fmt1, fmtInt, avgCapacityPct } from "../lib/executive";
+import { execAqiBand, fmt1, fmtInt, avgCapacityPct } from "../lib/executive";
+import {
+  StatusText,
+  adapterStatus,
+  alertLevelStatus,
+  aqiStatus,
+  initiativeStatus,
+  statusStyle,
+} from "../lib/cityStatus";
 
 interface Props {
   executive: ExecutiveSnapshot | null;
@@ -30,26 +38,7 @@ interface Props {
   fallbackTier?: FallbackTier;
 }
 
-const LEVEL_COLOR: Record<string, string> = {
-  critical: "var(--bad)",
-  warning:  "var(--bad)",
-  watch:    "var(--warn)",
-  info:     "var(--data)",
-};
-
-const LEVEL_ICON: Record<string, string> = {
-  critical: "▲",
-  warning:  "▲",
-  watch:    "◆",
-  info:     "ℹ",
-};
-
-const STATUS_COLOR: Record<string, string> = {
-  "on-track":  "var(--good)",
-  "at-risk":   "var(--warn)",
-  "delayed":   "var(--bad)",
-  "completed": "var(--data)",
-};
+const HEALTH_PREVIEW = 5;
 
 
 export function ExecutiveBriefing({
@@ -74,103 +63,99 @@ export function ExecutiveBriefing({
   const nowStr = new Date().toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit", hour12: false });
 
   return (
-    <div className="executive-briefing">
-      {/* Header */}
+    <section className="panel" aria-label="Executive brief">
       <PanelHeader
         title="EXECUTIVE BRIEF"
         source="live-feeds + compendium"
         ageMinutes={ageMinutes}
         fallbackTier={fallbackTier}
-        actions={
-          <span className="mono caption" style={{ color: "var(--ink-low)" }}>{nowStr}</span>
-        }
+        actions={<span className="pc-meta num">{nowStr}</span>}
       />
 
       {/* Situation alerts */}
-      <div className="exec-briefing-section">
-        <span className="mono eyebrow" style={{ color: "var(--ink-low)" }}>SITUATION</span>
+      <div className="pc-section">
+        <h3 className="pc-label">Situation</h3>
         {alerts.length === 0 ? (
-          <div className="exec-briefing-nominal mono caption" role="status">
-            ✓ NOMINAL — no active alerts
-          </div>
+          <p role="status">
+            <StatusText level="normal">Nominal — no active alerts</StatusText>
+          </p>
         ) : (
-          <ul className="exec-briefing-alerts" role="list" aria-label="Active situation alerts">
-            {alerts.map((a) => (
-              <li key={a.id} className="exec-briefing-alert"
-                  style={{ borderLeftColor: LEVEL_COLOR[a.level] ?? "var(--line)" }}>
-                <div className="exec-briefing-alert-row">
-                  <span className="mono" style={{ color: LEVEL_COLOR[a.level] ?? "var(--ink-3)", fontSize: "0.60rem", letterSpacing: "0.08em", fontWeight: 600 }}>
-                    {LEVEL_ICON[a.level] ?? "·"} {a.level.toUpperCase()} · {a.category.toUpperCase()}
-                  </span>
-                </div>
-                <div className="exec-briefing-alert-title">{a.title}</div>
-                <div className="exec-briefing-alert-msg">{a.message}</div>
-                {a.actionRequired && (
-                  <div className="exec-briefing-alert-action mono">
-                    → {a.actionRequired}
-                  </div>
-                )}
-              </li>
-            ))}
+          <ul className="pc-list" aria-label="Active situation alerts">
+            {alerts.map((a) => {
+              const level = alertLevelStatus(a.level);
+              return (
+                <li key={a.id} className="exec-alert" style={statusStyle(level)}>
+                  <StatusText level={level}>
+                    {a.level} · {a.category}
+                  </StatusText>
+                  <p className="exec-alert__title">{a.title}</p>
+                  <p className="exec-alert__msg">{a.message}</p>
+                  {a.actionRequired && <p className="exec-alert__action">→ {a.actionRequired}</p>}
+                </li>
+              );
+            })}
           </ul>
         )}
       </div>
 
       {/* City vitals */}
-      <div className="exec-briefing-section">
-        <span className="mono eyebrow" style={{ color: "var(--ink-low)" }}>CITY VITALS</span>
-        <div className="marine-detail-grid" role="group" aria-label="City vital statistics">
+      <div className="pc-section">
+        <h3 className="pc-label">City vitals</h3>
+        <dl className="pc-stats pc-stats--pair" aria-label="City vital statistics">
           <div>
-            <span className="mono eyebrow" style={{ color: "var(--ink-low)" }}>AQI</span>
-            <span className="mono" style={{ color: aqi != null ? execAqiColor(aqi) : "var(--ink-3)" }}>
-              {fmtInt(aqi)}{aqi != null ? ` · ${execAqiBand(aqi)}` : ""}
-            </span>
+            <dt>AQI</dt>
+            <dd>
+              <span className="num">{fmtInt(aqi)}</span>
+              {aqi != null && <StatusText level={aqiStatus(aqi)}>{execAqiBand(aqi)}</StatusText>}
+            </dd>
           </div>
           <div>
-            <span className="mono eyebrow" style={{ color: "var(--ink-low)" }}>TEMP</span>
-            <span className="mono">{fmt1(weather?.tempC)}°C</span>
+            <dt>Temp</dt>
+            <dd className="num">{fmt1(weather?.tempC)}°C</dd>
           </div>
           <div>
-            <span className="mono eyebrow" style={{ color: "var(--ink-low)" }}>REPORTS</span>
-            <span className="mono" style={{ color: openIncidents > 5 ? "var(--warn)" : "var(--ink)" }}>
-              {openIncidents} OPEN
-            </span>
+            <dt>Reports</dt>
+            <dd>
+              <span className="num">{openIncidents}</span>
+              {openIncidents > 5 ? (
+                <StatusText level="watch">Open</StatusText>
+              ) : (
+                <span className="pc-stats__sub">open</span>
+              )}
+            </dd>
           </div>
           <div>
-            <span className="mono eyebrow" style={{ color: "var(--ink-low)" }}>RESERVOIRS</span>
-            <span className="mono" style={{ color: avgReservoir != null && avgReservoir < 30 ? "var(--warn)" : "var(--ink)" }}>
-              {avgReservoir != null ? `${Math.round(avgReservoir)}%` : "—"}
-            </span>
+            <dt>Reservoirs</dt>
+            <dd>
+              <span className="num">{avgReservoir != null ? `${Math.round(avgReservoir)}%` : "—"}</span>
+              {avgReservoir != null && avgReservoir < 30 && <StatusText level="watch">Low</StatusText>}
+            </dd>
           </div>
-        </div>
+        </dl>
       </div>
 
       {/* Strategic initiatives */}
       {initiatives.length > 0 && (
-        <div className="exec-briefing-section">
-          <span className="mono eyebrow" style={{ color: "var(--ink-low)" }}>
-            INITIATIVES <span style={{ color: "var(--ink-low)", fontWeight: 400 }}>· INDICATIVE</span>
-          </span>
-          <ul className="exec-briefing-initiatives" role="list">
+        <div className="pc-section">
+          <h3 className="pc-label">
+            Initiatives <span className="pc-meta">· indicative</span>
+          </h3>
+          <ul className="pc-list">
             {initiatives.map((init) => (
-              <li key={init.id} className="exec-briefing-initiative">
-                <div className="exec-briefing-init-row">
-                  <span className="exec-briefing-init-name">{init.name}</span>
-                  <span className="mono" style={{
-                    fontSize: "0.60rem",
-                    letterSpacing: "0.06em",
-                    color: STATUS_COLOR[init.status] ?? "var(--ink-low)",
-                  }}>
-                    {init.status.toUpperCase().replace("-", " ")}
-                  </span>
+              <li key={init.id} className="exec-init">
+                <div className="pc-spread">
+                  <span className="exec-init__name">{init.name}</span>
+                  <StatusText level={initiativeStatus(init.status)}>
+                    {init.status.replace("-", " ")}
+                  </StatusText>
                 </div>
                 {/* No fabricated %-complete bar: the Mayor runs these programmes and
                     would catch invented precision. Show owner + target date only,
                     with a qualitative status, until the Mayor's office supplies real
                     progress figures. */}
-                <div className="mono" style={{ fontSize: "0.58rem", color: "var(--ink-low)" }}>
+                <p className="pc-meta">
                   {init.owner} · target {init.deadline}
-                </div>
+                </p>
               </li>
             ))}
           </ul>
@@ -179,45 +164,45 @@ export function ExecutiveBriefing({
 
       {/* Markets snapshot — only when live data is available */}
       {markets && (thbUsd != null || sp500 || wti) && (
-        <div className="exec-briefing-section">
-          <span className="mono eyebrow" style={{ color: "var(--ink-low)" }}>MARKETS</span>
-          <div className="marine-detail-grid">
+        <div className="pc-section">
+          <h3 className="pc-label">Markets</h3>
+          <dl className="pc-stats">
             {thbUsd != null && (
               <div>
-                <span className="mono eyebrow" style={{ color: "var(--ink-low)" }}>THB / USD</span>
-                <span className="mono">{thbUsd.toFixed(2)}</span>
+                <dt>THB / USD</dt>
+                <dd className="num">{thbUsd.toFixed(2)}</dd>
               </div>
             )}
             {sp500 && (
               <div>
-                <span className="mono eyebrow" style={{ color: "var(--ink-low)" }}>S&amp;P 500</span>
-                <span className="mono" style={{ color: (sp500.changePct ?? 0) >= 0 ? "var(--good)" : "var(--bad)" }}>
-                  {sp500.value != null ? fmtInt(sp500.value) : "—"}
+                <dt>S&amp;P 500</dt>
+                <dd>
+                  <span className="num">{sp500.value != null ? fmtInt(sp500.value) : "—"}</span>
                   {sp500.changePct != null && (
-                    <span style={{ fontSize: "0.72em", marginLeft: 4 }}>
-                      {sp500.changePct >= 0 ? "▲" : "▼"}{Math.abs(sp500.changePct).toFixed(1)}%
+                    <span className="exec-change num">
+                      <span aria-hidden="true">{sp500.changePct >= 0 ? "▲" : "▼"}</span>
+                      <span className="visually-hidden">{sp500.changePct >= 0 ? "up" : "down"} </span>
+                      {Math.abs(sp500.changePct).toFixed(1)}%
                     </span>
                   )}
-                </span>
+                </dd>
               </div>
             )}
             {wti && (
               <div>
-                <span className="mono eyebrow" style={{ color: "var(--ink-low)" }}>WTI CRUDE</span>
-                <span className="mono">${fmt1(wti.value)}</span>
+                <dt>WTI crude</dt>
+                <dd className="num">${fmt1(wti.value)}</dd>
               </div>
             )}
-          </div>
+          </dl>
         </div>
       )}
 
       {/* Data health — only shown when some adapters are not fully healthy */}
-      {adapterHealth && adapterHealth.some(
-        (a) => a.status === "degraded" || a.status === "down"
-      ) && (
+      {adapterHealth && adapterHealth.some((a) => a.status === "degraded" || a.status === "down") && (
         <DataHealthSection adapters={adapterHealth} />
       )}
-    </div>
+    </section>
   );
 }
 
@@ -228,41 +213,28 @@ function DataHealthSection({ adapters }: { adapters: AdapterHealth[] }) {
   const total = adapters.length;
 
   return (
-    <div className="exec-briefing-section" role="status" aria-label="Data feed health">
-      <div className="spread" style={{ alignItems: "center", marginBottom: 4 }}>
-        <span className="mono eyebrow" style={{ color: "var(--ink-low)" }}>DATA HEALTH</span>
-        <span className="mono caption" style={{ color: healthy === total ? "var(--good)" : "var(--warn)" }}>
-          {healthy}/{total} HEALTHY
-        </span>
+    <div className="pc-section" role="status" aria-label="Data feed health">
+      <div className="pc-spread">
+        <h3 className="pc-label">Data health</h3>
+        <StatusText level={healthy === total ? "normal" : "watch"}>
+          <span className="num">{healthy}/{total}</span> healthy
+        </StatusText>
       </div>
-      <div style={{ display: "grid", gap: 3 }}>
-        {unhealthy.slice(0, 5).map((a) => {
-          const isDown = a.status === "down";
-          const statusColor = isDown ? "var(--bad)" : "var(--warn)";
+      <ul className="pc-list">
+        {unhealthy.slice(0, HEALTH_PREVIEW).map((a) => {
           const note = a.lastErrorMessage;
           const isMissingKey = note?.startsWith("Missing") ?? false;
           return (
-            <div
-              key={a.name}
-              className="spread"
-              style={{ gap: 8, alignItems: "flex-start", borderLeft: `2px solid ${statusColor}`, paddingLeft: 6 }}
-              title={note ?? `${a.name}: ${a.status}`}
-            >
-              <span className="mono" style={{ fontSize: "0.60rem", color: statusColor, fontWeight: 700, letterSpacing: "0.07em", whiteSpace: "nowrap" }}>
-                {isDown ? "▲" : "◆"} {a.name}
-              </span>
-              <span className="mono caption" style={{ color: "var(--ink-low)", flex: 1, textAlign: "right" }}>
-                {isMissingKey ? "KEY MISSING" : a.status.toUpperCase()}
-              </span>
-            </div>
+            <li key={a.name} className="exec-health__row" title={note ?? `${a.name}: ${a.status}`}>
+              <span className="exec-health__name">{a.name}</span>
+              <StatusText level={adapterStatus(a.status)}>{isMissingKey ? "Key missing" : a.status}</StatusText>
+            </li>
           );
         })}
-        {unhealthy.length > 5 && (
-          <span className="mono caption" style={{ color: "var(--ink-low)", paddingLeft: 6 }}>
-            +{unhealthy.length - 5} more — see SOURCES
-          </span>
-        )}
-      </div>
+      </ul>
+      {unhealthy.length > HEALTH_PREVIEW && (
+        <p className="pc-meta">+{unhealthy.length - HEALTH_PREVIEW} more — see SOURCES</p>
+      )}
     </div>
   );
 }

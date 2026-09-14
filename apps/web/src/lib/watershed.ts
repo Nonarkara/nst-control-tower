@@ -14,6 +14,7 @@
 
 import type { WaterGauge, RainfallStation, EwsStation, FloodGauge } from "@nst/shared";
 import { WATERSHED_FORECAST_POINTS } from "@nst/shared";
+import { STATUS, type StatusLevel } from "./status";
 
 /** Looks up the canonical lat/lng for a zone key from the shared forecast-point
  *  registry, so this file's coordinates never drift from what apps/api's
@@ -313,12 +314,22 @@ export function summarizeWatershed(
   return WATERSHED_ZONES.map((z) => summarizeZone(z, gauges, rainfall, ews, floodGauges));
 }
 
+// Zone status → StatusLevel: flood (overbank) = critical, high = warning,
+// watch = watch, normal = normal, nodata = unknown.
+const ZONE_STATUS_LEVEL: Record<ZoneStatus, StatusLevel> = {
+  flood: "critical",
+  high: "warning",
+  watch: "watch",
+  normal: "normal",
+  nodata: "unknown",
+};
+
 export const ZONE_STATUS_COLOR: Record<ZoneStatus, string> = {
-  flood: "var(--bad)",
-  high: "var(--warn)",
-  watch: "var(--data)",
-  normal: "var(--good)",
-  nodata: "var(--ink-low)",
+  flood: STATUS[ZONE_STATUS_LEVEL.flood].color,
+  high: STATUS[ZONE_STATUS_LEVEL.high].color,
+  watch: STATUS[ZONE_STATUS_LEVEL.watch].color,
+  normal: STATUS[ZONE_STATUS_LEVEL.normal].color,
+  nodata: STATUS[ZONE_STATUS_LEVEL.nodata].color,
 };
 
 export const ZONE_STATUS_LABEL: Record<ZoneStatus, string> = {
@@ -331,9 +342,9 @@ export const ZONE_STATUS_LABEL: Record<ZoneStatus, string> = {
 
 /** RGB for deck.gl map markers — mirrors ZONE_STATUS_COLOR. */
 export const ZONE_STATUS_RGB: Record<ZoneStatus, [number, number, number]> = {
-  flood: [239, 68, 68],
-  high: [251, 146, 60],
-  watch: [250, 204, 21],
-  normal: [52, 211, 153],
-  nodata: [148, 163, 184],
+  flood: STATUS[ZONE_STATUS_LEVEL.flood].rgb,
+  high: STATUS[ZONE_STATUS_LEVEL.high].rgb,
+  watch: STATUS[ZONE_STATUS_LEVEL.watch].rgb,
+  normal: STATUS[ZONE_STATUS_LEVEL.normal].rgb,
+  nodata: STATUS[ZONE_STATUS_LEVEL.nodata].rgb,
 };

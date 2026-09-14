@@ -42,7 +42,6 @@ import type {
 } from "@nst/shared";
 
 import { useFeed } from "./hooks/useFeed";
-import { CollapsibleSection } from "./components/CollapsibleSection";
 import { buildTrafficSamples, type RoadProps } from "./sim/trafficSim";
 import {
   buildingRoofsLayer,
@@ -153,6 +152,7 @@ import { SouthernFloodIntel } from "./components/SouthernFloodIntel";
 import { UpstreamWatershed } from "./components/UpstreamWatershed";
 import { FloodCommand } from "./components/FloodCommand";
 import { WaterBalancePanel } from "./components/WaterBalancePanel";
+import { WaterNetwork } from "./components/WaterNetwork";
 import { FlightsPanel } from "./components/FlightsPanel";
 // Heavy modals — lazy-loaded so they're excluded from the initial bundle.
 // Each loads only on first open; subsequent opens are instant (module cached).
@@ -172,6 +172,10 @@ const SHEETS_STORAGE_KEY = "nst:sheets-url-v1";
 import { AqiBadge, type AqiTrend } from "./components/AqiBadge";
 import { BuildingCard } from "./components/BuildingCard";
 import { CctvStreamModal } from "./components/CctvStreamModal";
+import { CctvDirectory } from "./components/CctvDirectory";
+import { RailSection } from "./components/RailSection";
+import { WeatherPanel } from "./components/WeatherPanel";
+import { prefersReducedMotion } from "./hooks/usePrefersReducedMotion";
 import { IncidentCard } from "./components/IncidentCard";
 import { BuildingSearch } from "./components/BuildingSearch";
 import { MapOverlayControls } from "./components/MapOverlayControls";
@@ -180,9 +184,7 @@ import { TrendsPanel, type TrendsSnapshot } from "./components/TrendsPanel";
 import { useWorldWeather } from "./hooks/useWorldWeather";
 import { SpeedTestPanel } from "./components/SpeedTestPanel";
 import { DeviceCheckIn } from "./components/DeviceCheckIn";
-import { NewsTicker } from "./components/NewsTicker";
 import { useSystemHealth } from "./hooks/useSystemHealth";
-import { MarketsTicker } from "./components/MarketsTicker";
 import { MobileNav, type MobilePanel } from "./components/MobileNav";
 import { ChatBox } from "./components/ChatBox";
 import { PredictivePanel, METRIC_LAYER_MAP, METRIC_LABEL, type ForecastMetric } from "./components/PredictivePanel";
@@ -336,8 +338,6 @@ const MemoLayerPalette = memo(LayerPalette);
 const MemoKpiStrip = memo(KpiStrip);
 const MemoPmcuBrief = memo(PmcuBrief);
 const MemoWorldStrip = memo(WorldStrip);
-const MemoNewsTicker = memo(NewsTicker);
-const MemoMarketsTicker = memo(MarketsTicker);
 const MemoPredictivePanel = memo(PredictivePanel);
 const MemoTrendsPanel = memo(TrendsPanel);
 const MemoExecutiveBriefing = memo(ExecutiveBriefing);
@@ -516,13 +516,14 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
   const [selectedCctv, setSelectedCctv] = useState<CctvCamera | null>(null);
 
   // Camera helpers — all command the uncontrolled camera via flyCamera.
+  // prefers-reduced-motion: camera commands jump instead of gliding.
   const flyTo = useCallback((longitude: number, latitude: number, zoom = 17) => {
-    flyCamera({ longitude, latitude, zoom, transitionDuration: 700 });
+    flyCamera({ longitude, latitude, zoom, transitionDuration: prefersReducedMotion() ? 0 : 700 });
   }, [flyCamera]);
 
   // Reset map rotation to true north (compass click).
   const resetNorth = useCallback(() => {
-    flyCamera({ bearing: 0, transitionDuration: 500 });
+    flyCamera({ bearing: 0, transitionDuration: prefersReducedMotion() ? 0 : 500 });
   }, [flyCamera]);
 
   // Live lat/long readout under the cursor. Written imperatively to a DOM ref so
@@ -558,7 +559,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
       // Click an incident → open its card with a deep-link back to the report.
       setSelectedBuilding(null);
       setSelectedIncident(info.object as IncidentFeature);
-    } else if (info.layer?.id === "cctv-cameras" && info.object) {
+    } else if ((info.layer?.id === "cctv-cameras" || info.layer?.id === "cctv-water-level") && info.object) {
       // The palette has promised "click for the live stream" — honor it.
       setSelectedCctv(info.object as CctvCamera);
     } else if (
@@ -703,8 +704,9 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
         sub = pick("category", "severity", "status");
         break;
       case "cctv-cameras":
+      case "cctv-water-level":
         title = pick("name") ?? "CCTV";
-        sub = pick("vendor");
+        sub = [pick("sourceId"), pick("status")?.toUpperCase(), "click for live view"].filter(Boolean).join(" · ");
         break;
       case "transit-stations":
         title = pick("name") ?? "Transit station";
@@ -1035,7 +1037,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
   const weather = useFeed<WeatherSnapshot>(`${API_BASE}/api/weather`, 30 * 60_000);
   const airQuality = useFeed<AirQualityPoint>(`${API_BASE}/api/air-quality`, 15 * 60_000);
   const air4thai = useFeed<AirQualityPoint>(`${API_BASE}/api/air-quality/air4thai`, 30 * 60_000);
-  const cctv = useFeed<CctvCamera>(`${API_BASE}/api/cctv/longdo`, 10 * 60_000);
+  const cctv = useFeed<CctvCamera>(`${API_BASE}/api/cctv`, 10 * 60_000);
   const aqiTrend = useFeed<AqiTrend>(`${API_BASE}/api/air-quality/trend`, 15 * 60_000);
   const trends = useFeed<TrendsSnapshot>(`${API_BASE}/api/trends`, 15 * 60_000);
   const executive = useFeed<ExecutiveSnapshot>(`${API_BASE}/api/executive`, 15 * 60_000);
@@ -1384,6 +1386,8 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
       out.push((gpuHeatmapOk ? trafficHeatmapLayer(trafficSamples) : trafficDensityFallbackLayer(trafficSamples)) as Layer);
     if (enabledLayers.has("transit-stations") && transitStations) out.push(transitStationsLayer(transitStations) as Layer);
     if (enabledLayers.has("cctv-cameras")) out.push(cctvLayer(cctv.data) as Layer);
+    if (enabledLayers.has("cctv-water-level"))
+      out.push(cctvLayer(cctv.data.filter((c) => c.category === "water"), "cctv-water-level") as Layer);
     if (enabledLayers.has("incidents-city-reports")) out.push(incidentLayer("incidents-city-reports", cityReports.data) as Layer);
     if (enabledLayers.has("incidents-itic")) out.push(incidentLayer("incidents-itic", iticEvents.data) as Layer);
     // Maritime
@@ -1603,6 +1607,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
     "ferry-terminals":        maritimeFerries?.features.length ?? 0,
     "navigation-aids":        maritimeNavAids?.features.length ?? 0,
     "cctv-cameras":           cctv.data.length,
+    "cctv-water-level":       cctv.data.filter((c) => c.category === "water").length,
     "incidents-itic":         iticEvents.data.length,
     "incidents-city-reports": cityReports.data.length,
     "datago-points":          datago.data.length,
@@ -1639,6 +1644,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
   // the toast on toggle. Only layers backed by a live feed appear here.
   const layerStatuses = useMemo<Partial<Record<LayerId, LayerStatus>>>(() => ({
     "cctv-cameras":           { tier: cctv.fallbackTier, note: cctv.note },
+    "cctv-water-level":       { tier: cctv.fallbackTier, note: cctv.note },
     "incidents-itic":         { tier: iticEvents.fallbackTier, note: iticEvents.note },
     "incidents-city-reports": { tier: cityReports.fallbackTier, note: cityReports.note },
     "datago-points":          { tier: datago.fallbackTier, note: datago.note },
@@ -1680,6 +1686,12 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
     return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
   }, [gistdaSolar.data]);
 
+  const topbarConditions = useMemo(() => ({
+    tempC: hostWeather?.tempC ?? null,
+    condition: hostWeather?.condition ?? null,
+    aqi: aqiTrend.data[0]?.current.aqi ?? null,
+  }), [hostWeather, aqiTrend.data]);
+
   const feedHealth = useMemo(() => [
     { label: "NEWS", tier: news.fallbackTier, ageMinutes: news.ageMinutes },
     { label: "CR", tier: cityReports.fallbackTier, ageMinutes: cityReports.ageMinutes },
@@ -1697,17 +1709,19 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
       className={`shell ${isMobile ? `mobile mobile-panel-${mobilePanel}` : ""}`}
       data-mobile={isMobile ? "true" : "false"}
     >
-      {!online && (
-        <div className="offline-banner mono" role="alert" aria-live="assertive">
-          ⚠ OFFLINE — feeds are stale until the connection returns
-        </div>
-      )}
       {toast && (
         <div className="layer-toast mono" role="status" aria-live="polite">
           {toast}
         </div>
       )}
-      {/* ── Top bar ── */}
+      <a className="skip-link" href="#rail-left">Skip to city panels</a>
+      {/* ── Header stack: offline banner · top bar · system banner ── */}
+      <div className="shell-top">
+      {!online && (
+        <div className="offline-banner" role="alert">
+          Offline — feeds are stale until the connection returns
+        </div>
+      )}
       <MemoTopBar        feeds={feedHealth}
         onOpenCatalog={useCallback(() => setCatalogOpen(true), [])}
         catalogCount={ALL_LAYERS.length}
@@ -1724,6 +1738,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
         sheetsConfigured={sheetsConfigured}
         academic={academic.data[0] ?? null}
         systemStatus={systemHealth?.system.status ?? "unknown"}
+        conditions={topbarConditions}
       />
 
       {/* Critical system banner — full-width only when the system is genuinely
@@ -1752,35 +1767,14 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
         </div>
       )}
 
-      {/* ── World strip + tickers: desktop only. On a phone the map tab is kept
-          uncluttered — the world strip (weather + clocks) is relocated into the
-          Brief page, and news lives in the Layers page. ── */}
-      {!isMobile && (
-        <>
-          {/* ── World strip: Chonburi host + 3 user-editable clocks ── */}
-          <MemoWorldStrip        hostAqi={aqiTrend.data[0]?.current.aqi ?? null}
-            hostPm25={aqiTrend.data[0]?.current.pm25 ?? null}
-            hostWeather={hostWeather}
-            hostPulse={hostPulse}
-            precipNowcast={precip.data[0] ?? null}
-          />
-
-          {/* ── News ticker: stock-market scroll of top headlines ── */}
-          <MemoNewsTicker items={news.data} loading={news.fallbackTier === "loading"} />
-
-          {/* ── Markets ticker: SET Bangkok + global indices + THB forex + WTI/Brent + FRED macro ── */}
-          <MemoMarketsTicker        snapshot={markets.data[0] ?? null}
-            loading={markets.fallbackTier === "loading"}
-          />
-        </>
-      )}
+      </div>
 
       {/* ── Left sidebar: provincial Chonburi brief.
           EXEC vs OPS share the same sidebar — the lens only changes the map
           layer set (EXEC = strategic, OPS = day-to-day). The legacy Chula
           ExecutiveBrief / StrategicAlerts / PeerComparison panels were built
           for a university and don't belong on a city mayor's desk. ── */}
-      <aside className="left-bar" aria-hidden={isMobile && mobilePanel !== "brief"}>
+      <aside id="rail-left" className="left-bar" aria-label="City panels" aria-hidden={isMobile && mobilePanel !== "brief"}>
         {/* ── Mobile only: the world strip (weather + clocks), feed health, and
             the secondary actions relocate here so the Map tab stays a clean,
             full-screen map. Reflowed into readable blocks by CSS. ── */}
@@ -1812,8 +1806,18 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
             </div>
           </div>
         )}
+        {!isMobile && (
+          <RailSection sectionKey="weather" lens={lens} title="Weather">
+            <WeatherPanel
+              weather={hostWeather}
+              aqi={aqiTrend.data[0]?.current.aqi ?? null}
+              pm25={aqiTrend.data[0]?.current.pm25 ?? null}
+              nowcast={precip.data[0] ?? null}
+            />
+          </RailSection>
+        )}
         {lens === "intelligence" && (
-          <CollapsibleSection storageKey="situation-digest" title="Situation Digest" divided={true} defaultOpen={true}>
+          <RailSection sectionKey="situation-digest" lens={lens} title="Situation Digest">
             <Suspense fallback={null}>
               <SituationDigest
                 nasaReadings={nasaEarth.data[0] ?? null}
@@ -1822,10 +1826,10 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
                 forecasts={forecastMetrics}
               />
             </Suspense>
-          </CollapsibleSection>
+          </RailSection>
         )}
         {lens === "executive" && (
-          <CollapsibleSection storageKey="executive-brief" title="Executive Brief" divided={true} defaultOpen={true}>
+          <RailSection sectionKey="executive-brief" lens={lens} title="Executive Brief">
             <MemoExecutiveBriefing
               executive={executive.data[0] ?? null}
               weather={weather.data[0] ?? null}
@@ -1837,29 +1841,29 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
               ageMinutes={executive.ageMinutes}
               fallbackTier={executive.fallbackTier === "loading" ? undefined : executive.fallbackTier}
             />
-          </CollapsibleSection>
+          </RailSection>
         )}
         {provincialKPIs.data.length > 0 && (
-          <CollapsibleSection storageKey="provincial-kpis" title="Provincial KPIs" divided={true} defaultOpen={false}>
+          <RailSection sectionKey="provincial-kpis" lens={lens} title="Provincial KPIs">
             <ProvincialKPIs
               data={provincialKPIs.data[0] ?? null}
               loading={provincialKPIs.fallbackTier === "loading"}
               ageMinutes={provincialKPIs.ageMinutes}
               fallbackTier={provincialKPIs.fallbackTier === "loading" ? undefined : provincialKPIs.fallbackTier}
             />
-          </CollapsibleSection>
+          </RailSection>
         )}
         {tourismVisitors.data.length > 0 && (
-          <CollapsibleSection storageKey="tourism-visitors" title="Tourism Visitors" divided={true} defaultOpen={false}>
+          <RailSection sectionKey="tourism-visitors" lens={lens} title="Tourism Visitors">
             <TourismVisitorsPanel
               records={tourismVisitors.data}
               loading={tourismVisitors.fallbackTier === "loading"}
               ageMinutes={tourismVisitors.ageMinutes}
               fallbackTier={tourismVisitors.fallbackTier === "loading" ? undefined : tourismVisitors.fallbackTier}
             />
-          </CollapsibleSection>
+          </RailSection>
         )}
-        <CollapsibleSection storageKey="sensor-situation" title="Sensor Situation" divided={true} defaultOpen={true}>
+        <RailSection sectionKey="sensor-situation" lens={lens} title="Sensor Situation">
           <SensorSituationBoard
             waterGauges={waterGauges.data}
             rainfall={waterRain.data}
@@ -1874,22 +1878,22 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
             onShowWaterHeat={() => onLensChange("flood")}
             onShowAirHeat={() => onLensChange("environment")}
           />
-        </CollapsibleSection>
+        </RailSection>
 
-        <CollapsibleSection storageKey="air-quality" title="Air Quality · AirDash" divided={true} defaultOpen={false}>
+        <RailSection sectionKey="air-quality" lens={lens} title="Air Quality · AirDash">
           <AqiBadge trend={aqiTrend.data[0] ?? null} loading={aqiTrend.fallbackTier === "loading"} />
-        </CollapsibleSection>
+        </RailSection>
 
-        <CollapsibleSection storageKey="sensor-signals" title="Sensor Signals" divided={true} defaultOpen={false}>
+        <RailSection sectionKey="sensor-signals" lens={lens} title="Sensor Signals">
           <SensorInsightsPanel
             insights={sensorInsights}
             ageMinutes={waterGauges.ageMinutes}
             fallbackTier={waterGauges.fallbackTier === "loading" ? undefined : waterGauges.fallbackTier}
             onFocus={(lng, lat) => flyTo(lng, lat, 12.5)}
           />
-        </CollapsibleSection>
+        </RailSection>
 
-        <CollapsibleSection storageKey="water-balance" title="Water Balance" divided={true} defaultOpen={true}>
+        <RailSection sectionKey="water-balance" lens={lens} title="Water Balance">
           <WaterBalancePanel
             basins={waterBalance.data}
             ageMinutes={waterBalance.ageMinutes}
@@ -1897,9 +1901,20 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
             note={waterBalance.note}
             onOpenOps={() => setOpsOpen(true)}
           />
-        </CollapsibleSection>
+        </RailSection>
 
-        <CollapsibleSection storageKey="flood-brief" title="Flood Brief" divided={true} defaultOpen={true}>
+        <RailSection sectionKey="water-network" lens={lens} title="Water Network">
+          <WaterNetwork
+            watershedSummaries={watershedSummaries}
+            reservoirs={ridReservoirs.data}
+            runoffProxy={damStatus.data[0] ?? null}
+            basins={waterBalance.data}
+            ageMinutes={waterBalance.ageMinutes}
+            fallbackTier={waterBalance.fallbackTier === "loading" ? undefined : waterBalance.fallbackTier}
+          />
+        </RailSection>
+
+        <RailSection sectionKey="flood-brief" lens={lens} title="Flood Brief">
           <FloodBrief
             gauges={floodGauges.data}
             waterGauges={waterGauges.data}
@@ -1911,9 +1926,9 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
               ? (waterGauges.fallbackTier === "loading" ? undefined : waterGauges.fallbackTier)
               : (floodGauges.fallbackTier === "loading" ? undefined : floodGauges.fallbackTier)}
           />
-        </CollapsibleSection>
+        </RailSection>
 
-        <CollapsibleSection storageKey="flood-posture" title="Flood Posture" divided={true} defaultOpen={true}>
+        <RailSection sectionKey="flood-posture" lens={lens} title="Flood Posture">
           <FloodPosture
             waterGauges={waterGauges.data}
             rainfall={waterRain.data}
@@ -1925,29 +1940,29 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
               ? (waterGauges.fallbackTier === "loading" ? undefined : waterGauges.fallbackTier)
               : (waterRain.fallbackTier === "loading" ? undefined : waterRain.fallbackTier)}
           />
-        </CollapsibleSection>
+        </RailSection>
 
         {floodRiskVillages.data.length > 0 && (
-          <CollapsibleSection storageKey="flood-risk-villages" title="Flood Risk Villages" divided={true} defaultOpen={false}>
+          <RailSection sectionKey="flood-risk-villages" lens={lens} title="Flood Risk Villages">
             <FloodRiskPanel
               villages={floodRiskVillages.data}
               ageMinutes={floodRiskVillages.ageMinutes}
               fallbackTier={floodRiskVillages.fallbackTier === "loading" ? undefined : floodRiskVillages.fallbackTier}
             />
-          </CollapsibleSection>
+          </RailSection>
         )}
 
         {damageHotspots.data.length > 0 && (
-          <CollapsibleSection storageKey="damage-hotspots" title="Road Restoration" divided={true} defaultOpen={false}>
+          <RailSection sectionKey="damage-hotspots" lens={lens} title="Road Restoration">
             <DamageHotspotPanel
               data={damageHotspots.data}
               ageMinutes={damageHotspots.ageMinutes}
               fallbackTier={damageHotspots.fallbackTier === "loading" ? undefined : damageHotspots.fallbackTier}
             />
-          </CollapsibleSection>
+          </RailSection>
         )}
 
-        <CollapsibleSection storageKey="upstream-watershed" title="Upstream Watershed" divided={true} defaultOpen={false}>
+        <RailSection sectionKey="upstream-watershed" lens={lens} title="Upstream Watershed">
           <UpstreamWatershed
             waterGauges={waterGauges.data}
             rainfall={waterRain.data}
@@ -1959,9 +1974,9 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
               ? (waterGauges.fallbackTier === "loading" ? undefined : waterGauges.fallbackTier)
               : (waterRain.fallbackTier === "loading" ? undefined : waterRain.fallbackTier)}
           />
-        </CollapsibleSection>
+        </RailSection>
 
-        <CollapsibleSection storageKey="southern-flood-intel" title="Southern Flood Intel" divided={true} defaultOpen={false}>
+        <RailSection sectionKey="southern-flood-intel" lens={lens} title="Southern Flood Intel">
           <SouthernFloodIntel
             risk={southernRisk.data[0] ?? null}
             rivers={southernRivers.data[0] ?? null}
@@ -1971,9 +1986,9 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
               : southernRisk.fallbackTier ?? (southernRivers.fallbackTier === "loading" ? undefined : southernRivers.fallbackTier)
             }
           />
-        </CollapsibleSection>
+        </RailSection>
 
-        <CollapsibleSection storageKey="flood-command" title="Flood Command" divided={true} defaultOpen={false}>
+        <RailSection sectionKey="flood-command" lens={lens} title="Flood Command">
           <FloodCommand
             scenarioLevel={scenarioLevel}
             onScenarioChange={setScenarioLevel}
@@ -1988,9 +2003,9 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
             wrfNote={wrfOutlook.note}
             modelSuggestedM={waterBalance.data.find((b) => b.basinId === "city_tha_dee")?.suggestedScenarioM ?? null}
           />
-        </CollapsibleSection>
+        </RailSection>
 
-        <CollapsibleSection storageKey="flood-analysis" title="Flood Analysis" divided={true} defaultOpen={false}>
+        <RailSection sectionKey="flood-analysis" lens={lens} title="Flood Analysis">
           <FloodAnalysisPanel
             rainfall={historicalRainfall.data[0] ?? null}
             rainfallAge={historicalRainfall.ageMinutes}
@@ -2000,9 +2015,9 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
             unosatAge={unosatExposure.ageMinutes}
             unosatFallback={unosatExposure.fallbackTier}
           />
-        </CollapsibleSection>
+        </RailSection>
 
-        <CollapsibleSection storageKey="earth-alpha" title="Earth Observation" divided={true} defaultOpen={false}>
+        <RailSection sectionKey="earth-alpha" lens={lens} title="Earth Observation">
           <EarthAlphaBrief
             enabledLayers={enabledLayers}
             onToggleLayer={onToggleLayer}
@@ -2019,9 +2034,9 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
             ageMinutes={nasaEarth.ageMinutes}
             fallbackTier={nasaEarth.fallbackTier === "loading" ? undefined : nasaEarth.fallbackTier}
           />
-        </CollapsibleSection>
+        </RailSection>
 
-        <CollapsibleSection storageKey="water-panel" title="Water & Reservoirs" divided={true} defaultOpen={false}>
+        <RailSection sectionKey="water-panel" lens={lens} title="Water & Reservoirs">
           <WaterPanel
             reservoirs={reservoirs.data}
             ridReservoirs={ridReservoirs.data}
@@ -2033,9 +2048,9 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
               ? (waterGauges.fallbackTier === "loading" ? undefined : waterGauges.fallbackTier)
               : (reservoirs.fallbackTier === "loading" ? undefined : reservoirs.fallbackTier)}
           />
-        </CollapsibleSection>
+        </RailSection>
 
-        <CollapsibleSection storageKey="flights-panel" title="Airport Flights" divided={true} defaultOpen={false}>
+        <RailSection sectionKey="flights-panel" lens={lens} title="Airport Flights">
           <FlightsPanel
             flights={flights.data}
             loading={flights.fallbackTier === "loading"}
@@ -2043,41 +2058,43 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
             fallbackTier={flights.fallbackTier === "loading" ? undefined : flights.fallbackTier}
             note={flights.note}
           />
-        </CollapsibleSection>
+        </RailSection>
 
-        <CollapsibleSection storageKey="predictive-panel" title="Predictive Forecast" divided={true} defaultOpen={false}>
+        <RailSection sectionKey="predictive-panel" lens={lens} title="Predictive Forecast">
           <MemoPredictivePanel
             apiBase={API_BASE}
             onMetricClick={handleForecastMetricClick}
             onAlert={handleForecastAlert}
             onForecastsLoaded={handleForecastsLoaded}
           />
-        </CollapsibleSection>
+        </RailSection>
 
-        <MemoPmcuBrief
-          hour={hour}
-          isWeekend={isWeekend}
-          iticEvents={iticEvents.data}
-          cityReports={cityReports.data}
-          trafficSampleCount={trafficSamples.length}
-        />
+        <RailSection sectionKey="municipal-ops" lens={lens} title="Municipal Operations">
+          <MemoPmcuBrief
+            hour={hour}
+            isWeekend={isWeekend}
+            iticEvents={iticEvents.data}
+            cityReports={cityReports.data}
+            trafficSampleCount={trafficSamples.length}
+          />
+        </RailSection>
 
-        <CollapsibleSection storageKey="device-checkin" title="Device Check-In" divided={true} defaultOpen={false}>
+        <RailSection sectionKey="device-checkin" lens={lens} title="Device Check-In">
           <DeviceCheckIn presence={presence} onRequest={requestDevice} onClear={clearDevice} />
-        </CollapsibleSection>
+        </RailSection>
 
-        <CollapsibleSection storageKey="speed-test" title="Speed Test" divided={true} defaultOpen={false}>
+        <RailSection sectionKey="speed-test" lens={lens} title="Speed Test">
           <SpeedTestPanel />
-        </CollapsibleSection>
+        </RailSection>
 
-        <CollapsibleSection storageKey="municipal-brief" title="Municipal Brief" divided={true} defaultOpen={false}>
+        <RailSection sectionKey="municipal-brief" lens={lens} title="Municipal Brief">
           <MemoKpiStrip
             cityReports={cityReports.data}
             floodGauges={floodGauges.data}
             airQuality={airQuality.data}
             weather={weather.data}
           />
-        </CollapsibleSection>
+        </RailSection>
       </aside>
 
       {/* ── Map center — nothing overlaps this ── */}
@@ -2188,15 +2205,11 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
             apiBase={API_BASE}
           />
           {forecastAlerts.size > 0 && (
-            <div style={{
-              position: "absolute", top: 12, left: "50%", transform: "translateX(-50%)",
-              zIndex: 20, display: "flex", gap: 6, pointerEvents: "none",
-            }}>
+            <div className="map-alerts" role="status">
               {[...forecastAlerts].map((m) => (
-                <span key={m} className="mono eyebrow" style={{
-                  background: "var(--neg)", color: "var(--paper)",
-                  padding: "3px 8px", fontSize: "0.60rem", letterSpacing: "0.1em",
-                }}>▲ {METRIC_LABEL[m] ?? m} FORECAST</span>
+                <span key={m} className="map-alerts__chip">
+                  <span aria-hidden="true">▲ </span>{METRIC_LABEL[m] ?? m} forecast alert
+                </span>
               ))}
             </div>
           )}
@@ -2206,8 +2219,22 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
       {/* ── Right sidebar: news (scrollable) + layer controls.
           StrategicAlerts and PeerComparison were Chula-university panels —
           removed until rebuilt with provincial peer data (Rayong, Chachoengsao). ── */}
-      <aside className="right-bar" aria-hidden={isMobile && mobilePanel !== "layers"}>
-        <CollapsibleSection storageKey="right-trends" title="Google Trends" divided={false} defaultOpen={true}>
+      <aside className="right-bar" aria-label="Cameras, news and map layers" aria-hidden={isMobile && mobilePanel !== "layers"}>
+        <div className="right-sections">
+        <RailSection sectionKey="right-cctv" lens={lens} title="CCTV">
+          <CctvDirectory
+            cameras={cctv.data}
+            ageMinutes={cctv.ageMinutes}
+            fallbackTier={cctv.fallbackTier === "loading" ? undefined : cctv.fallbackTier}
+            note={cctv.note}
+            onOpen={(c) => {
+              setSelectedCctv(c);
+              flyTo(c.lng, c.lat, Math.max(viewStateRef.current.zoom, 16));
+            }}
+          />
+        </RailSection>
+
+        <RailSection sectionKey="right-trends" lens={lens} title="Google Trends">
           <MemoTrendsPanel
             snapshots={trends.data}
             loading={trends.fallbackTier === "loading"}
@@ -2215,9 +2242,9 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
             onRefresh={trends.refetch}
             fallbackTier={trends.fallbackTier === "loading" ? undefined : trends.fallbackTier}
           />
-        </CollapsibleSection>
+        </RailSection>
 
-        <CollapsibleSection storageKey="right-news" title="Live News" divided={true} defaultOpen={true}>
+        <RailSection sectionKey="right-news" lens={lens} title="Live News">
           <NewsDesk
             items={news.data}
             loading={news.fallbackTier === "loading"}
@@ -2230,9 +2257,12 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
             ageMinutes={facebook.ageMinutes}
             fallbackTier={facebook.fallbackTier === "loading" ? undefined : facebook.fallbackTier}
           />
-        </CollapsibleSection>
+        </RailSection>
 
-        {/* Layer palette stays expanded — it needs maximum space for the toggle list */}
+        </div>
+
+        {/* Layer palette: pinned under the scrolling sections so lens + layer
+            controls are always on screen. */}
         <div className="right-layers">
           <MemoLayerPalette
             lens={lens}
@@ -2256,6 +2286,20 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
         <div className="bottom-stats">
           <span>{buildings?.features.length ?? 0} BUILDINGS · {(roads?.features.length ?? 0).toLocaleString()} ROADS · {allLayers.length} LAYERS</span>
           <span>{civicPoints?.features.length ?? 0} CIVIC · {cctv.data.length} CCTV · {gistdaPois.data.length} GISTDA</span>
+        </div>
+        <div className="bottom-partners">
+          <a href="https://flood.nonarkara.org" target="_blank" rel="noreferrer">
+            Sensor intelligence: FloodDash · AirDash by Dr.Non
+          </a>
+          <a href="https://www.depa.or.th" target="_blank" rel="noreferrer">
+            <img src="/logos/depa.jpg" alt="depa — Digital Economy Promotion Agency" />
+          </a>
+          <a href="https://www.smartcitythailand.or.th" target="_blank" rel="noreferrer">
+            <img src="/logos/smart-city-thailand.jpg" alt="Smart City Thailand" />
+          </a>
+          <a href="https://axiom.nonarkara.org" target="_blank" rel="noreferrer">
+            <img src="/logos/axiom.png" alt="Axiom" />
+          </a>
         </div>
       </div>
 

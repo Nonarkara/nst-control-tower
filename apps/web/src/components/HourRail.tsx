@@ -11,11 +11,11 @@ const fmt = (h: number) => `${h.toString().padStart(2, "0")}:00`;
 
 export function HourRail({ hour, isWeekend, onHourChange, onWeekendToggle }: Props) {
   return (
-    <div className="hour-rail">
-      <div className="spread">
+    <div className="hrail">
+      <div className="hrail__top">
         <div>
-          <div className="row" style={{ gap: 6, alignItems: "center" }}>
-            <span className="eyebrow">Traffic — hour of day</span>
+          <div className="hrail__title">
+            <span className="pc-label">Traffic — hour of day</span>
             {/* Honest labelling: the heatmap is a sinusoidal model (peaks 8:00 / 17:30)
                 weighted by road class + weekday/weekend, not live sensor data. */}
             <span
@@ -26,30 +26,33 @@ export function HourRail({ hour, isWeekend, onHourChange, onWeekendToggle }: Pro
               MODELLED
             </span>
           </div>
-          <div className="mono" style={{ fontSize: "1.1rem", marginTop: 2 }}>
-            {fmt(hour)} <span style={{ color: "var(--ink-low)", fontSize: "0.7rem" }}>local</span>
-          </div>
+          <p className="hrail__time num" aria-live="polite">
+            {fmt(hour)} <span className="pc-meta">local</span>
+          </p>
         </div>
-        <div className="row">
+        <div className="segmented" role="group" aria-label="Day type">
           <button
+            type="button"
             onClick={() => onWeekendToggle(false)}
             aria-pressed={!isWeekend}
             aria-label="Show weekday traffic pattern"
-            className={!isWeekend ? "active" : ""}
+            className="segmented__btn"
           >
             Weekday
           </button>
           <button
+            type="button"
             onClick={() => onWeekendToggle(true)}
             aria-pressed={isWeekend}
             aria-label="Show weekend traffic pattern"
-            className={isWeekend ? "active" : ""}
+            className="segmented__btn"
           >
             Weekend
           </button>
         </div>
       </div>
       <input
+        className="hrail__range"
         type="range"
         min={0}
         max={23}
@@ -57,10 +60,11 @@ export function HourRail({ hour, isWeekend, onHourChange, onWeekendToggle }: Pro
         value={hour}
         onChange={(e) => onHourChange(Number(e.target.value))}
         aria-label="Hour of day"
+        aria-valuetext={`${fmt(hour)}${PEAK_HOURS.has(hour) ? ", peak hour" : ""}`}
       />
-      <div className="ticks" aria-hidden="true">
+      <div className="hrail__ticks" aria-hidden="true">
         {Array.from({ length: 24 }, (_, i) => (
-          <span key={i} className={`tick ${PEAK_HOURS.has(i) ? "peak" : ""}`} />
+          <span key={i} className={`hrail__tick${PEAK_HOURS.has(i) ? " hrail__tick--peak" : ""}`} />
         ))}
       </div>
     </div>

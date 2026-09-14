@@ -7,10 +7,11 @@
  * Primary routes: Thai AirAsia FD & Nok Air DD between DMK and NST.
  */
 
-import { useState } from "react";
+import { useId, useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
 import { PanelHeader } from "./PanelHeader";
-import { ago } from "../lib/time";
 import type { FlightFids, FallbackTier } from "@nst/shared";
+import type { StatusLevel } from "../lib/status";
+import { StatusText, delayStatus } from "../lib/cityStatus";
 
 interface Props {
   flights: FlightFids[];
@@ -21,17 +22,18 @@ interface Props {
 }
 
 type Tab = "arrivals" | "departures";
+const TABS: Tab[] = ["departures", "arrivals"];
 
-// Status → colour + short label
-const STATUS_STYLE: Record<FlightFids["status"], { color: string; label: string }> = {
-  scheduled: { color: "var(--ink-low)",  label: "SCHED" },
-  active:    { color: "var(--accent)",  label: "EN ROUTE" },
-  landed:    { color: "var(--good)",    label: "LANDED" },
-  cancelled: { color: "var(--bad)",     label: "CXLD" },
-  unknown:   { color: "var(--ink-low)",  label: "—" },
+// Status → label; only landed / cancelled carry a status colour (with glyph).
+const STATUS_STYLE: Record<FlightFids["status"], { label: string; level: StatusLevel | null; quiet?: boolean }> = {
+  scheduled: { label: "SCHED", level: null, quiet: true },
+  active:    { label: "EN ROUTE", level: null },
+  landed:    { label: "LANDED", level: "normal" },
+  cancelled: { label: "CXLD", level: "critical" },
+  unknown:   { label: "—", level: null, quiet: true },
 };
 
-// Airline IATA → short colour code for the badge
+// Airline IATA → brand swatch token (a key beside the code, never a text colour)
 const AIRLINE_COLOR: Record<string, string> = {
   FD: "var(--airline-fd)",  // AirAsia red
   DD: "var(--airline-dd)",  // Nok Air orange
@@ -52,36 +54,21 @@ function fmtTime(iso: string | null | undefined): string {
 }
 
 function DelayBadge({ minutes }: { minutes: number | null }) {
-  if (minutes == null || minutes <= 0) return null;
+  const level = delayStatus(minutes);
+  if (!level) return null;
   return (
-    <span
-      className="mono"
-      style={{
-        fontSize: "0.6rem",
-        color: minutes >= 30 ? "var(--bad)" : "var(--warn)",
-        marginLeft: 3,
-      }}
-    >
-      +{minutes}m
-    </span>
+    <StatusText level={level}>
+      <span className="num">+{minutes}m</span>
+      <span className="visually-hidden"> delay</span>
+    </StatusText>
   );
 }
 
 function AirlineBadge({ iata }: { iata: string }) {
-  const bg = AIRLINE_COLOR[iata] ?? "var(--ink-2)";
+  const style = { "--airline": AIRLINE_COLOR[iata] ?? "var(--ink-3)" } as CSSProperties;
   return (
-    <span
-      className="mono"
-      style={{
-        background: bg,
-        color: "var(--on-brand)",
-        padding: "1px 5px",
-        fontSize: "0.6rem",
-        letterSpacing: "0.05em",
-        borderRadius: 2,
-        flexShrink: 0,
-      }}
-    >
+    <span className="fids-airline" style={style}>
+      <span className="swatch" aria-hidden="true" />
       {iata}
     </span>
   );
@@ -90,80 +77,47 @@ function AirlineBadge({ iata }: { iata: string }) {
 function FlightRow({ f }: { f: FlightFids }) {
   const st = STATUS_STYLE[f.status];
   const displayTime = f.actualTime ?? f.estimatedTime ?? f.scheduledTime;
-  const isDelayed = (f.delayMinutes ?? 0) > 0;
 
   return (
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: "44px 1fr auto",
-        alignItems: "center",
-        gap: 6,
-        padding: "5px 0",
-        borderBottom: "1px solid var(--rule)",
-      }}
-    >
-      {/* Time */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
-        <span
-          className="mono"
-          style={{
-            fontSize: "0.78rem",
-            color: isDelayed ? "var(--warn)" : "var(--ink)",
-            fontWeight: 600,
-          }}
-        >
-          {fmtTime(displayTime)}
-        </span>
+    <li className="fids-row">
+      <span className="fids-time">
+        <span className="fids-time__now num">{fmtTime(displayTime)}</span>
         {f.scheduledTime !== displayTime && (
-          <span className="mono" style={{ fontSize: "0.6rem", color: "var(--ink-low)", textDecoration: "line-through" }}>
+          <span className="fids-time__sched num">
+            <span className="visually-hidden">scheduled </span>
             {fmtTime(f.scheduledTime)}
           </span>
         )}
-      </div>
+      </span>
 
-      {/* Flight info */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+      <span className="fids-info">
+        <span className="fids-flight">
           <AirlineBadge iata={f.airlineIata} />
-          <span className="mono" style={{ fontSize: "0.72rem", fontWeight: 600 }}>
-            {f.flightNumber}
-          </span>
+          <span className="fids-flight__no num">{f.flightNumber}</span>
           <DelayBadge minutes={f.delayMinutes} />
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-          <span style={{ fontSize: "var(--size-eyebrow)", color: "var(--ink-3)" }}>
-            {f.direction === "arrival" ? "from" : "to"}{" "}
-            <strong>{f.otherName}</strong>
-          </span>
-          {f.gate && (
-            <span className="eyebrow mono" style={{ color: "var(--ink-low)" }}>
-              Gate {f.gate}
-            </span>
-          )}
-          {f.baggage && (
-            <span className="eyebrow mono" style={{ color: "var(--ink-low)" }}>
-              Belt {f.baggage}
-            </span>
-          )}
-        </div>
-      </div>
-
-      {/* Status */}
-      <div style={{ textAlign: "right" }}>
-        <span
-          className="eyebrow mono"
-          style={{ color: st.color, fontWeight: f.status === "landed" || f.status === "active" ? 700 : 400 }}
-        >
-          {st.label}
         </span>
-      </div>
-    </div>
+        <span className="fids-route">
+          {f.direction === "arrival" ? "from" : "to"} <strong>{f.otherName}</strong>
+          {f.gate && <> · Gate {f.gate}</>}
+          {f.baggage && <> · Belt {f.baggage}</>}
+        </span>
+      </span>
+
+      <span className="fids-state">
+        {st.level ? (
+          <StatusText level={st.level}>{st.label}</StatusText>
+        ) : (
+          <span className={`fids-state__plain${st.quiet ? " fids-state__plain--quiet" : ""}`}>{st.label}</span>
+        )}
+      </span>
+    </li>
   );
 }
 
 export function FlightsPanel({ flights, loading, ageMinutes, fallbackTier, note }: Props) {
   const [tab, setTab] = useState<Tab>("departures");
+  const baseId = useId();
+  const tabRefs = useRef<Record<Tab, HTMLButtonElement | null>>({ arrivals: null, departures: null });
 
   const arrivals   = flights.filter((f) => f.direction === "arrival");
   const departures = flights.filter((f) => f.direction === "departure");
@@ -172,18 +126,31 @@ export function FlightsPanel({ flights, loading, ageMinutes, fallbackTier, note 
   // Active flight alert
   const active = flights.filter((f) => f.status === "active");
 
+  const onTabKey = (e: KeyboardEvent<HTMLButtonElement>) => {
+    const i = TABS.indexOf(tab);
+    let next: Tab | null = null;
+    if (e.key === "ArrowRight") next = TABS[(i + 1) % TABS.length]!;
+    else if (e.key === "ArrowLeft") next = TABS[(i - 1 + TABS.length) % TABS.length]!;
+    else if (e.key === "Home") next = TABS[0]!;
+    else if (e.key === "End") next = TABS[TABS.length - 1]!;
+    if (!next) return;
+    e.preventDefault();
+    setTab(next);
+    tabRefs.current[next]?.focus();
+  };
+
   if (loading && flights.length === 0) {
     return (
-      <div className="col">
-        <div className="eyebrow">NST AIRPORT // FIDS</div>
-        <div className="skeleton" style={{ height: 12, marginTop: 8 }} />
-        <div className="skeleton" style={{ height: 12, marginTop: 6, width: "70%" }} />
-      </div>
+      <section className="panel" aria-label="NST airport flights" aria-busy="true">
+        <PanelHeader title="NST AIRPORT // FIDS" fallbackTier={fallbackTier} source="airlabs · IATA:NST" />
+        <span className="skeleton pc-skeleton" />
+        <span className="skeleton pc-skeleton pc-skeleton--short" />
+      </section>
     );
   }
 
   return (
-    <div className="col" style={{ gap: 8 }}>
+    <section className="panel" aria-label="NST airport flights">
       <PanelHeader
         title="NST AIRPORT // FIDS"
         ageMinutes={ageMinutes}
@@ -191,8 +158,9 @@ export function FlightsPanel({ flights, loading, ageMinutes, fallbackTier, note 
         source="airlabs · IATA:NST"
         actions={
           active.length > 0 ? (
-            <span className="eyebrow mono" style={{ color: "var(--accent)" }}>
-              ✈ {active.length} EN ROUTE
+            <span className="pc-meta">
+              <span aria-hidden="true">✈ </span>
+              <span className="num">{active.length}</span> en route
             </span>
           ) : undefined
         }
@@ -200,12 +168,12 @@ export function FlightsPanel({ flights, loading, ageMinutes, fallbackTier, note 
 
       {/* No-key state */}
       {fallbackTier === "unavailable" && note && (
-        <div style={{ fontSize: "var(--size-eyebrow)", color: "var(--ink-low)", lineHeight: 1.5 }}>
+        <p className="note">
           {note.includes("AIRLABS_API_KEY") ? (
             <>
-              Set <code style={{ color: "var(--accent)" }}>AIRLABS_API_KEY</code> in the API env
+              Set <code className="fids-code">AIRLABS_API_KEY</code> in the API env
               to enable live flight board. Free registration at{" "}
-              <a href="https://airlabs.co" target="_blank" rel="noreferrer" style={{ color: "var(--accent)" }}>
+              <a className="link" href="https://airlabs.co" target="_blank" rel="noreferrer">
                 airlabs.co
               </a>{" "}
               (1,000 req/month free).
@@ -213,33 +181,30 @@ export function FlightsPanel({ flights, loading, ageMinutes, fallbackTier, note 
           ) : (
             note
           )}
-        </div>
+        </p>
       )}
 
       {/* Tab bar */}
       {(arrivals.length > 0 || departures.length > 0) && (
-        <div role="tablist" style={{ display: "flex", gap: 4 }}>
-          {(["departures", "arrivals"] as Tab[]).map((t) => {
+        <div role="tablist" aria-label="Flight direction" className="pc-tabs">
+          {TABS.map((t) => {
             const count = t === "arrivals" ? arrivals.length : departures.length;
+            const selected = tab === t;
             return (
               <button
                 key={t}
+                ref={(el) => { tabRefs.current[t] = el; }}
+                type="button"
                 role="tab"
-                aria-selected={tab === t}
-                aria-controls={`flights-panel-section-${t}`}
+                id={`${baseId}-tab-${t}`}
+                aria-selected={selected}
+                aria-controls={`${baseId}-panel`}
+                tabIndex={selected ? 0 : -1}
                 onClick={() => setTab(t)}
-                className="eyebrow mono"
-                style={{
-                  background: tab === t ? "var(--ink)" : "transparent",
-                  color: tab === t ? "var(--ground)" : "var(--ink-low)",
-                  border: `1px solid ${tab === t ? "var(--ink)" : "var(--line)"}`,
-                  padding: "2px 7px",
-                  cursor: "pointer",
-                  fontSize: "0.62rem",
-                  letterSpacing: "0.05em",
-                }}
+                onKeyDown={onTabKey}
+                className="pc-tab"
               >
-                {t === "departures" ? "✈ DEP" : "✈ ARR"} ({count})
+                {t === "departures" ? "Departures" : "Arrivals"} <span className="num">({count})</span>
               </button>
             );
           })}
@@ -247,25 +212,27 @@ export function FlightsPanel({ flights, loading, ageMinutes, fallbackTier, note 
       )}
 
       {/* Flight rows */}
-      {shown.length > 0 ? (
-        <div id={`flights-panel-section-${tab}`}>
-          {shown.map((f) => (
-            <FlightRow key={`${f.flightNumber}-${f.scheduledTime}`} f={f} />
-          ))}
+      {flights.length > 0 && (
+        <div role="tabpanel" id={`${baseId}-panel`} aria-labelledby={`${baseId}-tab-${tab}`}>
+          {shown.length > 0 ? (
+            <ul className="pc-list">
+              {shown.map((f) => (
+                <FlightRow key={`${f.flightNumber}-${f.scheduledTime}`} f={f} />
+              ))}
+            </ul>
+          ) : (
+            <p className="note">No {tab} scheduled today.</p>
+          )}
         </div>
-      ) : flights.length > 0 ? (
-        <div id={`flights-panel-section-${tab}`} className="eyebrow mono" style={{ color: "var(--ink-low)" }}>
-          No {tab} scheduled today.
-        </div>
-      ) : null}
+      )}
 
       {/* Last updated */}
       {ageMinutes != null && flights.length > 0 && (
-        <div className="eyebrow mono" style={{ color: "var(--ink-low)" }}>
+        <p className="pc-meta">
           Updated {ageMinutes < 2 ? "just now" : `${Math.round(ageMinutes)} min ago`} ·
           VTSF · Nakhon Si Thammarat Airport
-        </div>
+        </p>
       )}
-    </div>
+    </section>
   );
 }

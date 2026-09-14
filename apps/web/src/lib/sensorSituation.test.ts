@@ -129,3 +129,16 @@ describe("heat weights", () => {
     ).toBeCloseTo(0.5, 5);
   });
 });
+
+describe("bandStatus / situationLevelStatus", () => {
+  it("maps situation bands onto the shared status vocabulary", async () => {
+    const { bandStatus, situationLevelStatus } = await import("./sensorSituation");
+    expect(bandStatus("calm")).toBe("normal");
+    expect(bandStatus("watch")).toBe("watch");
+    expect(bandStatus("elevated")).toBe("warning");
+    expect(bandStatus("critical")).toBe("critical");
+    expect(situationLevelStatus(5)).toBe("critical");
+    expect(situationLevelStatus(4)).toBe("warning");
+    expect(situationLevelStatus(2)).toBe("normal");
+  });
+});

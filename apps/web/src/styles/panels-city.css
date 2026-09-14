@@ -1,0 +1,375 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   panels-city.css — city rail panels (exec, KPIs, air, news, trends, flights,
+   sensors, tourism, municipality ops, device + speed tools, hour rail).
+   MoMA rules: black/white interface, colour only for data and status, one
+   family, hierarchy by size + weight. Values come from tokens.css only.
+   Status colour always arrives as the inline token `--status` (lib/status)
+   and is always paired with a glyph or a text label.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ── 1. Shared city-panel primitives (pc-) ────────────────────────────── */
+
+.pc-section { display: flex; flex-direction: column; gap: var(--s-2); min-width: 0; margin: 0; }
+.pc-section + .pc-section { border-top: 1px solid var(--line); padding-top: var(--s-3); }
+
+.pc-label {
+  margin: 0;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  line-height: 1.3;
+  color: var(--ink-2);
+}
+.pc-meta { margin: 0; font-size: var(--text-xs); line-height: 1.4; color: var(--ink-3); letter-spacing: 0; text-transform: none; }
+.pc-spread { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s-1) var(--s-2); flex-wrap: wrap; min-width: 0; }
+
+/* Stats: one pattern — label (dt) over figure (dd) */
+.pc-stats { margin: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(6rem, 1fr)); gap: var(--s-3) var(--s-4); }
+.pc-stats--pair { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.pc-stats > div { display: flex; flex-direction: column; gap: var(--s-1); min-width: 0; }
+.pc-stats dt {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  line-height: 1.3;
+  color: var(--ink-2);
+}
+.pc-stats dd {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-bold);
+  line-height: 1.15;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+.pc-stats--xl dd { font-size: var(--text-xl); }
+.pc-stats__sub { font-size: var(--text-xs); font-weight: var(--weight-regular); line-height: 1.4; color: var(--ink-3); }
+
+/* Status: glyph carries the colour, the label stays ink */
+.pc-status {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--s-1);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  line-height: 1.3;
+  color: var(--ink);
+  white-space: nowrap;
+}
+.pc-status__glyph { color: var(--status, var(--ink-3)); letter-spacing: 0; }
+.pc-glyph { color: var(--status, var(--ink-3)); font-size: var(--text-xs); line-height: 1; }
+
+/* Bars: neutral track, data or status fill; width is the only inline value */
+.pc-bar { display: block; height: var(--s-2); background: var(--ground); min-width: 0; }
+.pc-bar__fill { display: block; height: 100%; max-width: 100%; background: var(--status, var(--data)); }
+
+.pc-list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
+.pc-list > li { border-bottom: 1px solid var(--line); min-width: 0; }
+
+/* Sparklines (always paired with a .visually-hidden text summary) */
+.pc-spark { display: block; width: 100%; height: var(--s-8); overflow: visible; }
+.pc-spark__line { fill: none; stroke: var(--ink); stroke-width: 1.5; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.pc-spark__band { fill: var(--spark-band); }
+.pc-spark__threshold { stroke: var(--spark-threshold); stroke-width: 1; stroke-dasharray: 2 2; vector-effect: non-scaling-stroke; }
+.pc-spark__threshold--breach { stroke: var(--bad); }
+
+.pc-skeleton { display: block; height: var(--s-3); }
+.pc-skeleton--tall { height: var(--s-6); }
+.pc-skeleton--short { width: 70%; }
+.pc-skeleton--figure { width: 6rem; height: var(--s-12); }
+
+.pc-icon-btn { min-width: var(--hit); padding: 0; }
+
+/* Tabs — underline marks the selected tab; ≥ 32px targets */
+.pc-tabs { display: flex; gap: 0; border-bottom: 1px solid var(--line-2); }
+.pc-tab {
+  min-height: var(--hit);
+  padding: 0 var(--s-3);
+  margin-bottom: -1px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--ink-2);
+}
+.pc-tab:hover { background: var(--ground); color: var(--ink); border-color: transparent; }
+.pc-tab[aria-selected="true"],
+.pc-tab[aria-selected="true"]:hover { color: var(--ink); font-weight: var(--weight-bold); border-bottom-color: var(--ink); }
+
+/* ── 2. Executive briefing (exec-) ────────────────────────────────────── */
+
+.exec-alert { display: flex; flex-direction: column; gap: var(--s-1); padding: var(--s-2) 0 var(--s-2) var(--s-3); border-left: 3px solid var(--status, var(--line)); }
+.exec-alert__title { margin: 0; font-size: var(--text-sm); font-weight: var(--weight-bold); color: var(--ink); }
+.exec-alert__msg { margin: 0; font-size: var(--text-sm); color: var(--ink-2); }
+.exec-alert__action { margin: 0; font-size: var(--text-sm); color: var(--ink); }
+.exec-init { display: flex; flex-direction: column; gap: var(--s-1); padding: var(--s-2) 0; }
+.exec-init__name { font-size: var(--text-sm); font-weight: var(--weight-medium); color: var(--ink); min-width: 0; }
+.exec-health__row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; gap: var(--s-2); padding: var(--s-1) 0; }
+.exec-health__name { font-size: var(--text-sm); color: var(--ink); overflow-wrap: anywhere; }
+.exec-change { font-size: var(--text-xs); font-weight: var(--weight-regular); color: var(--ink-2); }
+
+/* ── 3. Flights / FIDS (fids-) ────────────────────────────────────────── */
+
+.fids-row { display: grid; grid-template-columns: 3.5rem minmax(0, 1fr) auto; align-items: start; gap: var(--s-2); padding: var(--s-2) 0; }
+.fids-time { display: flex; flex-direction: column; gap: var(--s-1); }
+.fids-time__now { font-size: var(--text-sm); font-weight: var(--weight-bold); color: var(--ink); }
+.fids-time__sched { font-size: var(--text-xs); color: var(--ink-3); text-decoration: line-through; }
+.fids-info { display: flex; flex-direction: column; gap: var(--s-1); min-width: 0; }
+.fids-flight { display: flex; align-items: center; flex-wrap: wrap; gap: var(--s-1) var(--s-2); font-size: var(--text-sm); }
+.fids-airline { display: inline-flex; align-items: center; gap: var(--s-1); font-size: var(--text-xs); font-weight: var(--weight-bold); color: var(--ink-2); }
+.fids-airline .swatch { background: var(--airline, var(--ink-3)); }
+.fids-flight__no { font-weight: var(--weight-bold); color: var(--ink); }
+.fids-route { font-size: var(--text-xs); color: var(--ink-2); }
+.fids-route strong { color: var(--ink); font-weight: var(--weight-bold); }
+.fids-state { text-align: right; }
+.fids-state__plain { font-size: var(--text-xs); font-weight: var(--weight-bold); letter-spacing: var(--tracking-label); text-transform: uppercase; color: var(--ink); }
+.fids-state__plain--quiet { font-weight: var(--weight-regular); color: var(--ink-3); }
+.fids-code { font: inherit; font-weight: var(--weight-bold); color: var(--ink); }
+
+/* ── 4. Earth observation (eo-) ───────────────────────────────────────── */
+
+.eo-toggles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s-2); }
+.eo-toggles .layer-toggle,
+.eo-toggles .layer-toggle.on,
+.eo-toggles .layer-toggle.off {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--s-1);
+  width: 100%;
+  min-height: var(--hit);
+  padding: var(--s-2);
+  border: 1px solid var(--line-2);
+  background: transparent;
+  color: var(--ink);
+  font-size: var(--text-sm);
+  letter-spacing: 0;
+  text-align: left;
+}
+.eo-toggles .layer-toggle:hover { background: var(--ground); border-color: var(--ink); }
+.eo-toggles .layer-toggle[aria-pressed="true"],
+.eo-toggles .layer-toggle[aria-pressed="true"]:hover { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.eo-toggle__head { display: flex; justify-content: space-between; gap: var(--s-2); font-weight: var(--weight-bold); }
+.eo-toggle__state { font-size: var(--text-xs); font-weight: var(--weight-bold); letter-spacing: var(--tracking-label); text-transform: uppercase; }
+.eo-toggle__what { font-size: var(--text-xs); line-height: 1.35; color: var(--ink-2); white-space: normal; }
+.eo-toggles .layer-toggle[aria-pressed="true"] .eo-toggle__what { color: var(--paper); }
+.eo-workflow { display: flex; flex-direction: column; gap: var(--s-1); padding: var(--s-2) 0; }
+.eo-workflow__title { font-size: var(--text-sm); font-weight: var(--weight-bold); color: var(--ink); }
+
+/* ── 5. Sensor situation (sit-) + sensor signals (sig-) ───────────────── */
+
+.sit-pane__hdr { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s-2); }
+.sit-pane__title { margin: 0; font-size: var(--text-md); font-weight: var(--weight-bold); letter-spacing: 0; color: var(--ink); }
+.sit-bar { display: flex; flex-direction: column; gap: var(--s-1); }
+.sit-bar__meta { display: flex; justify-content: space-between; gap: var(--s-2); font-size: var(--text-xs); color: var(--ink-2); }
+.sit-bar__meta span:last-child { font-weight: var(--weight-bold); color: var(--ink); }
+.sit-flow { list-style: none; margin: 0; padding: 0; display: flex; align-items: stretch; flex-wrap: wrap; gap: var(--s-1); }
+.sit-flow__item { display: flex; align-items: center; gap: var(--s-1); flex: 1 1 5.5rem; min-width: 0; }
+.sit-flow__node {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s-1);
+  min-width: 0;
+  min-height: var(--hit);
+  padding: var(--s-2);
+  border: 1px solid var(--line-2);
+  background: transparent;
+  color: var(--ink);
+  font-size: var(--text-xs);
+  letter-spacing: 0;
+  text-transform: none;
+  text-align: left;
+}
+.sit-flow__name { font-size: var(--text-sm); font-weight: var(--weight-bold); color: var(--ink); }
+.sit-flow__num { font-size: var(--text-sm); font-weight: var(--weight-bold); color: var(--ink); }
+.sit-flow__fb { color: var(--ink-2); }
+.sit-flow__arrow { color: var(--ink-3); font-size: var(--text-sm); }
+.sit-worst {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s-1);
+  width: 100%;
+  min-height: var(--hit);
+  padding: var(--s-2);
+  border: 1px solid var(--line-2);
+  background: transparent;
+  color: var(--ink);
+  letter-spacing: 0;
+  text-transform: none;
+  text-align: left;
+}
+.sit-worst__name { font-size: var(--text-sm); font-weight: var(--weight-bold); color: var(--ink); }
+.sit-worst__meta { font-size: var(--text-xs); color: var(--ink-2); }
+
+.sig-card {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--s-1);
+  width: 100%;
+  min-height: var(--hit);
+  padding: var(--s-2) var(--s-2) var(--s-2) var(--s-3);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--status, var(--line));
+  background: transparent;
+  color: var(--ink);
+  font-size: var(--text-sm);
+  letter-spacing: 0;
+  text-transform: none;
+  text-align: left;
+}
+button.sig-card:hover { background: var(--ground); border-color: var(--line-2); border-left-color: var(--status, var(--line)); }
+.sig-card__head { display: flex; justify-content: space-between; align-items: baseline; gap: var(--s-2); }
+.sig-card__type { font-size: var(--text-xs); color: var(--ink-2); }
+.sig-card__title { font-weight: var(--weight-bold); color: var(--ink); }
+.sig-card__body { font-size: var(--text-xs); color: var(--ink-2); }
+.sig-list { display: flex; flex-direction: column; gap: var(--s-2); list-style: none; margin: 0; padding: 0; }
+
+/* ── 6. Southern flood intel (sfi-) ───────────────────────────────────── */
+
+.sfi-rank { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: baseline; gap: var(--s-1) var(--s-2); padding: var(--s-2) 0; }
+.sfi-rank__name { font-size: var(--text-sm); color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sfi-rank__score { font-size: var(--text-sm); font-weight: var(--weight-bold); color: var(--ink); text-align: right; }
+.sfi-rank__meta { grid-column: 2 / -1; font-size: var(--text-xs); color: var(--ink-3); }
+
+/* ── 7. Predictive forecasts (pred-) ──────────────────────────────────── */
+
+.pred-strip {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--s-1);
+  width: 100%;
+  padding: var(--s-2) 0;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: transparent;
+  color: var(--ink);
+  font-size: var(--text-sm);
+  letter-spacing: 0;
+  text-transform: none;
+  text-align: left;
+}
+button.pred-strip { padding: var(--s-2) var(--s-1); }
+button.pred-strip:hover { background: var(--ground); border-color: var(--line); }
+.pred-strip__head { display: flex; align-items: baseline; flex-wrap: wrap; gap: var(--s-1) var(--s-2); }
+.pred-strip__label { font-weight: var(--weight-bold); color: var(--ink); }
+.pred-strip__map { margin-left: auto; font-size: var(--text-xs); color: var(--ink-2); }
+.pred-strip__spark-svg { display: block; min-width: 0; }
+.pred-strip__spark { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--s-2); }
+
+/* ── 8. City pulse KPIs (kpis-) ───────────────────────────────────────── */
+
+.kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.kpis dd { font-size: var(--text-xl); }
+
+/* ── 9. Air quality badge (aqib-) — AQI colour appears only as a fill ─── */
+
+.aqib { display: flex; flex-direction: column; gap: var(--s-2); padding-left: var(--s-3); border-left: 4px solid var(--aqi-color, var(--line-2)); min-width: 0; }
+.aqib__band { display: inline-flex; align-items: center; gap: var(--s-2); }
+.aqib__band .swatch { background: var(--aqi-color, var(--ink-3)); }
+.aqib__row { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: var(--s-4); }
+.aqib__num { font-size: var(--text-2xl); font-weight: var(--weight-bold); line-height: 1; color: var(--ink); }
+.aqib__unit { font-size: var(--text-xs); font-weight: var(--weight-regular); color: var(--ink-3); }
+.aqib__advice { margin: 0; font-size: var(--text-sm); color: var(--ink-2); }
+
+/* ── 10. Trends (trd-) ────────────────────────────────────────────────── */
+
+.trd-keyword { font-size: var(--text-xs); color: var(--ink-2); }
+.trd-link {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--s-2);
+  min-height: var(--hit);
+  padding: var(--s-1) 0;
+  font-size: var(--text-sm);
+  color: var(--ink);
+}
+.trd-link:hover { color: var(--ink); background: var(--ground); }
+.trd-link__q { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-decoration: underline; text-underline-offset: 2px; text-decoration-color: var(--line-2); }
+.trd-link__v { font-size: var(--text-xs); font-weight: var(--weight-bold); color: var(--ink-2); white-space: nowrap; }
+
+/* ── 11. Mayor's desk (desk-) + Facebook (fb-) ────────────────────────── */
+
+.desk-item { display: flex; flex-direction: column; gap: var(--s-1); padding: var(--s-2) 0; color: var(--ink); }
+.desk-item:hover { color: var(--ink); background: var(--ground); }
+.desk-item__head { display: flex; align-items: center; flex-wrap: wrap; gap: var(--s-1) var(--s-2); }
+.desk-item__score { margin-left: auto; }
+.desk-item__title { font-size: var(--text-sm); font-weight: var(--weight-medium); line-height: 1.4; color: var(--ink); }
+.desk-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+  padding: 0 var(--s-1);
+  border: 1px solid var(--line-2);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-label);
+  color: var(--ink);
+}
+.desk-tag .pc-glyph { color: var(--status, var(--ink-2)); }
+
+.fb-post__msg { font-size: var(--text-sm); line-height: 1.45; color: var(--ink); white-space: pre-wrap; }
+.fb-embed { width: calc(100% - var(--s-3)); max-width: 320px; overflow: hidden; }
+.fb-embed__frame { display: block; width: 100%; border: 1px solid var(--line); background: var(--ground); }
+
+/* ── 12. Tourism (tour-) ──────────────────────────────────────────────── */
+
+.tour-chart { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--s-1); }
+.tour-row { display: grid; grid-template-columns: 3rem minmax(0, 1fr) 4.5rem; align-items: center; gap: var(--s-2); font-size: var(--text-xs); color: var(--ink); }
+.tour-row__year { color: var(--ink-2); }
+.tour-row__val { text-align: right; font-weight: var(--weight-bold); }
+.tour-row .pc-bar__fill { background: var(--fill-1); }
+.tour-row--latest .pc-bar__fill { background: var(--data); }
+.tour-row--peak .pc-bar__fill { background: var(--ink); }
+.tour-row--covid .pc-bar__fill { background: var(--fill-2); }
+.tour-row--covid .tour-row__val { font-weight: var(--weight-regular); color: var(--ink-2); }
+.tour-yoy { font-size: var(--text-sm); font-weight: var(--weight-bold); color: var(--ink); }
+
+/* ── 13. Municipality ops (ops-) ──────────────────────────────────────── */
+
+.ops-row { display: grid; grid-template-columns: minmax(0, 8rem) minmax(0, 1fr) auto; align-items: center; gap: var(--s-2); padding: var(--s-1) 0; font-size: var(--text-sm); }
+.ops-row__name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); }
+.ops-row__val { display: inline-flex; align-items: baseline; gap: var(--s-1); justify-content: flex-end; min-width: 4.5rem; font-weight: var(--weight-bold); color: var(--ink); }
+.ops-fleet { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0 var(--s-2); padding: var(--s-2) 0; font-size: var(--text-sm); }
+.ops-fleet__count { font-weight: var(--weight-bold); color: var(--ink); text-align: right; }
+.ops-fleet__note { grid-column: 1 / -1; font-size: var(--text-xs); color: var(--ink-3); }
+.ops-dev { display: flex; flex-direction: column; gap: var(--s-1); padding: var(--s-2) 0; }
+.ops-dev__name { font-size: var(--text-sm); font-weight: var(--weight-bold); color: var(--ink); }
+
+/* ── 14. Situation digest (dig-) ──────────────────────────────────────── */
+
+.dig { display: flex; flex-direction: column; gap: var(--s-1); padding-left: var(--s-3); border-left: 3px solid var(--status, var(--line)); }
+.dig__line { margin: 0; font-size: var(--text-sm); line-height: 1.4; color: var(--ink-2); }
+
+/* ── 15. Speed test (speed-) + device check-in (dev-) ─────────────────── */
+
+.speed-fix { font-size: var(--text-sm); }
+.dev-list { margin: 0; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: var(--s-1) var(--s-3); align-items: baseline; }
+.dev-list dt { font-size: var(--text-xs); font-weight: var(--weight-bold); letter-spacing: var(--tracking-label); text-transform: uppercase; color: var(--ink-2); }
+.dev-list dd { margin: 0; font-size: var(--text-sm); color: var(--ink); overflow-wrap: anywhere; }
+
+/* ── 16. Hour rail (hrail-) ───────────────────────────────────────────── */
+
+.hrail { display: flex; flex-direction: column; gap: var(--s-2); padding: var(--s-2) var(--s-4) var(--s-1); }
+.hrail__top { display: flex; align-items: flex-end; justify-content: space-between; flex-wrap: wrap; gap: var(--s-2); }
+.hrail__title { display: flex; align-items: baseline; flex-wrap: wrap; gap: var(--s-2); }
+.hrail__time { margin: 0; font-size: var(--text-lg); font-weight: var(--weight-bold); line-height: 1.2; color: var(--ink); }
+.hrail__range { width: 100%; min-height: var(--hit-min); accent-color: var(--accent); }
+.hrail__ticks { display: grid; grid-template-columns: repeat(24, 1fr); gap: 1px; }
+.hrail__tick { height: var(--s-1); background: var(--line-2); }
+.hrail__tick--peak { background: var(--data); }

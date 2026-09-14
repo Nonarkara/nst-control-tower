@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { AtlasChart } from "@nst/shared";
 import { API_BASE } from "../../lib/apiBase";
 import { ChartRenderer } from "../atlas/charts";
+import { safeUrl } from "../../lib/safeUrl";
 
 /**
  * Nakhon Si Thammarat Watch Terminal (System B) — a Bloomberg-style "global watch" for Nakhon Si Thammarat
@@ -124,8 +125,8 @@ export function TerminalDashboard({ onFlip }: { onFlip: () => void }) {
 
   // ── Data Health — every live feed's freshness tier, at a glance ─────────────
   const TIER_COLOR: Record<string, string> = {
-    live: "#10B981", database: "#F1BE48", cache: "#F1BE48",
-    modelled: "#F59E0B", unavailable: "#EF4444", loading: "#64748B",
+    live: "var(--good)", database: "var(--warn)", cache: "var(--warn)",
+    modelled: "var(--alert)", unavailable: "var(--bad)", loading: "var(--ink-3)",
   };
   const dataHealth: AtlasChart | null = (() => {
     const feeds: Array<[string, any]> = [
@@ -142,7 +143,7 @@ export function TerminalDashboard({ onFlip }: { onFlip: () => void }) {
     }
     if (!total) return null;
     const order = ["live", "database", "cache", "modelled", "unavailable", "loading"];
-    const data = order.filter((t) => byTier[t]).map((t) => ({ name: t, value: byTier[t], color: TIER_COLOR[t] ?? "#64748B" }));
+    const data = order.filter((t) => byTier[t]).map((t) => ({ name: t, value: byTier[t], color: TIER_COLOR[t] ?? "var(--ink-3)" }));
     return { kind: "donut", title: "Data health — feeds by freshness", data, centerLabel: `${byTier["live"] ?? 0}/${total}` };
   })();
 
@@ -170,7 +171,7 @@ export function TerminalDashboard({ onFlip }: { onFlip: () => void }) {
         <span className="term-mark">NST <b>WATCH</b> TERMINAL</span>
         <span className="term-sub">NST-01 · Southern Thailand · live + reference</span>
         <Clock />
-        <button className="term-flip" onClick={onFlip}>⇄ MAP</button>
+        <button type="button" className="term-flip" onClick={onFlip}><span aria-hidden="true">⇄</span> MAP</button>
       </header>
 
       <div className="term-ticker" aria-label="live ticker">
@@ -189,7 +190,7 @@ export function TerminalDashboard({ onFlip }: { onFlip: () => void }) {
           {/* AIR QUALITY */}
           <Panel title="Air Quality" led={pm25 != null && pm25 > 35 ? "warn" : "live"} src={feat(aq)?.source ?? "PCD/AQICN"}>
             <div className="term-readout">
-              <span className="big" style={{ color: pm25 != null && pm25 > 35 ? "var(--warn)" : "var(--good)" }}>{fmt(pm25, 1)}</span>
+              <span className={`big ${pm25 != null && pm25 > 35 ? "is-warn" : "is-good"}`}>{fmt(pm25, 1)}</span>
               <span className="unit">µg/m³ PM2.5</span>
               {aqi != null ? <span className="delta">AQI {aqi}</span> : null}
             </div>
@@ -276,7 +277,7 @@ export function TerminalDashboard({ onFlip }: { onFlip: () => void }) {
           {/* DATA HEALTH */}
           <Panel title="Data Health" led="live" src="all feeds">
             {dataHealth ? <ChartRenderer chart={dataHealth} /> : <div className="term-load">Reading feed status…</div>}
-            <div className="term-jux">Every live feed's freshness at a glance — <b style={{ color: "#10B981" }}>green=live</b>, <b style={{ color: "#F1BE48" }}>gold=cached</b>, <b style={{ color: "#F59E0B" }}>amber=modelled</b>, <b style={{ color: "#EF4444" }}>red=down</b>. Tells operators which sources to trust right now.</div>
+            <div className="term-jux">Every live feed's freshness at a glance — <b className="term-key--good">green=live</b>, <b className="term-key--cache">gold=cached</b>, <b className="term-key--modelled">amber=modelled</b>, <b className="term-key--down">red=down</b>. Tells operators which sources to trust right now.</div>
           </Panel>
 
           {/* ARCHIVE SPARKS */}
@@ -290,13 +291,21 @@ export function TerminalDashboard({ onFlip }: { onFlip: () => void }) {
           {/* NEWS WIRE */}
           <Panel title="Southern Thailand News Wire" led="live" src="multi-source" span2>
             <div className="term-wire">
-              {newsItems.length ? newsItems.slice(0, 14).map((n, i) => (
-                <div className="term-wire-item" key={i} onClick={() => n.sourceUrl && window.open(n.sourceUrl, "_blank", "noopener")}>
-                  <span className="t">{n.publishedAt ? new Date(n.publishedAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short" }) : ""}</span>
-                  {n.title}
-                  {Array.isArray(n.tags) && n.tags.length ? <span className="tag">{n.tags.join(" ")}</span> : null}
-                </div>
-              )) : <div className="term-load">Loading wire…</div>}
+              {newsItems.length ? newsItems.slice(0, 14).map((n, i) => {
+                const href = safeUrl(n.sourceUrl);
+                const body = (
+                  <>
+                    <span className="t">{n.publishedAt ? new Date(n.publishedAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short" }) : ""}</span>
+                    {n.title}
+                    {Array.isArray(n.tags) && n.tags.length ? <span className="tag">{n.tags.join(" ")}</span> : null}
+                  </>
+                );
+                return href ? (
+                  <a className="term-wire-item" key={i} href={href} target="_blank" rel="noopener noreferrer">{body}</a>
+                ) : (
+                  <div className="term-wire-item" key={i}>{body}</div>
+                );
+              }) : <div className="term-load">Loading wire…</div>}
             </div>
           </Panel>
 

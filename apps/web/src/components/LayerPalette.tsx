@@ -90,8 +90,8 @@ export function LayerPalette({ lens, onLensChange, enabled, onToggleLayer, count
   return (
     <div className="col">
       <div>
-        <div className="eyebrow" style={{ marginBottom: 6 }}>Lens</div>
-        <div className="lens">
+        <h2 className="eyebrow palette-eyebrow" id="lens-heading">Lens</h2>
+        <div className="lens" role="group" aria-labelledby="lens-heading">
           {LENSES.map((l) => {
             const disc = LENS_DISC[l.id];
             return (
@@ -101,7 +101,7 @@ export function LayerPalette({ lens, onLensChange, enabled, onToggleLayer, count
                 aria-pressed={lens === l.id}
                 className={lens === l.id ? "active" : ""}
                 title={l.describe}
-                aria-label={l.describe}
+                aria-describedby={`lens-desc-${l.id}`}
               >
                 <span
                   className={`rt-disc rt-disc--nav rt-disc--${disc.family}`}
@@ -113,6 +113,9 @@ export function LayerPalette({ lens, onLensChange, enabled, onToggleLayer, count
             );
           })}
         </div>
+        {LENSES.map((l) => (
+          <span key={l.id} id={`lens-desc-${l.id}`} className="visually-hidden">{l.describe}</span>
+        ))}
         <div className="lens-explainer caption">
           {LENSES.find((l) => l.id === lens)?.describe}
         </div>
@@ -121,8 +124,8 @@ export function LayerPalette({ lens, onLensChange, enabled, onToggleLayer, count
       <hr className="divider" />
 
       <div>
-        <div className="eyebrow" style={{ marginBottom: 6 }}>Layers</div>
-        <p className="caption" style={{ marginBottom: 12, opacity: 0.8, lineHeight: 1.4 }}>Toggle spatial data layers. Layers actively updating from APIs show feature counts.</p>
+        <h2 className="eyebrow palette-eyebrow">Layers</h2>
+        <p className="caption palette-intro">Toggle spatial data layers. Layers actively updating from APIs show feature counts.</p>
         <div className="layer-groups">
           {GROUP_ORDER.map((g) => {
             const list = grouped.get(g) ?? [];
@@ -143,7 +146,7 @@ export function LayerPalette({ lens, onLensChange, enabled, onToggleLayer, count
                   <span className="layer-group-chevron mono">{isCollapsed ? "▸" : "▾"}</span>
                 </button>
                 {!isCollapsed && GROUP_HINT[g] && (
-                  <div className="caption" style={{ color: "var(--ink-low)", lineHeight: 1.4, padding: "0 4px 7px" }}>
+                  <div className="caption palette-hint">
                     {GROUP_HINT[g]}
                   </div>
                 )}
@@ -165,14 +168,15 @@ export function LayerPalette({ lens, onLensChange, enabled, onToggleLayer, count
                           role="checkbox"
                           aria-checked={isOn}
                           title={fullTitle}
-                          aria-label={`${l.label} — ${l.describe}`}
+                          aria-describedby={`layer-desc-${l.id}`}
                           onClick={() => onToggleLayer(l.id)}
                         >
                           <span className="row">
-                            <span className="swatch" style={{ background: l.swatch }} />
+                            <span className="swatch" style={{ background: l.swatch }} aria-hidden="true" />
                             <span>{l.label}</span>
+                            <span id={`layer-desc-${l.id}`} className="visually-hidden">{fullTitle}</span>
                           </span>
-                          <span className="row" style={{ gap: 6 }}>
+                          <span className="row palette-toggle-meta">
                             {freshness && (
                               <span className="mono caption layer-age" title={`Imagery date: ${freshness.date}`}>
                                 {freshness.label}
@@ -197,7 +201,7 @@ export function LayerPalette({ lens, onLensChange, enabled, onToggleLayer, count
                                 {counts[l.id]!.toLocaleString()}
                               </span>
                             ) : (
-                              <span className="mono caption">{isOn ? "on" : "off"}</span>
+                              <span className="caption" aria-hidden="true">{isOn ? "on" : "off"}</span>
                             )}
                           </span>
                         </button>

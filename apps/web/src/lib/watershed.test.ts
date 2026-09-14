@@ -1,6 +1,7 @@
 import { describe, test, expect } from "vitest";
 import type { WaterGauge, RainfallStation, EwsStation, FloodGauge } from "@nst/shared";
-import { summarizeWatershed, summarizeZone, WATERSHED_ZONES } from "./watershed";
+import { summarizeWatershed, summarizeZone, WATERSHED_ZONES, ZONE_STATUS_COLOR, ZONE_STATUS_RGB } from "./watershed";
+import { STATUS } from "./status";
 
 function floodGauge(o: Partial<FloodGauge> = {}): FloodGauge {
   return {
@@ -194,5 +195,24 @@ describe("summarizeWatershed", () => {
     const result = summarizeWatershed([gauge()], [rain("ลานสกา", 5)], []);
     expect(result).toHaveLength(WATERSHED_ZONES.length);
     expect(result.map((r) => r.zone.key)).toEqual(WATERSHED_ZONES.map((z) => z.key));
+  });
+});
+
+describe("zone status colours come from STATUS", () => {
+  test("flood → critical, high → warning, watch → watch, normal → normal, nodata → unknown", () => {
+    expect(ZONE_STATUS_RGB).toEqual({
+      flood: STATUS.critical.rgb,
+      high: STATUS.warning.rgb,
+      watch: STATUS.watch.rgb,
+      normal: STATUS.normal.rgb,
+      nodata: STATUS.unknown.rgb,
+    });
+    expect(ZONE_STATUS_COLOR).toEqual({
+      flood: STATUS.critical.color,
+      high: STATUS.warning.color,
+      watch: STATUS.watch.color,
+      normal: STATUS.normal.color,
+      nodata: STATUS.unknown.color,
+    });
   });
 });

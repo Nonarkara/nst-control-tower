@@ -16,6 +16,7 @@ import type { LayerId } from "../map/presets";
 import { PanelHeader } from "./PanelHeader";
 import { formatAge, peakLabel } from "../lib/predictive";
 import type { ForecastPoint } from "../lib/predictive";
+import { StatusText, seriesSummary } from "../lib/cityStatus";
 
 export interface ForecastMetric {
   metric: string;
@@ -63,8 +64,8 @@ const W = 120;
 const H = 32;
 const PAD = 2;
 
-function Sparkline({ points, alertThreshold }: { points: ForecastPoint[]; alertThreshold: number }) {
-  if (points.length < 2) return <span className="mono eyebrow" style={{ color: "var(--ink-low)" }}>—</span>;
+function Sparkline({ points, alertThreshold, label, unit }: { points: ForecastPoint[]; alertThreshold: number; label: string; unit: string }) {
+  if (points.length < 2) return <span className="pc-meta">—</span>;
 
   const vals = points.map((p) => p.p50);
   const lo   = points.map((p) => p.p10 ?? p.p50);
@@ -89,38 +90,25 @@ function Sparkline({ points, alertThreshold }: { points: ForecastPoint[]; alertT
   // Alert threshold line
   const threshY = yScale(alertThreshold);
   const isAlert = Math.max(...vals) > alertThreshold;
+  const digits = Math.max(...vals) < 10 ? 1 : 0;
 
   return (
-    <svg
-      width={W}
-      height={H}
-      viewBox={`0 0 ${W} ${H}`}
-      aria-hidden="true"
-      style={{ display: "block", flexShrink: 0 }}
-    >
-      {/* Confidence band */}
-      <polygon
-        points={bandPts}
-        fill={isAlert ? "rgba(245,158,11,0.12)" : "var(--spark-band)"}
-      />
-      {/* Threshold line */}
-      {threshY >= PAD && threshY <= H - PAD && (
-        <line
-          x1={PAD} y1={threshY} x2={W - PAD} y2={threshY}
-          stroke={isAlert ? "var(--neg)" : "var(--spark-threshold)"}
-          strokeWidth={0.5}
-          strokeDasharray="2,2"
-        />
-      )}
-      {/* p50 forecast line */}
-      <polyline
-        points={linePts}
-        fill="none"
-        stroke={isAlert ? "var(--accent)" : "var(--spark-line)"}
-        strokeWidth={1.2}
-        strokeLinejoin="round"
-      />
-    </svg>
+    <span className="pred-strip__spark-svg">
+      <svg className="pc-spark" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" aria-hidden="true">
+        <polygon className="pc-spark__band" points={bandPts} />
+        {threshY >= PAD && threshY <= H - PAD && (
+          <line
+            className={`pc-spark__threshold${isAlert ? " pc-spark__threshold--breach" : ""}`}
+            x1={PAD} y1={threshY} x2={W - PAD} y2={threshY}
+          />
+        )}
+        <polyline className="pc-spark__line" points={linePts} />
+      </svg>
+      <span className="visually-hidden">
+        {label} median forecast, next {points.length} hours: {seriesSummary(vals, unit ? ` ${unit}` : "", digits)}
+        {isAlert ? ` Exceeds alert threshold ${alertThreshold}${unit}.` : ""}
+      </span>
+    </span>
   );
 }
 
@@ -186,7 +174,7 @@ export function PredictivePanel({ apiBase, onMetricClick, onAlert, onForecastsLo
   );
 
   return (
-    <div className="col predictive-panel">
+    <section className="panel" aria-label="Predictive intelligence" aria-busy={loading}>
       <PanelHeader
         title="PREDICTIVE INTELLIGENCE"
         ageMinutes={ageMinutes}
@@ -194,70 +182,60 @@ export function PredictivePanel({ apiBase, onMetricClick, onAlert, onForecastsLo
         source="timesfm·zs"
       />
 
-      {loading && !data && (
-        <div className="eyebrow mono" style={{ color: "var(--ink-low)" }}>LOADING …</div>
-      )}
+      {loading && !data && <p className="pc-meta">LOADING …</p>}
 
       {error && (
-        <div className="eyebrow mono" style={{ color: "var(--warn)" }}>
-          Forecast service offline · {error}
-        </div>
+        <p role="status">
+          <StatusText level="watch">Forecast service offline</StatusText>{" "}
+          <span className="pc-meta">{error}</span>
+        </p>
       )}
 
       {!loading && !error && !hasAnyData && (
-        <div className="eyebrow mono" style={{ color: "var(--ink-low)" }}>
-          Forecasts resume when the prediction service reports in.
-        </div>
+        <p className="note">Forecasts resume when the prediction service reports in.</p>
       )}
 
       {data?.forecasts.map((fm) => {
         if (!fm.horizon.length) return null;
         const isAlert = Math.max(...fm.horizon.map((p) => p.p50)) > fm.alertThreshold;
-        const clickable = !!onMetricClick;
-        return (
-          <div
-            key={fm.metric}
-            className={`forecast-strip${clickable ? " forecast-strip-clickable" : ""}`}
-            role={clickable ? "button" : undefined}
-            tabIndex={clickable ? 0 : undefined}
-            aria-label={clickable ? `Enable ${fm.label} on map` : undefined}
-            onClick={clickable ? () => onMetricClick(fm.metric) : undefined}
-            onKeyDown={clickable ? (e) => {
-              if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onMetricClick(fm.metric); }
-            } : undefined}
-          >
-            <div className="forecast-header">
-              <span className="forecast-label mono">{fm.label}</span>
+        const content = (
+          <>
+            <span className="pred-strip__head">
+              <span className="pred-strip__label">{fm.label}</span>
               {isAlert && (
-                <span className="forecast-alert-chip mono">
-                  ▲ {fm.alertThreshold}{fm.unit}
-                </span>
+                <StatusText level="warning">
+                  Above <span className="num">{fm.alertThreshold}{fm.unit}</span>
+                </StatusText>
               )}
-              <span className="forecast-peak mono">{peakLabel(fm.horizon, fm.unit)}</span>
-              {clickable && (
-                <span className="eyebrow mono" style={{ color: "var(--ink-low)", marginLeft: "auto" }}>
-                  →MAP
-                </span>
-              )}
-            </div>
-            <div className="forecast-sparkline-row">
-              <Sparkline points={fm.horizon} alertThreshold={fm.alertThreshold} />
-              <span className="forecast-horizon-label mono">
-                {fm.horizon.length}h
-              </span>
-            </div>
-            {fm.generatedAt && (
-              <div className="eyebrow mono" style={{ color: "var(--ink-low)", marginTop: 1 }}>
-                {formatAge(fm.generatedAt)}
-              </div>
-            )}
+              <span className="pc-meta num">{peakLabel(fm.horizon, fm.unit)}</span>
+              {onMetricClick && <span className="pred-strip__map" aria-hidden="true">→ MAP</span>}
+            </span>
+            <span className="pred-strip__spark">
+              <Sparkline points={fm.horizon} alertThreshold={fm.alertThreshold} label={fm.label} unit={fm.unit} />
+              <span className="pc-meta num">{fm.horizon.length}h</span>
+            </span>
+            {fm.generatedAt && <span className="pc-meta">{formatAge(fm.generatedAt)}</span>}
+          </>
+        );
+        return onMetricClick ? (
+          <button
+            key={fm.metric}
+            type="button"
+            className="pred-strip"
+            onClick={() => onMetricClick(fm.metric)}
+            title={`Enable ${fm.label} on map`}
+          >
+            {content}
+            <span className="visually-hidden">Enable {fm.label} on map</span>
+          </button>
+        ) : (
+          <div key={fm.metric} className="pred-strip">
+            {content}
           </div>
         );
       })}
 
-      <div className="eyebrow mono" style={{ color: "var(--ink-low)", marginTop: 4 }}>
-        GOOGLE TIMESFM 2.0 · 200M · ZERO-SHOT INFERENCE
-      </div>
-    </div>
+      <p className="pc-meta">GOOGLE TIMESFM 2.0 · 200M · ZERO-SHOT INFERENCE</p>
+    </section>
   );
 }

@@ -56,6 +56,8 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
     } catch {
       /* ignore persistence failure */
     }
+    // Screen readers pick pronunciation from <html lang>; keep it on the UI language.
+    document.documentElement.lang = locale === "zh" ? "zh-Hans" : locale;
   }, [locale]);
 
   const setLocale = useCallback((l: Locale) => setLocaleState(l), []);

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { ScatterplotLayer } from "@deck.gl/layers";
 import { flowDotPositions, flowDotsLayer } from "./layers";
+import { usePrefersReducedMotion } from "../hooks/usePrefersReducedMotion";
 
 const DOT_COUNT = 5;
 // Throttle React state updates hard — each tick re-renders App (memoized
@@ -47,6 +48,7 @@ interface FlowAnimationResult {
 export function useFlowAnimation({ visible, flowPath, color }: Props): FlowAnimationResult {
   const [layer, setLayer] = useState<ScatterplotLayer<[number, number]> | null>(null);
   const rafRef = useRef<number | null>(null);
+  const reducedMotion = usePrefersReducedMotion();
 
   // Stringify the small path/color so the effect only restarts (and resets
   // the animation clock) when the actual coordinates/color change — not on
@@ -58,6 +60,11 @@ export function useFlowAnimation({ visible, flowPath, color }: Props): FlowAnima
   useEffect(() => {
     if (!visible || flowPath.length < 2) {
       setLayer(null);
+      return;
+    }
+    // prefers-reduced-motion: a still frame of the dots, no loop.
+    if (reducedMotion) {
+      setLayer(flowDotsLayer(flowDotPositions(flowPath, 0, DOT_COUNT), color));
       return;
     }
 
@@ -78,7 +85,7 @@ export function useFlowAnimation({ visible, flowPath, color }: Props): FlowAnima
       if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- pathKey/colorKey are the real deps
-  }, [visible, pathKey, colorKey]);
+  }, [visible, pathKey, colorKey, reducedMotion]);
 
   return { layer };
 }

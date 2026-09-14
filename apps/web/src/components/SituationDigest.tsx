@@ -10,6 +10,7 @@ import type { NasaEarthReadings } from "@nst/shared";
 import type { ForecastMetric } from "./PredictivePanel";
 import { METRIC_LABEL } from "./PredictivePanel";
 import { aqiBand } from "../lib/coastal";
+import { StatusText, statusStyle } from "../lib/cityStatus";
 
 interface Props {
   nasaReadings: NasaEarthReadings | null;
@@ -60,29 +61,24 @@ export function SituationDigest({ nasaReadings, avgSolarIrrKWh, forecastAlerts, 
 
   return (
     <div
-      className="col situation-digest"
+      className="dig"
       role="region"
       aria-label="Situation digest"
       aria-live="polite"
-      style={{
-        borderLeft: `1px solid ${hasAlerts ? "var(--bad)" : "var(--line)"}`,
-        paddingLeft: 10,
-        gap: 4,
-      }}
+      style={hasAlerts ? statusStyle("critical") : undefined}
     >
-      <div className="spread" style={{ alignItems: "center" }}>
-        <span
-          className="eyebrow mono"
-          style={{ color: hasAlerts ? "var(--bad)" : "var(--data)" }}
-        >
-          {hasAlerts ? "▲ SITUATION ALERT" : "SITUATION DIGEST"}
-        </span>
-        <span className="eyebrow mono" style={{ color: "var(--ink-low)" }}>INT · LIVE</span>
+      <div className="pc-spread">
+        {hasAlerts ? (
+          <StatusText level="critical">SITUATION ALERT</StatusText>
+        ) : (
+          <span className="pc-label">SITUATION DIGEST</span>
+        )}
+        <span className="pc-meta">INT · LIVE</span>
       </div>
       {lines.map((line) => (
-        <div key={line} className="eyebrow mono" style={{ color: "var(--ink-3)", lineHeight: 1.4 }}>
+        <p key={line} className="dig__line">
           {line}
-        </div>
+        </p>
       ))}
     </div>
   );

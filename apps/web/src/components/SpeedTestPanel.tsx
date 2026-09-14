@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { PanelHeader } from "./PanelHeader";
+import { StatusText } from "../lib/cityStatus";
 
 /**
  * In-browser WiFi/network speed gauge.
@@ -109,7 +110,7 @@ export function SpeedTestPanel() {
   };
 
   return (
-    <div className="speedtest-panel">
+    <section className="panel" aria-label="WiFi speed test" aria-busy={running}>
       <PanelHeader
         title="WIFI · SPEED TEST"
         ageMinutes={last ? minutesSince(last.at) : null}
@@ -117,41 +118,49 @@ export function SpeedTestPanel() {
         actions={
           <button
             type="button"
-            className="speedtest-go mono"
+            className="btn"
             onClick={run}
             disabled={running}
             aria-label="Run a download-timing speed test"
           >
-            {running ? "…" : "RUN"}
+            {running ? "…" : "Run"}
           </button>
         }
       />
-      <div className="speedtest-row">
-        <div className="speedtest-stat">
-          <span className="lbl">DOWN</span>
-          <span className="val mono">{last ? `${last.mbps}` : "—"}</span>
-          <span className="sub mono">Mbps</span>
+      <dl className="pc-stats">
+        <div>
+          <dt>Down</dt>
+          <dd>
+            <span className="num">{last ? `${last.mbps}` : "—"}</span>
+            <span className="pc-stats__sub">Mbps</span>
+          </dd>
         </div>
-        <div className="speedtest-stat">
-          <span className="lbl">RTT</span>
-          <span className="val mono">{last ? last.rttMs : "—"}</span>
-          <span className="sub mono">ms</span>
+        <div>
+          <dt>RTT</dt>
+          <dd>
+            <span className="num">{last ? last.rttMs : "—"}</span>
+            <span className="pc-stats__sub">ms</span>
+          </dd>
         </div>
-        <div className="speedtest-stat">
-          <span className="lbl">FIX</span>
-          <span className="val mono" style={{ fontSize: "0.74rem", letterSpacing: 0 }}>
+        <div>
+          <dt>Fix</dt>
+          <dd className="speed-fix num">
             {last?.lng != null && last?.lat != null
               ? `${last.lat.toFixed(4)}, ${last.lng.toFixed(4)}`
               : "—"}
-          </span>
+          </dd>
         </div>
-      </div>
-      {err && <div className="speedtest-err mono">⚠ {err}</div>}
-      {last && (
-        <div className="speedtest-foot mono">
-          {new Date(last.at).toLocaleTimeString("en-GB")} · {last.source}
-        </div>
+      </dl>
+      {err && (
+        <p role="alert">
+          <StatusText level="critical">Error</StatusText> <span className="pc-meta">{err}</span>
+        </p>
       )}
-    </div>
+      {last && (
+        <p className="pc-meta num">
+          {new Date(last.at).toLocaleTimeString("en-GB")} · {last.source}
+        </p>
+      )}
+    </section>
   );
 }

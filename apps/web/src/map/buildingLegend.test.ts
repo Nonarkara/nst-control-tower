@@ -38,4 +38,9 @@ describe("BUILDING_LEGEND", () => {
     const hospital = BUILDING_LEGEND.find((r) => r.label === "Hospital");
     expect(hospital!.color).toEqual(LANDMARK_COLOR.hospital);
   });
+
+  it("every row has a distinct colour (no two building types share an RGB)", () => {
+    const keys = BUILDING_LEGEND.map((r) => r.color.join(","));
+    expect(new Set(keys).size).toBe(keys.length);
+  });
 });

@@ -10,11 +10,11 @@ function readSavedTheme(): Theme | null {
   return v === "light" || v === "dark" ? v : null;
 }
 
+/** Must agree with the pre-hydration boot script in index.html, or a light-OS
+ *  visitor sees light for one frame and then dark. */
 function systemTheme(): Theme {
-  // This dashboard is designed for dark mode — tactical dark palette, cyan
-  // buildings on near-black basemap. Light mode exists as a toggle but dark
-  // is the correct default regardless of OS preference.
-  return "dark";
+  if (typeof window === "undefined") return "dark";
+  return window.matchMedia?.("(prefers-color-scheme: light)").matches ? "light" : "dark";
 }
 
 export function useTheme(): { theme: Theme; setTheme: (t: Theme) => void; toggle: () => void } {

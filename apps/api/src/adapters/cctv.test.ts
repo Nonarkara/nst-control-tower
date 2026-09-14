@@ -175,3 +175,57 @@ describe("CCTV adapter — camera field mapping (isolated)", () => {
     vi.restoreAllMocks();
   });
 });
+
+describe("fetchCctvAll — combined Longdo + NST municipality", () => {
+  it("merges cameras from both sources with distinct vendor tags", async () => {
+    vi.resetModules();
+    const longdoCam = makeCamera({ camid: "L-001" });
+    // The NST adapter hits a different endpoint — capture each by URL.
+    vi.spyOn(globalThis, "fetch").mockImplementation((url) => {
+      const u = String(url);
+      if (u.includes("nstcctv.nakhoncity.org")) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify([{ id: "SC004", name: "หน้า ร.ร.", group: "x", lat: CHONBURI_LAT, lng: CHONBURI_LNG }]),
+            { status: 200 },
+          ),
+        );
+      }
+      return Promise.resolve(
+        new Response(JSON.stringify({ cameras: [longdoCam] }), { status: 200 }),
+      );
+    });
+
+    const { fetchCctvAll: fresh } = await import("./cctv.js");
+    const feed = await fresh();
+
+    expect(feed.meta.source).toBe("cctv-combined");
+    expect(feed.meta.fallbackTier).toBe("live");
+    expect(feed.features.length).toBe(2);
+    expect(feed.features.some((c) => c.vendor === "longdo")).toBe(true);
+    expect(feed.features.some((c) => c.vendor === "nst-municipality")).toBe(true);
+    vi.restoreAllMocks();
+  });
+
+  it("falls back gracefully when one side is down (other side still surfaces)", async () => {
+    vi.resetModules();
+    // Longdo OK, NST 502 → combined feed shows only Longdo cameras, tier live.
+    vi.spyOn(globalThis, "fetch").mockImplementation((url) => {
+      const u = String(url);
+      if (u.includes("nstcctv.nakhoncity.org")) {
+        return Promise.resolve(new Response(null, { status: 502 }));
+      }
+      return Promise.resolve(
+        new Response(JSON.stringify({ cameras: [makeCamera({ camid: "L-ONLY" })] }), { status: 200 }),
+      );
+    });
+
+    const { fetchCctvAll: fresh } = await import("./cctv.js");
+    const feed = await fresh();
+
+    expect(feed.features.some((c) => c.id === "longdo-L-ONLY")).toBe(true);
+    expect(feed.features.some((c) => c.vendor === "nst-municipality")).toBe(false);
+    expect(feed.meta.fallbackTier).toBe("live");
+    vi.restoreAllMocks();
+  });
+});

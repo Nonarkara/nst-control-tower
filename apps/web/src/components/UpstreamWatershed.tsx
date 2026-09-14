@@ -14,13 +14,16 @@
 import { useMemo } from "react";
 import type { WaterGauge, RainfallStation, EwsStation, FloodGauge, FallbackTier, ZonePrecipNowcast } from "@nst/shared";
 import { PanelHeader } from "./PanelHeader";
+import { MixedText } from "./MixedText";
 import {
   summarizeWatershed,
   leadTimeToCity,
-  ZONE_STATUS_COLOR,
   ZONE_STATUS_LABEL,
+  type ZoneStatus,
   type ZoneSummary,
 } from "../lib/watershed";
+import { rainStatus } from "../lib/water";
+import { STATUS, type StatusLevel } from "../lib/status";
 
 interface Props {
   waterGauges: WaterGauge[];
@@ -35,103 +38,105 @@ interface Props {
   fallbackTier?: FallbackTier;
 }
 
+/** Watershed zone status → the shared status vocabulary. */
+const ZONE_STATUS: Record<ZoneStatus, StatusLevel> = {
+  flood: "critical",
+  high: "warning",
+  watch: "watch",
+  normal: "normal",
+  nodata: "unknown",
+};
+
+const PRECIP_STATUS: Record<ZonePrecipNowcast["intensity"], StatusLevel> = {
+  dry: "normal",
+  light: "normal",
+  moderate: "warning",
+  heavy: "critical",
+};
+
+const SOIL_PRIMED_PCT = 85;
+
+/** Coloured reading with its status glyph; neutral when the level is normal. */
+function Reading({ level, children, title }: { level: StatusLevel; children: React.ReactNode; title?: string }) {
+  if (level === "normal" || level === "unknown") return <li title={title}>{children}</li>;
+  const st = STATUS[level];
+  return (
+    <li title={title} className="flood-status" style={{ color: st.color }}>
+      <span aria-hidden="true">{st.glyph}</span>
+      {children}
+      <span className="visually-hidden"> ({st.en})</span>
+    </li>
+  );
+}
+
 function ZoneRow({ s, isLast, precip }: { s: ZoneSummary; isLast: boolean; precip?: ZonePrecipNowcast }) {
-  const color = ZONE_STATUS_COLOR[s.status];
+  const st = STATUS[ZONE_STATUS[s.status]];
   const z = s.zone;
+  const lt = z.isCity ? null : leadTimeToCity(z.key);
 
   return (
-    <div style={{ display: "flex", gap: 8 }}>
+    <li className={`watershed-zone${z.isCity ? " is-city" : ""}`}>
       {/* Flow rail — node dot + connector */}
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: 12, flexShrink: 0 }}>
-        <span
-          style={{
-            width: z.isCity ? 11 : 9,
-            height: z.isCity ? 11 : 9,
-            borderRadius: "50%",
-            background: color,
-            border: z.isCity ? "2px solid var(--ink)" : "none",
-            marginTop: 3,
-          }}
-        />
-        {!isLast && <span style={{ flex: 1, width: 2, background: "var(--line)", minHeight: 18 }} />}
+      <div className="watershed-rail" aria-hidden="true">
+        <span className={`watershed-node${z.isCity ? " is-city" : ""}`} style={{ background: st.color }} />
+        {!isLast && <span className="watershed-connector" />}
       </div>
 
       {/* Node detail */}
-      <div style={{ flex: 1, minWidth: 0, paddingBottom: isLast ? 0 : 8 }}>
-        <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
-          <span className="mono" style={{ fontSize: "0.8rem", fontWeight: z.isCity ? 700 : 600 }}>
-            {z.th}
+      <div className="watershed-body">
+        <div className="flood-row-head">
+          <span>
+            <span className="watershed-zone__name" lang="th">{z.th}</span>{" "}
+            <span className="watershed-zone__en">{z.en}</span>
           </span>
-          <span className="eyebrow mono" style={{ color: "var(--ink-low)" }}>{z.en}</span>
-          <span className="eyebrow mono" style={{ color, marginLeft: "auto", fontWeight: 600 }}>
-            {ZONE_STATUS_LABEL[s.status]}
-            {s.modelled && <span style={{ color: "var(--ink-low)", fontWeight: 400 }}> ·model</span>}
+          <span className="flood-status watershed-zone__status" style={{ color: st.color }}>
+            <span aria-hidden="true">{st.glyph}</span>
+            <MixedText text={ZONE_STATUS_LABEL[s.status]} />
+            {s.modelled && <span className="flood-meta"> · model</span>}
           </span>
         </div>
 
-        <div className="eyebrow mono" style={{ color: "var(--ink-low)" }}>
-          {z.role} · {z.river}
-        </div>
-        {!z.isCity && (() => {
-          const lt = leadTimeToCity(z.key);
-          return lt ? (
-            <div className="eyebrow mono" style={{ color: "var(--ink-low)" }}>
-              ≈ {lt.minH.toFixed(1)}–{lt.maxH.toFixed(1)} h to city (est.)
-            </div>
-          ) : null;
-        })()}
+        <p className="flood-meta"><MixedText text={`${z.role} · ${z.river}`} /></p>
+        {lt && (
+          <p className="flood-meta num">≈ {lt.minH.toFixed(1)}–{lt.maxH.toFixed(1)} h to city (est.)</p>
+        )}
 
         {/* Live readings */}
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 2 }}>
+        <ul className="watershed-readings">
           {s.gaugeCount > 0 && (
-            <span className="eyebrow mono" style={{ color: "var(--ink-3)" }}>
+            <Reading level="normal">
               {s.gaugeCount} gauge{s.gaugeCount > 1 ? "s" : ""}
-              {s.rising ? " ↑" : ""}
-            </span>
+              {s.rising && <><span aria-hidden="true"> ↑</span><span className="visually-hidden">, rising</span></>}
+            </Reading>
           )}
-          {s.levelMsl != null && (
-            <span className="eyebrow mono" style={{ color: "var(--ink-3)" }}>
-              {s.levelMsl.toFixed(1)} m
-            </span>
-          )}
+          {s.levelMsl != null && <Reading level="normal"><span className="num">{s.levelMsl.toFixed(1)} m</span></Reading>}
           {s.diffFromBank != null && (
-            <span
-              className="eyebrow mono"
-              style={{ color: s.diffFromBank > 0 ? "var(--bad)" : "var(--ink-3)" }}
-            >
+            <Reading level={s.diffFromBank > 0 ? "critical" : "normal"}>
               {s.diffFromBank > 0
                 ? `${s.diffFromBank.toFixed(1)} m OVERBANK`
                 : `${Math.abs(s.diffFromBank).toFixed(1)} m to bank`}
-            </span>
+            </Reading>
           )}
           {s.rain24h != null && s.rain24h > 0 && (
-            <span className="eyebrow mono" style={{ color: s.rain24h >= 90 ? "var(--bad)" : s.rain24h >= 35 ? "var(--warn)" : "var(--ink-3)" }}>
-              ☔ {Math.round(s.rain24h)} mm/24h
-            </span>
+            <Reading level={s.rain24h >= 35 ? rainStatus(s.rain24h) : "normal"}>
+              <span aria-hidden="true">☔</span> {Math.round(s.rain24h)} mm/24h
+            </Reading>
           )}
           {precip && precip.total2hMm > 0 && (
-            <span
-              className="eyebrow mono"
-              style={{ color: precip.intensity === "heavy" ? "var(--bad)" : precip.intensity === "moderate" ? "var(--warn)" : "var(--ink-3)" }}
-              title="Forecast, not observed — Open-Meteo minutely_15"
-            >
-              ⇢ forecast +{precip.total2hMm}mm/2h
+            <Reading level={PRECIP_STATUS[precip.intensity]} title="Forecast, not observed — Open-Meteo minutely_15">
+              <span aria-hidden="true">⇢</span> forecast +{precip.total2hMm}mm/2h
               {precip.minutesToSignificant != null && ` · in ${precip.minutesToSignificant}min`}
-            </span>
+            </Reading>
           )}
           {s.soil != null && (
-            <span className="eyebrow mono" style={{ color: s.soil >= 85 ? "var(--warn)" : "var(--ink-3)" }}>
-              soil {Math.round(s.soil)}%
-            </span>
+            <Reading level={s.soil >= SOIL_PRIMED_PCT ? "watch" : "normal"}>soil {Math.round(s.soil)}%</Reading>
           )}
-        </div>
+        </ul>
         {s.topStation && (
-          <div className="eyebrow mono" style={{ color: "var(--ink-low)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-            {s.topStation}
-          </div>
+          <p className="flood-meta watershed-station"><MixedText text={s.topStation} /></p>
         )}
       </div>
-    </div>
+    </li>
   );
 }
 
@@ -145,9 +150,10 @@ export function UpstreamWatershed({ waterGauges, rainfall, ews = [], floodGauges
   // Worst upstream (non-city) status drives the "what's coming" line.
   const upstream = summaries.filter((s) => !s.zone.isCity);
   const upstreamAlert = upstream.find((s) => s.status === "flood" || s.status === "high");
+  const alertStatus = upstreamAlert ? STATUS[ZONE_STATUS[upstreamAlert.status]] : null;
 
   return (
-    <div className="col" style={{ gap: 8 }}>
+    <section className="panel" aria-label="Upstream watershed">
       <PanelHeader
         title="WATERSHED // UPSTREAM → CITY"
         source="thaiwater · dwr-ews"
@@ -156,20 +162,27 @@ export function UpstreamWatershed({ waterGauges, rainfall, ews = [], floodGauges
       />
 
       {!hasAny ? (
-        <div className="eyebrow mono" style={{ color: "var(--ink-low)" }}>
-          Awaiting upstream gauge + rainfall feeds.
-        </div>
+        <p className="flood-empty">Awaiting upstream gauge + rainfall feeds.</p>
       ) : (
         <>
           {/* What's coming — the lead-time headline */}
-          <div className="eyebrow mono" style={{ color: upstreamAlert ? "var(--warn)" : "var(--ink-low)", lineHeight: 1.4 }}>
-            {upstreamAlert
-              ? `▲ ${upstreamAlert.zone.th} ${ZONE_STATUS_LABEL[upstreamAlert.status].split(" ")[0]} upstream — heading for the city via ${upstreamAlert.zone.river}`
-              : "Upstream calm — Tha Dee headwaters within banks"}
-          </div>
+          <p className="watershed-headline">
+            {upstreamAlert && alertStatus ? (
+              <span className="flood-status" style={{ color: alertStatus.color }}>
+                <span aria-hidden="true">{alertStatus.glyph}</span>
+                <span>
+                  <MixedText
+                    text={`${upstreamAlert.zone.th} ${ZONE_STATUS_LABEL[upstreamAlert.status].split(" ")[0]} upstream — heading for the city via ${upstreamAlert.zone.river}`}
+                  />
+                </span>
+              </span>
+            ) : (
+              "Upstream calm — Tha Dee headwaters within banks"
+            )}
+          </p>
 
           {/* The cascade */}
-          <div>
+          <ol className="watershed-cascade" aria-label="Flow order, upstream to city">
             {summaries.map((s, i) => (
               <ZoneRow
                 key={s.zone.key}
@@ -178,15 +191,16 @@ export function UpstreamWatershed({ waterGauges, rainfall, ews = [], floodGauges
                 precip={precipZones.find((p) => p.zoneKey === s.zone.key)}
               />
             ))}
-          </div>
+          </ol>
 
-          <div className="eyebrow mono" style={{ color: "var(--ink-low)", borderTop: "1px solid var(--line)", paddingTop: 6, lineHeight: 1.5 }}>
-            Flow order along คลองท่าดี: Khao Luang → คีรีวง → ลานสกา → city.
+          <p className="flood-footnote">
+            Flow order along <span lang="th">คลองท่าดี</span>: Khao Luang → <span lang="th">คีรีวง</span> →{" "}
+            <span lang="th">ลานสกา</span> → city.
             Lead-time = channel distance ÷ a 1.5–3 m/s flood-wave celerity band
             (estimate, not hydraulic routing) — the window to act.
-          </div>
+          </p>
         </>
       )}
-    </div>
+    </section>
   );
 }

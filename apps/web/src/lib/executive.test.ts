@@ -55,14 +55,14 @@ describe("execAqiColor", () => {
     expect(execAqiColor(50)).toBe("var(--good)");
   });
 
-  it("returns --data for AQI 51–100 (executive uses data tier, not warn)", () => {
-    expect(execAqiColor(51)).toBe("var(--data)");
-    expect(execAqiColor(100)).toBe("var(--data)");
+  it("returns --warn (watch) for AQI 51–100", () => {
+    expect(execAqiColor(51)).toBe("var(--warn)");
+    expect(execAqiColor(100)).toBe("var(--warn)");
   });
 
-  it("returns --warn for AQI 101–150", () => {
-    expect(execAqiColor(101)).toBe("var(--warn)");
-    expect(execAqiColor(150)).toBe("var(--warn)");
+  it("returns --alert (warning) for AQI 101–150", () => {
+    expect(execAqiColor(101)).toBe("var(--alert)");
+    expect(execAqiColor(150)).toBe("var(--alert)");
   });
 
   it("returns --bad for AQI > 150", () => {

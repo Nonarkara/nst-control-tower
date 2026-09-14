@@ -1,0 +1,205 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   dialogs.css — the one Dialog pattern (components/Dialog.tsx) plus
+   the per-dialog layout that used to live in inline styles.
+   Tokens only: no radius, shadow, blur or raw colour.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ── Overlay ─────────────────────────────────────────────────────────── */
+.dialog-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: grid;
+  place-items: center;
+  padding: var(--s-4);
+  background: color-mix(in srgb, var(--paper) 72%, transparent);
+}
+.dialog-overlay--full { padding: 0; background: var(--paper); }
+
+/* ── Panel ───────────────────────────────────────────────────────────── */
+.dialog {
+  width: min(720px, 100%);
+  max-height: calc(100vh - 2 * var(--s-4));
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background: var(--panel);
+  border: 1px solid var(--line-2);
+  color: var(--ink);
+}
+.dialog--sm { width: min(420px, 100%); }
+.dialog--md { width: min(720px, 100%); }
+.dialog--lg { width: min(1080px, 100%); }
+.dialog--full {
+  width: 100%;
+  height: 100%;
+  max-height: none;
+  border: 0;
+  background: var(--paper);
+}
+
+.dialog__head {
+  flex: none;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--s-4);
+  padding: var(--s-4);
+  border-bottom: 1px solid var(--line);
+}
+.dialog--full .dialog__head { padding: var(--s-4) var(--s-6); background: var(--panel); }
+.dialog__heading { display: flex; flex-direction: column; gap: var(--s-1); min-width: 0; }
+.dialog__eyebrow {
+  margin: 0;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+.dialog__title { font-size: var(--text-lg); line-height: 1.2; color: var(--ink); }
+.dialog--sm .dialog__title { font-size: var(--text-md); }
+.dialog__title [lang="th"] { color: var(--ink-2); font-weight: var(--weight-medium); }
+.dialog__desc { margin: 0; font-size: var(--text-sm); color: var(--ink-2); }
+.dialog__actions { flex: none; display: flex; align-items: center; gap: var(--s-2); }
+
+.dialog__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  padding: var(--s-4);
+}
+
+/* ── Floating (non-modal) card over the map ──────────────────────────── */
+.dialog--floating {
+  position: absolute;
+  top: 64px;
+  right: var(--s-3);
+  z-index: 38;
+  width: min(360px, 38vw);
+  max-height: calc(100% - 64px - var(--s-3));
+  pointer-events: auto;
+}
+.dialog--floating .dialog__head { padding: var(--s-3); gap: var(--s-2); }
+.dialog--floating .dialog__body { padding: var(--s-3); }
+.dialog--floating .building-card-meta { margin-top: 0; }
+.shell.mobile .dialog--floating { width: 86vw; right: 7vw; top: 56px; }
+
+/* ── Source catalog ──────────────────────────────────────────────────── */
+.dialog-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2) var(--s-4);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+.dialog-summary__muted { color: var(--ink-low); }
+.dialog-summary__good { color: var(--good); }
+.dialog-summary__warn { color: var(--warn); }
+.dialog-summary__bad { color: var(--bad); }
+.catalog-row__main { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+.catalog-row__health { margin-left: var(--s-2); }
+.catalog-row__desc { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.catalog-row__fail { color: var(--bad); }
+
+/* ── Chat ────────────────────────────────────────────────────────────── */
+.dialog--chat { height: min(640px, calc(100vh - 2 * var(--s-4))); }
+.dialog--chat .dialog__body {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+/* ── Sheets ──────────────────────────────────────────────────────────── */
+.dialog--sheets .dialog__body { padding: 0; }
+.sheets-info__second { margin-top: var(--s-3); }
+
+/* ── Atlas + Knowledge Platform (full-bleed) ─────────────────────────── */
+.dialog--atlas .dialog__body { display: block; padding: 0; }
+.dialog--atlas .atlas-nav { top: 0; }
+.dialog--platform .dialog__body { display: flex; padding: 0; overflow: hidden; }
+.dialog--platform .kp-body { flex: 1; min-height: 0; }
+
+/* Formerly clickable <div>/<span> rows, now real buttons */
+.kp-result,
+.kp-lesson-row,
+.kp-ask-cite,
+.kp-insight-link {
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  text-transform: none;
+  letter-spacing: normal;
+  background: transparent;
+  border: 0;
+  min-block-size: var(--hit-min);
+}
+.kp-result,
+.kp-lesson-row { width: 100%; border-bottom: 1px solid var(--line); }
+.kp-result:hover,
+.kp-lesson-row:hover { border-color: var(--line); }
+.kp-result-snip { display: block; }
+.kp-ask-cite { padding: 0; color: var(--ink-3); font-size: var(--text-xs); }
+.kp-insight-link { padding: 0; font-weight: inherit; }
+.kp-insight-link:hover { color: var(--accent); background: transparent; }
+.kp-insight--link { cursor: pointer; }
+.kp-insight-sev--critical { color: var(--bad); }
+.kp-insight-sev--alert { color: var(--alert); }
+.kp-insight-sev--watch,
+.kp-insight-sev--info { color: var(--warn); }
+.kp-hint--headline { font-size: var(--text-md); color: var(--ink-2); margin-bottom: var(--s-4); }
+.kp-hint--lede { margin-bottom: var(--s-3); }
+.kp-hint--meta { margin-bottom: var(--s-4); }
+
+/* ── Watch terminal ──────────────────────────────────────────────────── */
+a.term-wire-item { display: block; color: inherit; }
+.term-readout .big.is-warn { color: var(--warn); }
+.term-readout .big.is-good { color: var(--good); }
+.term-key--good { color: var(--good); }
+.term-key--cache { color: var(--warn); }
+.term-key--modelled { color: var(--alert); }
+.term-key--down { color: var(--bad); }
+
+/* ── Layer palette ───────────────────────────────────────────────────── */
+.palette-eyebrow { margin-bottom: var(--s-2); }
+.palette-intro { margin: 0 0 var(--s-3); line-height: 1.4; }
+.palette-hint { color: var(--ink-low); line-height: 1.4; padding: 0 var(--s-1) var(--s-2); }
+.palette-toggle-meta { gap: var(--s-2); }
+
+/* ── Error screen ────────────────────────────────────────────────────── */
+.error-screen {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--s-6);
+  background: var(--paper);
+  color: var(--ink);
+}
+.error-screen__inner { max-width: 520px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: var(--s-3); }
+.error-screen__glyph { font-size: var(--text-2xl); line-height: 1; }
+.error-screen__title { font-size: var(--text-lg); }
+.error-screen__text { margin: 0; color: var(--ink-3); line-height: 1.5; }
+.error-screen__detail {
+  margin: 0;
+  width: 100%;
+  padding: var(--s-3);
+  background: var(--ground);
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+  overflow: auto;
+  text-align: left;
+}
+
+/* ── Building search: the active option (aria-activedescendant) ──────── */
+.building-search-row[aria-selected="true"] { background: var(--ink); color: var(--paper); }
+.building-search-row[aria-selected="true"] .building-search-alt { color: var(--paper); }

@@ -8,6 +8,7 @@
  */
 
 import type { AirQualityPoint, RainfallStation, WaterGauge } from "@nst/shared";
+import type { StatusLevel } from "./status";
 
 export type SituationBand = "calm" | "watch" | "elevated" | "critical";
 
@@ -255,4 +256,19 @@ export function bandLabel(band: SituationBand): string {
     default:
       return "CALM";
   }
+}
+
+/** Situation band → shared status level (colour + glyph come from lib/status). */
+export function bandStatus(band: SituationBand): StatusLevel {
+  if (band === "critical") return "critical";
+  if (band === "elevated") return "warning";
+  if (band === "watch") return "watch";
+  return "normal";
+}
+
+/** Gauge situation level (1–5) → status: 5 overbank, 4 high. */
+export function situationLevelStatus(level: number): StatusLevel {
+  if (level >= 5) return "critical";
+  if (level >= 4) return "warning";
+  return "normal";
 }

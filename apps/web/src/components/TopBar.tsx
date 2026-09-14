@@ -1,13 +1,27 @@
-import { useEffect, useState } from "react";
+/**
+ * TopBar — the shell's single header band.
+ *
+ * Left to right: who (city wordmark) · now (time, weather, air) · system
+ * health · tools · settings. No logos, no ornament, no tickers: partner marks
+ * live in the status bar, and every feed's detail lives in the source catalog.
+ * Each control's visible text is contained in its accessible name (WCAG 2.5.3).
+ */
+import { useEffect, useRef, useState } from "react";
 import { type AcademicSnapshot, type FallbackTier, CHONBURI } from "@nst/shared";
 import { useTheme } from "../hooks/useTheme";
 import { useLocale } from "../hooks/useLocale";
-import { formatDate } from "../lib/time";
+import { aqiBand } from "../lib/worldStrip";
 
 interface FeedHealth {
   label: string;
   tier: FallbackTier | "loading";
   ageMinutes: number;
+}
+
+export interface TopBarConditions {
+  tempC: number | null;
+  condition: string | null;
+  aqi: number | null;
 }
 
 interface Props {
@@ -25,248 +39,208 @@ interface Props {
   onOpenFloodGuide: () => void;
   onFlip?: () => void;
   sheetsConfigured: boolean;
-  academic: AcademicSnapshot | null;
+  /** Retained for API compatibility with the university fork; not shown. */
+  academic?: AcademicSnapshot | null;
   systemStatus?: "healthy" | "degraded" | "down" | "unknown";
+  conditions?: TopBarConditions | null;
 }
 
+const CLOCK_TICK_MS = 15_000;
 
-const TEMPO_COLOR: Record<AcademicSnapshot["tempo"], string> = {
-  low: "var(--ink-low)",
-  normal: "var(--data)",
-  high: "var(--warn)",
-  peak: "var(--bad)",
-};
-
-export function TopBar({ feeds, onOpenCatalog, catalogCount, viewMode, onCycleViewMode, onOpenManual, onOpenShortcuts, onOpenWhitepaper, onOpenSheets, onOpenAtlas, onOpenPlatform, onOpenFloodGuide, onFlip, sheetsConfigured, academic, systemStatus }: Props) {
+function useClock(): Date {
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
-    const id = setInterval(() => setNow(new Date()), 1000);
+    const id = setInterval(() => setNow(new Date()), CLOCK_TICK_MS);
     return () => clearInterval(id);
   }, []);
+  return now;
+}
 
+const HEALTH_WORD: Record<NonNullable<Props["systemStatus"]>, string> = {
+  healthy: "All systems normal",
+  degraded: "Degraded",
+  down: "Down",
+  unknown: "Status unknown",
+};
+const HEALTH_DOT: Record<NonNullable<Props["systemStatus"]>, string> = {
+  healthy: "live",
+  degraded: "stale",
+  down: "unavailable",
+  unknown: "loading",
+};
+
+function MoreMenu({ items }: { items: Array<{ label: string; onSelect: () => void }> }) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setOpen(false);
+        triggerRef.current?.focus();
+      }
+    };
+    const onPointer = (e: MouseEvent) => {
+      if (!rootRef.current?.contains(e.target as Node)) setOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("mousedown", onPointer);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("mousedown", onPointer);
+    };
+  }, [open]);
+
+  return (
+    <div className="topbar-more" ref={rootRef}>
+      <button
+        ref={triggerRef}
+        type="button"
+        className="btn"
+        aria-expanded={open}
+        aria-controls="topbar-more-menu"
+        onClick={() => setOpen((v) => !v)}
+      >
+        More <span aria-hidden="true">▾</span>
+      </button>
+      {open && (
+        <ul id="topbar-more-menu" className="topbar-more__menu">
+          {items.map((item) => (
+            <li key={item.label}>
+              <button
+                type="button"
+                className="btn btn--quiet"
+                onClick={() => {
+                  setOpen(false);
+                  item.onSelect();
+                }}
+              >
+                {item.label}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+export function TopBar({
+  feeds,
+  onOpenCatalog,
+  viewMode,
+  onCycleViewMode,
+  onOpenManual,
+  onOpenShortcuts,
+  onOpenWhitepaper,
+  onOpenSheets,
+  onOpenAtlas,
+  onOpenFloodGuide,
+  onFlip,
+  sheetsConfigured,
+  systemStatus = "unknown",
+  conditions,
+}: Props) {
+  const now = useClock();
   const { theme, toggle } = useTheme();
   const { locale, toggle: toggleLocale } = useLocale();
   const liveCount = feeds.filter((f) => f.tier === "live").length;
+  const air = aqiBand(conditions?.aqi ?? null);
+  const nextView = viewMode === "2D" ? "3D" : "2D";
+  const nextTheme = theme === "dark" ? "light" : "dark";
 
   return (
     <header className="topbar">
-      {/* Sponsor + identity bar */}
-      <div className="brand">
-        {/* Municipal link — principal identity mark (official NST seal TBD) */}
-        <a className="sponsor sponsor-seal" href="https://www.nakhoncity.org" target="_blank"
-           rel="noreferrer" aria-label="เทศบาลนครนครศรีธรรมราช — Nakhon Si Thammarat City Municipality" />
-        {/* Partners */}
-        <a className="sponsor" href="https://www.depa.or.th" target="_blank"
-           rel="noreferrer" aria-label="depa — Digital Economy Promotion Agency">
-          <img src="/logos/depa.jpg" alt="depa" />
-        </a>
-        <a className="sponsor" href="https://www.smartcitythailand.or.th" target="_blank"
-           rel="noreferrer" aria-label="Smart City Thailand">
-          <img src="/logos/smart-city-thailand.jpg" alt="Smart City Thailand" />
-        </a>
-        <a className="sponsor sponsor-axiom" href="https://axiom.nonarkara.org" target="_blank"
-           rel="noreferrer" aria-label="Axiom — Innovation as a Service">
-          <img src="/logos/axiom.png" alt="Axiom" />
-        </a>
-        <svg className="brand-wave" width="42" height="22" viewBox="0 0 42 22" aria-hidden>
-          <path d="M0 11 Q 5 4, 10 11 T 20 11 T 30 11 T 42 11"
-                fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" opacity="0.95"/>
-          <path d="M0 17 Q 5 10, 10 17 T 20 17 T 30 17 T 42 17"
-                fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" opacity="0.5"/>
-        </svg>
-        <div className="brand-stack">
-          <strong>{CHONBURI.name.en}</strong>
-          <span className="brand-sub mono">
-            NST-01 · Southern Thailand
-          </span>
+      <a className="topbar-id" href="https://www.nakhoncity.org" target="_blank" rel="noreferrer">
+        <span className="topbar-id__city">{CHONBURI.name.en}</span>
+        <span className="topbar-id__org" lang="th">เทศบาลนครนครศรีธรรมราช · Control Tower</span>
+      </a>
+
+      <dl className="topbar-now" aria-label="Now in the city">
+        <div>
+          <dt>Time</dt>
+          <dd className="num">
+            <time dateTime={now.toISOString()}>
+              {now.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false })}
+            </time>{" "}
+            <span className="topbar-now__sub">
+              {now.toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
+            </span>
+          </dd>
         </div>
-        <a
-          className="powered-by-chip mono"
-          href="https://flood.nonarkara.org"
-          target="_blank"
-          rel="noreferrer"
-          title="Water + air sensor intelligence — FloodDash & AirDash by Dr.Non Arkaraprasertkul"
-        >
-          <span className="powered-by-chip__dot" aria-hidden />
-          FloodDash · AirDash · Dr.Non
-        </a>
-      </div>
+        <div>
+          <dt>Weather</dt>
+          <dd>
+            <span className="num">{conditions?.tempC != null ? `${Math.round(conditions.tempC)}°C` : "—"}</span>{" "}
+            <span className="topbar-now__sub">{conditions?.condition ?? ""}</span>
+          </dd>
+        </div>
+        <div>
+          <dt>Air quality</dt>
+          <dd>
+            <span className="num">{conditions?.aqi ?? "—"}</span>{" "}
+            <span className="topbar-now__sub">{conditions?.aqi != null ? air.label : ""}</span>
+          </dd>
+        </div>
+      </dl>
 
-      {/* Live feed chips */}
-      <div className="feeds">
-        <span className="feeds-label">FEEDS</span>
-        {feeds.map((f) => (
-          <span
-            key={f.label}
-            className={`feed-chip feed-${f.tier}`}
-            title={`${f.tier} · ${f.ageMinutes}m ago`}
-          >
-            <span className={`dot ${f.tier === "loading" ? "loading" : f.tier}`} />
-            {f.label}
-          </span>
-        ))}
-      </div>
+      <div className="topbar-spacer" />
 
-      <div className="topbar-right">
-        <button
-          onClick={onOpenCatalog}
-          className={`live-count mono health-pill health-${systemStatus ?? "unknown"}`}
-          role="status"
-          aria-label={
-            systemStatus === "healthy"
-              ? `${liveCount} of ${feeds.length} data feeds live — all systems nominal`
-              : systemStatus === "degraded"
-                ? `System degraded — ${feeds.length - liveCount} of ${feeds.length} feeds not live`
-                : systemStatus === "down"
-                  ? `System down — feeds not reachable`
-                  : `Data status unknown`
-          }
-          title={
-            systemStatus === "healthy"
-              ? "All feeds live — click for the SOURCES catalog"
-              : systemStatus === "degraded"
-                ? "Some feeds are stale or unavailable — click for the SOURCES catalog"
-                : systemStatus === "down"
-                  ? "Multiple feeds down — click for the SOURCES catalog"
-                  : "Click for the SOURCES catalog"
-          }
-        >
-          {systemStatus === "healthy" ? (
-            <>
-              <span className="dot live" style={{ marginRight: 6 }} />
-              {liveCount}/{feeds.length} LIVE
-            </>
-          ) : systemStatus === "degraded" ? (
-            <>
-              <span className="dot stale" style={{ marginRight: 6 }} />
-              DEGRADED · {liveCount}/{feeds.length}
-            </>
-          ) : systemStatus === "down" ? (
-            <>
-              <span className="dot unavailable" style={{ marginRight: 6 }} />
-              DOWN · {liveCount}/{feeds.length}
-            </>
-          ) : (
-            <>
-              <span className="dot loading" style={{ marginRight: 6 }} />
-              {liveCount}/{feeds.length}
-            </>
-          )}
+      <button
+        type="button"
+        className="btn topbar-health"
+        onClick={onOpenCatalog}
+        aria-label={`System health: ${HEALTH_WORD[systemStatus]}, ${liveCount} of ${feeds.length} feeds live. Open feed details.`}
+      >
+        <span className={`dot ${HEALTH_DOT[systemStatus]}`} aria-hidden="true" />
+        <span>{HEALTH_WORD[systemStatus]}</span>
+        <span className="num topbar-health__count">
+          {liveCount}/{feeds.length} live
+        </span>
+      </button>
+
+      <nav className="topbar-nav" aria-label="Tools">
+        <button type="button" className="btn" onClick={onOpenCatalog} aria-label="Open source catalog">
+          Source catalog
         </button>
-        <button
-          onClick={onOpenSheets}
-          className={`mono sheets-btn ${sheetsConfigured ? "sheets-btn-live" : ""}`}
-          aria-label={sheetsConfigured ? "Open Google Sheets live feed" : "Set up Google Sheets integration"}
-          title={sheetsConfigured ? "Open the live-data Google Sheet" : "Connect a Google Sheet to this dashboard"}
-        >
-          {sheetsConfigured ? "▦ SHEETS" : "▦ SHEETS"}
+        <button type="button" className="btn" onClick={onOpenAtlas} aria-label="Open atlas — outcome indicators and data sources">
+          Atlas
         </button>
-        <button onClick={onOpenCatalog} className="mono" aria-label="Open source catalog">
-          SOURCES · {catalogCount}
+        <button type="button" className="btn" onClick={onOpenFloodGuide} aria-label="Open flood guide — how flooding works and what this dashboard monitors">
+          Flood guide
         </button>
-        <button
-          onClick={onOpenAtlas}
-          className="atlas-toggle"
-          aria-label="Open the Nakhon Si Thammarat Data Atlas — outcome indicators, charts, and the full data-source catalog"
-          title="Data Atlas — poverty, education, health, climate, economy outcomes + 200+ sources"
-        >
-          <span className="rt-disc rt-disc--nav rt-disc--purple" data-glyph="L" aria-hidden="true" />
-          ATLAS
-        </button>
-        <button
-          onClick={onOpenFloodGuide}
-          className="flood-guide-toggle"
-          aria-label="Open Flood Knowledge — digital preventativeness guide synthesised from ASEAN-Japan Roundtable 2026"
-          title="Flood Knowledge — the nature of flooding, forecast systems, and what this dashboard monitors"
-        >
-          <span className="rt-disc rt-disc--nav rt-disc--red" data-glyph="F" aria-hidden="true" />
-          FLOOD
-        </button>
-        {/* ⌕ LEARN (Knowledge Platform) hidden until its glossary / lessons /
-            data-dictionary content is rewritten from the Yala/Deep-South fork to
-            NST. Re-enable by restoring this button once platform/* is NST-localised. */}
-        {false && (
-          <button
-            onClick={onOpenPlatform}
-            className="kp-toggle"
-            aria-label="Open the Nakhon Si Thammarat Knowledge Platform — search, academy, AI concierge, archive"
-            title="Knowledge Platform — search · learn · ask AI · time-machine archive"
-          >
-            ⌕ LEARN
+        {onFlip && (
+          <button type="button" className="btn" onClick={onFlip} aria-label="Open terminal — real-time and reference data view">
+            Terminal
           </button>
         )}
-        {onFlip ? (
-          <button
-            onClick={onFlip}
-            className="flip-toggle"
-            aria-label="Flip to the Watch Terminal — Bloomberg-style real-time + reference data"
-            title="Flip to the Watch Terminal (System B)"
-          >
-            <span className="rt-disc rt-disc--nav rt-disc--blue" data-glyph="T" aria-hidden="true" />
-            TERMINAL
-          </button>
-        ) : null}
-        <button
-          onClick={onOpenWhitepaper}
-          className="mono"
-          aria-label="Open whitepaper — platform overview and usage manual (TH/EN)"
-          title="Whitepaper — platform overview · Thai + English"
-        >
-          WP
+        <MoreMenu
+          items={[
+            { label: sheetsConfigured ? "Google Sheet (live)" : "Connect Google Sheet", onSelect: onOpenSheets },
+            { label: "User manual", onSelect: onOpenManual },
+            { label: "Whitepaper", onSelect: onOpenWhitepaper },
+            { label: "Keyboard shortcuts", onSelect: onOpenShortcuts },
+          ]}
+        />
+      </nav>
+
+      <div className="topbar-settings" role="group" aria-label="Display settings">
+        <button type="button" className="btn" onClick={onCycleViewMode} aria-label={`Switch to ${nextView} view`}>
+          {nextView}
         </button>
         <button
-          onClick={onOpenShortcuts}
-          className="mono shortcuts-trigger"
-          aria-label="Keyboard shortcuts — press ? to open"
-          title="Keyboard shortcuts — press ? to open"
-        >
-          ?
-        </button>
-        <button
-          onClick={onCycleViewMode}
-          className={`mono dim-toggle vm-${viewMode}`}
-          aria-label={viewMode === "2D" ? "Switch to 3D view" : "Switch to 2D view"}
-          title={viewMode === "2D" ? "Switch to 3D · extrude buildings" : "Switch to 2D · top-down"}
-        >
-          {viewMode}
-        </button>
-        <button
+          type="button"
+          className="btn"
           onClick={toggleLocale}
-          className="mono lang-toggle"
-          aria-pressed={locale !== "en"}
           aria-label={`Switch to ${locale === "en" ? "Thai" : "English"} interface`}
-          title={`Interface language: ${locale === "en" ? "English" : "ภาษาไทย"} — switch`}
         >
           {locale === "en" ? "TH" : "EN"}
         </button>
-        <button
-          onClick={toggle}
-          className="theme-toggle"
-          aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} theme`}
-          title={`${theme === "dark" ? "Light" : "Dark"} theme`}
-        >
-          {theme === "dark" ? "☀" : "☾"}
+        <button type="button" className="btn" onClick={toggle} aria-label={`Switch to ${nextTheme} theme`}>
+          {nextTheme === "light" ? "Light" : "Dark"}
         </button>
-      </div>
-
-      <div className="clock">
-        {academic?.current && (
-          <span
-            className="mono academic-chip"
-            style={{ color: TEMPO_COLOR[academic.tempo] }}
-            title={`${academic.current.label} · ${academic.current.describe}${
-              academic.next && academic.daysToNext != null
-                ? ` · next: ${academic.next.label} in ${academic.daysToNext}d`
-                : ""
-            }`}
-          >
-            {academic.current.label.toUpperCase()}
-          </span>
-        )}
-        <span className="clock-date">{formatDate(now)}</span>
-        <span className="clock-time">
-          {now.toLocaleTimeString("en-GB", { hour12: false })}
-        </span>
       </div>
     </header>
   );

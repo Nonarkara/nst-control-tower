@@ -176,3 +176,36 @@ Default lens: `"operations"`.
 4. Return `NormalizedFeed<YourType>`
 5. If new type needed, add to `packages/shared/src/types.ts`
 6. Wire to App.tsx via SWR hook
+
+## Design System (MoMA rules — 2026-09 redesign)
+
+The interface is carried by black and white; colour is reserved for data and
+status. One type family (Libre Franklin, self-hosted, + IBM Plex Sans Thai).
+Hierarchy by size and weight — never tint, wide tracking or ornament. WCAG 2.2 AA.
+
+- **Tokens:** `apps/web/src/styles/tokens.css` — `--text-xs…--text-2xl` (xs is the floor),
+  `--ink/-2/-3/-low`, `--line` (hairline) / `--line-2` (control border), status
+  `--good --warn --alert --bad`, `--accent`/`--focus` for links and focus only,
+  `--s-*` 4px grid, `--hit` 32px / `--hit-min` 24px. Contrast of every pair is
+  documented in the file. Legacy `--rt-*` / `--pop-*` names are aliases only.
+- **Primitives:** `apps/web/src/styles/system.css` (loaded last) — `.btn`, `.chip`,
+  `.segmented`, `.field`, `.stat-line`, `.row-list/.row-btn`, `.weather-grid`,
+  `.data-table`, `.status-glyph`, `.swatch`, `.note`, `.link`, `.visually-hidden`.
+  Compose these; don't write inline `style={{}}` for anything that isn't per-datum.
+- **Status:** `apps/web/src/lib/status.ts` is the only status vocabulary
+  (normal / watch / warning / critical / unknown → colour token, map RGB, glyph,
+  TH/EN label). Never add a local status colour map; never show status by colour alone.
+- **Rails are lens-driven:** `apps/web/src/lib/railSections.ts` decides which sections a
+  lens shows and which open by default (≤ 3 per lens). Wrap new rail panels in
+  `<RailSection sectionKey=… lens={lens} title=…>` and register the key.
+- **Shell:** one header (`TopBar`), two rails, one status line. No bands or tickers
+  above the map; nothing floats over the map except map controls.
+- **Dialogs:** use `components/Dialog.tsx` (focus trap, Escape, aria-modal, focus restore).
+- **Motion:** respect `usePrefersReducedMotion` for any rAF loop or camera flight.
+
+### CCTV
+`/api/cctv` merges the municipal network (`adapters/cctvNst.ts`, nstcctv.nakhoncity.org —
+222 cameras, live online/offline status, MediaMTX player pages embedded by iframe;
+the origin must stay in `frame-src` in `apps/web/index.html`) with Longdo. UI:
+`CctvDirectory` (right rail: filter, search, 4-up wall) + `CctvStreamModal`; map
+layers `cctv-cameras` and `cctv-water-level` (FLOOD lens).

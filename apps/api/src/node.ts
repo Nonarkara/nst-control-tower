@@ -143,6 +143,8 @@ const PREWARM_PATHS = [
   "/api/air-quality/trend",
   "/api/air-quality/air4thai",
   "/api/cctv/longdo",
+  "/api/cctv/nst-municipality",
+  "/api/cctv",
   "/api/trends",
   "/api/markets",
   "/api/executive",

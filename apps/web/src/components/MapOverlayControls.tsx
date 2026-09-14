@@ -7,6 +7,7 @@ interface MapOverlayControlsProps {
   onRestoreLens: () => void;
 }
 
+// Visible text is the accessible name (WCAG 2.5.3); the longer explanation is a tooltip.
 export function MapOverlayControls({
   mapViewState,
   onAerialOnly,
@@ -20,33 +21,21 @@ export function MapOverlayControls({
     <div className="map-overlay-controls">
       {isCustom && label && (
         <span className="map-view-status" role="status" aria-live="polite">
-          <span className="map-view-status-dot" />
+          <span className="map-view-status-dot" aria-hidden="true" />
           {label}
         </span>
       )}
       <div className="map-overlay-actions">
         {isCustom ? (
-          <button
-            onClick={onRestoreLens}
-            aria-label="Restore default layers for the current lens"
-            title="Restore lens"
-          >
+          <button type="button" onClick={onRestoreLens} title="Restore default layers for the current lens">
             RESTORE LENS
           </button>
         ) : (
           <>
-            <button
-              onClick={onAerialOnly}
-              aria-label="Switch to aerial-only view — disables all data overlays"
-              title="Aerial only"
-            >
+            <button type="button" onClick={onAerialOnly} title="Aerial-only view — disables all data overlays">
               AERIAL
             </button>
-            <button
-              onClick={onClearOverlays}
-              aria-label="Clear all active map overlays"
-              title="Clear overlays"
-            >
+            <button type="button" onClick={onClearOverlays} title="Clear all active map overlays">
               CLEAR
             </button>
           </>

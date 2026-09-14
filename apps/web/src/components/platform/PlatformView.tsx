@@ -7,6 +7,7 @@ import type {
 import { API_BASE } from "../../lib/apiBase";
 import { Markdown } from "./markdown";
 import { ChartRenderer } from "../atlas/charts";
+import { Dialog } from "../Dialog";
 
 /**
  * Nakhon Si Thammarat Knowledge Platform — a full-bleed overlay that complements the dashboard
@@ -63,12 +64,12 @@ function SearchTab({ jump }: { jump: (j: Jump) => void }) {
   return (
     <div className="kp-content-inner">
       <div className="kp-search-box">
-        <input autoFocus value={q} onChange={(e) => setQ(e.target.value)}
+        <input type="search" aria-label="Search the knowledge base" value={q} onChange={(e) => setQ(e.target.value)}
           placeholder="Search indicators, sources, lessons, glossary…  e.g. poverty, Khao Luang runoff, MPI, pondok" />
       </div>
-      <div className="kp-chips">
+      <div className="kp-chips" role="group" aria-label="Filter by type">
         {TYPE_FILTERS.map((f) => (
-          <button key={f} className={type === f ? "on" : ""} onClick={() => setType(f)}>{f}</button>
+          <button key={f} type="button" className={type === f ? "on" : ""} aria-pressed={type === f} onClick={() => setType(f)}>{f}</button>
         ))}
       </div>
       {!q.trim() ? (
@@ -77,13 +78,19 @@ function SearchTab({ jump }: { jump: (j: Jump) => void }) {
         <p className="kp-hint">No matches for “{q}”.</p>
       ) : (
         res?.results.map((r) => (
-          <div key={r.id} className="kp-result" onClick={() => r.deepLink && jump(r.deepLink)}>
+          <button
+            key={r.id}
+            type="button"
+            className="kp-result"
+            disabled={!r.deepLink}
+            onClick={() => r.deepLink && jump(r.deepLink)}
+          >
             <span className="kp-result-type">{r.type}</span>
             <span>
               <span className="kp-result-title">{r.title}</span>
-              {r.snippet ? <div className="kp-result-snip">{r.snippet}</div> : null}
+              {r.snippet ? <span className="kp-result-snip">{r.snippet}</span> : null}
             </span>
-          </div>
+          </button>
         ))
       )}
     </div>
@@ -102,7 +109,7 @@ function LearnTab({ jump }: { jump: (j: Jump) => void }) {
   if (lesson) {
     return (
       <div className="kp-content-inner kp-lesson">
-        <button className="kp-back" onClick={() => { setLesson(null); setReveal({}); }}>← All lessons</button>
+        <button type="button" className="kp-back" onClick={() => { setLesson(null); setReveal({}); }}>← All lessons</button>
         <h2>{lesson.title}</h2>
         <div className="kp-lesson-meta">{lesson.titleTh ? `${lesson.titleTh} · ` : ""}{lesson.level} · {lesson.durationMin} min read</div>
         {lesson.keyFacts.length ? (
@@ -112,7 +119,7 @@ function LearnTab({ jump }: { jump: (j: Jump) => void }) {
         {lesson.links.length ? (
           <div className="kp-lesson-links">
             {lesson.links.map((l, i) => (
-              <button key={i} onClick={() => {
+              <button key={i} type="button" onClick={() => {
                 if (l.lens) jump({ kind: "lens", id: l.lens });
                 else if (l.atlasModule) jump({ kind: "atlasModule", id: l.atlasModule });
                 else if (l.url) window.open(l.url, "_blank", "noopener");
@@ -129,7 +136,7 @@ function LearnTab({ jump }: { jump: (j: Jump) => void }) {
                 {qz.choices.map((ch, ci) => {
                   const picked = reveal[qi];
                   const cls = picked == null ? "" : ci === qz.answer ? "correct" : ci === picked ? "wrong" : "";
-                  return <button key={ci} className={`kp-quiz-choice ${cls}`} onClick={() => setReveal((r) => ({ ...r, [qi]: ci }))}>{ch}</button>;
+                  return <button key={ci} type="button" className={`kp-quiz-choice ${cls}`} aria-pressed={reveal[qi] === ci} onClick={() => setReveal((r) => ({ ...r, [qi]: ci }))}>{ch}</button>;
                 })}
                 {reveal[qi] != null ? <div className="kp-quiz-explain">{qz.explain}</div> : null}
               </div>
@@ -148,11 +155,11 @@ function LearnTab({ jump }: { jump: (j: Jump) => void }) {
             <div key={tr.id} className="kp-track">
               <h3>{tr.title}</h3>
               {tr.lessons.map((l) => (
-                <div key={l.id} className="kp-lesson-row" onClick={() => setLesson(l)}>
+                <button key={l.id} type="button" className="kp-lesson-row" onClick={() => setLesson(l)}>
                   <span className="kp-lesson-title">{l.title}</span>
                   <span className="kp-lesson-dur">{l.durationMin}m</span>
                   <span className="kp-lesson-level">{l.level}</span>
-                </div>
+                </button>
               ))}
             </div>
           ))}
@@ -169,12 +176,27 @@ function InsightsTab({ jump }: { jump: (j: Jump) => void }) {
   if (!digest) return <div className="kp-content-inner"><p className="kp-hint">Computing insights…</p></div>;
   return (
     <div className="kp-content-inner">
-      <p className="kp-hint" style={{ fontSize: "var(--size-h3)", color: "var(--ink-2)", marginBottom: "var(--s-4)" }}>{digest.headline}</p>
+      <p className="kp-hint kp-hint--headline">{digest.headline}</p>
       {digest.insights.map((ins: Insight) => (
-        <div key={ins.id} className={`kp-insight ${ins.severity}`} onClick={() => ins.deepLink && jump(ins.deepLink)} style={{ cursor: ins.deepLink ? "pointer" : "default" }}>
+        // Pointer users can click the whole card; keyboard users get the title button.
+        <div
+          key={ins.id}
+          className={`kp-insight ${ins.severity}${ins.deepLink ? " kp-insight--link" : ""}`}
+          onClick={() => ins.deepLink && jump(ins.deepLink)}
+        >
           <div className="kp-insight-head">
-            <span className="kp-insight-sev" style={{ color: ins.severity === "critical" ? "var(--bad)" : ins.severity === "alert" ? "#fb923c" : "var(--warn)" }}>{ins.severity}</span>
-            <h4>{ins.title}</h4>
+            <span className={`kp-insight-sev kp-insight-sev--${ins.severity}`}>{ins.severity}</span>
+            <h4>
+              {ins.deepLink ? (
+                <button
+                  type="button"
+                  className="kp-insight-link"
+                  onClick={(e) => { e.stopPropagation(); if (ins.deepLink) jump(ins.deepLink); }}
+                >
+                  {ins.title}
+                </button>
+              ) : ins.title}
+            </h4>
           </div>
           <div className="kp-insight-body">{ins.body}</div>
           <div className="kp-insight-ev">{ins.evidence.map((e, i) => <span key={i}>· {e}</span>)}</div>
@@ -203,15 +225,15 @@ function AskTab({ jump }: { jump: (j: Jump) => void }) {
 
   return (
     <div className="kp-content-inner">
-      <p className="kp-hint" style={{ marginBottom: "var(--s-3)" }}>Ask anything grounded in the Nakhon Si Thammarat knowledge base. Answers cite their sources. Synthesized answers need a Gemini key; otherwise you get ranked retrievals.</p>
-      <div className="kp-ask-log">
+      <p className="kp-hint kp-hint--lede">Ask anything grounded in the Nakhon Si Thammarat knowledge base. Answers cite their sources. Synthesized answers need a Gemini key; otherwise you get ranked retrievals.</p>
+      <div className="kp-ask-log" role="log" aria-live="polite">
         {log.map((m, i) => (
           <div key={i} className={`kp-ask-msg ${m.role}`}>
             <div>{m.text}</div>
             {m.cites?.length ? (
               <div className="kp-ask-cites">
                 {m.cites.slice(0, 5).map((c, ci) => (
-                  <span key={ci} className="kp-ask-cite" onClick={() => c.deepLink && jump(c.deepLink)}>[{ci + 1}] {c.title}</span>
+                  <button key={ci} type="button" className="kp-ask-cite" disabled={!c.deepLink} onClick={() => c.deepLink && jump(c.deepLink)}>[{ci + 1}] {c.title}</button>
                 ))}
               </div>
             ) : null}
@@ -220,9 +242,9 @@ function AskTab({ jump }: { jump: (j: Jump) => void }) {
         {busy ? <div className="kp-ask-msg bot">…</div> : null}
       </div>
       <div className="kp-ask-box">
-        <input value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === "Enter" && send()}
+        <input aria-label="Your question" value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === "Enter" && send()}
           placeholder="e.g. Why is Nakhon Si Thammarat's education ranked low? What's the flood risk from Khao Luang runoff?" />
-        <button onClick={send} disabled={busy}>ASK</button>
+        <button type="button" onClick={send} disabled={busy}>ASK</button>
       </div>
     </div>
   );
@@ -250,7 +272,7 @@ function ArchiveTab() {
   }));
   return (
     <div className="kp-content-inner">
-      <p className="kp-hint" style={{ marginBottom: "var(--s-4)" }}>{snap.snapshots} snapshots · {snap.oldest?.slice(0, 10)} → {snap.newest?.slice(0, 10)}. The platform records the city's live signals over time.</p>
+      <p className="kp-hint kp-hint--meta">{snap.snapshots} snapshots · {snap.oldest?.slice(0, 10)} → {snap.newest?.slice(0, 10)}. The platform records the city's live signals over time.</p>
       <div className="atlas-chart-grid">{charts.map((c, i) => <ChartRenderer key={i} chart={c} />)}</div>
     </div>
   );
@@ -266,24 +288,26 @@ export function PlatformView({ onClose, onOpenLens, onOpenAtlas, initialTab = "s
     else if (j.kind === "url") window.open(j.id, "_blank", "noopener");
   }, [onOpenLens, onOpenAtlas, onClose]);
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
-
   return (
-    <div className="kp-overlay" role="dialog" aria-label="Nakhon Si Thammarat Knowledge Platform">
-      <header className="kp-header">
-        <h2>Nakhon Si Thammarat Knowledge Platform <span className="kp-th">ฐานความรู้เมืองนครศรีธรรมราช</span></h2>
-        <span className="kp-sub">search · learn · ask · archive — complementing the dashboard</span>
-        <button className="kp-close" onClick={onClose}>CLOSE ✕</button>
-      </header>
+    <Dialog
+      open
+      onClose={onClose}
+      size="full"
+      className="dialog--platform"
+      title={<>Nakhon Si Thammarat Knowledge Platform <span lang="th">ฐานความรู้เมืองนครศรีธรรมราช</span></>}
+      description="search · learn · ask · archive — complementing the dashboard"
+    >
       <div className="kp-body">
-        <nav className="kp-rail">
+        <nav className="kp-rail" aria-label="Platform tools">
           {TABS.map((t) => (
-            <button key={t.id} className={`kp-tab ${tab === t.id ? "on" : ""}`} onClick={() => setTab(t.id)}>
-              <span className="kp-tab-ic">{t.ic}</span>{t.label}
+            <button
+              key={t.id}
+              type="button"
+              className={`kp-tab ${tab === t.id ? "on" : ""}`}
+              aria-pressed={tab === t.id}
+              onClick={() => setTab(t.id)}
+            >
+              <span className="kp-tab-ic" aria-hidden="true">{t.ic}</span>{t.label}
             </button>
           ))}
         </nav>
@@ -295,6 +319,6 @@ export function PlatformView({ onClose, onOpenLens, onOpenAtlas, initialTab = "s
           {tab === "archive" && <ArchiveTab />}
         </div>
       </div>
-    </div>
+    </Dialog>
   );
 }

@@ -697,6 +697,17 @@ export const ATLAS_SOURCES: AtlasSource[] = [
     note: "Longdo-indexed public CCTV feeds for NST bbox; powers the SAF (Safety) lens CCTV layer.",
   },
   {
+    id: "nstcctv-public",
+    name: "NST Municipality CCTV (nstcctv.nakhoncity.org)",
+    domain: "Geospatial & GIS",
+    url: "https://nstcctv.nakhoncity.org",
+    auth: "Open (public)",
+    format: "JSON",
+    free: "Free",
+    status: "integrated",
+    note: "Municipal CCTV aggregator — ~196 cameras across traffic, school-zone, safety-zone, and water-level groups. Combined with Longdo on /api/cctv and rendered teal on the map to distinguish from the Longdo cameras.",
+  },
+  {
     id: "rtsd-topo",
     name: "Royal Thai Survey Department Topographic Maps",
     domain: "Geospatial & GIS",

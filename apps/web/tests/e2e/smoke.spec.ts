@@ -41,6 +41,13 @@ async function ensureSectionOpen(
   }
 }
 
+/** Switch lens by its visible label (EXEC / OPS / FLOOD / EAR …). */
+async function selectLens(page: import("@playwright/test").Page, label: string) {
+  const button = page.locator(".lens").locator("button", { hasText: new RegExp(`^${label}$`) });
+  await button.click();
+  await expect(button).toHaveAttribute("aria-pressed", "true");
+}
+
 test.describe("Dashboard boot", () => {
   test("loads with map host and top bar", async ({ page }) => {
     await page.goto("/");
@@ -65,8 +72,8 @@ test.describe("Lens switching", () => {
     await page.goto("/");
     await expect(page.locator(".map-host")).toBeVisible({ timeout: 20_000 });
 
-    // Lens buttons have label as text content (EXEC / OPS / MOB / FLOOD / etc.) and
-    // their aria-label is the long description. Match by exact text inside .lens container.
+    // Lens buttons are named by their visible label (EXEC / OPS / MOB / FLOOD / etc.);
+    // the long description is aria-describedby. Match by exact text inside .lens container.
     const lensPalette = page.locator(".lens");
     const intButton = lensPalette.locator("button", { hasText: /^INT$/ });
     const floodButton = lensPalette.locator("button", { hasText: /^FLOOD$/ });
@@ -124,13 +131,15 @@ test.describe("FLOOD lens — panel headers", () => {
     await page.goto("/");
     await expect(page.locator(".map-host")).toBeVisible({ timeout: 20_000 });
 
+    // Rail sections are lens-driven (lib/railSections.ts) — open the lens that owns this panel.
+    await selectLens(page, "FLOOD");
+
     // Rail defaults these sections to collapsed — open them so the panel
     // eyebrows (WATER MONITORING, WATERSHED) are reachable.
     await ensureSectionOpen(page, "Water & Reservoirs");
     await ensureSectionOpen(page, "Upstream Watershed");
 
-    // WaterPanel and UpstreamWatershed are always rendered in the sidebar
-    // (not gated by a specific lens). PanelHeader renders its title immediately,
+    // WaterPanel and UpstreamWatershed live in the FLOOD lens rail. PanelHeader renders its title immediately,
     // even during loading state — so no API data is required.
     await expect(page.getByText(/WATER MONITORING/i).first()).toBeVisible({ timeout: 15_000 });
     await expect(page.getByText(/WATERSHED/i).first()).toBeVisible({ timeout: 10_000 });
@@ -142,7 +151,10 @@ test.describe("EAR lens — Earth obs panel header", () => {
     await page.goto("/");
     await expect(page.locator(".map-host")).toBeVisible({ timeout: 20_000 });
 
-    // EarthAlphaBrief is always rendered in the sidebar (not lens-gated).
+    // Rail sections are lens-driven (lib/railSections.ts) — open the lens that owns this panel.
+    await selectLens(page, "EAR");
+
+    // EarthAlphaBrief lives in the EAR (and ENV) lens rail.
     // PanelHeader renders "EARTH OBS · NASA GIBS + GISTDA" immediately on mount.
     await expect(page.getByText(/EARTH OBS/i).first()).toBeVisible({ timeout: 15_000 });
     // SHEETS status badge is rendered as the actions prop — always visible
@@ -155,8 +167,8 @@ test.describe("EXEC lens — executive briefing header", () => {
     await page.goto("/");
     await expect(page.locator(".map-host")).toBeVisible({ timeout: 20_000 });
 
-    // ExecutiveBriefing IS gated by lens === "executive". Use hasText (not getByRole name)
-    // because lens buttons have aria-label set to the full description, not just the label.
+    // ExecutiveBriefing IS gated by lens === "executive". Lens buttons are named by their
+    // visible label; hasText keeps the match exact against the text content.
     const execButton = page.locator(".lens").locator("button", { hasText: /^EXEC$/ });
     await execButton.click();
     await expect(execButton).toHaveAttribute("aria-pressed", "true");
@@ -204,8 +216,8 @@ test.describe("ChatBox — open / close", () => {
     await expect(handle).toBeVisible({ timeout: 10_000 });
     await handle.click();
 
-    // Dialog opens — aria-label set in ChatBox
-    const chat = page.getByRole("dialog", { name: /Concierge chat/i });
+    // Dialog opens — named by its visible heading (aria-labelledby)
+    const chat = page.getByRole("dialog", { name: /Ask anything about Nakhon Si Thammarat/i });
     await expect(chat).toBeVisible({ timeout: 5_000 });
 
     // Input field and clear button must be present
@@ -232,6 +244,9 @@ test.describe("FLOOD COMMAND — God Mode scenario", () => {
   test("panel renders and the PABUK preset produces an impact readout", async ({ page }) => {
     await page.goto("/");
     await expect(page.locator(".map-host")).toBeVisible({ timeout: 20_000 });
+
+    // Rail sections are lens-driven (lib/railSections.ts) — open the lens that owns this panel.
+    await selectLens(page, "FLOOD");
 
     // Rail defaults the flood-command section to collapsed — open it so
     // the PABUK preset buttons and the impact readout are reachable.
@@ -261,7 +276,10 @@ test.describe("EO layer toggles", () => {
     await page.goto("/");
     await expect(page.locator(".map-host")).toBeVisible({ timeout: 20_000 });
 
-    // EarthAlphaBrief is always in the sidebar — wait for its PanelHeader to confirm mount
+    // Rail sections are lens-driven (lib/railSections.ts) — open the lens that owns this panel.
+    await selectLens(page, "EAR");
+
+    // EarthAlphaBrief lives in the EAR lens rail — wait for its PanelHeader to confirm mount
     await expect(page.getByText(/EARTH OBS/i).first()).toBeVisible({ timeout: 15_000 });
 
     // Rail defaults the Earth Observation section to collapsed — open it
@@ -344,6 +362,9 @@ test.describe("Language toggle (EN/TH)", () => {
     await page.goto("/");
     await expect(page.locator(".map-host")).toBeVisible({ timeout: 20_000 });
 
+    // Rail sections are lens-driven (lib/railSections.ts) — open the lens that owns this panel.
+    await selectLens(page, "FLOOD");
+
     // Rail defaults the flood-command section to collapsed — open it so
     // the localized panel title inside the body is reachable.
     await ensureSectionOpen(page, "Flood Command");
@@ -403,6 +424,9 @@ test.describe("WATER BALANCE — basin ledger + Flood Ops board", () => {
     await page.goto("/");
     await expect(page.locator(".map-host")).toBeVisible({ timeout: 20_000 });
 
+    // Rail sections are lens-driven (lib/railSections.ts) — open the lens that owns this panel.
+    await selectLens(page, "FLOOD");
+
     // Rail panel mounts with its PanelHeader eyebrow
     await expect(page.getByText(/^WATER BALANCE$/)).toBeVisible({ timeout: 15_000 });
 
@@ -438,6 +462,9 @@ test.describe("SENSOR SITUATION — FloodDash + AirDash board", () => {
     await page.goto("/");
     await expect(page.locator(".map-host")).toBeVisible({ timeout: 20_000 });
 
+    // Rail sections are lens-driven (lib/railSections.ts) — open the lens that owns this panel.
+    await selectLens(page, "FLOOD");
+
     await expect(page.getByText(/^SENSOR SITUATION$/).first()).toBeVisible({ timeout: 15_000 });
     await expect(page.getByText(/Powered by/i).first()).toBeVisible();
     await expect(page.getByText(/FloodDash/i).first()).toBeVisible();
@@ -453,5 +480,41 @@ test.describe("SENSOR SITUATION — FloodDash + AirDash board", () => {
     // Clicking a collapsed heading expands it
     await floodAnalysis.click();
     await expect(floodAnalysis).toHaveAttribute("aria-expanded", "true");
+  });
+});
+
+test.describe("CCTV directory", () => {
+  test("filters by purpose with pressed-state chips and switches list/wall views", async ({ page }) => {
+    await page.goto("/");
+    await expect(page.locator(".map-host")).toBeVisible({ timeout: 20_000 });
+
+    const directory = page.getByRole("region", { name: "CCTV cameras" });
+    await expect(directory).toBeVisible({ timeout: 15_000 });
+
+    const purpose = directory.getByRole("group", { name: "Camera purpose" });
+    const all = purpose.getByRole("button", { name: /^All/ });
+    await expect(all).toHaveAttribute("aria-pressed", "true");
+
+    const view = directory.getByRole("group", { name: "View" });
+    const wall = view.getByRole("button", { name: "Wall" });
+    await wall.click();
+    await expect(wall).toHaveAttribute("aria-pressed", "true");
+    await view.getByRole("button", { name: "List" }).click();
+  });
+});
+
+test.describe("TopBar — More menu", () => {
+  test("opens with aria-expanded and closes on Escape, returning focus", async ({ page }) => {
+    await page.goto("/");
+    await expect(page.locator(".map-host")).toBeVisible({ timeout: 20_000 });
+
+    const more = page.getByRole("button", { name: /^More/ });
+    await more.click();
+    await expect(more).toHaveAttribute("aria-expanded", "true");
+    await expect(page.getByRole("button", { name: "Keyboard shortcuts" })).toBeVisible();
+
+    await page.keyboard.press("Escape");
+    await expect(more).toHaveAttribute("aria-expanded", "false");
+    await expect(more).toBeFocused();
   });
 });

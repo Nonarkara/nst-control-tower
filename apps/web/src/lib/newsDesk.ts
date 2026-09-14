@@ -3,16 +3,23 @@
  * extracted for unit testing.
  */
 
+import { STATUS, type StatusLevel } from "./status";
+
 /**
- * Map a Traffy Fondue complaint score to a severity colour token.
+ * Map a Traffy Fondue complaint score to a status level.
  * Score reflects cumulative engagement (views + votes).
  *
- *   ≥ 1000 → var(--bad)   — high-profile issue
- *   ≥ 500  → var(--warn)  — notable issue
- *   < 500  → var(--ink-low) — routine
+ *   ≥ 1000 → critical — high-profile issue
+ *   ≥ 500  → watch    — notable issue
+ *   < 500  → unknown  — routine (neutral ink)
  */
+export function scoreStatus(score: number): StatusLevel {
+  if (score >= 1000) return "critical";
+  if (score >= 500) return "watch";
+  return "unknown";
+}
+
+/** Status colour token for a complaint score (always shown beside its glyph + figure). */
 export function scoreColor(score: number): string {
-  if (score >= 1000) return "var(--bad)";
-  if (score >= 500)  return "var(--warn)";
-  return "var(--ink-low)";
+  return STATUS[scoreStatus(score)].color;
 }

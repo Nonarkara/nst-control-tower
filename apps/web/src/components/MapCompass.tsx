@@ -22,7 +22,7 @@ export function MapCompass({ bearing, onResetNorth }: MapCompassProps) {
       type="button"
       className="map-compass"
       onClick={onResetNorth}
-      aria-label={`Map bearing ${deg}°. Click to reset to north.`}
+      aria-label={`Reset map to north (bearing ${deg}°)`}
       title={deg === 0 ? "Facing north" : `Bearing ${deg}° · click to reset north`}
     >
       <svg
@@ -32,6 +32,7 @@ export function MapCompass({ bearing, onResetNorth }: MapCompassProps) {
         className="map-compass-dial"
         style={{ transform: `rotate(${-bearing}deg)` }}
         aria-hidden="true"
+        focusable="false"
       >
         {/* North half — alert red; South half — muted */}
         <polygon points="20,6 24.5,20 20,17 15.5,20" fill="var(--bad)" />

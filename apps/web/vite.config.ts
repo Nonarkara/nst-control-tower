@@ -14,7 +14,9 @@ export default defineConfig({
     port: 5173,
     proxy: {
       "/api": {
-        target: "http://localhost:8794",
+        // NST_API_PORT lets a second local API (e.g. a verification build) sit
+        // beside the long-running dev API on 8794 without touching it.
+        target: `http://localhost:${process.env.NST_API_PORT ?? 8794}`,
         changeOrigin: true,
       },
     },

@@ -1,6 +1,10 @@
-import { useEffect } from "react";
+import { useEffect, useId } from "react";
 import type { BasinStressBand, BasinWaterBalance, WrfRainDay } from "@nst/shared";
-import { fmtVolume } from "./WaterBalancePanel";
+import { BAND_STATUS, fmtVolume } from "./WaterBalancePanel";
+import { MixedText } from "./MixedText";
+import { useFocusTrap } from "../hooks/useFocusTrap";
+import { rainStatus } from "../lib/water";
+import { STATUS, type StatusLevel } from "../lib/status";
 
 /**
  * FLOOD OPS — full-bleed operations board for the actual emergency: big type,
@@ -12,19 +16,32 @@ import { fmtVolume } from "./WaterBalancePanel";
  * carried through unchanged. This board explains — officials warn.
  */
 
-const BAND_COLOR: Record<BasinStressBand, string> = {
-  ok: "var(--good)",
-  tight: "var(--warn)",
-  overflow: "var(--bad)",
-  unknown: "var(--ink-low)",
-};
-
 const BAND_TH: Record<BasinStressBand, string> = {
   ok: "รับได้",
   tight: "ใกล้เต็มความจุ",
   overflow: "เกินความจุ",
   unknown: "ไม่ทราบความจุทางออก",
 };
+
+/** Channel fullness % → status (≥ 85 critical, ≥ 60 warning). */
+function fullnessStatus(pct: number | null): StatusLevel {
+  if (pct == null) return "unknown";
+  if (pct >= 85) return "critical";
+  if (pct >= 60) return "warning";
+  return "normal";
+}
+
+/** A figure that takes a status colour + glyph only when it is not normal. */
+function Flagged({ level, children }: { level: StatusLevel; children: React.ReactNode }) {
+  if (level === "normal" || level === "unknown") return <>{children}</>;
+  const st = STATUS[level];
+  return (
+    <span className="flood-status" style={{ color: st.color }}>
+      <span aria-hidden="true">{st.glyph}</span>
+      {children}
+    </span>
+  );
+}
 
 function BasinCard({
   b,
@@ -38,63 +55,79 @@ function BasinCard({
   const worstGauges = [...b.gauges]
     .sort((a, z) => (z.fullnessPct ?? -1) - (a.fullnessPct ?? -1))
     .slice(0, 3);
+  const band = STATUS[BAND_STATUS[h24.band]];
 
   return (
-    <section className="ops-card" style={{ borderTopColor: BAND_COLOR[h24.band] }}>
+    <section className="ops-card" style={{ borderTopColor: band.color }} lang="th">
       <header className="ops-card-head">
         <h3>{b.nameTh}</h3>
-        <span className="mono ops-band" style={{ color: BAND_COLOR[h24.band] }}>
+        <span className="flood-status ops-band" style={{ color: band.color }}>
+          <span aria-hidden="true">{band.glyph}</span>
           {BAND_TH[h24.band]}
         </span>
       </header>
       <p className="ops-verdict">{b.verdictTh}</p>
-      <p className="ops-verdict-en caption">{b.verdictEn}</p>
+      <p className="ops-verdict-en" lang="en">{b.verdictEn}</p>
 
-      <div className="ops-ledger mono">
+      <dl className="ops-ledger">
         <div>
-          <span className="eyebrow">น้ำเข้า 24 ชม. (IN)</span>
-          <b>{fmtVolume(h24.inflowM3Lo)} – {fmtVolume(h24.inflowM3Hi)}</b>
-          <span className="eyebrow">ฝนตกแล้ว {h24.rainObservedMm} มม. + คาดการณ์ {h24.rainForecastMm} มม.</span>
+          <dt className="ops-ledger-label">น้ำเข้า 24 ชม. <span lang="en">(IN)</span></dt>
+          <dd className="num"><b>{fmtVolume(h24.inflowM3Lo)} – {fmtVolume(h24.inflowM3Hi)}</b></dd>
+          <dd className="ops-ledger-label">ฝนตกแล้ว {h24.rainObservedMm} มม. + คาดการณ์ {h24.rainForecastMm} มม.</dd>
         </div>
         <div>
-          <span className="eyebrow">ระบาย+เก็บได้ (OUT+STORE)</span>
-          <b>{capacity > 0 ? fmtVolume(capacity) : "ไม่ทราบ"}</b>
-          <span className="eyebrow">
+          <dt className="ops-ledger-label">ระบาย+เก็บได้ <span lang="en">(OUT+STORE)</span></dt>
+          <dd className="num"><b>{capacity > 0 ? fmtVolume(capacity) : "ไม่ทราบ"}</b></dd>
+          <dd className="ops-ledger-label">
             {h24.conveyanceM3 != null ? `คลอง ${fmtVolume(h24.conveyanceM3)}` : "ความจุทางออกไม่เผยแพร่"}
             {h24.reservoirHeadroomM3 > 0 ? ` + อ่าง ${fmtVolume(h24.reservoirHeadroomM3)}` : ""}
-          </span>
+          </dd>
         </div>
-      </div>
+      </dl>
 
       {h24.stressLo != null && h24.stressHi != null && (
-        <div className="ops-stress mono">
-          STRESS {h24.stressLo.toFixed(2)}–{h24.stressHi.toFixed(2)}×
+        <p className="ops-stress num">
+          <span lang="en">STRESS</span> {h24.stressLo.toFixed(2)}–{h24.stressHi.toFixed(2)}×
           {b.chokeStationCode && b.chokeUtilizationPct != null && (
             <span> · คอขวด {b.chokeStationCode} ใช้อยู่ {b.chokeUtilizationPct}%</span>
           )}
           {b.tidal && b.tideFactor != null && <span> · น้ำทะเล ×{b.tideFactor}</span>}
-        </div>
+        </p>
       )}
 
-      <table className="ops-gauges mono">
-        <tbody>
-          {worstGauges.map((g) => (
-            <tr key={g.id}>
-              <td>{g.code ?? g.name.slice(0, 14)}</td>
-              <td style={{ color: (g.fullnessPct ?? 0) >= 85 ? "var(--bad)" : (g.fullnessPct ?? 0) >= 60 ? "var(--warn)" : "var(--ink-3)" }}>
-                {g.fullnessPct != null ? `${Math.round(g.fullnessPct)}%` : "—"}
-              </td>
-              <td>{g.freeboardM != null ? `เหลือ ${g.freeboardM.toFixed(2)} ม.` : "—"}</td>
-              <td style={{ color: g.etaOvertopH != null ? "var(--bad)" : "var(--ink-low)" }}>
-                {g.etaOvertopH != null ? (g.etaOvertopH <= 0 ? "ล้นแล้ว" : `~${g.etaOvertopH} ชม.`) : ""}
-              </td>
+      {worstGauges.length > 0 && (
+        <table className="ops-gauges">
+          <thead>
+            <tr>
+              <th scope="col">สถานี</th>
+              <th scope="col">ความเต็ม</th>
+              <th scope="col">ระยะถึงตลิ่ง</th>
+              <th scope="col">เวลาถึงล้น</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {worstGauges.map((g) => (
+              <tr key={g.id}>
+                <th scope="row"><MixedText text={g.code ?? g.name.slice(0, 14)} /></th>
+                <td className="num">
+                  <Flagged level={fullnessStatus(g.fullnessPct)}>
+                    {g.fullnessPct != null ? `${Math.round(g.fullnessPct)}%` : "—"}
+                  </Flagged>
+                </td>
+                <td className="num">{g.freeboardM != null ? `เหลือ ${g.freeboardM.toFixed(2)} ม.` : "—"}</td>
+                <td className="num">
+                  {g.etaOvertopH != null ? (
+                    <Flagged level="critical">{g.etaOvertopH <= 0 ? "ล้นแล้ว" : `~${g.etaOvertopH} ชม.`}</Flagged>
+                  ) : ""}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
 
       {b.reservoirs.length > 0 && (
-        <div className="eyebrow mono ops-res">
+        <p className="flood-meta ops-res">
           {b.reservoirs.map((r) => (
             <span key={r.id}>
               {r.name.replace("อ่างเก็บน้ำ", "อ่างฯ")}:{" "}
@@ -102,16 +135,17 @@ function BasinCard({
               {" "}
             </span>
           ))}
-        </div>
+        </p>
       )}
       {b.basinId === "city_tha_dee" && (
-        <div className="eyebrow mono" style={{ color: "var(--ink-low)" }}>
+        <p className="flood-meta">
           ไม่มีเขื่อน/อ่างเหนือเมือง — เขาหลวงส่งได้ ~303 m³/s แต่คลองในเมืองรับ ~42 m³/s
-        </div>
+        </p>
       )}
       {b.suggestedScenarioM != null && (
-        <button className="ops-apply mono" onClick={() => onApplyScenario(b.suggestedScenarioM!)}>
-          ▶ จำลองถนนที่ระดับ {b.suggestedScenarioM.toFixed(2)} ม. (APPLY MODEL LEVEL)
+        <button type="button" className="btn ops-apply-btn" onClick={() => onApplyScenario(b.suggestedScenarioM!)}>
+          <span aria-hidden="true">▶</span> จำลองถนนที่ระดับ {b.suggestedScenarioM.toFixed(2)} ม.{" "}
+          <span lang="en">(APPLY MODEL LEVEL)</span>
         </button>
       )}
     </section>
@@ -128,6 +162,10 @@ interface Props {
 }
 
 export function FloodOpsBoard({ basins, ageMinutes, note, wrfOutlook, onApplyScenario, onClose }: Props) {
+  const titleId = useId();
+  // Focus moves into the board on open and returns to the trigger on close.
+  const trapRef = useFocusTrap(true);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
@@ -139,15 +177,19 @@ export function FloodOpsBoard({ basins, ageMinutes, note, wrfOutlook, onApplySce
   const city = basins.find((b) => b.basinId === "city_tha_dee");
 
   return (
-    <div className="atlas-overlay" role="dialog" aria-label="Flood operations board">
+    <div ref={trapRef} className="atlas-overlay" role="dialog" aria-modal="true" aria-labelledby={titleId}>
       <header className="atlas-header">
-        <h2>
-          FLOOD OPS <span className="atlas-header-th">น้ำเข้า vs ความจุระบบ — ทั้ง 4 ลุ่มน้ำ</span>
+        <h2 id={titleId}>
+          FLOOD OPS<span className="visually-hidden"> — Flood operations board</span>{" "}
+          <span className="atlas-header-th" lang="th">น้ำเข้า vs ความจุระบบ — ทั้ง 4 ลุ่มน้ำ</span>
         </h2>
-        <span className="atlas-sub mono">
-          MODELLED · data {ageMinutes <= 1 ? "now" : `${ageMinutes} min`} · {note ?? ""}
+        <span className="atlas-sub">
+          MODELLED · data {ageMinutes <= 1 ? "now" : `${ageMinutes} min`}
+          {note ? <> · <MixedText text={note} /></> : null}
         </span>
-        <button className="atlas-close" onClick={onClose}>CLOSE ✕</button>
+        <button type="button" className="btn atlas-close" onClick={onClose}>
+          CLOSE <span aria-hidden="true">✕</span>
+        </button>
       </header>
 
       <div className="ops-body">
@@ -157,48 +199,68 @@ export function FloodOpsBoard({ basins, ageMinutes, note, wrfOutlook, onApplySce
           ))}
         </div>
 
-        <aside className="ops-side">
+        <aside className="ops-side" lang="th">
           <section className="ops-card">
-            <header className="ops-card-head"><h3>ฝนลุ่มเขาหลวง 3 วัน</h3><span className="eyebrow mono">WRF-ROMS · HII</span></header>
+            <header className="ops-card-head">
+              <h3>ฝนลุ่มเขาหลวง 3 วัน</h3>
+              <span className="flood-meta" lang="en">WRF-ROMS · HII</span>
+            </header>
             {wrfOutlook.length === 0 ? (
-              <p className="eyebrow mono" style={{ color: "var(--ink-low)" }}>คาดการณ์ไม่พร้อมใช้งาน</p>
+              <p className="flood-empty">คาดการณ์ไม่พร้อมใช้งาน</p>
             ) : (
-              <table className="ops-gauges mono"><tbody>
-                {wrfOutlook.map((d) => (
-                  <tr key={d.day}>
-                    <td>D{d.day} · {d.validDate.slice(5)}</td>
-                    <td style={{ color: d.catchmentMeanMm >= 90 ? "var(--bad)" : d.catchmentMeanMm >= 35 ? "var(--warn)" : "var(--ink-3)" }}>
-                      เฉลี่ย {d.catchmentMeanMm} มม.
-                    </td>
-                    <td>สูงสุด {d.catchmentMaxMm} มม.</td>
+              <table className="ops-gauges">
+                <thead>
+                  <tr>
+                    <th scope="col">วัน</th>
+                    <th scope="col">เฉลี่ย</th>
+                    <th scope="col">สูงสุด</th>
                   </tr>
-                ))}
-              </tbody></table>
+                </thead>
+                <tbody>
+                  {wrfOutlook.map((d) => (
+                    <tr key={d.day}>
+                      <th scope="row" className="num">D{d.day} · {d.validDate.slice(5)}</th>
+                      <td className="num">
+                        <Flagged level={d.catchmentMeanMm >= 35 ? rainStatus(d.catchmentMeanMm) : "normal"}>
+                          {d.catchmentMeanMm} มม.
+                        </Flagged>
+                      </td>
+                      <td className="num">{d.catchmentMaxMm} มม.</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             )}
           </section>
 
           {city && (
             <section className="ops-card">
-              <header className="ops-card-head"><h3>ทางระบายเมือง</h3><span className="eyebrow mono">PAK NAKHON</span></header>
-              <p className="eyebrow mono" style={{ lineHeight: 1.6 }}>
+              <header className="ops-card-head">
+                <h3>ทางระบายเมือง</h3>
+                <span className="flood-meta" lang="en">PAK NAKHON</span>
+              </header>
+              <p className="ops-note">
                 {city.tideFactor != null
                   ? `ประสิทธิภาพระบายตามจังหวะน้ำขึ้น-ลง ×${city.tideFactor} ใน 24 ชม. ข้างหน้า (ระบายดีช่วงน้ำลง)`
                   : "ไม่มีข้อมูลน้ำทะเล — ไม่ปรับลดการระบาย"}
               </p>
-              <p className="eyebrow mono" style={{ color: "var(--ink-low)", lineHeight: 1.6 }}>
-                ความชื้นดิน: {city.wetness} · สัมประสิทธิ์น้ำท่า {city.runoffCLo.toFixed(2)}–{city.runoffCHi.toFixed(2)}
+              <p className="flood-meta">
+                ความชื้นดิน: <MixedText text={String(city.wetness)} /> · สัมประสิทธิ์น้ำท่า {city.runoffCLo.toFixed(2)}–{city.runoffCHi.toFixed(2)}
               </p>
             </section>
           )}
 
           <section className="ops-card">
-            <header className="ops-card-head"><h3>ข้อจำกัดแบบจำลอง</h3><span className="eyebrow mono">HONESTY</span></header>
-            <ul className="wb-assumptions" style={{ margin: 0 }}>
+            <header className="ops-card-head">
+              <h3>ข้อจำกัดแบบจำลอง</h3>
+              <span className="flood-meta" lang="en">HONESTY</span>
+            </header>
+            <ul className="water-bal-assumptions" lang="en">
               {Array.from(new Set(basins.flatMap((b) => b.assumptions))).slice(0, 8).map((a) => (
-                <li key={a} className="eyebrow mono">{a}</li>
+                <li key={a}><MixedText text={a} /></li>
               ))}
             </ul>
-            <p className="eyebrow mono" style={{ color: "var(--ink-low)", marginTop: 6 }}>
+            <p className="flood-footnote">
               สมดุลน้ำอย่างง่าย ไม่ใช่แบบจำลองชลศาสตร์ · การเตือนภัยทางการ: สทนช. / ปภ. / HII
             </p>
           </section>

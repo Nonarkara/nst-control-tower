@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { ScatterplotLayer } from "@deck.gl/layers";
 import { waterwayFlowDots, waterwayFlowLayer, type PreparedFlowLine, type WaterwayFlowDot } from "./layers";
+import { usePrefersReducedMotion } from "../hooks/usePrefersReducedMotion";
 
 /**
  * Animates flow dots along EVERY waterway (direction + speed), generalising the
@@ -12,6 +13,9 @@ import { waterwayFlowDots, waterwayFlowLayer, type PreparedFlowLine, type Waterw
  * The expensive geometry digest (prepareWaterwayFlows) is done by the caller and
  * passed in as `prepared`; this hook only advances the shared clock. Prepared
  * changes only when the waterway set or gauge state changes, restarting the loop.
+ *
+ * prefers-reduced-motion: the dots render once as a still frame (direction is
+ * still legible from dot spacing along the line) and no loop runs.
  */
 const UPDATE_INTERVAL_MS = 100; // ~10 Hz
 
@@ -24,6 +28,7 @@ export function useWaterwayFlow(
 } {
   const [layer, setLayer] = useState<ScatterplotLayer<WaterwayFlowDot> | null>(null);
   const rafRef = useRef<number | null>(null);
+  const reducedMotion = usePrefersReducedMotion();
 
   useEffect(() => {
     // LOD: skip the heavy ~4k-dot animation at province/city scale (zoom 0/1).
@@ -31,6 +36,10 @@ export function useWaterwayFlow(
     // the rAF loop entirely saves the per-frame work too.
     if (!visible || prepared.length === 0 || zoomBucket !== 2) {
       setLayer(null);
+      return;
+    }
+    if (reducedMotion) {
+      setLayer(waterwayFlowLayer(waterwayFlowDots(prepared, 0), zoomBucket));
       return;
     }
     const start = performance.now();
@@ -46,7 +55,7 @@ export function useWaterwayFlow(
     return () => {
       if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
     };
-  }, [visible, prepared, zoomBucket]);
+  }, [visible, prepared, zoomBucket, reducedMotion]);
 
   return { layer };
 }
