@@ -1,5 +1,5 @@
-import { describe, test, expect } from "vitest";
-import { flowDotPositions, thaDeeFlowPath, etaArcRingsLayer, watershedNodesLayer } from "./layers";
+import { describe, test, expect, it } from "vitest";
+import { flowDotPositions, thaDeeFlowPath, etaArcRingsLayer, watershedNodesLayer, flowInfoGraphicLayer } from "./layers";
 import type { ZoneSummary } from "../lib/watershed";
 import type { BasinWaterBalance } from "@nst/shared";
 import { STATUS, type StatusLevel } from "../lib/status";
@@ -292,5 +292,28 @@ describe("map text", () => {
       expect(p.getSize).toBeGreaterThanOrEqual(12);
       expect(Number(p.fontWeight)).toBeLessThanOrEqual(600);
     }
+  });
+});
+
+describe("flowInfoGraphicLayer", () => {
+  it("returns the expected layers for a populated cascade", () => {
+    const zones: ZoneSummary[] = [
+      zone("khiri-wong", "คลองท่าดี", 99.78, 8.43),
+      zone("lan-saka", "คลองท่าดี", 99.80, 8.40),
+      cityZone(99.9631, 8.4364),
+    ];
+    const layers = flowInfoGraphicLayer(zones, []);
+    expect(layers.map((l: unknown) => (l as { id: string }).id)).toEqual([
+      "flow-info-band",
+      "flow-info-centre",
+      "flow-info-eta",
+    ]);
+  });
+
+  it("returns no layers when there are no Tha Dee zones in the summaries", () => {
+    const zones: ZoneSummary[] = [
+      zone("thung-song", "คลองท่าเลา / ท่าโลน", 99.679, 8.175),
+    ];
+    expect(flowInfoGraphicLayer(zones, [])).toHaveLength(0);
   });
 });

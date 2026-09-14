@@ -449,11 +449,18 @@ export const BUILDING_LEGEND: { label: string; color: [number, number, number] }
  */
 export function buildingsLayer(
   collection: FeatureCollection<Polygon | MultiPolygon, BuildingProperties>,
-  options: { extruded?: boolean; ghosted?: boolean; zoomBucket?: 0 | 1 | 2 } = {},
+  options: {
+    extruded?: boolean;
+    ghosted?: boolean;
+    zoomBucket?: 0 | 1 | 2;
+    /** When extruded, enable Phong lighting (slower but more "showcase"). */
+    material?: "flat" | "phong";
+  } = {},
 ) {
   const extruded = options.extruded ?? false;
   const ghosted  = options.ghosted  ?? false;
   const zoomBucket = options.zoomBucket ?? 2;
+  const materialKind = options.material ?? "flat";
   const lineA = ghosted ? 110 : 220;
 
   // ── LOD: drop the ordinary buildings at province scale (default zoom 8.4) ──
@@ -474,6 +481,8 @@ export function buildingsLayer(
           if (typeof p._elevM === "number" && p._elevM >= 20) return true;
           return false;
         })
+      : extruded
+      ? capUntaggedFor3D(features)
       : features;
   const pickable = zoomBucket === 2 && !ghosted;
   const filteredCollection: FeatureCollection<Polygon | MultiPolygon, BuildingProperties> = {
@@ -509,7 +518,7 @@ export function buildingsLayer(
     autoHighlight: false,
     extruded,
     elevationScale: extruded && !ghosted ? 1.65 : 1,
-    material: extruded && !ghosted
+    material: extruded && !ghosted && materialKind === "phong"
       ? { ambient: 0.72, diffuse: 0.82, shininess: 24, specularColor: [255, 245, 220] }
       : false,
     getFillColor: ((f: Feature<Polygon | MultiPolygon, BuildingProperties>) => {
@@ -547,11 +556,48 @@ export function buildingsLayer(
     }) as unknown as number,
     opacity: ghosted ? 0.35 : 1,
     updateTriggers: {
-      getFillColor: [extruded, ghosted, zoomBucket],
+      getFillColor: [extruded, ghosted, zoomBucket, materialKind],
       getLineColor: [ghosted, zoomBucket],
       getElevation: [extruded, ghosted, zoomBucket],
     },
   });
+}
+
+/**
+ * LIGHTWEIGHTNESS — drop the bottom 30% of unclassified untagged
+ * low-rise buildings in 3D mode. The 20.9k buildings break down roughly as:
+ *   - ~250 landmarks (mnType) + 50 super-tall (≥20 m)
+ *   - ~1,500 named (street-color outline)
+ *   - ~13,800 "OSM building=yes" untagged low-rise (the drop candidate)
+ *   - ~5,400 short-tagged (`building=residential`/`house`) — already classified
+ *
+ * The untagged low-rise dominates the tessellation count and adds zero
+ * silhouette signal at street scale (they're 1-2 storey terrace). Drop the
+ * bottom 30% by stable alphabetical id order — no geographic bias. Kept
+ * in 2D so BuildingSearch can still find any one of them.
+ */
+function capUntaggedFor3D(
+  features: Feature<Polygon | MultiPolygon, BuildingProperties>[],
+): Feature<Polygon | MultiPolygon, BuildingProperties>[] {
+  const keep: typeof features = [];
+  const maybeDrop: typeof features = [];
+  for (const f of features) {
+    const p = f.properties as BuildingProperties & { _elevM?: number };
+    const isLandmark = !!p.mnType;
+    const isNamed = !!p.name;
+    const isTall = typeof p._elevM === "number" && p._elevM >= 20;
+    const isClassified = !!classifyBuilding(p);
+    if (isLandmark || isNamed || isTall || isClassified) keep.push(f);
+    else maybeDrop.push(f);
+  }
+  maybeDrop.sort((a, b) => {
+    const ai = String((a.properties as { id?: string }).id ?? "");
+    const bi = String((b.properties as { id?: string }).id ?? "");
+    return ai.localeCompare(bi);
+  });
+  const cap = Math.floor(maybeDrop.length * 0.7);
+  const survivors = maybeDrop.slice(0, cap);
+  return [...keep, ...survivors];
 }
 
 /**
@@ -3118,6 +3164,174 @@ function toMarker(s: ZoneSummary, basinBand?: "ok" | "tight" | "overflow" | "unk
  *  path from each other. */
 export function thaDeeFlowPath(summaries: ZoneSummary[]): [number, number][] {
   return summaries.filter(isThaDeeZone).map((s) => [s.zone.lng, s.zone.lat] as [number, number]);
+}
+
+// ── FLOW INFO GRAPHIC — the on-map "how the water is moving" info graphic ──
+//
+// Where watershedNodesLayer renders the *nodes* (gauges, basin summary), this
+// renders the *flow itself* on the actual rivers: two PathLayers per cascade
+// segment (a wide semi-transparent "river band" coloured by basin stress, and
+// a thin bright centre line), plus inline ETA + discharge labels at each
+// segment midpoint so an operator can answer "where is the wave, how fast,
+// how much, when does it arrive" by glancing at the map.
+
+interface FlowSegment {
+  name: string;
+  /** Endpoints in flow order, encoded flat as [ax, ay, bx, by]. */
+  path: [number, number, number, number];
+  midLng: number;
+  midLat: number;
+  /** Lead-time (hours) from the upstream end of the segment to the city. */
+  etaH: number | null;
+  /** Short upstream readout (mm/24h or "—"); surfaced for inline label. */
+  upstreamDischargeLabel: string | null;
+  /** Combined status (worst of the two endpoints), drives band colour. */
+  status: "normal" | "watch" | "high" | "overbank" | "unknown";
+  /** 0..3 — drives band width on the map (overflow = widest). */
+  severityRank: 0 | 1 | 2 | 3;
+}
+
+/** Build per-segment rows from the cascade summaries + basin balance. */
+function buildFlowSegments(
+  summaries: ZoneSummary[],
+  basinBalance: BasinWaterBalance[] | undefined,
+): FlowSegment[] {
+  const pathZones = summaries.filter(isThaDeeZone);
+  if (pathZones.length < 2) return [];
+  const bandByBasin = new Map<string, BasinStressBandLike>();
+  if (basinBalance) {
+    for (const b of basinBalance) {
+      const h0 = b.horizons[0];
+      if (h0) bandByBasin.set(b.basinId, h0.band);
+    }
+  }
+  const statusOf = (s: ZoneSummary): FlowSegment["status"] => {
+    const bv = s.zone.basinId ? bandByBasin.get(s.zone.basinId) : undefined;
+    if (bv === "overflow") return "overbank";
+    if (bv === "tight") return "high";
+    if (bv === "ok") return "normal";
+    if (s.status === "flood") return "overbank";
+    if (s.status === "high") return "high";
+    if (s.status === "watch") return "watch";
+    if (s.status === "normal") return "normal";
+    return "unknown";
+  };
+  const rankOf = (st: FlowSegment["status"]): 0 | 1 | 2 | 3 =>
+    st === "overbank" ? 3 : st === "high" ? 2 : st === "watch" ? 1 : st === "normal" ? 0 : 0;
+  const segments: FlowSegment[] = [];
+  for (let i = 0; i < pathZones.length - 1; i++) {
+    const a = pathZones[i]!;
+    const b = pathZones[i + 1]!;
+    const sa = statusOf(a);
+    const sb = statusOf(b);
+    const segStatus: FlowSegment["status"] =
+      rankOf(sa) >= rankOf(sb) ? sa : sb;
+    const lt = leadTimeToCity(a.zone.key);
+    const etaH = lt ? Math.round(((lt.minH + lt.maxH) / 2) * 10) / 10 : null;
+    const upstreamDischargeLabel = a.rain24h != null ? `${a.rain24h.toFixed(0)}mm/24h` : null;
+    segments.push({
+      name: `${a.zone.en} → ${b.zone.en}`,
+      path: [a.zone.lng, a.zone.lat, b.zone.lng, b.zone.lat],
+      midLng: (a.zone.lng + b.zone.lng) / 2,
+      midLat: (a.zone.lat + b.zone.lat) / 2,
+      etaH,
+      upstreamDischargeLabel,
+      status: segStatus,
+      severityRank: Math.max(rankOf(sa), rankOf(sb)) as 0 | 1 | 2 | 3,
+    });
+  }
+  return segments;
+}
+
+const FLOW_BAND_RGB: Record<FlowSegment["status"], [number, number, number]> = {
+  normal: BASIN_BAND_RGB.ok,
+  watch: [232, 168, 36],
+  high: [224, 90, 36],
+  overbank: BASIN_BAND_RGB.overflow,
+  unknown: [125, 125, 125],
+};
+
+interface FlowSegmentRow extends FlowSegment {
+  pathFeature: { path: [number, number][] };
+}
+
+/** On-map "how is the water moving" info graphic. Renders the cascade as
+ *  variable-width river bands (width = severity rank) plus inline ETA +
+ *  upstream-readout labels. Floats above watershed-nodes for prominence. */
+export function flowInfoGraphicLayer(
+  summaries: ZoneSummary[],
+  basinBalance?: BasinWaterBalance[],
+): Layer[] {
+  const segments = buildFlowSegments(summaries, basinBalance);
+  if (segments.length === 0) return [];
+  const bandWidth: Record<0 | 1 | 2 | 3, number> = { 0: 6, 1: 9, 2: 13, 3: 18 };
+  const centreWidth: Record<0 | 1 | 2 | 3, number> = { 0: 1.6, 1: 2.2, 2: 2.8, 3: 3.4 };
+  const rows: FlowSegmentRow[] = segments.map((s) => ({
+    ...s,
+    pathFeature: { path: [[s.path[0], s.path[1]], [s.path[2], s.path[3]]] },
+  }));
+  const basinKey = basinBalance?.map((b) => `${b.basinId}:${b.horizons[0]?.band}`).join("|") ?? "";
+  return [
+    new PathLayer<FlowSegmentRow>({
+      id: "flow-info-band",
+      data: rows,
+      getPath: (d) => d.pathFeature.path,
+      getColor: (d) => {
+        const c = FLOW_BAND_RGB[d.status];
+        return [c[0], c[1], c[2], 110] as [number, number, number, number];
+      },
+      getWidth: (d) => bandWidth[d.severityRank],
+      widthUnits: "pixels",
+      widthMinPixels: 4,
+      capRounded: true,
+      jointRounded: true,
+      parameters: { depthWriteEnabled: false, depthCompare: "always" },
+      pickable: false,
+      updateTriggers: { getColor: [basinKey], getWidth: [basinKey] },
+    }) as Layer,
+    new PathLayer<FlowSegmentRow>({
+      id: "flow-info-centre",
+      data: rows,
+      getPath: (d) => d.pathFeature.path,
+      getColor: (d) => {
+        const c = FLOW_BAND_RGB[d.status];
+        return [c[0], c[1], c[2], 235] as [number, number, number, number];
+      },
+      getWidth: (d) => centreWidth[d.severityRank],
+      widthUnits: "pixels",
+      widthMinPixels: 1.5,
+      capRounded: true,
+      jointRounded: true,
+      parameters: { depthWriteEnabled: false, depthCompare: "always" },
+      pickable: false,
+      updateTriggers: { getColor: [basinKey] },
+    }) as Layer,
+    new TextLayer<FlowSegmentRow>({
+      id: "flow-info-eta",
+      data: rows,
+      getPosition: (d) => [d.midLng, d.midLat],
+      getText: (d) => {
+        const eta = d.etaH != null ? `ETA ${d.etaH.toFixed(1)}h` : "ETA —";
+        const up = d.upstreamDischargeLabel ? ` · ${d.upstreamDischargeLabel}` : "";
+        return `${eta}${up}`;
+      },
+      getSize: 11,
+      getColor: (d) => {
+        const c = FLOW_BAND_RGB[d.status];
+        return [c[0], c[1], c[2], 240] as [number, number, number, number];
+      },
+      getTextAnchor: "middle",
+      getAlignmentBaseline: "center",
+      billboard: true,
+      fontFamily: "'Inter', 'IBM Plex Sans Thai', sans-serif",
+      fontWeight: "bold",
+      getBackgroundColor: [10, 14, 20, 215],
+      background: true,
+      backgroundPadding: [4, 1],
+      parameters: { depthWriteEnabled: false, depthCompare: "always" },
+      pickable: false,
+    }) as Layer,
+  ];
 }
 
 export function watershedNodesLayer(summaries: ZoneSummary[], basinBalance?: BasinWaterBalance[]): Layer[] {

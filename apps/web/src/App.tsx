@@ -105,6 +105,7 @@ import {
   floodGaugesLayer,
   watershedNodesLayer,
   etaArcRingsLayer,
+  flowInfoGraphicLayer,
   waterGaugesLayer,
   waterLevelHeatmapLayer,
   waterLevelDensityFallbackLayer,
@@ -1490,6 +1491,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
     // whole array.)
     if (enabledLayers.has("watershed-nodes") && waterGauges.data.length > 0) {
       out.push(...(etaArcRingsLayer(watershedSummaries) as Layer[]));
+      out.push(...(flowInfoGraphicLayer(watershedSummaries, waterBalance.data) as Layer[]));
       out.push(...(watershedNodesLayer(watershedSummaries, waterBalance.data) as Layer[]));
     }
     // ── Live sensor telemetry dots — every dot hovers to a real reading ────
