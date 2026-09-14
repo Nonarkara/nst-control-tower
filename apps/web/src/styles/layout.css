@@ -270,6 +270,14 @@ input:focus-visible,
   overflow-y: auto;
   position: relative;
 }
+/* CCTV Command Center mode — the rail's normal panels (mobile-brief-top,
+   kpi-strip, all the RailSections) are hidden so the .cctv-cc wall fills
+   the column. Map stays visible in the centre; the operator can still
+   zoom/pan freely. */
+.left-bar.is-cctv-mode > :not(.cctv-cc) { display: none; }
+.right-bar.is-cctv-mode > :not(.cctv-cc) { display: none; }
+.left-bar.is-cctv-mode,
+.right-bar.is-cctv-mode { padding: 8px; }
 /* 3px sea-blue left edge — the coastal/data side of the dashboard */
 .left-bar::before {
   content: "";
@@ -4660,11 +4668,173 @@ input:focus-visible,
   .water-network__flow { animation: none; }
 }
 
-/* ── CCTV Command Center (full-screen wall) ──────────────────────────── */
-/* One-click takeover of both rails with a dense grid of live thumbnails.
-   The wall is intentionally a single hairline frame — "epic" is the
-   density of live views, not the decoration. Status chips above the
-   wall, status tint on each cell border, search + close at the top. */
+/* ── CCTV Wall (rail mode — replaces both left and right rails) ───────── */
+/* The CCTV Command Center keeps the map visible: both side rails become
+   dense grids of live thumbnails split by category parity. Map dots stay
+   clickable; clicking a dot pulses BOTH the matching wall cell AND the
+   dot itself for ~2.4 s (the "find the one I just clicked" handshake).
+   Status tint drives each cell border + status pill; offline cells are
+   desaturated to read at a glance. */
+.cctv-cc {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 4px 0;
+}
+.cctv-cc__eyebrow {
+  font-size: var(--text-xs);
+  letter-spacing: 0.18em;
+  color: var(--ink-3);
+  text-transform: uppercase;
+  font-weight: 700;
+}
+.cctv-cc__title {
+  margin: 2px 0 4px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: -0.005em;
+  color: var(--ink);
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+.cctv-cc__title-sep {
+  color: var(--ink-3);
+  font-weight: 400;
+}
+.cctv-cc__title-unit {
+  font-size: var(--text-xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  font-weight: 600;
+  margin-left: 4px;
+}
+.cctv-cc__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.cctv-cc__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 7px;
+  border: 1px solid var(--line-2);
+  background: var(--panel);
+  color: var(--ink-2);
+  font-size: var(--text-xs);
+  letter-spacing: 0.04em;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  text-transform: uppercase;
+  transition: background 80ms ease, border-color 80ms ease, color 80ms ease;
+}
+.cctv-cc__chip:hover {
+  border-color: var(--chip-tone);
+  color: var(--ink);
+}
+.cctv-cc__chip.is-on {
+  border-color: var(--chip-tone);
+  background: var(--ground);
+  color: var(--ink);
+}
+.cctv-cc__chip-dot,
+.cctv-cc__chip-swatch {
+  width: 7px;
+  height: 7px;
+  background: var(--chip-tone);
+  display: inline-block;
+}
+.cctv-cc__chip .num {
+  margin-left: 2px;
+  color: var(--ink-3);
+  font-size: var(--text-xs);
+}
+.cctv-cc__search input {
+  width: 100%;
+  padding: 6px 10px;
+  border: 1px solid var(--line-2);
+  background: var(--panel);
+  color: var(--ink);
+  font-family: inherit;
+  font-size: var(--text-xs);
+  outline: none;
+  box-sizing: border-box;
+}
+.cctv-cc__search input:focus { border-color: var(--accent); }
+.cctv-cc__exit {
+  width: 100%;
+  padding: 6px 10px;
+  border: 1px solid var(--line-2);
+  background: var(--panel);
+  color: var(--ink-2);
+  font-family: inherit;
+  font-size: var(--text-xs);
+  letter-spacing: 0.12em;
+  font-weight: 700;
+  cursor: pointer;
+  text-align: center;
+}
+.cctv-cc__exit:hover {
+  border-color: var(--bad);
+  color: var(--bad);
+}
+.cctv-cc__wall {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 4px;
+  align-content: start;
+}
+.cctv-cc__empty {
+  padding: 30px 10px;
+  text-align: center;
+  color: var(--ink-3);
+  letter-spacing: 0.08em;
+  font-size: var(--text-xs);
+}
+.cctv-cc__foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 6px;
+  border-top: 1px solid var(--line);
+}
+.cctv-cc__foot-meta {
+  font-size: var(--text-xs);
+  letter-spacing: 0.06em;
+  color: var(--ink-3);
+  text-transform: uppercase;
+}
+.cctv-cc__pager {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.cctv-cc__pager-btn {
+  padding: 3px 8px;
+  border: 1px solid var(--line-2);
+  background: var(--panel);
+  color: var(--ink-2);
+  font-family: inherit;
+  font-size: var(--text-xs);
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  font-weight: 700;
+}
+.cctv-cc__pager-btn:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--ink);
+}
+.cctv-cc__pager-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.cctv-cc__pager-label {
+  min-width: 36px;
+  text-align: center;
+  color: var(--ink-2);
+  letter-spacing: 0.06em;
+  font-size: var(--text-xs);
+}
 .cctv-cc {
   position: fixed;
   inset: 0;
@@ -4860,7 +5030,7 @@ input:focus-visible,
   letter-spacing: 0.08em;
 }
 
-/* ── Single camera cell ───────────────────────────────────────────────── */
+/* ── Single camera cell (rail context — narrower than fullscreen) ──── */
 .cctv-cell {
   position: relative;
   display: grid;
@@ -4887,6 +5057,28 @@ input:focus-visible,
 }
 .cctv-cell.is-offline .cctv-cell__viewport {
   background: var(--ground);
+}
+/* BLINK — old-school map↔wall sync. When the operator clicks a CCTV dot
+   on the map, both the dot AND the matching wall cell blink in sync for
+   ~2.4 s. The deck.gl side animates the radius via rAF; this side
+   animates the border via a CSS keyframe (cheaper, hardware-accelerated). */
+@keyframes cctv-cell-blink {
+  0%, 100% {
+    border-color: var(--cell-tone);
+    box-shadow: 0 0 0 1px var(--cell-tone);
+  }
+  50% {
+    border-color: var(--cell-tone);
+    box-shadow: 0 0 0 3px var(--cell-tone), 0 0 12px 2px var(--cell-tone);
+  }
+}
+.cctv-cell.is-highlighted {
+  animation: cctv-cell-blink 600ms ease-in-out 4;  /* 4 blinks ≈ 2.4 s */
+  z-index: 2;
+  transform: translateY(-1px);
+}
+@media (prefers-reduced-motion: reduce) {
+  .cctv-cell.is-highlighted { animation: none; border-color: var(--cell-tone); }
 }
 .cctv-cell__viewport {
   position: relative;
@@ -4918,9 +5110,9 @@ input:focus-visible,
 .cctv-cell__meta {
   display: grid;
   grid-template-columns: auto 1fr auto;
-  gap: 8px;
+  gap: 6px;
   align-items: center;
-  padding: 6px 8px;
+  padding: 4px 6px;
   border-top: 1px solid var(--line);
   background: var(--panel);
   font-size: var(--text-xs);
@@ -4929,6 +5121,7 @@ input:focus-visible,
   font-weight: 700;
   color: var(--cell-tone);
   letter-spacing: 0.04em;
+  font-size: var(--text-xs);
 }
 .cctv-cell__name {
   color: var(--ink);
@@ -4940,14 +5133,15 @@ input:focus-visible,
 .cctv-cell__status {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 3px;
   color: var(--ink-2);
-  letter-spacing: 0.06em;
+  letter-spacing: 0.04em;
   font-size: var(--text-xs);
 }
 .cctv-cell__status-dot {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
   background: var(--cell-tone);
   display: inline-block;
+}
 }

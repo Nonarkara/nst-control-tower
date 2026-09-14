@@ -1014,6 +1014,41 @@ export function cctvLayer(cameras: CctvCamera[], id: "cctv-cameras" | "cctv-wate
   });
 }
 
+/**
+ * CCTV pulse halo — a single-entry ScatterplotLayer that renders JUST the
+ * highlighted camera as a pulsing ring on top of `cctvLayer`. The radius
+ * is updated each animation frame via the caller's rAF loop (see
+ * `useCctvPulseFrame` hook in App.tsx). `null` returns no layer — caller
+ * appends nothing when no camera is highlighted.
+ *
+ * Old-school map↔wall sync: when an operator clicks a CCTV dot on the
+ * map, BOTH the dot AND its tile in the CCTV Command Center wall blink
+ * in sync for ~2.4 s. This layer is the map-side half of that handshake;
+ * the wall-side half is a CSS keyframe on the matching `.cctv-cell`.
+ */
+export function cctvPulseLayer(highlightedId: string | null, cameras: CctvCamera[], pulseRadius: number): Layer | null {
+  if (!highlightedId) return null;
+  const cam = cameras.find((c) => c.id === highlightedId);
+  if (!cam) return null;
+  const [r, g, b] = CCTV_CATEGORY_RGB[cam.category ?? "other"];
+  return new ScatterplotLayer<CctvCamera>({
+    id: "cctv-pulse",
+    data: [cam],
+    getPosition: (c) => [c.lng, c.lat],
+    getRadius: pulseRadius,
+    radiusUnits: "pixels",
+    radiusMinPixels: 12,
+    radiusMaxPixels: 64,
+    getFillColor: [r, g, b, 90],
+    stroked: true,
+    getLineColor: [r, g, b, 240],
+    lineWidthUnits: "pixels",
+    getLineWidth: 2,
+    pickable: false,
+    parameters: { depthWriteEnabled: false, depthCompare: "always" },
+  }) as Layer;
+}
+
 // IconLayer reference, kept so 3D-extruded buildings + vehicle icons can be added later.
 export { IconLayer };
 

@@ -48,6 +48,7 @@ import {
   buildingsLayer,
   campusBoundaryLayer,
   cctvLayer,
+  cctvPulseLayer,
   devicePresenceLayer,
   himawariInfraredLayer,
   openTopoTerrainLayer,
@@ -517,6 +518,23 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
   const [selectedIncident, setSelectedIncident] = useState<IncidentFeature | null>(null);
   const [selectedCctv, setSelectedCctv] = useState<CctvCamera | null>(null);
   const [cctvCommandOpen, setCctvCommandOpen] = useState(false);
+  // Highlighted camera — when a map dot or wall thumbnail is clicked, both
+  // pulse in sync so the operator can find "the one I just clicked" on
+  // the other side. Auto-clears after 2.4 s (a couple of pulses) so the
+  // map doesn't keep re-rendering forever.
+  const [highlightedCctvId, setHighlightedCctvId] = useState<string | null>(null);
+  const highlightTimerRef = useRef<number | null>(null);
+  const highlightCamera = useCallback((id: string) => {
+    setHighlightedCctvId(id);
+    if (highlightTimerRef.current != null) window.clearTimeout(highlightTimerRef.current);
+    highlightTimerRef.current = window.setTimeout(() => {
+      setHighlightedCctvId(null);
+      highlightTimerRef.current = null;
+    }, 2400);
+  }, []);
+  useEffect(() => () => {
+    if (highlightTimerRef.current != null) window.clearTimeout(highlightTimerRef.current);
+  }, []);
 
 
 
@@ -566,7 +584,13 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
       setSelectedIncident(info.object as IncidentFeature);
     } else if ((info.layer?.id === "cctv-cameras" || info.layer?.id === "cctv-water-level") && info.object) {
       // The palette has promised "click for the live stream" — honor it.
-      setSelectedCctv(info.object as CctvCamera);
+      const c = info.object as CctvCamera;
+      setSelectedCctv(c);
+      // Map→wall sync: pulse the matching wall thumbnail too. Old-school
+      // but it works — operator clicks the dot, both the dot AND its tile
+      // in the CCTV Command Center wall blink in sync for ~2.4 s, so when
+      // the modal closes the wall still shows them what they just clicked.
+      highlightCamera(c.id);
     } else if (
       (info.layer?.id === "water-gauges" ||
         info.layer?.id === "rain-stations" ||
@@ -1043,6 +1067,29 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
   const airQuality = useFeed<AirQualityPoint>(`${API_BASE}/api/air-quality`, 15 * 60_000);
   const air4thai = useFeed<AirQualityPoint>(`${API_BASE}/api/air-quality/air4thai`, 30 * 60_000);
   const cctv = useFeed<CctvCamera>(`${API_BASE}/api/cctv`, 10 * 60_000);
+
+  // CCTV pulse radius — when a camera is highlighted, a separate halo
+  // layer renders on the map with an oscillating radius (rAF). The radius
+  // sits in its own state so the main `layers` useMemo doesn't rebuild per
+  // frame; only the pulse layer recomputes (via `allLayers`).
+  const [cctvPulseRadius, setCctvPulseRadius] = useState(20);
+  useEffect(() => {
+    if (!highlightedCctvId) {
+      setCctvPulseRadius(20);
+      return;
+    }
+    let raf = 0;
+    const start = performance.now();
+    const tick = (now: number) => {
+      // 2 Hz blink, ease-in-out via cosine — old-school radar pulse.
+      const t = ((now - start) / 1000) * Math.PI * 2 * 1.0; // 1 cycle / sec
+      const eased = 0.5 - 0.5 * Math.cos(t);
+      setCctvPulseRadius(16 + eased * 22); // 16 → 38 → 16
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [highlightedCctvId]);
 
   // CCTV Command Center — compute the bbox of every camera position plus
   // the city centre, then fly to a zoom that fits them all. Called from
@@ -1623,15 +1670,17 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
     // dot clouds sit on top.
     const radar = rainRadar.layer as Layer | null;
     const wwFlow = waterwayFlow.layer as Layer | null;
-    if (!streetFloodSimLayer && !flowAnim.layer && !radar && !wwFlow) return layers;
+    const cctvPulse = cctvPulseLayer(highlightedCctvId, cctv.data, cctvPulseRadius);
+    if (!streetFloodSimLayer && !flowAnim.layer && !radar && !wwFlow && !cctvPulse) return layers;
     return [
       ...(radar ? [radar] : []),
       ...(streetFloodSimLayer ? [streetFloodSimLayer] : []),
       ...layers,
       ...(wwFlow ? [wwFlow] : []),
+      ...(cctvPulse ? [cctvPulse] : []),
       ...(flowAnim.layer ? [flowAnim.layer as Layer] : []),
     ];
-  }, [layers, streetFloodSimLayer, flowAnim.layer, rainRadar.layer, waterwayFlow.layer]);
+  }, [layers, streetFloodSimLayer, flowAnim.layer, rainRadar.layer, waterwayFlow.layer, highlightedCctvId, cctv.data, cctvPulseRadius]);
 
   // Feature counts — passed to LayerPalette so every toggle shows a number,
   // making it immediately obvious whether the layer has data or not.
@@ -1822,7 +1871,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
           layer set (EXEC = strategic, OPS = day-to-day). The legacy Chula
           ExecutiveBrief / StrategicAlerts / PeerComparison panels were built
           for a university and don't belong on a city mayor's desk. ── */}
-      <aside id="rail-left" className="left-bar" aria-label="City panels" aria-hidden={cctvCommandOpen || (isMobile && mobilePanel !== "brief")}>
+      <aside id="rail-left" className={`left-bar ${cctvCommandOpen ? "is-cctv-mode" : ""}`} aria-label="City panels" aria-hidden={cctvCommandOpen || (isMobile && mobilePanel !== "brief")}>
         {/* ── Mobile only: the world strip (weather + clocks), feed health, and
             the secondary actions relocate here so the Map tab stays a clean,
             full-screen map. Reflowed into readable blocks by CSS. ── */}
@@ -2143,6 +2192,19 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
             weather={weather.data}
           />
         </RailSection>
+
+        {/* CCTV Command Center — replaces the entire left rail when active.
+            The map stays visible in the centre; this rail becomes the
+            "even-indexed" half of the wall. */}
+        {cctvCommandOpen && (
+          <CctvCommandCenter
+            side="even"
+            cameras={cctv.data}
+            highlightedId={highlightedCctvId}
+            onSelect={(c) => { highlightCamera(c.id); setSelectedCctv(c); }}
+            onExit={() => setCctvCommandOpen(false)}
+          />
+        )}
       </aside>
 
       {/* ── Map center — nothing overlaps this ── */}
@@ -2252,13 +2314,6 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
             onClose={() => setSelectedCctv(null)}
             apiBase={API_BASE}
           />
-          {cctvCommandOpen && (
-            <CctvCommandCenter
-              cameras={cctv.data}
-              onClose={() => setCctvCommandOpen(false)}
-              onSelect={(c) => setSelectedCctv(c)}
-            />
-          )}
           {forecastAlerts.size > 0 && (
             <div className="map-alerts" role="status">
               {[...forecastAlerts].map((m) => (
@@ -2274,7 +2329,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
       {/* ── Right sidebar: news (scrollable) + layer controls.
           StrategicAlerts and PeerComparison were Chula-university panels —
           removed until rebuilt with provincial peer data (Rayong, Chachoengsao). ── */}
-      <aside className="right-bar" aria-label="Cameras, news and map layers" aria-hidden={cctvCommandOpen || (isMobile && mobilePanel !== "layers")}>
+      <aside className={`right-bar ${cctvCommandOpen ? "is-cctv-mode" : ""}`} aria-label="Cameras, news and map layers" aria-hidden={cctvCommandOpen || (isMobile && mobilePanel !== "layers")}>
         <div className="right-sections">
         <RailSection sectionKey="right-cctv" lens={lens} title="CCTV">
           <CctvDirectory
@@ -2328,6 +2383,18 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
             statuses={layerStatuses}
           />
         </div>
+
+        {/* CCTV Command Center — right rail half. See left rail for the
+            pattern; this is the "odd-indexed" half of the camera list. */}
+        {cctvCommandOpen && (
+          <CctvCommandCenter
+            side="odd"
+            cameras={cctv.data}
+            highlightedId={highlightedCctvId}
+            onSelect={(c) => { highlightCamera(c.id); setSelectedCctv(c); }}
+            onExit={() => setCctvCommandOpen(false)}
+          />
+        )}
       </aside>
 
       {/* ── Bottom bar: ident / traffic timeline / counts ── */}
