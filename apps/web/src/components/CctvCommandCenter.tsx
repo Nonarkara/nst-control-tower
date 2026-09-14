@@ -89,11 +89,13 @@ function cssEscape(s: string): string {
 // 429, retrying in some seconds" on every cell.
 //
 // Cap is global to the page: a FIFO queue hands out slots as cells
-// release them. Off-viewport cells DON'T consume slots (the IntersectionObserver
-// in CameraCell gates "should mount" before the slot is even requested),
-// so this is a defensive backstop for the case where the viewport is huge
-// (or the user scrolls fast).
-const MAX_CONCURRENT_IFRAMES = 8;
+// release them. Critically, cells RELEASE their slot when they leave the
+// viewport (via IntersectionObserver) — not just on unmount — so
+// scrolling reveals more cameras instead of stranding the queued ones
+// in STANDBY forever. The cap is generous (12) because the upstream
+// seems to handle a dozen simultaneous readers fine; the slot cap is
+// really there to absorb the "I just opened the wall" burst.
+const MAX_CONCURRENT_IFRAMES = 12;
 const activeSlots = new Set<string>();
 const waiting: Array<{ id: string; grant: () => void }> = [];
 
@@ -114,7 +116,7 @@ function requestCctvSlot(id: string): boolean {
 }
 
 function releaseCctvSlot(id: string): void {
-  activeSlots.delete(id);
+  if (!activeSlots.delete(id)) return;
   while (waiting.length > 0 && activeSlots.size < MAX_CONCURRENT_IFRAMES) {
     const next = waiting.shift()!;
     if (!activeSlots.has(next.id)) {
@@ -283,7 +285,7 @@ interface CellProps {
   camera: CctvCamera;
   tone: string;
   highlighted: boolean;
-  onClick: () => void;
+  onClick: (camera: CctvCamera) => void;
 }
 
 function CameraCell({ camera, tone, highlighted, onClick }: CellProps) {
@@ -293,14 +295,13 @@ function CameraCell({ camera, tone, highlighted, onClick }: CellProps) {
 
   // inView: IntersectionObserver says the viewport is on screen. rootMargin
   // pre-loads 200 px outside the visible area so a fast scroll doesn't show
-  // the STANDBY placeholder.
+  // the STANDBY placeholder. When false, the cell releases its slot — see
+  // the slot effect below — so the next queued cell can mount.
   const [inView, setInView] = useState(false);
   useEffect(() => {
     const el = viewportRef.current;
     if (!el) return;
     if (typeof IntersectionObserver === "undefined") {
-      // Old engines — fall back to "always in view" so the user isn't punished
-      // for the platform. Slot cap still prevents upstream overload.
       setInView(true);
       return;
     }
@@ -312,76 +313,101 @@ function CameraCell({ camera, tone, highlighted, onClick }: CellProps) {
     return () => obs.disconnect();
   }, []);
 
-  // granted: slot manager handed us a slot. When true we mount the iframe;
-  // when false we show STANDBY. The slot is released on unmount so the
-  // queue advances.
+  // wantIframe: tie the slot to "would actually render the iframe" — not
+  // just to "cell is mounted". This is the key to the bug we just fixed:
+  // previously, cells held their slot for the entire lifetime of the wall,
+  // so the first 8 visible cells took all the slots and the remaining
+  // queued cells STANDBY'd forever. Now slots only stay held while the
+  // cell is actually rendering a stream.
+  const [errored_, setErrored] = useState(false);
   const [granted, setGranted] = useState(false);
+  const grantedRef = useRef(false);
+  const wantIframe = inView && !errored_ && hasStream;
   useEffect(() => {
-    // Only ask for a slot when the cell is actually in view AND we have a
-    // stream to render. Off-viewport cells don't consume slots, which keeps
-    // the wall snappy even when 100+ cameras are present.
-    const wants = inView && hasStream;
-    if (!wants) return;
-    if (requestCctvSlot(camera.id)) {
+    if (!wantIframe) {
+      if (grantedRef.current) {
+        releaseCctvSlot(camera.id);
+        grantedRef.current = false;
+      }
+      setGranted(false);
+      return;
+    }
+    if (grantedRef.current) {
       setGranted(true);
       return;
     }
-    // Queued — poll until a slot frees up.
+    if (requestCctvSlot(camera.id)) {
+      grantedRef.current = true;
+      setGranted(true);
+      return;
+    }
     const poll = setInterval(() => {
       if (requestCctvSlot(camera.id)) {
+        grantedRef.current = true;
         setGranted(true);
         clearInterval(poll);
       }
     }, SLOT_POLL_MS);
     return () => clearInterval(poll);
-  }, [inView, hasStream, camera.id]);
+  }, [wantIframe, camera.id]);
 
-  // Release the slot when we unmount (cell removed from list, rail
-  // toggled off, etc) so the next waiting cell can mount.
+  // Release on unmount — defence in depth in case the wantIframe cleanup
+  // above didn't fire for some reason (page navigation, rail unmount, etc.).
   useEffect(() => {
-    if (!granted) return;
-    return () => releaseCctvSlot(camera.id);
-  }, [granted, camera.id]);
+    return () => {
+      if (grantedRef.current) {
+        releaseCctvSlot(camera.id);
+        grantedRef.current = false;
+      }
+    };
+  }, []);
 
-  // Auto-retry: when the iframe errors (network blip, upstream 429, etc.),
-  // hold the cell in a RETRYING state, then re-attempt after a short
-  // backoff. We don't free the slot — the slot cap is what throttles us
-  // into the upstream's tolerance.
-  const [errored, setErrored] = useState(false);
+  // Auto-retry on iframe error — short backoff so a 429 blip clears quickly.
+  // We don't release the slot on error (the slot cap is what keeps us in
+  // the upstream's tolerance envelope).
   useEffect(() => {
-    if (!errored) return;
-    const t = window.setTimeout(() => {
-      setErrored(false);
-      // Re-arm: bump inView check by toggling granted off then on, which
-      // makes the slot effect re-run on the next mount cycle. Simpler
-      // than re-querying the manager inline.
-      setGranted(false);
-    }, 3500);
+    if (!errored_) return;
+    const t = window.setTimeout(() => setErrored(false), 3500);
     return () => window.clearTimeout(t);
-  }, [errored]);
+  }, [errored_]);
 
-  const wantIframe = granted && !errored && hasStream && camera.embedUrl;
-  const wantHls = granted && !errored && hasStream && camera.hlsUrl;
-  const wantImg = granted && !errored && hasStream && camera.imageUrl;
+  // Double-click → open the existing CctvStreamModal at full size. We
+  // use a separate handler so single-click still pulses the map dot and
+  // opens the modal there. The browser fires `dblclick` after two
+  // `click`s, but React's `onDoubleClick` won't fire if either single
+  // click was stopped — so we leave `onClick` alone and add this on top.
+  const onDoubleClick = () => onClick(camera);
+
+  const showIframe = granted && hasStream && camera.embedUrl;
+  const showHls = granted && hasStream && camera.hlsUrl && !camera.embedUrl;
+  const showImg = granted && hasStream && camera.imageUrl && !camera.embedUrl && !camera.hlsUrl;
 
   return (
-    <button
-      type="button"
-      className={`cctv-cell ${isOffline ? "is-offline" : "is-online"} ${highlighted ? "is-highlighted" : ""} ${errored ? "is-error" : ""}`}
-      onClick={onClick}
+    <div
+      role="button"
+      tabIndex={0}
+      className={`cctv-cell ${isOffline ? "is-offline" : "is-online"} ${highlighted ? "is-highlighted" : ""} ${errored_ ? "is-error" : ""}`}
+      onClick={onClick ? () => onClick(camera) : undefined}
+      onDoubleClick={onDoubleClick}
+      onKeyDown={(e) => {
+        // Keyboard parity — Enter opens the modal at single click size;
+        // Shift+Enter (or just Enter twice via dblclick semantics) opens
+        // at full size. The CctvStreamModal handles its own close.
+        if (e.key === "Enter") onClick?.(camera);
+      }}
       data-cam-id={camera.id}
       style={{ ["--cell-tone" as never]: tone }}
-      title={camera.name}
+      title={`${camera.name} — click to pulse on map · double-click to enlarge`}
     >
       <div className="cctv-cell__viewport" ref={viewportRef}>
-        {wantIframe ? (
+        {showIframe ? (
           <iframe
             src={camera.embedUrl}
             title={camera.name}
             allow="autoplay"
             onError={() => setErrored(true)}
           />
-        ) : wantHls ? (
+        ) : showHls ? (
           <video
             src={camera.hlsUrl}
             autoPlay
@@ -390,7 +416,7 @@ function CameraCell({ camera, tone, highlighted, onClick }: CellProps) {
             aria-label={camera.name}
             onError={() => setErrored(true)}
           />
-        ) : wantImg ? (
+        ) : showImg ? (
           <img
             src={camera.imageUrl}
             alt={camera.name}
@@ -399,7 +425,7 @@ function CameraCell({ camera, tone, highlighted, onClick }: CellProps) {
           />
         ) : isOffline ? (
           <div className="cctv-cell__no-stream mono">OFFLINE</div>
-        ) : errored ? (
+        ) : errored_ ? (
           <div className="cctv-cell__no-stream mono">RETRYING…</div>
         ) : !hasStream ? (
           <div className="cctv-cell__no-stream mono">NO STREAM</div>
@@ -417,6 +443,6 @@ function CameraCell({ camera, tone, highlighted, onClick }: CellProps) {
           {statusLabel(camera)}
         </span>
       </div>
-    </button>
+    </div>
   );
 }
