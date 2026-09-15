@@ -595,7 +595,7 @@ function capUntaggedFor3D(
     const bi = String((b.properties as { id?: string }).id ?? "");
     return ai.localeCompare(bi);
   });
-  const cap = Math.floor(maybeDrop.length * 0.7);
+  const cap = Math.floor(maybeDrop.length * 0.3);
   const survivors = maybeDrop.slice(0, cap);
   return [...keep, ...survivors];
 }
@@ -2133,11 +2133,26 @@ function readKind(props: Record<string, unknown> | null | undefined): CivicKind 
   return (k in CIVIC_PALETTE ? (k as CivicKind) : "other");
 }
 
-export function civicPointsLayer(collection: FeatureCollection<Point, Record<string, unknown>>) {
+export function civicPointsLayer(collection: FeatureCollection<Point, Record<string, unknown>>, options: { zoomBucket?: 0 | 1 | 2 } = {}) {
+  const zoomBucket = options.zoomBucket ?? 2;
+  // Picking is per-pixel work for the GPU picking buffer; at province/city
+  // scale the user is panning around, not clicking on individual civic POIs.
+  const pickable = zoomBucket === 2;
+  // Drop minor civic POIs (parks, bus stops, etc.) at province scale — the
+  // 1,352 markers at default zoom are too many to render at 1 px each. Keep
+  // hospitals, fire stations, police, government at all zoom levels.
+  const keepMinor = zoomBucket >= 1;
+  const filtered = pickable
+    ? collection.features
+    : collection.features.filter((f) => {
+        const k = readKind(f.properties);
+        if (k === "hospital" || k === "fire" || k === "police" || k === "government") return true;
+        return keepMinor;
+      });
   return new ScatterplotLayer<Feature<Point, Record<string, unknown>>>({
     id: "civic-points",
-    data: collection.features,
-    pickable: true,
+    data: filtered,
+    pickable,
     radiusUnits: "pixels",
     getPosition: (f) => f.geometry.coordinates as [number, number],
     getRadius: (f) => {
@@ -2154,6 +2169,7 @@ export function civicPointsLayer(collection: FeatureCollection<Point, Record<str
     getLineColor: [255, 255, 255, 220],
     stroked: true,
     lineWidthMinPixels: 1,
+    updateTriggers: { getFillColor: [], getRadius: [] },
   });
 }
 
@@ -3806,9 +3822,9 @@ const FLOW_CLASS_COLOR: Record<WaterwayFlowClass, [number, number, number]> = {
 };
 const FLOW_BASE_CYCLE_MS = 5200;
 const FLOW_REF_LEN_DEG = 0.05; // ~5.5 km reference line → base cycle
-const FLOW_DOT_SPACING_DEG = 0.011; // ~1.2 km between dots
+const FLOW_DOT_SPACING_DEG = 0.018; // ~2 km between dots (was 1.2 km — ~halved dot count)
 const FLOW_MIN_LEN_DEG = 0.004; // skip sub-~450 m stubs (a lone dot reads as noise)
-const FLOW_MAX_DOTS = 8;
+const FLOW_MAX_DOTS = 4;
 
 function lineLengthDeg(coords: [number, number][]): number {
   let total = 0;

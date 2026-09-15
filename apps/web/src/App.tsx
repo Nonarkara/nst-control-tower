@@ -624,7 +624,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
   }, [presence.lng, presence.lat, presence.insideArea, flyTo]);
 
   type ViewMode = "2D" | "3D";
-  const [viewMode, setViewMode] = useState<ViewMode>("3D");
+  const [viewMode, setViewMode] = useState<ViewMode>("2D");
   const is3D = viewMode === "3D";
   const isSubstructure = false;
 
@@ -1509,7 +1509,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
     // News pins — geocoded headlines so the mayor sees "which market" at a glance
     if (enabledLayers.has("news-pins") && news.data.length > 0) out.push(newsPinsLayer(news.data) as Layer);
     // Civic POIs (province-wide OSM: hospitals/schools/police/fire/temples/markets/...)
-    if (enabledLayers.has("civic-points") && civicPoints) out.push(civicPointsLayer(civicPoints) as Layer);
+    if (enabledLayers.has("civic-points") && civicPoints) out.push(civicPointsLayer(civicPoints, { zoomBucket }) as Layer);
     // Waterways (canals + rivers + drains)
     if (enabledLayers.has("waterways") && waterways) out.push(waterwaysLayer(waterways) as Layer);
     // National waterways (NST province from Overpass API)
