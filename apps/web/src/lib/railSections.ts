@@ -63,7 +63,7 @@ export const RAIL_SECTIONS: Record<RailSectionKey, RailSectionRule> = {
   "water-balance": { lenses: ["flood"], openIn: ["flood"] },
   "water-network": { lenses: ["flood", "safety", "executive", "environment"], openIn: ["safety", "executive"] },
   "flood-brief": { lenses: ["flood", "safety", "executive"], openIn: ["safety"] },
-  "flood-posture": { lenses: ["flood", "safety", "executive"], openIn: ["flood", "safety"] },
+  "flood-posture": { lenses: ["flood", "safety", "executive"], openIn: ["safety"] },
   "flood-risk-villages": { lenses: ["flood", "safety"], openIn: [] },
   "damage-hotspots": { lenses: ["operations", "mobility"], openIn: [] },
   "upstream-watershed": { lenses: ["flood"], openIn: [] },
