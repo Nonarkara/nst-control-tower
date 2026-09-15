@@ -1094,9 +1094,19 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
   // CCTV Command Center — compute the bbox of every camera position plus
   // the city centre, then fly to a zoom that fits them all. Called from
   // the small TopBar button; opens the wall overlay that replaces both rails.
+  // CCTV Command Center — TOGGLE. Click once → open the wall, fly the
+  // map to a bbox covering every camera + the city centre. Click again
+  // (or use the EXIT CCTV MODE button at the bottom of each rail wall) →
+  // close the wall and restore the normal rails. The map stays where
+  // it was — we don't fly back, so the operator doesn't lose their
+  // place when they exit.
   const openCctvCommandCenter = useCallback(() => {
+    if (cctvCommandOpen) {
+      // Already open → close (the natural toggle behavior).
+      setCctvCommandOpen(false);
+      return;
+    }
     if (cctv.data.length === 0) {
-      // No cameras yet — still open the overlay (the empty state is honest).
       setCctvCommandOpen(true);
       return;
     }
@@ -1115,10 +1125,6 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
     minLat = Math.min(minLat, cityLat); maxLat = Math.max(maxLat, cityLat);
     const cx = (minLng + maxLng) / 2;
     const cy = (minLat + maxLat) / 2;
-    // Crude lon/lat → zoom. NST latitude ≈ 8.4°N so 1° lat ≈ 111 km,
-    // 1° lng ≈ 110 km. We aim for the camera bbox to fill ~75% of the
-    // viewport at the chosen zoom; tuned by eye for a 1440×900 desktop.
-    // The operator can zoom back in if they want detail.
     const spanKm = Math.max(maxLat - minLat, (maxLng - minLng) * 1.012) * 111;
     const zoom = Math.max(11.0, Math.min(15.0, 11.5 - Math.log2(spanKm / 9)));
     flyCamera({
@@ -1130,7 +1136,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
       transitionDuration: prefersReducedMotion() ? 0 : 1100,
     });
     setCctvCommandOpen(true);
-  }, [cctv.data, flyCamera, prefersReducedMotion]);
+  }, [cctvCommandOpen, cctv.data, flyCamera, prefersReducedMotion]);
   const aqiTrend = useFeed<AqiTrend>(`${API_BASE}/api/air-quality/trend`, 15 * 60_000);
   const trends = useFeed<TrendsSnapshot>(`${API_BASE}/api/trends`, 15 * 60_000);
   const executive = useFeed<ExecutiveSnapshot>(`${API_BASE}/api/executive`, 15 * 60_000);

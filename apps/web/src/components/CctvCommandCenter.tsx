@@ -47,7 +47,12 @@ const STATUS_CHIP: { value: "all" | CctvStatus; label: string; tone: string }[] 
   { value: "unknown", label: "Unknown", tone: "var(--ink-3)" },
 ];
 
-const PAGE_SIZE = 16;  // smaller per-page count for rail height budget
+// Wall renders ALL filtered cameras in a single scrollable rail —
+// no pagination. The slot manager (MAX 4 concurrent WebRTC streams)
+// keeps the browser stable; the IntersectionObserver per cell mounts
+// an iframe only when scrolled into view + a slot is free. The
+// impression-of-density comes from seeing the full camera inventory
+// scroll past, not from clicking through pages.
 
 // Wall clock — Asia/Bangkok, HH:MM:SS. One shared formatter; the ticking value
 // is computed once per second in the parent and passed down, so we never spin
@@ -180,7 +185,6 @@ export function CctvCommandCenter({ cameras, side, highlightedId, onSelect, onEx
   const [category, setCategory] = useState<CctvCategory | "all">("all");
   const [status, setStatus] = useState<"all" | CctvStatus>("all");
   const [query, setQuery] = useState("");
-  const [page, setPage] = useState(0);
   const searchId = useId();
   const wallRef = useRef<HTMLDivElement>(null);
 
@@ -209,24 +213,17 @@ export function CctvCommandCenter({ cameras, side, highlightedId, onSelect, onEx
   const myHalf = useMemo(() => splitByParity(fullFiltered, side), [fullFiltered, side]);
   const summary = useMemo(() => summarizeCctv(myHalf), [myHalf]);
 
-  const totalPages = Math.max(1, Math.ceil(myHalf.length / PAGE_SIZE));
-  const safePage = Math.min(page, totalPages - 1);
-  const pageItems = myHalf.slice(safePage * PAGE_SIZE, safePage * PAGE_SIZE + PAGE_SIZE);
-
-  // Map→wall sync: find the matching tile, jump to its page, scroll into
-  // view. CSS keyframe on `.cctv-cell.is-highlighted` does the blink.
+  // Map→wall sync: find the matching tile and scrollIntoView. The wall
+  // is a single scrollable column now (no pagination), so this just
+  // scrolls the rail's overflow container — easy.
   useEffect(() => {
     if (!highlightedId || !wallRef.current) return;
-    const idx = myHalf.findIndex((c) => c.id === highlightedId);
-    if (idx === -1) return;  // not on this rail — leave the other rail to handle it
-    const targetPage = Math.floor(idx / PAGE_SIZE);
-    if (targetPage !== page) setPage(targetPage);
     const raf = requestAnimationFrame(() => {
       const el = wallRef.current?.querySelector<HTMLElement>(`[data-cam-id="${cssEscape(highlightedId)}"]`);
       el?.scrollIntoView({ behavior: "smooth", block: "center" });
     });
     return () => cancelAnimationFrame(raf);
-  }, [highlightedId, myHalf, page]);
+  }, [highlightedId, myHalf]);
 
   return (
     <div className="cctv-cc" aria-label={`CCTV wall — ${side} rail`}>
@@ -262,7 +259,7 @@ export function CctvCommandCenter({ cameras, side, highlightedId, onSelect, onEx
             type="button"
             className={`cctv-cc__chip ${status === c.value ? "is-on" : ""}`}
             aria-pressed={status === c.value}
-            onClick={() => { setStatus(c.value); setPage(0); }}
+            onClick={() => { setStatus(c.value); }}
             style={{ ["--chip-tone" as never]: c.tone }}
           >
             <span className="cctv-cc__chip-dot" aria-hidden="true" />
@@ -276,7 +273,7 @@ export function CctvCommandCenter({ cameras, side, highlightedId, onSelect, onEx
             type="button"
             className={`cctv-cc__chip cctv-cc__chip--cat ${category === c ? "is-on" : ""}`}
             aria-pressed={category === c}
-            onClick={() => { setCategory(category === c ? "all" : c); setPage(0); }}
+            onClick={() => { setCategory(category === c ? "all" : c); }}
             style={{ ["--chip-tone" as never]: `var(--cctv-${c})` }}
           >
             <span className="cctv-cc__chip-swatch" aria-hidden="true" />
@@ -291,17 +288,17 @@ export function CctvCommandCenter({ cameras, side, highlightedId, onSelect, onEx
         <input
           type="search"
           value={query}
-          onChange={(e) => { setQuery(e.target.value); setPage(0); }}
+          onChange={(e) => { setQuery(e.target.value); }}
           placeholder="Search…"
           aria-labelledby={searchId}
         />
       </label>
 
-      {pageItems.length === 0 ? (
+      {myHalf.length === 0 ? (
         <div className="cctv-cc__empty mono">No cameras.</div>
       ) : (
         <div className="cctv-cc__wall" ref={wallRef}>
-          {pageItems.map((c) => (
+          {myHalf.map((c) => (
             <CameraCell
               key={c.id}
               camera={c}
@@ -313,37 +310,6 @@ export function CctvCommandCenter({ cameras, side, highlightedId, onSelect, onEx
           ))}
         </div>
       )}
-
-      <footer className="cctv-cc__foot">
-        <span className="mono cctv-cc__foot-meta">
-          {myHalf.length === 0
-            ? "0"
-            : `${safePage * PAGE_SIZE + 1}–${Math.min(myHalf.length, (safePage + 1) * PAGE_SIZE)} of ${myHalf.length}`}
-        </span>
-        <div className="cctv-cc__pager">
-          <button
-            type="button"
-            className="cctv-cc__pager-btn mono"
-            disabled={safePage === 0}
-            onClick={() => setPage(safePage - 1)}
-            aria-label="Previous page"
-          >
-            ←
-          </button>
-          <span className="mono num cctv-cc__pager-label">
-            {safePage + 1}/{totalPages}
-          </span>
-          <button
-            type="button"
-            className="cctv-cc__pager-btn mono"
-            disabled={safePage >= totalPages - 1}
-            onClick={() => setPage(safePage + 1)}
-            aria-label="Next page"
-          >
-            →
-          </button>
-        </div>
-      </footer>
 
       <button
         type="button"

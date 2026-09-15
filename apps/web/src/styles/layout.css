@@ -4678,8 +4678,10 @@ input:focus-visible,
 .cctv-cc {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
   padding: 4px 0;
+  height: 100%;
+  min-height: 0;
 }
 .cctv-cc__eyebrow {
   font-size: var(--text-xs);
@@ -4784,13 +4786,14 @@ input:focus-visible,
 .cctv-cc__wall {
   display: grid;
   /* Small, dense thumbnails — many cameras per rail. auto-fill gives 2 cols in
-     a narrow rail, 3+ in a wide one, tiles staying ~square-ish (16:10). */
-  grid-template-columns: repeat(auto-fill, minmax(116px, 1fr));
-  gap: 4px;
+     a narrow rail, 3+ in a wide one, tiles staying ~square-ish (16:9). */
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 3px;
   align-content: start;
-  /* Wall scrolls on its own so the header, filter chips and pager stay put. */
+  /* Wall scrolls on its own so the header + filter chips stay put. */
   overflow-y: auto;
   min-height: 0;
+  flex: 1 1 auto;
   max-height: calc(100dvh - 260px);
 }
 .cctv-cc__empty {
@@ -4868,7 +4871,7 @@ input:focus-visible,
   padding: 0;
   text-align: left;
   overflow: hidden;
-  aspect-ratio: 16 / 10;
+  aspect-ratio: 16 / 9;
   transition: transform 80ms ease, border-color 80ms ease, box-shadow 80ms ease;
 }
 .cctv-cell:hover {
@@ -4942,9 +4945,9 @@ input:focus-visible,
 .cctv-cell__meta {
   display: grid;
   grid-template-columns: auto 1fr auto;
-  gap: 6px;
+  gap: 4px;
   align-items: center;
-  padding: 4px 6px;
+  padding: 3px 5px;
   border-top: 1px solid var(--line);
   background: var(--panel);
   font-size: var(--text-xs);
