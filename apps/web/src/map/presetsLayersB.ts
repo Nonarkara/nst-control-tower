@@ -1,0 +1,87 @@
+import type { LayerId, LayerGroup } from "./presetsLenses";
+
+type LayerEntry = {
+  id: LayerId;
+  label: string;
+  swatch: string;
+  group: LayerGroup;
+  describe: string;
+};
+
+export const ALL_LAYERS_PART_B: LayerEntry[] = [
+  { id: "flood-gauges",      label: "River / canal gauges",      swatch: "#2EA05E", group: "environment",
+    describe: "Water-level / discharge gauges on the Pak Phanang and Tha Dee rivers and feeder canals, coloured by status (normal / watch / warning / flood). Source: GloFAS / Open-Meteo flood proxy + RID where a station exists." },
+  { id: "water-gauges",      label: "Telemetry gauges (HII live)", swatch: "#F57C00", group: "environment",
+    describe: "All ~26 real HII/RID telemetry water-level stations in the province, coloured by official situation level (5 overbank = critical, 4 high = warning, 1–3 normal). Hover any dot for live level vs bank, channel fullness %, discharge vs rated qmax, and trend. Updates ~10 min." },
+  { id: "rain-stations",     label: "Rain telemetry (24 h)",     swatch: "#56B4E9", group: "environment",
+    describe: "~130 rain telemetry stations (DWR/HII multi-agency), dot size = 24 h accumulation, colour jumps at the TMD heavy (35 mm) and very-heavy (90 mm) bands. Hover for 1 h / 24 h totals — the flash-flood precursor." },
+  { id: "ews-stations",      label: "EWS village sirens (DWR)",  swatch: "#DC2626", group: "environment",
+    describe: "DWR community early-warning stations in the Khao Luang headwaters, coloured by official alert status (0 normal · 1 watch · 2 prepare · 3 critical) with soil-moisture %. These are the stations that trigger village sirens." },
+  { id: "watershed-nodes",   label: "Watershed (upstream→city)", swatch: "#2EA05E", group: "environment",
+    describe: "The Tha Dee flow cascade made geographic — ทุ่งสง / คีรีวง / ลานสกา upstream nodes feeding the city, with a flow line down คลองท่าดี (คีรีวง → ลานสกา → city). Each node is coloured by live status (gauges + rainfall + DWR EWS soil). Upstream rises here lead the city by hours." },
+  { id: "dam-status",        label: "Khao Luang runoff",         swatch: "#2EA05E", group: "environment",
+    describe: "Khao Luang watershed runoff trend — NST has no major regulating dam, so flash flooding tracks upstream discharge directly. Rising discharge precedes downstream flooding in the city + Pak Phanang lowlands." },
+  { id: "alphaearth-landcover", label: "AlphaEarth land cover",  swatch: "#009E73", group: "environment",
+    describe: "Google DeepMind AlphaEarth Foundations embeddings classified into land cover (rubber / oil-palm plantation vs forest vs built-up vs water) for the Nakhon Si Thammarat basin. Pre-computed from Earth Engine; ships as static GeoJSON." },
+  { id: "alphaearth-floodprone", label: "AlphaEarth flood-prone", swatch: "#56B4E9", group: "environment",
+    describe: "AlphaEarth + DEM-derived flood-prone / historically-inundated land classification around the Pak Phanang basin and the Tha Dee / Khao Luang runoff corridor." },
+  { id: "flood-marks",       label: "Flood marks (surveyed)",    swatch: "#DC2626", group: "environment",
+    describe: "Real surveyed high-water marks (HII MMS survey 2025, m MSL, cm accuracy) read off walls and poles in the city's eastern lowland — red = Tropical Storm Pabuk (Jan 2019, up to 2.12 m MSL), amber = ordinary flood season (up to 1.76 m). The ground truth every scenario is judged against." },
+  { id: "street-flood-sim",  label: "Street levels / flood scenario", swatch: "#3B82F6", group: "environment",
+    describe: "18,359 surveyed road elevations (HII MMS 2025, m MSL) across the city's eastern lowland — median street sits at just 1.49 m MSL. Alone: an elevation ramp (dark blue = lowest streets). With a scenario level from FLOOD COMMAND: colours by submergence depth. Static-level (bathtub) comparison — no flow routing or drainage dynamics; coverage is the HII survey area only." },
+  { id: "wrf-rain-grid",     label: "Forecast rain (WRF-ROMS)",  swatch: "#BBE1F6", group: "environment",
+    describe: "HII's WRF-ROMS model 24-h rain forecast on a ~3 km grid — where tomorrow's water will land on the province. Day 1/2/3 selectable from FLOOD COMMAND. Model output (GFS-driven), not observation." },
+
+  // ─── National waterways + flood analysis ───────────────────────────────────
+  { id: "national-waterways",  label: "Thailand waterways (national)", swatch: "#0072B2", group: "environment",
+    describe: "Thailand-wide river, canal, and stream network from OpenStreetMap via Overpass API — five regional sub-queries merged and cached 7 days. Critical for basin-scale flood routing analysis beyond the NST city boundary." },
+  { id: "national-flood-prone", label: "Flood-prone areas (national)", swatch: "#DC2626", group: "environment",
+    describe: "National flood-prone areas from data.go.th + 17-year HII tambon-level flood frequency dataset (จำนวนครั้งที่ท่วมในรอบ 17 ปี). Colour: red = extreme (≥7 events/17yr), orange = high (4–6), amber = medium (1–3). Source: Hydro-Informatics Institute (HII)." },
+  { id: "hii-tambon-risk",     label: "HII tambon flood risk (17-yr)", swatch: "#F57C00", group: "environment",
+    describe: "Tambon-level flood risk derived from HII's 17-year historical flood frequency dataset — จำนวนครั้งที่ท่วมในรอบ 17 ปี per subdistrict across Thailand. Source: Hydro-Informatics Institute." },
+  { id: "unosat-2021-exposure", label: "UNOSAT 2021 population exposure", swatch: "#F57C00", group: "environment",
+    describe: "UNOSAT satellite-derived flood extent + population exposure for the 2021 Thailand Southwest monsoon floods (Jul–Dec 2021). Shows tambon-level exposed population and flooded area km². Source: UNITAR-UNOSAT / Copernicus EMS Thailand Flood Analysis." },
+  { id: "south-province-watch", label: "Southern province watch (Flooddash)", swatch: "#F57C00", group: "environment",
+    describe: "Province-level flood watch scores for all 16 southern provinces — water 50% · rain 30% · forecast 20%. Sized/coloured by band (watch / elevated / critical). Ported from Flooddash risk engine." },
+  { id: "south-river-cascade", label: "Southern GloFAS rivers (Flooddash)", swatch: "#F0B429", group: "environment",
+    describe: "GloFAS river discharge at Hat Yai (U-Taphao), Tapi, Pattani, Tha Dee, and Pak Phanang — per-basin thresholds from Flooddash connected-waterways model." },
+
+  // ─── Old Town signature ────────────────────────────────────────────────────
+  { id: "ring-roads",        label: "Old Town axis (Ratchadamnoen)", swatch: "#F0E442", group: "municipality",
+    describe: "Nakhon Si Thammarat's defining feature — the long N–S historic Old Town spine along Ratchadamnoen Rd, tracing the medieval city-wall axis from the north gate past Wat Phra Mahathat Woramahawihan (UNESCO tentative)." },
+
+  // ─── Imagery ───────────────────────────────────────────────────────────
+  { id: "satellite-esri",    label: "Satellite (Esri HD)",      swatch: "#60A5FA", group: "imagery",
+    describe: "Esri World Imagery — high-res aerial / satellite mosaic. Good detail up to zoom 19." },
+  { id: "google-satellite",  label: "Satellite (Google HD)",    swatch: "#34D399", group: "imagery",
+    describe: "Google Maps satellite imagery via the Map Tiles API — often more recent and higher-res than Esri. Requires a Google Maps key." },
+  { id: "google-traffic",    label: "Live Traffic (Google)",    swatch: "#F87171", group: "imagery",
+    describe: "Google real-time traffic overlay (Map Tiles API). Dense over Bangkok and major corridors; provincial roads may show little flow data. Requires a Google Maps key." },
+  { id: "satellite-terrain", label: "OpenTopoMap (zoom < 14)",  swatch: "#A3E635", group: "imagery",
+    describe: "OpenTopoMap with contour lines and hillshade. Useful at regional zoom." },
+  { id: "terrain-3d",        label: "3D Terrain (Khao Luang)",  swatch: "#6E7846", group: "imagery",
+    describe: "True 3-D topographic relief — an extruded elevation grid (Open-Meteo ~90 m DEM) of the Khao Luang massif (1,835 m) rising over the coastal lowland, shaded dark green → olive → pale grey by height (lighter = higher). Reads best at province zoom under pitch. Vertical relief is exaggerated ~6× so the mountains are legible at map scale." },
+  { id: "precip-radar",      label: "Rain radar (live nowcast)", swatch: "#22D3EE", group: "imagery",
+    describe: "RainViewer live weather radar — animated past + short-range forecast frames, the 'where is it raining right now' layer. Complements IMERG (satellite rain-rate estimate) and Himawari (storm clouds). Public, no key." },
+  { id: "air-waqi-field",    label: "Air quality field (AirDash)", swatch: "#FB923C", group: "environment",
+    describe: "WAQI / AQICN US-EPA-AQI raster field — the AirDash overlay showing where air quality thickens across the province (traffic corridors, burning season), not just discrete station dots. Proxied through the API so the token stays server-side." },
+  { id: "satellite-viirs-truecolor", label: "VIIRS true-color", swatch: "#A5F3FC", group: "imagery",
+    describe: "VIIRS NOAA-20 corrected reflectance — daily, sharper than MODIS." },
+  { id: "satellite-night",   label: "VIIRS night lights",       swatch: "#FACC15", group: "imagery",
+    describe: "VIIRS Day/Night Band — Earth at night. Southern Thailand's coastal cities glow along the Gulf of Thailand." },
+  { id: "satellite-true-color", label: "MODIS true-color",      swatch: "#93C5FD", group: "imagery",
+    describe: "MODIS Terra corrected reflectance — daily 250 m global mosaic. Best at zoom < 10." },
+  { id: "satellite-himawari", label: "Himawari IR",             swatch: "#C7D2FE", group: "imagery",
+    describe: "Himawari-9 Band 13 infrared — geostationary cloud loop, 10-min refresh. Best for monsoon fronts over the Gulf." },
+  { id: "satellite-imerg",   label: "IMERG rainfall",           swatch: "#06B6D4", group: "imagery",
+    describe: "NASA IMERG half-hourly global precipitation rate. Watch monsoon cells move across the Gulf." },
+  { id: "satellite-ndvi",    label: "NDVI greenery",            swatch: "#34D399", group: "imagery",
+    describe: "MODIS NDVI 8-day composite — vegetation greenness." },
+  { id: "satellite-lst",     label: "Land surface temp",        swatch: "#F97316", group: "imagery",
+    describe: "MODIS LST (day) — urban heat island. NST city core typically reads 2–4 °C hotter than surrounding rubber and palm plantations." },
+  { id: "satellite-aerosol", label: "Aerosol optical depth",    swatch: "#F472B6", group: "imagery",
+    describe: "MODIS MAIAC AOD — proxy for PM2.5 + haze / seasonal smoke from agricultural burning in Southern Thailand." },
+  { id: "satellite-no2",     label: "NO₂ pollution (OMI)",      swatch: "#EF4444", group: "imagery",
+    describe: "OMI tropospheric NO₂ — traffic + power-plant nitrogen dioxide across Southern Thailand." },
+
+];
