@@ -25,6 +25,12 @@ import {
   statusLabel,
   summarizeCctv,
 } from "../lib/cctv";
+import {
+  getCaptureStats,
+  subscribeCaptureStats,
+  useWhepFrame,
+  type FrameState,
+} from "../lib/cctvCapturePool";
 
 interface Props {
   cameras: CctvCamera[];
@@ -97,88 +103,22 @@ function cssEscape(s: string): string {
   return s.replace(/["\\]/g, "\\$&");
 }
 
-// ── CctvSlotManager — cap concurrent iframe loads against the upstream ──
-//
-// The upstream MediaMTX reader (`/cam/{id}_sub/`) is a WebRTC peer
-// connection (not HLS) — every iframe opens its own WHEP session and runs
-// a full WebRTC decoder. 12 simultaneous decoders freeze the browser
-// tab; even 6 is heavy on a laptop. We cap at 4 by default (MAX). Cells
-// in viewport that don't get a slot show QUEUED — they poll every 250 ms
-// and mount as soon as a slot frees (cells release when they scroll out
-// of view, so scrolling reveals more cameras instead of stranding them).
-//
-// The cap is global to the page. If the user wants more, the operator
-// can change the env var `VITE_CCTV_MAX_STREAMS` at build time (it's
-// inlined as a number on import — a true runtime knob would need a
-// server config; a build-time knob is enough for a single deploy).
-const DEFAULT_MAX_STREAMS = 4;
-const MAX_CONCURRENT_IFRAMES = (() => {
-  const raw = (import.meta as unknown as { env?: Record<string, string | undefined> }).env?.VITE_CCTV_MAX_STREAMS;
-  const n = Number(raw);
-  return Number.isFinite(n) && n >= 1 && n <= 8 ? n : DEFAULT_MAX_STREAMS;
-})();
-const activeSlots = new Set<string>();
-const waiting: Array<{ id: string; grant: () => void; notified: boolean }> = [];
-let slotChangeListeners: Array<() => void> = [];
-function notifySlotChange() {
-  for (const l of slotChangeListeners) l();
+// The wall no longer runs live WebRTC iframes per tile (100+ decoders freeze
+// the tab). Instead each on-screen tile grabs ONE still frame via WHEP and
+// caches it — the "guard tour" model. All of that lives in `cctvCapturePool`
+// / `whepSnapshot`; this component just subscribes for stats and renders.
+
+/** Format a captured-frame time as HH:MM:SS ICT for the tile overlay. */
+function frameClock(capturedAt: number): string {
+  return CLOCK_FMT.format(new Date(capturedAt));
 }
 
-function requestCctvSlot(id: string): boolean {
-  if (activeSlots.has(id)) return true;
-  if (activeSlots.size < MAX_CONCURRENT_IFRAMES) {
-    activeSlots.add(id);
-    notifySlotChange();
-    return true;
-  }
-  // Track whether this cell has been queued before; if so, don't push
-  // another entry. Prevents a polling cell from filling the queue with
-  // its own duplicates (it just polls activeSlots.has(id) on each tick).
-  const existing = waiting.find((w) => w.id === id);
-  if (!existing) {
-    waiting.push({
-      id,
-      grant: () => {
-        if (activeSlots.has(id)) return;
-        activeSlots.add(id);
-        notifySlotChange();
-      },
-      notified: false,
-    });
-  }
-  return false;
-}
-
-function releaseCctvSlot(id: string): void {
-  if (!activeSlots.delete(id)) return;
-  notifySlotChange();
-  // Hand slots to queued cells in FIFO order until we hit the cap again.
-  while (waiting.length > 0 && activeSlots.size < MAX_CONCURRENT_IFRAMES) {
-    const next = waiting.shift()!;
-    if (!activeSlots.has(next.id)) {
-      activeSlots.add(next.id);
-      next.grant();
-    }
-  }
-}
-
-// Polling helper — cells that were queued re-check the slot queue at this
-// interval. Tight enough to feel snappy (~250 ms), loose enough to avoid
-// hammering the manager.
-const SLOT_POLL_MS = 250;
-
-/** Subscribe to slot changes (for the visible-stream counter in the UI).
- *  Returns an unsubscribe function. */
-function subscribeCctvSlots(listener: () => void): () => void {
-  slotChangeListeners.push(listener);
-  return () => {
-    slotChangeListeners = slotChangeListeners.filter((l) => l !== listener);
-  };
-}
-
-/** Snapshot for the counter. */
-function getCctvSlotSnapshot(): { active: number; cap: number; queued: number } {
-  return { active: activeSlots.size, cap: MAX_CONCURRENT_IFRAMES, queued: waiting.length };
+/** Derive the WHEP endpoint from a camera's embed (reader-page) URL.
+ *  Upstream embed is `…/cam/{id}_sub/`; the WHEP signaling endpoint is
+ *  the same path + `whep`. */
+function whepUrlFor(camera: CctvCamera): string | undefined {
+  if (!camera.embedUrl) return undefined;
+  return camera.embedUrl.replace(/\/?$/, "/") + "whep";
 }
 
 export function CctvCommandCenter({ cameras, side, highlightedId, onSelect, onExit }: Props) {
@@ -188,12 +128,10 @@ export function CctvCommandCenter({ cameras, side, highlightedId, onSelect, onEx
   const searchId = useId();
   const wallRef = useRef<HTMLDivElement>(null);
 
-  // Live counter for the slot manager — shows the operator how many
-  // streams are actively loading right now. The default cap is 4 because
-  // each MediaMTX WebRTC stream eats ~30–50 MB of decoder buffer + 2–5 %
-  // CPU; 12 simultaneous decoders freeze the browser tab.
-  const [slotSnap, setSlotSnap] = useState(() => getCctvSlotSnapshot());
-  useEffect(() => subscribeCctvSlots(() => setSlotSnap(getCctvSlotSnapshot())), []);
+  // Live counter for the capture pool — how many still-frame grabs are
+  // running right now, and how many cameras have an image so far.
+  const [capStats, setCapStats] = useState(() => getCaptureStats());
+  useEffect(() => subscribeCaptureStats(() => setCapStats(getCaptureStats())), []);
 
   // Ticking wall clock — the "this is live" heartbeat. One interval for the
   // whole rail; the label is threaded to every streaming cell as a timestamp.
@@ -236,12 +174,10 @@ export function CctvCommandCenter({ cameras, side, highlightedId, onSelect, onEx
           <span className="cctv-cc__title-unit">live</span>
         </h2>
         <div className="cctv-cc__streams mono" aria-live="polite">
-          <span className="num">{slotSnap.active}</span>
-          <span className="cctv-cc__streams-sep">/</span>
-          <span className="num">{slotSnap.cap}</span>
-          <span className="cctv-cc__streams-unit">streams</span>
-          {slotSnap.queued > 0 && (
-            <span className="cctv-cc__streams-queued num"> · {slotSnap.queued} QUEUED</span>
+          <span className="num">{capStats.imaged}</span>
+          <span className="cctv-cc__streams-unit">imaged</span>
+          {capStats.active > 0 && (
+            <span className="cctv-cc__streams-queued num"> · {capStats.active}/{capStats.cap} capturing</span>
           )}
         </div>
         <div className="cctv-cc__clock mono" aria-hidden="true">
@@ -303,7 +239,6 @@ export function CctvCommandCenter({ cameras, side, highlightedId, onSelect, onEx
               key={c.id}
               camera={c}
               tone={statusTone(c.status)}
-              now={now}
               highlighted={c.id === highlightedId}
               onClick={() => onSelect(c)}
             />
@@ -326,21 +261,20 @@ export function CctvCommandCenter({ cameras, side, highlightedId, onSelect, onEx
 interface CellProps {
   camera: CctvCamera;
   tone: string;
-  /** Ticking HH:MM:SS from the parent — overlaid on live cells. */
-  now: string;
   highlighted: boolean;
   onClick: (camera: CctvCamera) => void;
 }
 
-function CameraCell({ camera, tone, now, highlighted, onClick }: CellProps) {
+function CameraCell({ camera, tone, highlighted, onClick }: CellProps) {
   const isOffline = camera.status === "offline";
-  const hasStream = !isOffline && (camera.embedUrl || camera.hlsUrl || camera.imageUrl);
+  const whepUrl = whepUrlFor(camera);
+  const hasStream = !isOffline && !!whepUrl;
   const viewportRef = useRef<HTMLDivElement>(null);
 
-  // inView: IntersectionObserver says the viewport is on screen. rootMargin
-  // pre-loads 200 px outside the visible area so a fast scroll doesn't show
-  // the STANDBY placeholder. When false, the cell releases its slot — see
-  // the slot effect below — so the next queued cell can mount.
+  // inView: IntersectionObserver says the viewport is on screen. A generous
+  // rootMargin starts the capture just before the tile scrolls in. When the
+  // tile leaves view we drop our interest (the pool stops refreshing it) but
+  // the cached still frame is kept, so scrolling back is instant.
   const [inView, setInView] = useState(false);
   useEffect(() => {
     const el = viewportRef.current;
@@ -351,96 +285,30 @@ function CameraCell({ camera, tone, now, highlighted, onClick }: CellProps) {
     }
     const obs = new IntersectionObserver(
       ([entry]) => setInView(entry.isIntersecting),
-      { rootMargin: "200px", threshold: 0.01 },
+      { rootMargin: "300px", threshold: 0.01 },
     );
     obs.observe(el);
     return () => obs.disconnect();
   }, []);
 
-  // wantIframe: tie the slot to "would actually render the iframe" — not
-  // just to "cell is mounted". This is the key to the bug we just fixed:
-  // previously, cells held their slot for the entire lifetime of the wall,
-  // so the first 8 visible cells took all the slots and the remaining
-  // queued cells STANDBY'd forever. Now slots only stay held while the
-  // cell is actually rendering a stream.
-  const [errored_, setErrored] = useState(false);
-  const [granted, setGranted] = useState(false);
-  const grantedRef = useRef(false);
-  const wantIframe = inView && !errored_ && hasStream;
-  useEffect(() => {
-    if (!wantIframe) {
-      if (grantedRef.current) {
-        releaseCctvSlot(camera.id);
-        grantedRef.current = false;
-      }
-      setGranted(false);
-      return;
-    }
-    if (grantedRef.current) {
-      setGranted(true);
-      return;
-    }
-    if (requestCctvSlot(camera.id)) {
-      grantedRef.current = true;
-      setGranted(true);
-      return;
-    }
-    const poll = setInterval(() => {
-      if (requestCctvSlot(camera.id)) {
-        grantedRef.current = true;
-        setGranted(true);
-        clearInterval(poll);
-      }
-    }, SLOT_POLL_MS);
-    return () => clearInterval(poll);
-  }, [wantIframe, camera.id]);
-
-  // Release on unmount — defence in depth in case the wantIframe cleanup
-  // above didn't fire for some reason (page navigation, rail unmount, etc.).
-  useEffect(() => {
-    return () => {
-      if (grantedRef.current) {
-        releaseCctvSlot(camera.id);
-        grantedRef.current = false;
-      }
-    };
-  }, []);
-
-  // Auto-retry on iframe error — short backoff so a 429 blip clears quickly.
-  // We don't release the slot on error (the slot cap is what keeps us in
-  // the upstream's tolerance envelope).
-  useEffect(() => {
-    if (!errored_) return;
-    const t = window.setTimeout(() => setErrored(false), 3500);
-    return () => window.clearTimeout(t);
-  }, [errored_]);
-
-  // Double-click → open the existing CctvStreamModal at full size. We
-  // use a separate handler so single-click still pulses the map dot and
-  // opens the modal there. The browser fires `dblclick` after two
-  // `click`s, but React's `onDoubleClick` won't fire if either single
-  // click was stopped — so we leave `onClick` alone and add this on top.
-  const onDoubleClick = () => onClick(camera);
-
-  const showIframe = granted && hasStream && camera.embedUrl;
-  const showHls = granted && hasStream && camera.hlsUrl && !camera.embedUrl;
-  const showImg = granted && hasStream && camera.imageUrl && !camera.embedUrl && !camera.hlsUrl;
-  // A cell is "live" only when it's actually rendering a stream — the LIVE
-  // badge + ticking timestamp are honest signals, never shown on a placeholder.
-  const isLive = !!(showIframe || showHls || showImg);
+  // The capture pool does the work: while in view, it grabs a still frame via
+  // WHEP and refreshes it on a slow cadence. `frame` is the latest captured
+  // image (retained across scroll/filter); `kind` tells us what to show while
+  // there isn't one yet.
+  const frameState: FrameState = useWhepFrame(camera.id, whepUrl, inView && hasStream);
+  const frame = frameState.frame;
+  const isLive = !!frame; // a real captured image is on screen
   const category = camera.category ?? "other";
 
   return (
     <div
       role="button"
       tabIndex={0}
-      className={`cctv-cell ${isOffline ? "is-offline" : "is-online"} ${highlighted ? "is-highlighted" : ""} ${errored_ ? "is-error" : ""} ${isLive ? "is-live" : ""}`}
+      className={`cctv-cell ${isOffline ? "is-offline" : "is-online"} ${highlighted ? "is-highlighted" : ""} ${frameState.kind === "error" && !frame ? "is-error" : ""} ${isLive ? "is-live" : ""}`}
       onClick={onClick ? () => onClick(camera) : undefined}
-      onDoubleClick={onDoubleClick}
       onKeyDown={(e) => {
-        // Keyboard parity — Enter opens the modal at single click size;
-        // Shift+Enter (or just Enter twice via dblclick semantics) opens
-        // at full size. The CctvStreamModal handles its own close.
+        // Enter opens the full-size live view (CctvStreamModal, which runs a
+        // real WebRTC stream). The modal handles its own close.
         if (e.key === "Enter") onClick?.(camera);
       }}
       data-cam-id={camera.id}
@@ -448,7 +316,7 @@ function CameraCell({ camera, tone, now, highlighted, onClick }: CellProps) {
         ["--cell-tone" as never]: tone,
         ["--cell-cat" as never]: `var(--cctv-${category})`,
       }}
-      title={`${camera.name} — click to pulse on map · double-click to enlarge`}
+      title={`${camera.name} — click for live view · pulses on map`}
     >
       <div className="cctv-cell__viewport" ref={viewportRef}>
         {isLive && (
@@ -457,40 +325,23 @@ function CameraCell({ camera, tone, now, highlighted, onClick }: CellProps) {
             LIVE
           </div>
         )}
-        {isLive && <div className="cctv-cell__ts mono" aria-hidden="true">{now}</div>}
-        {showIframe ? (
-          <iframe
-            src={camera.embedUrl}
-            title={camera.name}
-            allow="autoplay"
-            onError={() => setErrored(true)}
-          />
-        ) : showHls ? (
-          <video
-            src={camera.hlsUrl}
-            autoPlay
-            muted
-            playsInline
-            aria-label={camera.name}
-            onError={() => setErrored(true)}
-          />
-        ) : showImg ? (
-          <img
-            src={camera.imageUrl}
-            alt={camera.name}
-            loading="lazy"
-            onError={() => setErrored(true)}
-          />
+        {frame && (
+          <div className="cctv-cell__ts mono" aria-hidden="true">{frameClock(frame.capturedAt)}</div>
+        )}
+        {frame ? (
+          // A captured still. WebRTC frames aren't cross-origin-tainted, so the
+          // data URL renders directly. It refreshes on the pool's cadence.
+          <img src={frame.dataUrl} alt={camera.name} decoding="async" />
         ) : isOffline ? (
           <div className="cctv-cell__no-stream mono">OFFLINE</div>
-        ) : errored_ ? (
-          <div className="cctv-cell__no-stream mono">RETRYING…</div>
         ) : !hasStream ? (
           <div className="cctv-cell__no-stream mono">NO STREAM</div>
+        ) : frameState.kind === "error" ? (
+          <div className="cctv-cell__no-stream mono">NO SIGNAL</div>
         ) : !inView ? (
           <div className="cctv-cell__standby mono">SCROLL TO LOAD</div>
         ) : (
-          <div className="cctv-cell__standby mono">QUEUED</div>
+          <div className="cctv-cell__standby cctv-cell__standby--load mono">LOADING</div>
         )}
       </div>
       <div className="cctv-cell__meta">
