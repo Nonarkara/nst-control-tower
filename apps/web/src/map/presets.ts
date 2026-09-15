@@ -1,2 +1,2 @@
 export * from "./presetsLenses";
-export * from "./presetsLayers";
+export { ALL_LAYERS, COMPUTED_LAYERS } from "./presetsLayers";
