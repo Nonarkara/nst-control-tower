@@ -49,6 +49,17 @@ const STATUS_CHIP: { value: "all" | CctvStatus; label: string; tone: string }[] 
 
 const PAGE_SIZE = 16;  // smaller per-page count for rail height budget
 
+// Wall clock — Asia/Bangkok, HH:MM:SS. One shared formatter; the ticking value
+// is computed once per second in the parent and passed down, so we never spin
+// up an interval per cell.
+const CLOCK_FMT = new Intl.DateTimeFormat("en-GB", {
+  hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false,
+  timeZone: "Asia/Bangkok",
+});
+function nowClock(): string {
+  return CLOCK_FMT.format(new Date());
+}
+
 function statusTone(s: CctvStatus | undefined): string {
   if (s === "online") return "var(--good)";
   if (s === "offline") return "var(--bad)";
@@ -180,6 +191,14 @@ export function CctvCommandCenter({ cameras, side, highlightedId, onSelect, onEx
   const [slotSnap, setSlotSnap] = useState(() => getCctvSlotSnapshot());
   useEffect(() => subscribeCctvSlots(() => setSlotSnap(getCctvSlotSnapshot())), []);
 
+  // Ticking wall clock — the "this is live" heartbeat. One interval for the
+  // whole rail; the label is threaded to every streaming cell as a timestamp.
+  const [now, setNow] = useState(nowClock);
+  useEffect(() => {
+    const t = window.setInterval(() => setNow(nowClock()), 1000);
+    return () => window.clearInterval(t);
+  }, []);
+
   // Half of the cameras for this rail. We filter THEN split (so parity
   // is stable across filter changes — same camera goes to the same rail
   // regardless of which categories the operator is currently viewing).
@@ -227,6 +246,12 @@ export function CctvCommandCenter({ cameras, side, highlightedId, onSelect, onEx
           {slotSnap.queued > 0 && (
             <span className="cctv-cc__streams-queued num"> · {slotSnap.queued} QUEUED</span>
           )}
+        </div>
+        <div className="cctv-cc__clock mono" aria-hidden="true">
+          <span className="cctv-cc__clock-dot" />
+          <span className="cctv-cc__clock-label">LIVE</span>
+          <span className="num cctv-cc__clock-time">{now}</span>
+          <span className="cctv-cc__clock-tz">ICT</span>
         </div>
       </header>
 
@@ -281,6 +306,7 @@ export function CctvCommandCenter({ cameras, side, highlightedId, onSelect, onEx
               key={c.id}
               camera={c}
               tone={statusTone(c.status)}
+              now={now}
               highlighted={c.id === highlightedId}
               onClick={() => onSelect(c)}
             />
@@ -334,11 +360,13 @@ export function CctvCommandCenter({ cameras, side, highlightedId, onSelect, onEx
 interface CellProps {
   camera: CctvCamera;
   tone: string;
+  /** Ticking HH:MM:SS from the parent — overlaid on live cells. */
+  now: string;
   highlighted: boolean;
   onClick: (camera: CctvCamera) => void;
 }
 
-function CameraCell({ camera, tone, highlighted, onClick }: CellProps) {
+function CameraCell({ camera, tone, now, highlighted, onClick }: CellProps) {
   const isOffline = camera.status === "offline";
   const hasStream = !isOffline && (camera.embedUrl || camera.hlsUrl || camera.imageUrl);
   const viewportRef = useRef<HTMLDivElement>(null);
@@ -431,12 +459,16 @@ function CameraCell({ camera, tone, highlighted, onClick }: CellProps) {
   const showIframe = granted && hasStream && camera.embedUrl;
   const showHls = granted && hasStream && camera.hlsUrl && !camera.embedUrl;
   const showImg = granted && hasStream && camera.imageUrl && !camera.embedUrl && !camera.hlsUrl;
+  // A cell is "live" only when it's actually rendering a stream — the LIVE
+  // badge + ticking timestamp are honest signals, never shown on a placeholder.
+  const isLive = !!(showIframe || showHls || showImg);
+  const category = camera.category ?? "other";
 
   return (
     <div
       role="button"
       tabIndex={0}
-      className={`cctv-cell ${isOffline ? "is-offline" : "is-online"} ${highlighted ? "is-highlighted" : ""} ${errored_ ? "is-error" : ""}`}
+      className={`cctv-cell ${isOffline ? "is-offline" : "is-online"} ${highlighted ? "is-highlighted" : ""} ${errored_ ? "is-error" : ""} ${isLive ? "is-live" : ""}`}
       onClick={onClick ? () => onClick(camera) : undefined}
       onDoubleClick={onDoubleClick}
       onKeyDown={(e) => {
@@ -446,10 +478,20 @@ function CameraCell({ camera, tone, highlighted, onClick }: CellProps) {
         if (e.key === "Enter") onClick?.(camera);
       }}
       data-cam-id={camera.id}
-      style={{ ["--cell-tone" as never]: tone }}
+      style={{
+        ["--cell-tone" as never]: tone,
+        ["--cell-cat" as never]: `var(--cctv-${category})`,
+      }}
       title={`${camera.name} — click to pulse on map · double-click to enlarge`}
     >
       <div className="cctv-cell__viewport" ref={viewportRef}>
+        {isLive && (
+          <div className="cctv-cell__live" aria-hidden="true">
+            <span className="cctv-cell__live-dot" />
+            LIVE
+          </div>
+        )}
+        {isLive && <div className="cctv-cell__ts mono" aria-hidden="true">{now}</div>}
         {showIframe ? (
           <iframe
             src={camera.embedUrl}
