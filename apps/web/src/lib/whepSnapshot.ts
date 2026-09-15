@@ -29,8 +29,13 @@ export interface WhepFrame {
   capturedAt: number;
 }
 
-interface VideoWithRvfc extends HTMLVideoElement {
-  requestVideoFrameCallback?: (cb: () => void) => number;
+/** `requestVideoFrameCallback` isn't in every lib.dom version and its real
+ *  signature is `(now, metadata) => void`; we only need "a frame landed", so
+ *  we access it through a narrow structural cast rather than redeclaring it on
+ *  HTMLVideoElement (which would conflict with the built-in type). */
+function getRvfc(video: HTMLVideoElement): ((cb: () => void) => number) | undefined {
+  const fn = (video as unknown as { requestVideoFrameCallback?: unknown }).requestVideoFrameCallback;
+  return typeof fn === "function" ? (fn as (cb: () => void) => number).bind(video) : undefined;
 }
 
 /** Resolve once the peer connection has gathered its ICE candidates, or after
@@ -52,7 +57,7 @@ function waitForIceGathering(pc: RTCPeerConnection): Promise<void> {
 }
 
 /** Resolve once the <video> has a real, non-empty frame ready to paint. */
-function waitForDecodedFrame(video: VideoWithRvfc, signal: AbortSignal): Promise<void> {
+function waitForDecodedFrame(video: HTMLVideoElement, signal: AbortSignal): Promise<void> {
   return new Promise((resolve, reject) => {
     if (signal.aborted) return reject(new Error("aborted"));
     const onAbort = () => reject(new Error("aborted"));
@@ -70,8 +75,9 @@ function waitForDecodedFrame(video: VideoWithRvfc, signal: AbortSignal): Promise
       }
     };
 
-    if (typeof video.requestVideoFrameCallback === "function") {
-      video.requestVideoFrameCallback(() => grab());
+    const rvfc = getRvfc(video);
+    if (rvfc) {
+      rvfc(() => grab());
     } else {
       video.addEventListener("loadeddata", () => grab(), { once: true });
       requestAnimationFrame(grab);
@@ -100,7 +106,7 @@ export async function captureFrame(
   const timeout = window.setTimeout(() => controller.abort(), CAPTURE_TIMEOUT_MS);
 
   const pc = new RTCPeerConnection({ iceServers: [] });
-  const video = document.createElement("video") as VideoWithRvfc;
+  const video = document.createElement("video");
   video.muted = true;
   video.playsInline = true;
   video.autoplay = true;

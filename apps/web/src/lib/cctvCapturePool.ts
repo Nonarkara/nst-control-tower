@@ -48,11 +48,13 @@ const CAMERA_BACKOFF_JITTER_MS = 20_000;
 // Scheduler cadence.
 const TICK_MS = 400;
 
-export type FrameState =
-  | { kind: "idle" }
-  | { kind: "capturing"; frame?: WhepFrame }
-  | { kind: "ready"; frame: WhepFrame }
-  | { kind: "error"; frame?: WhepFrame };
+/** What a tile should show. `kind` drives the placeholder; `frame`, when
+ *  present, is the still to paint (retained across capturing/error so a tile
+ *  that already has an image keeps showing it while it refreshes or retries). */
+export interface FrameState {
+  kind: "idle" | "capturing" | "ready" | "error";
+  frame?: WhepFrame;
+}
 
 interface Interest {
   whepUrl: string;
