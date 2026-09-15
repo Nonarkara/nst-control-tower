@@ -15,7 +15,15 @@ interface FeedState<T> {
 const STORAGE_PREFIX = "nst:feed:";
 const MAX_CACHE_AGE_MS = 24 * 60 * 60 * 1000;
 const UNAVAILABLE_AFTER_FAILS = 3;
+// Cold-start tolerance: a Cloudflare Worker that's been idle takes ~8 s to
+// spin up its isolate on first hit. A bare 10 s timeout cuts it close —
+// one extra second of latency trips the timeout and the user sees the
+// "API HOST UNREACHABLE" banner. First-attempt tolerance is generous
+// (25 s + 4 retries); subsequent polls use the regular 10 s + 2 retries.
 const REQUEST_TIMEOUT_MS = 10_000;
+const FIRST_REQUEST_TIMEOUT_MS = 25_000;
+const RETRIES = 2;
+const FIRST_RETRIES = 4;
 // setTimeout/setInterval delays are stored as a 32-bit signed int internally;
 // a delay above this clamps to ~0 in most engines, firing (and re-firing) almost
 // immediately instead of waiting — a caller passing e.g. a 30-day pollMs would
@@ -53,19 +61,19 @@ const emptyInitial = <T,>(): FeedState<T> => ({
   error: null,
 });
 
-async function fetchOnce(url: string, signal: AbortSignal): Promise<Response> {
+async function fetchOnce(url: string, signal: AbortSignal, timeoutMs = REQUEST_TIMEOUT_MS): Promise<Response> {
   const ctrl = new AbortController();
   let timedOut = false;
   const timeoutId = window.setTimeout(() => {
     timedOut = true;
     ctrl.abort();
-  }, REQUEST_TIMEOUT_MS);
+  }, timeoutMs);
   const abort = () => ctrl.abort();
   signal.addEventListener("abort", abort, { once: true });
   try {
     return await fetch(url, { signal: ctrl.signal, cache: "no-store" });
   } catch (err) {
-    if (timedOut) throw new Error(`Request timed out after ${REQUEST_TIMEOUT_MS / 1000}s`);
+    if (timedOut) throw new Error(`Request timed out after ${timeoutMs / 1000}s`);
     throw err;
   } finally {
     window.clearTimeout(timeoutId);
@@ -73,12 +81,14 @@ async function fetchOnce(url: string, signal: AbortSignal): Promise<Response> {
   }
 }
 
-async function fetchWithRetry(url: string, signal: AbortSignal, retries = 2): Promise<Response> {
+async function fetchWithRetry(url: string, signal: AbortSignal, isFirstAttempt = false): Promise<Response> {
+  const retries = isFirstAttempt ? FIRST_RETRIES : RETRIES;
+  const timeoutMs = isFirstAttempt ? FIRST_REQUEST_TIMEOUT_MS : REQUEST_TIMEOUT_MS;
   let lastErr: unknown;
   for (let i = 0; i <= retries; i++) {
     if (signal.aborted) throw new DOMException("Aborted", "AbortError");
     try {
-      const res = await fetchOnce(url, signal);
+      const res = await fetchOnce(url, signal, timeoutMs);
       if (res.ok) return res;
       if (res.status < 500 && res.status !== 429) throw new Error(`${res.status} ${res.statusText}`);
       lastErr = new Error(`${res.status} ${res.statusText}`);
@@ -99,6 +109,9 @@ export function useFeed<T>(path: string, pollMs: number): FeedState<T> & { refet
   const runRef = useRef<() => Promise<void>>(async () => {});
   const failCount = useRef(0);
   const pathRef = useRef(path);
+  // Cold-start tolerance — true until the first successful poll. Subsequent
+  // polls are fast (worker is warm) and use the regular short timeout.
+  const isFirstAttempt = useRef(true);
 
   useEffect(() => {
     let cancelled = false;
@@ -111,6 +124,7 @@ export function useFeed<T>(path: string, pollMs: number): FeedState<T> & { refet
     if (pathRef.current !== path) {
       pathRef.current = path;
       failCount.current = 0;
+      isFirstAttempt.current = true;
       setState(readLocal<T>(path) ?? emptyInitial<T>());
     }
 
@@ -118,12 +132,14 @@ export function useFeed<T>(path: string, pollMs: number): FeedState<T> & { refet
       inflight.current?.abort();
       const ctrl = new AbortController();
       inflight.current = ctrl;
+      const firstAttempt = isFirstAttempt.current;
       try {
         const sep = path.includes("?") ? "&" : "?";
         const url = `${path}${sep}_=${Date.now()}`;
-        const res = await fetchWithRetry(url, ctrl.signal);
+        const res = await fetchWithRetry(url, ctrl.signal, firstAttempt);
         const json = (await res.json()) as NormalizedFeed<T>;
         if (cancelled) return;
+        isFirstAttempt.current = false;
         failCount.current = 0;
         setState((prev) => {
           // Short-circuit when upstream hasn't moved — same fetchedAt means same payload.
