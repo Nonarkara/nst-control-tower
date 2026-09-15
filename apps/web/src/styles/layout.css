@@ -4889,6 +4889,20 @@ input:focus-visible,
   margin: 0 2px;
   font-weight: 400;
 }
+.cctv-cc__streams {
+  margin-top: 4px;
+  font-size: var(--text-xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  display: flex;
+  align-items: baseline;
+  gap: 3px;
+}
+.cctv-cc__streams .num { color: var(--cctv-water); }
+.cctv-cc__streams-sep { color: var(--ink-3); font-weight: 400; }
+.cctv-cc__streams-unit { letter-spacing: 0.08em; }
+.cctv-cc__streams-queued { color: var(--warn); margin-left: 4px; }
 .cctv-cc__title-unit {
   font-size: var(--text-sm);
   letter-spacing: 0.1em;
@@ -4900,8 +4914,7 @@ input:focus-visible,
 .cctv-cc__chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 6px;
+  gap: 6px;  margin-top: 6px;
 }
 .cctv-cc__chip {
   display: inline-flex;

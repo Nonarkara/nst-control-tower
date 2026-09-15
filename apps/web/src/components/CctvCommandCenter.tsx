@@ -83,40 +83,60 @@ function cssEscape(s: string): string {
 
 // ── CctvSlotManager — cap concurrent iframe loads against the upstream ──
 //
-// The upstream MediaMTX reader (`/cam/{id}_sub/`) returns 429 when too many
-// parallel sessions ask at once. We were mounting ~30 iframes on every page
-// change, which thrashed the upstream and showed "Error: bad status code
-// 429, retrying in some seconds" on every cell.
+// The upstream MediaMTX reader (`/cam/{id}_sub/`) is a WebRTC peer
+// connection (not HLS) — every iframe opens its own WHEP session and runs
+// a full WebRTC decoder. 12 simultaneous decoders freeze the browser
+// tab; even 6 is heavy on a laptop. We cap at 4 by default (MAX). Cells
+// in viewport that don't get a slot show QUEUED — they poll every 250 ms
+// and mount as soon as a slot frees (cells release when they scroll out
+// of view, so scrolling reveals more cameras instead of stranding them).
 //
-// Cap is global to the page: a FIFO queue hands out slots as cells
-// release them. Critically, cells RELEASE their slot when they leave the
-// viewport (via IntersectionObserver) — not just on unmount — so
-// scrolling reveals more cameras instead of stranding the queued ones
-// in STANDBY forever. The cap is generous (12) because the upstream
-// seems to handle a dozen simultaneous readers fine; the slot cap is
-// really there to absorb the "I just opened the wall" burst.
-const MAX_CONCURRENT_IFRAMES = 12;
+// The cap is global to the page. If the user wants more, the operator
+// can change the env var `VITE_CCTV_MAX_STREAMS` at build time (it's
+// inlined as a number on import — a true runtime knob would need a
+// server config; a build-time knob is enough for a single deploy).
+const DEFAULT_MAX_STREAMS = 4;
+const MAX_CONCURRENT_IFRAMES = (() => {
+  const raw = (import.meta as unknown as { env?: Record<string, string | undefined> }).env?.VITE_CCTV_MAX_STREAMS;
+  const n = Number(raw);
+  return Number.isFinite(n) && n >= 1 && n <= 8 ? n : DEFAULT_MAX_STREAMS;
+})();
 const activeSlots = new Set<string>();
-const waiting: Array<{ id: string; grant: () => void }> = [];
+const waiting: Array<{ id: string; grant: () => void; notified: boolean }> = [];
+let slotChangeListeners: Array<() => void> = [];
+function notifySlotChange() {
+  for (const l of slotChangeListeners) l();
+}
 
 function requestCctvSlot(id: string): boolean {
   if (activeSlots.has(id)) return true;
   if (activeSlots.size < MAX_CONCURRENT_IFRAMES) {
     activeSlots.add(id);
+    notifySlotChange();
     return true;
   }
-  waiting.push({
-    id,
-    grant: () => {
-      if (activeSlots.has(id)) return;
-      activeSlots.add(id);
-    },
-  });
+  // Track whether this cell has been queued before; if so, don't push
+  // another entry. Prevents a polling cell from filling the queue with
+  // its own duplicates (it just polls activeSlots.has(id) on each tick).
+  const existing = waiting.find((w) => w.id === id);
+  if (!existing) {
+    waiting.push({
+      id,
+      grant: () => {
+        if (activeSlots.has(id)) return;
+        activeSlots.add(id);
+        notifySlotChange();
+      },
+      notified: false,
+    });
+  }
   return false;
 }
 
 function releaseCctvSlot(id: string): void {
   if (!activeSlots.delete(id)) return;
+  notifySlotChange();
+  // Hand slots to queued cells in FIFO order until we hit the cap again.
   while (waiting.length > 0 && activeSlots.size < MAX_CONCURRENT_IFRAMES) {
     const next = waiting.shift()!;
     if (!activeSlots.has(next.id)) {
@@ -131,6 +151,20 @@ function releaseCctvSlot(id: string): void {
 // hammering the manager.
 const SLOT_POLL_MS = 250;
 
+/** Subscribe to slot changes (for the visible-stream counter in the UI).
+ *  Returns an unsubscribe function. */
+function subscribeCctvSlots(listener: () => void): () => void {
+  slotChangeListeners.push(listener);
+  return () => {
+    slotChangeListeners = slotChangeListeners.filter((l) => l !== listener);
+  };
+}
+
+/** Snapshot for the counter. */
+function getCctvSlotSnapshot(): { active: number; cap: number; queued: number } {
+  return { active: activeSlots.size, cap: MAX_CONCURRENT_IFRAMES, queued: waiting.length };
+}
+
 export function CctvCommandCenter({ cameras, side, highlightedId, onSelect, onExit }: Props) {
   const [category, setCategory] = useState<CctvCategory | "all">("all");
   const [status, setStatus] = useState<"all" | CctvStatus>("all");
@@ -138,6 +172,13 @@ export function CctvCommandCenter({ cameras, side, highlightedId, onSelect, onEx
   const [page, setPage] = useState(0);
   const searchId = useId();
   const wallRef = useRef<HTMLDivElement>(null);
+
+  // Live counter for the slot manager — shows the operator how many
+  // streams are actively loading right now. The default cap is 4 because
+  // each MediaMTX WebRTC stream eats ~30–50 MB of decoder buffer + 2–5 %
+  // CPU; 12 simultaneous decoders freeze the browser tab.
+  const [slotSnap, setSlotSnap] = useState(() => getCctvSlotSnapshot());
+  useEffect(() => subscribeCctvSlots(() => setSlotSnap(getCctvSlotSnapshot())), []);
 
   // Half of the cameras for this rail. We filter THEN split (so parity
   // is stable across filter changes — same camera goes to the same rail
@@ -178,6 +219,15 @@ export function CctvCommandCenter({ cameras, side, highlightedId, onSelect, onEx
           <span className="num">{summary.total}</span>
           <span className="cctv-cc__title-unit">live</span>
         </h2>
+        <div className="cctv-cc__streams mono" aria-live="polite">
+          <span className="num">{slotSnap.active}</span>
+          <span className="cctv-cc__streams-sep">/</span>
+          <span className="num">{slotSnap.cap}</span>
+          <span className="cctv-cc__streams-unit">streams</span>
+          {slotSnap.queued > 0 && (
+            <span className="cctv-cc__streams-queued num"> · {slotSnap.queued} QUEUED</span>
+          )}
+        </div>
       </header>
 
       <div className="cctv-cc__chips" role="group" aria-label="Status filter">
@@ -432,7 +482,7 @@ function CameraCell({ camera, tone, highlighted, onClick }: CellProps) {
         ) : !inView ? (
           <div className="cctv-cell__standby mono">SCROLL TO LOAD</div>
         ) : (
-          <div className="cctv-cell__standby mono">STANDBY</div>
+          <div className="cctv-cell__standby mono">QUEUED</div>
         )}
       </div>
       <div className="cctv-cell__meta">
