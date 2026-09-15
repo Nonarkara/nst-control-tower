@@ -23,30 +23,39 @@ function envInt(name: string, fallback: number, min: number, max: number): numbe
   return Number.isFinite(n) && n >= min && n <= max ? n : fallback;
 }
 
-// How many WHEP captures may run at once. Each is brief.
-const MAX_CONCURRENT = envInt("VITE_CCTV_MAX_CAPTURES", 4, 1, 8);
+// How many WHEP captures may run at once. Each is brief — the upstream
+// handshake is ~1 s, so 6 in parallel fills a screen in well under a second
+// and stays under the upstream's tolerance window.
+const MAX_CONCURRENT = envInt("VITE_CCTV_MAX_CAPTURES", 6, 1, 8);
 // Re-capture an in-view tile no more often than this — slow, so a filled wall
 // stays quiet against the upstream.
-const REFRESH_MS = 90_000;
+const REFRESH_MS = 60_000;
 
 // The upstream (MediaMTX) rate-limits hard: measured ~60 requests per window,
 // then HTTP 429 with NO CORS header — so from the browser a 429 preflight
 // surfaces as a CORS/"Failed to fetch" error with no status. We therefore
 // pace ourselves with a client-side token bucket kept well under that ceiling
 // (each capture spends ~2 requests: the preflight + the SDP POST).
-const BUCKET_CAPACITY = 8; // initial burst — fills the first screen, stays clear of the ceiling
-const REFILL_MS = 2_500; // then ~24 capture-starts/min sustained (~48 req/min)
+const BUCKET_CAPACITY = 12; // initial burst — fills the first screen + queue
+const REFILL_MS = 3_000;    // then ~20 capture-starts/min sustained (~40 req/min)
 // A capture that fails FAST (before the SDP round-trip could complete) is
 // almost certainly the 429-as-CORS-error. Pause ALL new starts briefly so the
 // limiter recovers (measured recovery ~6s), and drain the bucket.
 const FAST_FAIL_MS = 1_500;
-const GLOBAL_COOLDOWN_MS = 6_500;
+const GLOBAL_COOLDOWN_MS = 8_000;
 // Per-camera backoff after any failure, jittered so a wave of failures doesn't
 // retry in lockstep and re-trip the limiter.
-const CAMERA_BACKOFF_MS = 45_000;
-const CAMERA_BACKOFF_JITTER_MS = 20_000;
+const CAMERA_BACKOFF_MS = 20_000;
+const CAMERA_BACKOFF_JITTER_MS = 8_000;
 // Scheduler cadence.
 const TICK_MS = 400;
+// Safety net: every N ms, reset any camera that's been stuck in backoff
+// longer than this, so a sustained 429 can't lock out an entire wall.
+// Without this, after a wave of failures the bucket + per-camera backoffs
+// stack and the pool effectively stops cycling — only 4 cameras imaged
+// after an hour, because every other camera is in 45s backoff waiting for
+// the bucket to refill one token at a time.
+const KICK_STUCK_MS = 90_000;
 
 /** What a tile should show. `kind` drives the placeholder; `frame`, when
  *  present, is the still to paint (retained across capturing/error so a tile
@@ -126,6 +135,14 @@ function needsCapture(camId: string, now: number): boolean {
 function tick(): void {
   const now = Date.now();
   refillTokens(now);
+  // Safety net: any camera that's been sitting in backoff longer than
+  // KICK_STUCK_MS gets its eligibility cleared. Prevents the pool from
+  // locking out cameras forever after a sustained 429 storm.
+  for (const [camId, eligibleAt] of nextEligibleAt) {
+    if (now - eligibleAt > KICK_STUCK_MS) {
+      nextEligibleAt.delete(camId);
+    }
+  }
   // Global cooldown after a suspected rate-limit — hold all new starts.
   if (now < cooldownUntil) {
     stopTickingIfIdle();
