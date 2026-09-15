@@ -46,6 +46,16 @@ interface CollapsibleSectionProps {
   divided?: boolean;
 }
 
+/**
+ * Collapsible rail section.
+ *
+ * Children mount only while the section is open. A lens like FLOOD owns a dozen
+ * panels; if every collapsed body stayed mounted (display:none), switching into
+ * that lens committed WaterPanel + FloodCommand + UpstreamWatershed + … in one
+ * frame and froze the main thread — Playwright then timed out mid-click and CI
+ * reported aria-expanded stuck at "". Deferring the mount keeps collapsed tabs
+ * cheap and matches the rail's "scan headers, open what you need" UX.
+ */
 export function CollapsibleSection({
   storageKey,
   title,
@@ -60,10 +70,11 @@ export function CollapsibleSection({
   return (
     <div className={`sidebar-section${divided ? " sidebar-section--divided" : ""}${open ? " sidebar-section--open" : " sidebar-section--collapsed"}${className ? ` ${className}` : ""}`}>
       <button
+        type="button"
         className="sidebar-section__hdr"
         onClick={() => setOpen(!open)}
         aria-expanded={open}
-        aria-controls={`section-body-${storageKey}`}
+        aria-controls={open ? `section-body-${storageKey}` : undefined}
         title={open ? "Collapse section" : "Expand section"}
       >
         <span className="eyebrow mono">{title}</span>
@@ -71,17 +82,17 @@ export function CollapsibleSection({
           {open ? "▾" : "▸"}
         </span>
       </button>
-      {actions && !open && null}
-      <div
-        id={`section-body-${storageKey}`}
-        className="sidebar-section__body"
-        aria-hidden={!open}
-      >
-        {children}
-        {actions && (
-          <div className="sidebar-section__actions">{actions}</div>
-        )}
-      </div>
+      {open ? (
+        <div
+          id={`section-body-${storageKey}`}
+          className="sidebar-section__body"
+        >
+          {children}
+          {actions && (
+            <div className="sidebar-section__actions">{actions}</div>
+          )}
+        </div>
+      ) : null}
     </div>
   );
 }
