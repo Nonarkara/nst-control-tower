@@ -126,12 +126,8 @@ describe("LENSES", () => {
   });
 
   it("every layer referenced in a lens exists in ALL_LAYERS or is a legacy no-op", () => {
-    // Some layers may be legacy (still in LayerId union but not in ALL_LAYERS).
-    // We only verify that no lens references something completely unknown —
-    // specifically, all lens layers should be valid LayerId strings.
     const validLayerIds = new Set<string>([
       ...ALL_LAYERS.map((l) => l.id),
-      // Known legacy IDs kept for backward compat
       "municipality-boundary",
       "municipality-boundary-line",
       "municipality-boundary-fill",
@@ -182,6 +178,9 @@ describe("LENSES", () => {
     expect(flood!.layers).toContain("dam-status");
     expect(flood!.layers).toContain("flood-risk-zones");
     expect(flood!.layers).toContain("water-heatmap");
+    // street-flood-sim stays opt-in — the 18k-point HII survey must not land
+    // on every FLOOD lens entry (main-thread freeze / smoke timeouts).
+    expect(flood!.layers).not.toContain("street-flood-sim");
   });
 
   it("environment lens includes AirDash concentration heatmap", () => {
@@ -282,7 +281,6 @@ describe("COMPUTED_LAYERS", () => {
   });
 
   it("does NOT include live data-backed layers", () => {
-    // These layers have real FeatureCollections — their count badge is meaningful.
     const dataBacked: LayerId[] = [
       "ais-vessels",
       "civic-points",
@@ -297,7 +295,6 @@ describe("COMPUTED_LAYERS", () => {
   });
 
   it("all entries are valid LayerId strings (appear in LayerId type)", () => {
-    // We verify by checking each is either in ALL_LAYERS or the known legacy set
     const knownIds = new Set<string>([
       ...ALL_LAYERS.map((l) => l.id),
       "building-roofs", "cu-map-2015", "heritage-old-town", "heritage-temple-spires",
