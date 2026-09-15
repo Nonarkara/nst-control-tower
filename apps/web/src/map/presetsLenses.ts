@@ -1,0 +1,391 @@
+export type LensId = "operations" | "mobility" | "flood" | "environment" | "earth" | "security" | "poverty" | "safety" | "vibes" | "executive" | "intelligence";
+
+export type LayerId =
+  // Municipality core
+  | "municipality-boundary"
+  | "municipality-buildings"
+  | "neighborhood-buildings"
+  | "road-network"
+  // Maritime (new)
+  | "maritime-overlay"
+  | "port-infrastructure"
+  | "ferry-terminals"
+  | "ais-vessels"
+  | "navigation-aids"
+  | "distance-grid"
+  // Transit
+  | "transit-stations"
+  | "transit-lines"
+  // Live ops
+  | "traffic-heatmap"
+  | "incidents-itic"
+  | "incidents-city-reports"
+  | "cctv-cameras"
+  | "cctv-water-level"
+  // Open data
+  | "datago-points"
+  // Civic
+  | "civic-points"
+  | "waterways"
+  // Marine + risk
+  | "fisheries"
+  | "flood-risk-zones"
+  // National waterways + flood analysis
+  | "national-waterways"
+  | "national-flood-prone"
+  | "hii-tambon-risk"
+  | "unosat-2021-exposure"
+  // Yala — Deep South security
+  | "conflict-incidents"
+  | "conflict-choropleth"
+  | "security-news"
+  // Yala — outcome choropleths
+  | "poverty-choropleth"
+  // Yala — flood / hydrology
+  | "flood-gauges"
+  | "dam-status"
+  | "river-buffer"
+  | "watershed-nodes"
+  // NST — HII survey + WRF model
+  | "flood-marks"
+  | "street-flood-sim"
+  | "wrf-rain-grid"
+  // Flooddash southern analytics
+  | "south-province-watch"
+  | "south-river-cascade"
+  // Yala — circular-city signature + EO
+  | "ring-roads"
+  | "alphaearth-landcover"
+  | "alphaearth-floodprone"
+  // 3D Tiles
+  | "tile3d-buildings"
+  // Air quality
+  | "air4thai-stations"
+  | "air-heatmap"
+  // Sensor concentration washes (FloodDash water · AirDash air)
+  | "water-heatmap"
+  // GISTDA
+  | "gistda-pois"
+  | "gistda-solar"
+  | "gistda-landuse"
+  // News
+  | "news-pins"
+  // Imagery
+  | "satellite-esri"
+  | "satellite-viirs-truecolor"
+  | "satellite-night"
+  | "satellite-imerg"
+  | "satellite-aerosol"
+  | "satellite-no2"
+  | "satellite-true-color"
+  | "satellite-himawari"
+  | "satellite-ndvi"
+  | "satellite-lst"
+  | "satellite-flood"
+  | "satellite-terrain"
+  | "google-satellite"
+  | "google-traffic"
+  // (legacy IDs kept as no-op for backward compat — empty rendering)
+  | "campus-boundary"
+  | "campus-buildings"
+  | "campus-gates"
+  | "cu-lands"
+  | "cu-map-2015"
+  | "bma-pois"
+  | "bma-parks"
+  | "bma-aq-stations"
+  | "cu-shuttle-routes"
+  | "cu-shuttle-1"
+  | "cu-shuttle-2"
+  | "cu-shuttle-3"
+  | "cu-shuttle-4"
+  | "cu-shuttle-5"
+  | "cu-shuttle-stops"
+  | "cu-shuttle-vehicles"
+  | "utility-electricity"
+  | "utility-water"
+  | "utility-drainage"
+  | "utility-wifi-heat"
+  | "utility-wifi-points"
+  | "building-roofs"
+  | "municipality-boundary-line"
+  | "municipality-boundary-fill"
+  | "heritage-old-town"
+  | "heritage-temple-spires"
+  | "water-gauges"
+  | "rain-stations"
+  | "ews-stations"
+  | "terrain-3d"
+  | "waterway-flow"
+  | "precip-radar"
+  | "air-waqi-field";
+
+export type MapViewState =
+  | { kind: "lens"; lensId: LensId }
+  | { kind: "custom"; label: string };
+
+export function layerCanEnable(_id: LayerId): boolean {
+  return true;
+}
+
+export interface Lens {
+  id: LensId;
+  label: string;
+  describe: string;
+  layers: LayerId[];
+}
+
+export const LENSES: Lens[] = [
+  {
+    id: "executive",
+    label: "EXEC",
+    describe:
+      "Strategic — municipal boundary, the historic Old Town axis (Ratchadamnoen Rd), high-res satellite, transit + open-data POIs. Focused on Nakhon Si Thammarat City Municipality (~22.6 km²).",
+    layers: [
+      "municipality-boundary-line",
+      "municipality-buildings",
+      "ring-roads",
+      "satellite-esri",
+      "transit-stations",
+      "road-network",
+      "datago-points",
+      "gistda-pois",
+    ],
+  },
+  {
+    id: "operations",
+    label: "OPS",
+    describe: "Operations — every building in 3D, the Old Town axis, road network, civic POIs (hospitals/police/fire/schools/temples/markets), live traffic, incidents, CCTV. The default day-to-day view for the municipality.",
+    layers: [
+      "municipality-boundary-line",
+      "municipality-buildings",
+      "ring-roads",
+      "road-network",
+      "civic-points",
+      "traffic-heatmap",
+      "incidents-city-reports",
+      "incidents-itic",
+      "cctv-cameras",
+      "gistda-pois",
+      "news-pins",
+    ],
+  },
+  {
+    id: "flood",
+    label: "FLOOD",
+    describe: "Flood — the headline risk. Pak Phanang + Tha Dee river corridors + buffer, the upstream→city watershed cascade (ทุ่งสง · คีรีวง · ลานสกา → city), river/canal gauges (GloFAS), Khao Luang runoff, surveyed flood marks + street elevations (HII 2025) with the FLOOD COMMAND scenario, hand-authored flood-risk polygons, WRF-ROMS forecast rain.",
+    // Esri imagery + the flood-prone fill as the single colorizer + flood
+    // vectors (risk zones, river buffer, gauges). Tap IMERG rainfall to swap the
+    // colorizer to live rain — it replaces the flood-prone fill, so the map never
+    // shows competing blue + orange washes.
+    layers: [
+      "municipality-boundary-line",
+      "satellite-esri",
+      "river-buffer",
+      "waterways",
+      // waterway-flow is opt-in — particle animation keeps the GPU busy on
+      // every FLOOD entry and starves rail clicks under Playwright.
+      "watershed-nodes",
+      "water-heatmap",
+      "water-gauges",
+      "rain-stations",
+      "ews-stations",
+      "cctv-water-level",
+      "flood-gauges",
+      "dam-status",
+      "flood-marks",
+      // street-flood-sim is opt-in: the 2.1 MB / 18k-point HII road survey
+      // freezes the main thread if it lands on every FLOOD lens entry. Flood
+      // Command (and the layer toggle) pull it in when a scenario is armed.
+      "flood-risk-zones",
+      "alphaearth-floodprone",
+      "national-waterways",
+      "national-flood-prone",
+      "hii-tambon-risk",
+      "unosat-2021-exposure",
+      "south-province-watch",
+      "south-river-cascade",
+    ],
+  },
+  {
+    id: "mobility",
+    label: "MOB",
+    describe: "Mobility — road network, the Old Town axis, the SRT rail terminus + bus terminal + airport links, traffic heatmap, iTIC events, CCTV. For dispatch + routing across the long N–S city.",
+    layers: [
+      "municipality-boundary-line",
+      "ring-roads",
+      "road-network",
+      "transit-lines",
+      "transit-stations",
+      "traffic-heatmap",
+      "incidents-itic",
+      "cctv-cameras",
+    ],
+  },
+  {
+    id: "environment",
+    label: "ENV",
+    describe: "Environment — Esri high-res satellite, flood-risk polygons, waterways with live flow direction, AlphaEarth land cover (rubber/oil-palm vs forest), the AirDash air-quality field + stations, solar rooftop potential. Opt into MODIS NDVI/LST/AOD when zoomed out.",
+    layers: [
+      "municipality-boundary-line",
+      "municipality-buildings",
+      "satellite-esri",
+      "alphaearth-landcover",
+      "flood-risk-zones",
+      "waterways",
+      "waterway-flow",
+      "air-waqi-field",
+      "air-heatmap",
+      "air4thai-stations",
+      "gistda-solar",
+    ],
+  },
+  {
+    id: "earth",
+    label: "EAR",
+    describe: "EarthAlpha — earth-observation lens for rain, flood, heat, haze, greenery, land use, waterways, terrain relief, and AlphaEarth embeddings around Nakhon Si Thammarat, the Khao Luang massif, and the Pak Phanang basin.",
+    // 3D terrain relief as the base (the massif is the whole story here) + ONE
+    // colorizer (NDVI greenery) by default. Rain radar, IMERG, heat, haze, NO₂,
+    // land cover are one tap away in the Imagery group and swap in cleanly.
+    layers: [
+      "municipality-boundary-line",
+      "terrain-3d",
+      "waterways",
+      "waterway-flow",
+      "air4thai-stations",
+    ],
+  },
+  {
+    id: "safety",
+    label: "SAF",
+    describe: "Safety — flood-risk zones, surveyed flood marks, citizen reports (Traffy), iTIC, CCTV, waterways for drainage, hospitals + fire + police, MODIS flood detection.",
+    layers: [
+      "municipality-boundary-line",
+      "municipality-buildings",
+      "civic-points",
+      "waterways",
+      "flood-risk-zones",
+      "flood-marks",
+      "water-gauges",
+      "ews-stations",
+      "incidents-city-reports",
+      "incidents-itic",
+      "cctv-cameras",
+    ],
+  },
+  {
+    id: "vibes",
+    label: "VIB",
+    describe: "Vibes — pretty view. Municipal boundary + the Old Town axis + MODIS true-color satellite. Use this when presenting Nakhon Si Thammarat at a glance.",
+    layers: ["municipality-boundary-line", "ring-roads", "satellite-true-color"],
+  },
+  {
+    id: "intelligence",
+    label: "INT",
+    describe: "Integrated Intelligence — TimesFM rainfall/flood forecast alerts wired to Earth Observation. Click any forecast metric in the left rail to activate its map layer. Pairs with the Predictive Intelligence and Earth Obs panels.",
+    layers: [
+      "municipality-boundary-line",
+      "satellite-imerg",
+      "satellite-ndvi",
+      "flood-risk-zones",
+      "flood-gauges",
+      "incidents-city-reports",
+      "waterways",
+    ],
+  },
+];
+
+// ─── Layer exclusivity ─────────────────────────────────────────────────
+// Some layers tint the ENTIRE map. Stacking several translucent ones turns the
+// map into unreadable mud (rainfall blue + vegetation green + heat orange + a
+// flood fill, all at ~70% opacity). So two groups behave like radio buttons:
+// at most ONE base satellite and ONE full-area "colorize" overlay at a time.
+
+/** The map background. Pick exactly one. */
+export const SATELLITE_BASE_LAYERS: LayerId[] = [
+  "satellite-esri",
+  "satellite-true-color",
+  "satellite-viirs-truecolor",
+  "satellite-night",
+  "satellite-himawari",
+  "satellite-terrain",
+  "terrain-3d",
+];
+
+/** Full-area data overlays that colour the whole map. Pick at most one. */
+export const MAP_COLORIZE_LAYERS: LayerId[] = [
+  "satellite-imerg",        // rainfall
+  "satellite-ndvi",         // vegetation
+  "satellite-lst",          // land temperature
+  "satellite-aerosol",      // haze / AOD
+  "satellite-no2",          // air pollution
+  "satellite-flood",        // MODIS flood detection
+  "alphaearth-landcover",   // land classification
+  "alphaearth-floodprone",  // flood-prone areas
+];
+
+const EXCLUSIVE_GROUPS: LayerId[][] = [SATELLITE_BASE_LAYERS, MAP_COLORIZE_LAYERS];
+
+/** The exclusive group a layer belongs to, or null if it stacks freely. */
+export function exclusiveGroupOf(id: LayerId): LayerId[] | null {
+  return EXCLUSIVE_GROUPS.find((g) => g.includes(id)) ?? null;
+}
+
+/**
+ * Keep the map readable by allowing at most one member of each exclusive group.
+ * `prefer` (e.g. a just-toggled layer) wins within its group; otherwise the
+ * first one encountered in `ids` is kept.
+ */
+export function enforceLayerExclusivity(ids: Iterable<LayerId>, prefer?: LayerId): Set<LayerId> {
+  const out = new Set<LayerId>(ids);
+  for (const group of EXCLUSIVE_GROUPS) {
+    const present = group.filter((g) => out.has(g));
+    if (present.length <= 1) continue;
+    const keep = prefer && present.includes(prefer) ? prefer : present[0];
+    for (const g of present) if (g !== keep) out.delete(g);
+  }
+  return out;
+}
+
+export type LayerGroup = "municipality" | "security" | "maritime" | "mobility" | "incidents" | "open-data" | "imagery" | "environment";
+
+export const LAYER_GROUP_LABEL: Record<LayerGroup, string> = {
+  municipality: "Municipality",
+  security:     "Security (legacy)",
+  maritime:     "Maritime (legacy)",
+  mobility:     "Mobility",
+  incidents:    "Incidents",
+  "open-data":  "Open data",
+  imagery:      "Imagery",
+  environment:  "Environment",
+};
+
+// ─── Satellite freshness ───────────────────────────────────────────────
+// NASA GIBS products have different latency between the satellite pass
+// and tile publication. Numbers below are the typical "delay in days"
+// from the user's local now → the publicly served tile.
+const SATELLITE_DELAY_DAYS: Partial<Record<LayerId, number>> = {
+  "satellite-true-color":         1,    // MODIS Terra ~24-36 h
+  "satellite-viirs-truecolor":    1,    // VIIRS NOAA-20 ~24 h
+  "satellite-night":              1,    // VIIRS Day/Night Band ~24 h
+  "satellite-himawari":           0,    // Himawari Band 13 — 10 min
+  "satellite-imerg":              0,    // IMERG half-hourly, ~6 h delay
+  "satellite-ndvi":               8,    // MODIS NDVI 8-day composite
+  "satellite-lst":                1,    // MODIS LST day ~36 h
+  "satellite-aerosol":            1,    // MAIAC AOD ~24 h
+  "satellite-no2":                1,    // OMI NO2 ~24 h
+  "satellite-flood":              3,    // MODIS 3-day combined flood
+  "satellite-esri":               0,    // Esri mosaic — not date-specific
+  "satellite-terrain":            0,    // OpenTopoMap — vector, static
+};
+
+export function satelliteFreshness(id: LayerId): { label: string; date: string } | null {
+  const d = SATELLITE_DELAY_DAYS[id];
+  if (d == null) return null;
+  const t = new Date();
+  t.setUTCDate(t.getUTCDate() - d);
+  const date = t.toISOString().slice(0, 10);
+  if (d === 0) return { label: "LIVE", date };
+  if (d === 1) return { label: "Y’DAY", date };
+  return { label: `${d}D AGO`, date };
+}
