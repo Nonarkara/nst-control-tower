@@ -1,5 +1,6 @@
 import type { AirQualityPoint, FallbackTier, RainfallStation, WaterGauge } from "@nst/shared";
 import { PanelHeader } from "./PanelHeader";
+import { WaterFlowPicture } from "./WaterFlowPicture";
 import {
   bandLabel,
   bandStatus,
@@ -44,13 +45,6 @@ function fmt1(n: number | null, unit = ""): string {
 function fmt0(n: number | null, unit = ""): string {
   if (n == null || !Number.isFinite(n)) return "—";
   return `${Math.round(n)}${unit}`;
-}
-
-function trendGlyph(t: WaterGauge["trend"] | "unknown"): string {
-  if (t === "rising") return "▲";
-  if (t === "falling") return "▼";
-  if (t === "stable") return "→";
-  return "·";
 }
 
 function BandLabel({ band }: { band: SituationBand }) {
@@ -170,38 +164,9 @@ export function SensorSituationBoard({
         {flow.length >= 2 && (
           <div className="pc-section">
             <h4 className="pc-label" id="sit-flow-label">
-              FLOW · <span lang="th">คลองท่าดี</span> → CITY
+              FLOW · <span lang="th">น้ำไหลจากเขาลงเมือง</span> · mountains → city
             </h4>
-            <ol className="sit-flow" aria-labelledby="sit-flow-label">
-              {flow.map((step, i) => {
-                const level = situationLevelStatus(step.situationLevel);
-                return (
-                  <li key={step.nameEn} className="sit-flow__item">
-                    <button
-                      type="button"
-                      className="sit-flow__node"
-                      onClick={() => onFocus(step.lng, step.lat)}
-                      title={`${step.name} / ${step.nameEn}`}
-                    >
-                      <span className="sit-flow__name" lang="th">{step.name}</span>
-                      <span className="sit-flow__num num">
-                        {fmt1(step.levelM, " m")} <span aria-hidden="true">{trendGlyph(step.trend)}</span>
-                        <span className="visually-hidden"> {step.trend}</span>
-                      </span>
-                      <span className="sit-flow__fb num">
-                        {step.freeboardM == null
-                          ? "—"
-                          : step.freeboardM >= 0
-                            ? `${fmt1(step.freeboardM)} m free`
-                            : `${fmt1(-step.freeboardM)} m OVER`}
-                      </span>
-                      {level !== "normal" && <StatusText level={level}>{STATUS[level].en}</StatusText>}
-                    </button>
-                    {i < flow.length - 1 && <span className="sit-flow__arrow" aria-hidden="true">→</span>}
-                  </li>
-                );
-              })}
-            </ol>
+            <WaterFlowPicture steps={flow} fallbackTier={fallbackTier} />
           </div>
         )}
 
