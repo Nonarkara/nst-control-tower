@@ -1127,3 +1127,63 @@ export interface DamageHotspotSummary {
   recordCount: number;
   latestYear: number;
 }
+
+// ---- GISTDA water (gistdaportal ArcGIS FeatureServers, token-free reads) ----
+
+/** A physical water-level post — เสาระดับ (painted staff gauge) or a small
+ *  telemetry unit — from GISTDA `Hosted/สถานีวัดระดับน้ำ`. Static reference
+ *  (uploaded 2021); the municipal WL cameras point at these posts. */
+export interface GistdaLevelPost {
+  id: string;
+  name: string;
+  /** Waterway the post stands in, e.g. คลองท่าดี. */
+  river: string;
+  kind: "post" | "telemetry";
+  /** Highest level recorded on the post (m), null/0 = not recorded. */
+  vMaxM: number | null;
+  amphoe: string;
+  province: string;
+  lat: number;
+  lng: number;
+}
+
+/** Latest reading per station from GISTDA `Hosted/GISTDA_FLOOD` — a national
+ *  water-level aggregation with bank level + GISTDA's own alert class. A
+ *  periodically re-uploaded snapshot, NOT a live feed (observations lag the
+ *  clock by weeks); useful as an independent cross-check of the HII ThaiWater
+ *  gauges and for its แจ้งเตือน / อันตราย vocabulary. */
+export interface GistdaFloodStation {
+  stationCode: string;
+  name: string;
+  amphoe: string;
+  tambon: string;
+  basin: string | null;
+  levelM: number | null;
+  bankM: number | null;
+  groundM: number | null;
+  /** GISTDA `percentage` — level relative to bank (can exceed 100). */
+  fullnessPct: number | null;
+  dischargeCms: number | null;
+  classify: "normal" | "alert" | "danger" | "unknown";
+  classifyTh: string | null;
+  observedAt: string | null;
+  lat: number;
+  lng: number;
+}
+
+/** Tambon-level flooded area from GISTDA `Hosted/3dayflood` — a SAR-derived
+ *  extent snapshot of the Nov 2025 southern flood (item created 2025-11-25).
+ *  Reference tier: "which tambons flooded last time", not live water. */
+export interface GistdaFloodExtentTambon {
+  tambonCode: string;
+  tambon: string;
+  amphoe: string;
+  province: string;
+  floodAreaRai: number | null;
+  floodAreaSqm: number | null;
+  houses: number | null;
+  lat: number;
+  lng: number;
+  /** Outer rings, [lng, lat], simplified upstream (maxAllowableOffset). */
+  rings: [number, number][][];
+}

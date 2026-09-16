@@ -45,6 +45,7 @@ import { fetchRidReservoirs } from "./adapters/rid.js";
 import { fetchFlights } from "./adapters/flights.js";
 import { fetchDatagoPoints, fetchDatagoDatasets, fetchReservoirs, fetchDisasterStats, fetchFahfon, fetchProvincialKPIs } from "./adapters/datago.js";
 import { fetchLocalCatalog } from "./adapters/localCatalog.js";
+import { fetchGistdaLevelPosts, fetchGistdaFloodStations, fetchGistdaFloodExtent } from "./adapters/gistdaWater.js";
 import { fetchTourismVisitors } from "./adapters/tourism-visitors.js";
 import { fetchFacebookPosts } from "./adapters/facebook.js";
 import { buildAtlasSnapshot, getAtlasModule, ATLAS_SOURCES } from "./data/index.js";
@@ -168,6 +169,9 @@ app.get("/", (c) =>
       "/api/gistda/poi",
       "/api/gistda/solar",
       "/api/gistda/landuse",
+      "/api/gistda/level-posts",
+      "/api/gistda/flood-stations",
+      "/api/gistda/flood-extent",
       "/api/nasa/earth-readings",
       "/api/quakes",
     ],
@@ -556,6 +560,9 @@ app.get("/api/gistda/solar",   async (c) => {
   return safeFeed(c, () => fetchGistdaSolar(month), "gistda-solar");
 });
 app.get("/api/gistda/landuse", async (c) => safeFeed(c, fetchGistdaLandUse, "gistda-landuse"));
+app.get("/api/gistda/level-posts",    async (c) => safeFeed(c, fetchGistdaLevelPosts, "gistda-level-posts"));
+app.get("/api/gistda/flood-stations", async (c) => safeFeed(c, fetchGistdaFloodStations, "gistda-flood-stations"));
+app.get("/api/gistda/flood-extent",   async (c) => safeFeed(c, fetchGistdaFloodExtent, "gistda-flood-extent"));
 app.get("/api/nasa/earth-readings", async (c) => safeFeed(c, fetchNasaEarth, "nasa-power"));
 app.get("/api/quakes", async (c) => safeFeed(c, fetchQuakes, "usgs-quakes"));
 app.get("/api/social/facebook", async (c) =>

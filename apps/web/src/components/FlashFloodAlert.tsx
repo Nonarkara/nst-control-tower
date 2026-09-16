@@ -50,6 +50,8 @@ interface Props {
   onDismissAuto?: () => void;
 }
 
+const AUTO_OPEN_LATCH_KEY = "nst:flashFloodAlert:autoShown";
+
 function bandColor(band: FfpiBand): string {
   const sl = ffpiBandToStatusLevel(band);
   return rgbaString(statusRgba(sl, 230));
@@ -94,8 +96,20 @@ export function FlashFloodAlert({
   const topBand = rows[0]?.ffpi.band ?? "normal";
   const shouldAuto = autoOpenOnAlert && (topBand === "prepare" || topBand === "critical");
 
+  // Once per browser session, not once per lens switch. Every FLOOD / ENV /
+  // INT entry used to re-mount this component and re-fire the auto-open,
+  // so during an active alert the operator got a modal in the face — and a
+  // click-blocking overlay — every time they changed lens. The trigger
+  // button stays for "show me the worst right now".
   useEffect(() => {
-    if (shouldAuto) setAutoShown(true);
+    if (!shouldAuto) return;
+    try {
+      if (sessionStorage.getItem(AUTO_OPEN_LATCH_KEY) === "1") return;
+      sessionStorage.setItem(AUTO_OPEN_LATCH_KEY, "1");
+    } catch {
+      /* storage blocked — fall through and behave as before (auto-open) */
+    }
+    setAutoShown(true);
   }, [shouldAuto]);
 
   if (rows.length === 0) return null;

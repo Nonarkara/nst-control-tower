@@ -23,6 +23,12 @@ export function useWaterwayFlow(
   prepared: PreparedFlowLine[],
   visible: boolean,
   zoomBucket: 0 | 1 | 2 = 2,
+  /** The caller passes a pre-thinned trunk set at province/city zoom
+   *  (lib/thaDee.ts isTrunkWaterway) and sets this so the LOD gate lifts —
+   *  a few hundred dots on the main rivers is the "which way is the water
+   *  going" cue the operator asked for; the full ~4k-dot network still waits
+   *  for street zoom. */
+  overview = false,
 ): {
   layer: ScatterplotLayer<WaterwayFlowDot> | null;
 } {
@@ -31,15 +37,17 @@ export function useWaterwayFlow(
   const reducedMotion = usePrefersReducedMotion();
 
   useEffect(() => {
-    // LOD: skip the heavy ~4k-dot animation at province/city scale (zoom 0/1).
-    // waterwayFlowLayer also returns null when zoomBucket !== 2, but stopping
-    // the rAF loop entirely saves the per-frame work too.
-    if (!visible || prepared.length === 0 || zoomBucket !== 2) {
+    // LOD: skip the heavy ~4k-dot animation at province/city scale (zoom 0/1)
+    // unless the caller handed us the trunk subset. waterwayFlowLayer applies
+    // the same gate, but stopping the rAF loop entirely saves the per-frame
+    // work too.
+    if (!visible || prepared.length === 0 || (zoomBucket !== 2 && !overview)) {
       setLayer(null);
       return;
     }
+    const opts = { overview };
     if (reducedMotion) {
-      setLayer(waterwayFlowLayer(waterwayFlowDots(prepared, 0), zoomBucket));
+      setLayer(waterwayFlowLayer(waterwayFlowDots(prepared, 0), zoomBucket, opts));
       return;
     }
     const start = performance.now();
@@ -47,7 +55,7 @@ export function useWaterwayFlow(
     const tick = (now: number) => {
       if (now - lastUpdate >= UPDATE_INTERVAL_MS) {
         lastUpdate = now;
-        setLayer(waterwayFlowLayer(waterwayFlowDots(prepared, now - start), zoomBucket));
+        setLayer(waterwayFlowLayer(waterwayFlowDots(prepared, now - start), zoomBucket, opts));
       }
       rafRef.current = requestAnimationFrame(tick);
     };
@@ -55,7 +63,7 @@ export function useWaterwayFlow(
     return () => {
       if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
     };
-  }, [visible, prepared, zoomBucket, reducedMotion]);
+  }, [visible, prepared, zoomBucket, reducedMotion, overview]);
 
   return { layer };
 }
