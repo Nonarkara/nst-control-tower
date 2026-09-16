@@ -1686,18 +1686,17 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
     // vanishes together with the bands when the operator turns them off.
     //
     // The picture's shapes are a FIXED geographic size (~4.4 km, see SCALE in
-    // waterSystemPictureLayer) so they read as a small pictogram at province/
-    // city scale — but at street scale (zoomBucket 2) that same ~4.4 km
-    // "city block" cartoon dwarfs the real buildings and roads underneath it,
-    // rendering as an opaque grey slab over several real city blocks. Drop it
-    // once the operator has zoomed in far enough that the real map should
-    // carry the detail instead of the picture-book stand-in.
-    // Opt-in only (`water-pictures` toggle): it no longer rides watershed-nodes,
-    // so the default FLOOD map shows the river and the sensors, not cartoons.
+    // waterSystemPictureLayer) so they read as a small pictogram at province
+    // zoom — but at city / street scale that same ~4.4 km "city block"
+    // cartoon dwarfs the real buildings and roads underneath it, rendering
+    // as an opaque grey slab over several real city blocks. Drop it once
+    // the operator has zoomed in far enough that the real map should
+    // carry the detail instead of the picture-book stand-in. Only show at
+    // zoomBucket 0 (province scale) where the cartoon is a small icon.
     if (
       enabledLayers.has("water-pictures") &&
       waterGauges.data.length > 0 &&
-      zoomBucket !== 2
+      zoomBucket === 0
     ) {
       out.push(...(waterSystemPictureLayer(watershedSummaries) as Layer[]));
       // Flood story — 7 numbered stages from rain to bay. Tells the

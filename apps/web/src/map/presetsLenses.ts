@@ -120,7 +120,9 @@ export type LayerId =
   | "terrain-3d"
   | "waterway-flow"
   | "precip-radar"
-  | "air-waqi-field";
+  | "air-waqi-field"
+  | "level-posts"
+  | "flood-extent-2025";
 
 export type MapViewState =
   | { kind: "lens"; lensId: LensId }
@@ -164,7 +166,6 @@ export const LENSES: Lens[] = [
       "ring-roads",
       "road-network",
       "civic-points",
-      "water-pictures",
       "traffic-heatmap",
       "incidents-city-reports",
       "incidents-itic",
@@ -197,19 +198,25 @@ export const LENSES: Lens[] = [
       "rain-stations",
       "ews-stations",
       "cctv-water-level",
+      "level-posts",
       "flood-gauges",
       "dam-status",
       "flood-marks",
       // street-flood-sim is opt-in: the 2.1 MB / 18k-point HII road survey
       // freezes the main thread if it lands on every FLOOD lens entry. Flood
       // Command (and the layer toggle) pull it in when a scenario is armed.
-      "flood-risk-zones",
+      // NOT flood-risk-zones by default: five hand-drawn 5-vertex boxes
+      // (public/geo/nst/flood-risk.geojson) — they read as random rectangles
+      // over the real map. The GISTDA SAR footprint below is the real thing.
+      "flood-extent-2025",
       "alphaearth-floodprone",
       "national-waterways",
       "national-flood-prone",
       "hii-tambon-risk",
       "unosat-2021-exposure",
-      "south-province-watch",
+      // NOT south-province-watch by default: it fills the whole province with
+      // a ~80%-alpha status colour, which at the lens's default zoom is the
+      // entire viewport painted orange. Still a toggle for regional context.
       "south-river-cascade",
       // NOT precip-radar here: alphaearth-floodprone above is this lens's one
       // MAP_COLORIZE_LAYERS member already (see the exclusivity comment on
