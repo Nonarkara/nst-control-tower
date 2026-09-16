@@ -193,6 +193,12 @@ export const LENSES: Lens[] = [
       // the map. ENV/EAR already pull this in; FLOOD needs it too because
       // surface flow direction is the key piece of the water-ecosystem view.
       "waterway-flow",
+      // Kid-readable flood overlay — every river + canal painted with the
+      // status colour of its nearest upstream WaterGauge (cyan = calm,
+      // orange = warning, red = critical, width-scaled 4–12 px so a
+      // 5-year-old sees "this river is dangerous today". The headline risk
+      // lens must carry it by default.
+      "flood-risk-overlay",
       "watershed-nodes",
       "ffpi-pins",
       "water-heatmap",

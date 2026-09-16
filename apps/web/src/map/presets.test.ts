@@ -171,16 +171,29 @@ describe("LENSES", () => {
     expect(LENSES.find((l) => l.id === "poverty")).toBeUndefined();
   });
 
-  it("flood lens includes river + dam + flood-risk layers", () => {
+  it("flood lens includes river + dam + the real flood footprint, not the hand-drawn boxes", () => {
     const flood = LENSES.find((l) => l.id === "flood");
     expect(flood).toBeDefined();
     expect(flood!.layers).toContain("flood-gauges");
     expect(flood!.layers).toContain("dam-status");
-    expect(flood!.layers).toContain("flood-risk-zones");
+    // GISTDA SAR footprint (Nov 2025) replaces the five hand-drawn
+    // flood-risk boxes as the default "where it floods" layer; the boxes
+    // stay toggleable but read as random rectangles on the live map.
+    expect(flood!.layers).toContain("flood-extent-2025");
+    expect(flood!.layers).not.toContain("flood-risk-zones");
+    // The province-wide choropleth is opt-in too — at the lens's default
+    // zoom it painted the entire viewport one status colour.
+    expect(flood!.layers).not.toContain("south-province-watch");
+    expect(flood!.layers).toContain("level-posts");
     expect(flood!.layers).toContain("water-heatmap");
     // street-flood-sim stays opt-in — the 18k-point HII survey must not land
     // on every FLOOD lens entry (main-thread freeze / smoke timeouts).
     expect(flood!.layers).not.toContain("street-flood-sim");
+    // The headline FLOOD lens must carry the kid-readable flood overlay by
+    // default — colour-coded waterways + width-scaled so a 5-year-old sees
+    // "this river is dangerous today". It belongs here as much as the
+    // gauges themselves.
+    expect(flood!.layers).toContain("flood-risk-overlay");
   });
 
   it("environment lens includes AirDash concentration heatmap", () => {
