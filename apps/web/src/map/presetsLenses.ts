@@ -47,6 +47,7 @@ export type LayerId =
   | "river-buffer"
   | "watershed-nodes"
   | "water-pictures"
+  | "ffpi-pins"
   // NST — HII survey + WRF model
   | "flood-marks"
   | "street-flood-sim"
@@ -190,6 +191,7 @@ export const LENSES: Lens[] = [
       // surface flow direction is the key piece of the water-ecosystem view.
       "waterway-flow",
       "watershed-nodes",
+      "ffpi-pins",
       "water-heatmap",
       "water-gauges",
       "rain-stations",

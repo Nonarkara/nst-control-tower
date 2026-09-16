@@ -109,6 +109,7 @@ import {
   etaArcRingsLayer,
   flowInfoGraphicLayer,
   floodStoryLayer,
+  ffpiPinsLayer,
   waterSystemPictureLayer,
   waterGaugesLayer,
   waterLevelHeatmapLayer,
@@ -195,6 +196,8 @@ import { MobileNav, type MobilePanel } from "./components/MobileNav";
 import { ChatBox } from "./components/ChatBox";
 import { LiveCascadeReadout } from "./components/LiveCascadeReadout";
 import { FloodStoryCard } from "./components/FloodStoryCard";
+import { FlashFloodAlert } from "./components/FlashFloodAlert";
+import { rankFfpi } from "./lib/flashFlood";
 import { PredictivePanel, METRIC_LAYER_MAP, METRIC_LABEL, type ForecastMetric } from "./components/PredictivePanel";
 import { ExecutiveBriefing } from "./components/ExecutiveBriefing";
 import { API_BASE } from "./lib/apiBase";
@@ -1364,6 +1367,21 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
     () => summarizeWatershed(waterGauges.data, waterRain.data, ewsStations.data, floodGauges.data),
     [waterGauges.data, waterRain.data, ewsStations.data, floodGauges.data],
   );
+
+  // Per-amphoe FFPI rollup — feeds both the on-map pins (overflow band ↑
+  // visible) and the FlashFloodAlert popup. Computed once at memo so the
+  // pins don't recompute per render.
+  const ffpiRank = useMemo(() => {
+    const buckets = new Map<string, WaterGauge[]>();
+    for (const g of waterGauges.data) {
+      const key = (g.amphoe ?? "").toLowerCase().replace(/\s+/g, " ").trim();
+      if (!key) continue;
+      let l = buckets.get(key);
+      if (!l) { l = []; buckets.set(key, l); }
+      l.push(g);
+    }
+    return rankFfpi({ rain: waterRain.data, ews: ewsStations.data, gaugesByAmphoe: buckets, limit: 12 });
+  }, [waterRain.data, ewsStations.data, waterGauges.data]);
   // Live sensor signal cards — recomputed whenever any telemetry feed lands.
   const sensorInsights = useMemo(
     () =>
@@ -1619,6 +1637,13 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
       // "how does a flood happen" picture-book story in geographic form;
       // rides the same toggle as the picture so they appear together.
       out.push(...(floodStoryLayer(watershedSummaries) as Layer[]));
+      // FFPI pins — top at-risk sub-districts by flash-flood score, sized
+      // + coloured per band. Renders only when the watershed toggle is
+      // on (same condition as the picture + story above) so the user gets
+      // a coherent water-system view without toggling each layer.
+      if (enabledLayers.has("ffpi-pins")) {
+        out.push(...(ffpiPinsLayer(ffpiRank) as Layer[]));
+      }
     }
     // ── Live sensor telemetry dots — every dot hovers to a real reading ────
     if (enabledLayers.has("rain-stations") && waterRain.data.length > 0)
@@ -2540,6 +2565,19 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
             className="fsc fsc--overlay"
           />
         )}
+      {/* Flash flood alert — ONWR-style popup surfaced automatically when
+          any sub-district crosses `prepare` or `critical` band. The map
+          pins surface the same data geographically; the modal explains
+          the maths in plain Thai/English. Trigger button stays available
+          on FLOOD / ENV / INT lenses regardless of band so a user can
+          always see "what's currently the worst?". */}
+      {(lens === "flood" || lens === "environment" || lens === "intelligence") && (
+        <FlashFloodAlert
+          rain={waterRain.data}
+          ews={ewsStations.data}
+          gauges={waterGauges.data}
+        />
+      )}
       {shortcutsOpen && (
         <ShortcutsDialog
           lenses={LENSES}

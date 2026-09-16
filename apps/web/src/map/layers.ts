@@ -4869,3 +4869,90 @@ export function southRiverCascadeLayer(reaches: SouthernRiverReach[]): Layer[] {
     }) as Layer,
   ];
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  FFPI map layer — flash-flood potential pins
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// Renders the top-N per-amphoe FFPI rows as a tinted dot layer over the
+// watershed nodes. Colour is the same status palette used by the popup
+// (normal → good, watch → warn, prepare → alert, critical → bad). Pins are
+// sized by score so critical-band amphoes are immediately eye-catching.
+//
+// Z-order: sits ABOVE watershed markers (so FFPI wins the eye test) but
+// BELOW floating chart overlays (chips / legends) so chips stay legible.
+
+import { FfpiRow, ffpiBandToStatusLevel } from "../lib/flashFlood";
+import type { FfpiBand } from "../lib/flashFlood";
+
+const FFPI_PIN_RGB: Record<FfpiBand, [number, number, number]> = {
+  normal:  [76, 194, 122],
+  watch:   [240, 180, 41],
+  prepare: [255, 154, 61],
+  critical: [255, 107, 94],
+};
+
+interface FfpiPin {
+  position: [number, number];
+  band: FfpiBand;
+  score: number;
+  amphoe: string;
+  tambon: string;
+  rain24hMm: number | null;
+  ewsStatus: number | null;
+}
+
+function pinsForRows(rows: FfpiRow[]): FfpiPin[] {
+  const pins: FfpiPin[] = [];
+  for (const r of rows) {
+    if (r.ffpi.band === "normal") continue; // normal-band amphoes don't get a pin
+    pins.push({
+      position: [r.lng, r.lat],
+      band: r.ffpi.band,
+      score: r.ffpi.score,
+      amphoe: r.amphoe,
+      tambon: r.tambon,
+      rain24hMm: r.rain24hMm,
+      ewsStatus: r.ewsStatus,
+    });
+  }
+  return pins;
+}
+
+export function ffpiPinsLayer(rows: FfpiRow[]): Layer[] {
+  const pins = pinsForRows(rows);
+  if (pins.length === 0) return [];
+
+  // One ScatterplotLayer per band — keeps state loads cheap (no per-pin
+  // data lookup, no filter accessors) and lets deck.gl pick the right
+  // per-layer uniform colour without switching vertex-by-vertex.
+  const layers: Layer[] = [];
+  for (const band of ["watch", "prepare", "critical"] as FfpiBand[]) {
+    const subset = pins.filter((p) => p.band === band);
+    if (subset.length === 0) continue;
+    const c = FFPI_PIN_RGB[band];
+    layers.push(
+      new ScatterplotLayer<FfpiPin>({
+        id: `ffpi-pin-${band}`,
+        data: subset,
+        getPosition: (d) => d.position,
+        getRadius: (d) => (band === "critical" ? 220 : band === "prepare" ? 170 : 130),
+        radiusUnits: "meters",
+        radiusMinPixels: band === "critical" ? 8 : 6,
+        radiusMaxPixels: band === "critical" ? 18 : 14,
+        getFillColor: [c[0], c[1], c[2], 230] as [number, number, number, number],
+        stroked: true,
+        getLineColor: [255, 255, 255, 230] as [number, number, number, number],
+        lineWidthMinPixels: 1.5,
+        pickable: true,
+        parameters: { depthWriteEnabled: false, depthCompare: "always" },
+      }) as Layer,
+    );
+  }
+  return layers;
+}
+
+// Re-export of the FFPI surface so callers can render the popup in
+// parallel with the layer without needing to import two paths.
+export type { FfpiRow };
+export { ffpiBandToStatusLevel };

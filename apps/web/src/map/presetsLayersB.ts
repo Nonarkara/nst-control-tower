@@ -27,6 +27,8 @@ export const ALL_LAYERS_PART_B: LayerEntry[] = [
     describe: "Google DeepMind AlphaEarth Foundations embeddings classified into land cover (rubber / oil-palm plantation vs forest vs built-up vs water) for the Nakhon Si Thammarat basin. Pre-computed from Earth Engine; ships as static GeoJSON." },
   { id: "alphaearth-floodprone", label: "AlphaEarth flood-prone", swatch: "#56B4E9", group: "environment",
     describe: "AlphaEarth + DEM-derived flood-prone / historically-inundated land classification around the Pak Phanang basin and the Tha Dee / Khao Luang runoff corridor." },
+  { id: "ffpi-pins",         label: "Flash-flood FFPI pins",      swatch: "#FF6B5E", group: "environment",
+    describe: "Top at-risk sub-districts by FFPI (rain + soil + DWR EWS status). Auto-bands: 0–2 น้อย, 2–4 ปานกลาง, 4–6 เตรียมพร้อม, 6+ วิกฤติ. Same scoring ONWR publishes; sized + colour-coded so critical amphoes are immediately visible at city zoom." },
   { id: "flood-marks",       label: "Flood marks (surveyed)",    swatch: "#DC2626", group: "environment",
     describe: "Real surveyed high-water marks (HII MMS survey 2025, m MSL, cm accuracy) read off walls and poles in the city's eastern lowland — red = Tropical Storm Pabuk (Jan 2019, up to 2.12 m MSL), amber = ordinary flood season (up to 1.76 m). The ground truth every scenario is judged against." },
   { id: "street-flood-sim",  label: "Street levels / flood scenario", swatch: "#3B82F6", group: "environment",
