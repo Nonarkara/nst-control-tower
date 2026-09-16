@@ -160,7 +160,7 @@ export const LENSES: Lens[] = [
   {
     id: "operations",
     label: "OPS",
-    describe: "Operations — every building in 3D, the Old Town axis, road network, civic POIs (hospitals/police/fire/schools/temples/markets), live traffic, incidents, CCTV. The default day-to-day view for the municipality.",
+    describe: "Operations — every building in 3D, the Old Town axis, road network, civic POIs (hospitals/police/fire/schools/temples/markets), live traffic, incidents, CCTV. The default day-to-day view for the municipality. Carries the kid-readable watershed cascade (mountain → upstream → city → bay) so the day-to-day view tells the water story too, not just the road story.",
     layers: [
       "municipality-boundary-line",
       "municipality-buildings",
@@ -168,6 +168,16 @@ export const LENSES: Lens[] = [
       "road-network",
       "civic-points",
       "flood-risk-overlay",
+      // Kid-readable water ecosystem on the default lens — the cascade subway
+      // line, animated flow dots, and the mountain / city / bay pictogram all
+      // appear at province zoom out of the box. A 5-year-old opening the
+      // dashboard sees "water comes from the mountain, flows through the
+      // cascade, into the bay" without reading a single label. Operators
+      // who only ever live on OPS also get the flash-flood risk pins.
+      "watershed-nodes",
+      "waterway-flow",
+      "water-pictures",
+      "ffpi-pins",
       "traffic-heatmap",
       "incidents-city-reports",
       "incidents-itic",

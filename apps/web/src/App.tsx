@@ -112,6 +112,7 @@ import {
   floodStoryLayer,
   ffpiPinsLayer,
   waterSystemPictureLayer,
+  metroRouteLayer,
   waterGaugesLayer,
   waterLevelHeatmapLayer,
   waterLevelDensityFallbackLayer,
@@ -1690,6 +1691,14 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
     // rail panels (WATERSHED // UPSTREAM → CITY, Water Balance).
     if (enabledLayers.has("watershed-nodes") && waterGauges.data.length > 0) {
       out.push(...(watershedNodesLayer(watershedSummaries, waterBalance.data, thaDeeFlow) as Layer[]));
+      // Kid-readable "subway" line on top of the cascade — same data, but
+      // rendered with the metro-map metaphor (rounded status-coloured stroke
+      // + station markers at KW / LS / CITY / Bay + bilingual labels). This
+      // is the headline "kindergarten water flowing" visual — the operator
+      // (and a 5-year-old) sees the cascade as a subway line, not a plain
+      // connector. The modal MetroInfographic uses the same layer; here it
+      // rides the watershed-nodes toggle so it shares the cascade's lifecycle.
+      out.push(...(metroRouteLayer(watershedSummaries, { translucent: true }) as Layer[]));
     }
     // Picture-book framing (mountain / city / bay icons anchored at real
     // lng/lat) — gates independently so OPS can opt in without the heavier

@@ -166,6 +166,24 @@ describe("LENSES", () => {
     expect(ops!.layers).toContain("incidents-itic");
   });
 
+  it("operations lens carries the kid-readable watershed + flow stack by default", () => {
+    // OPS is the lens the operator lands on. A 5-year-old opening the
+    // dashboard must see "water comes from the mountain, flows through the
+    // cascade, into the bay" without switching lenses. The cascade subway
+    // line rides the watershed-nodes toggle, the animated dots ride the
+    // waterway-flow toggle, the mountain / city / bay pictogram rides the
+    // water-pictures toggle, and the flash-flood risk pins ride the
+    // ffpi-pins toggle. If any of these go missing from OPS the day-to-day
+    // view silently loses the water story.
+    const ops = LENSES.find((l) => l.id === "operations");
+    expect(ops).toBeDefined();
+    expect(ops!.layers).toContain("watershed-nodes");
+    expect(ops!.layers).toContain("waterway-flow");
+    expect(ops!.layers).toContain("water-pictures");
+    expect(ops!.layers).toContain("ffpi-pins");
+    expect(ops!.layers).toContain("flood-risk-overlay");
+  });
+
   it("does not expose the retired Deep South security / poverty lenses", () => {
     expect(LENSES.find((l) => l.id === "security")).toBeUndefined();
     expect(LENSES.find((l) => l.id === "poverty")).toBeUndefined();
