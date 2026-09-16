@@ -21,6 +21,8 @@ import type {
   WaterGauge,
   RainfallStation,
   EwsStation,
+  GistdaLevelPost,
+  GistdaFloodExtentTambon,
 } from "@nst/shared";
 import type { HeatPoint } from "../sim/trafficSim";
 import {
@@ -3126,6 +3128,49 @@ export function rainStationsLayer(stations: RainfallStation[]) {
   });
 }
 
+/** GISTDA SAR flood footprint, Nov 2025 — flooded area per tambon. A quiet
+ *  wash (the footprint is context, the gauges are the signal) with a thin
+ *  outline so adjacent tambons stay distinguishable; alpha scales gently with
+ *  how much of the tambon flooded so the worst-hit read darker. */
+export function floodExtentLayer(tambons: GistdaFloodExtentTambon[]) {
+  const maxRai = Math.max(1, ...tambons.map((t) => t.floodAreaRai ?? 0));
+  return new PolygonLayer<GistdaFloodExtentTambon>({
+    id: "flood-extent-2025",
+    data: tambons,
+    getPolygon: (t) => t.rings,
+    getFillColor: (t) => {
+      const frac = Math.min(1, (t.floodAreaRai ?? 0) / maxRai);
+      return statusRgba("warning", 40 + Math.round(frac * 60));
+    },
+    getLineColor: statusRgba("warning", 150),
+    getLineWidth: 1,
+    lineWidthUnits: "pixels",
+    stroked: true,
+    filled: true,
+    pickable: true,
+    parameters: { depthWriteEnabled: false, depthCompare: "always" },
+  });
+}
+
+/** GISTDA water-level posts (เสาระดับ staff gauges + small telemetry) — the
+ *  physical posts the municipal WL cameras watch. Hollow rings so they read
+ *  as "a measuring point on the line", distinct from the filled gauge dots. */
+export function levelPostsLayer(posts: GistdaLevelPost[]) {
+  return new ScatterplotLayer<GistdaLevelPost>({
+    id: "level-posts",
+    data: posts,
+    getPosition: (p) => [p.lng, p.lat],
+    getRadius: (p) => (p.kind === "telemetry" ? 70 : 55),
+    radiusMinPixels: 3,
+    radiusMaxPixels: 9,
+    getFillColor: withAlpha(CAT.sky, 60),
+    stroked: true,
+    getLineColor: withAlpha(CAT.sky, 235),
+    lineWidthMinPixels: 1.5,
+    pickable: true,
+  });
+}
+
 // DWR EWS alert status → StatusLevel: 0 normal · 1 watch · 2 prepare = warning · 3 siren = critical.
 export const EWS_STATUS_RGB: Record<number, [number, number, number]> = statusRgbMap<number>({
   0: "normal",
@@ -3855,7 +3900,15 @@ export function floodStoryLayer(summaries: ZoneSummary[]): Layer[] {
   ];
 }
 
-export function watershedNodesLayer(summaries: ZoneSummary[], basinBalance?: BasinWaterBalance[]): Layer[] {
+export function watershedNodesLayer(
+  summaries: ZoneSummary[],
+  basinBalance?: BasinWaterBalance[],
+  /** The line the water actually follows (lib/thaDee.ts stitchThaDeePath —
+   *  the real คลองท่าดี way geometry). Without it the connective line falls
+   *  back to straight segments between zone centroids, which is what read
+   *  as "random geometry" on the map. */
+  flowPathOverride?: [number, number][],
+): Layer[] {
   // Build a basinId → first-horizon (24h) stress band map from the FloodDash
   // water-balance ledger. Falls back to undefined when the ledger hasn't
   // landed yet (cold start, network error) — markers then use the
@@ -3875,7 +3928,7 @@ export function watershedNodesLayer(summaries: ZoneSummary[], basinBalance?: Bas
     const bv = lookUp(s.zone.basinId);
     return toMarker(s, bv?.band, bv?.verdict);
   });
-  const flowPath = thaDeeFlowPath(summaries);
+  const flowPath = flowPathOverride && flowPathOverride.length >= 2 ? flowPathOverride : thaDeeFlowPath(summaries);
 
   const layers: Layer[] = [];
 
@@ -4412,8 +4465,15 @@ export function waterwayFlowDots(prepared: PreparedFlowLine[], tMs: number): Wat
  *  dots — at those zoom levels 843 waterways × ~5 dots = ~4,200 points all
  *  animate, drowning the more important watershed cascade and rendering the
  *  rain radar unreadable. City-scale (zoomBucket 2) renders normally. */
-export function waterwayFlowLayer(dots: WaterwayFlowDot[], zoomBucket: 0 | 1 | 2 = 2) {
-  if (zoomBucket !== 2) return null;
+export function waterwayFlowLayer(
+  dots: WaterwayFlowDot[],
+  zoomBucket: 0 | 1 | 2 = 2,
+  /** `overview: true` lifts the zoom gate — the caller has already thinned
+   *  the set to the trunk rivers (lib/thaDee.ts isTrunkWaterway), so a few
+   *  hundred dots at province scale are a legible "which way" cue, not a smear. */
+  opts: { overview?: boolean } = {},
+) {
+  if (zoomBucket !== 2 && !opts.overview) return null;
   return new ScatterplotLayer<WaterwayFlowDot>({
     id: "waterway-flow",
     data: dots,
@@ -4525,8 +4585,10 @@ function chevronPolylinesAlongLine(
 export function waterwayFlowDirectionLayer(
   prepared: PreparedFlowLine[],
   zoomBucket: 0 | 1 | 2 = 2,
+  /** See waterwayFlowLayer — lifts the zoom gate for a pre-thinned trunk set. */
+  opts: { overview?: boolean } = {},
 ): PathLayer<FlowPath> | null {
-  if (zoomBucket < 2) return null;
+  if (zoomBucket < 2 && !opts.overview) return null;
   const paths: FlowPath[] = [];
   for (const line of prepared) {
     const total = lineLengthDeg(line.coords);
@@ -5140,3 +5202,80 @@ function thLabelOffsetFor(s: { kind: MetroStationKind }): [number, number] {
   void s;
   return [0, 18];
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  Flood risk overlay — waterways as wide status-coloured bands
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// Kid-readable flood visualisation: every river/canal LineString is
+// coloured by the upstream WaterGauge's situation level. Normal cascade
+// = thin cyan-blue line; calm river, no concern. Critical cascade =
+// thick red line; the river itself reads as "this is flooding".
+//
+// Stroke width is scaled for CITY zoom (zoomBucket 1 / 2): 4-12 px
+// depending on level — visible at any zoom but doesn't dominate
+// province view either. The layer is opt-in via the "flood-risk-overlay"
+// layer id, default on for OPS / FLOOD.
+//
+// Composes cleanly with existing layers: river-buffer (existing
+// risk-polygon fill) + dam-status (existing reservoir markers)
+// already paint the surrounding landscape; this layer adds the
+// status-coloured strokes on top so a child sees the whole picture.
+
+import {
+  colorizeWaterways,
+  riskStatusToRgba,
+  type WaterwayFeatureProps,
+  type WaterwayRiskStatus,
+} from "../lib/floodRiskOverlay";
+
+interface FloodRiskOverlayOptions {
+  /** Reduce motion override for tests. */
+  forceReducedMotion?: boolean;
+}
+
+export function floodRiskOverlayLayer(
+  collection: FeatureCollection<LineString, Record<string, unknown>>,
+  gauges: WaterGauge[],
+  options: FloodRiskOverlayOptions = {},
+): Layer[] {
+  void options;
+  const coloured = colorizeWaterways(collection, gauges);
+
+  // Two layers: a wide, slightly-transparent halo (so the river is
+  // visible even at high zoom where the actual OSM line is faint),
+  // then the status-coloured stroke on top. Together they read like
+  // a real "flood overlay" instead of a thin vector line.
+  return [
+    new GeoJsonLayer({
+      id: "flood-risk-overlay-halo",
+      data: coloured as unknown as FeatureCollection,
+      pickable: false,
+      stroked: true,
+      filled: false,
+      getLineColor: [255, 255, 255, 200],
+      getLineWidth: (f: { properties?: WaterwayFeatureProps }) => (f.properties?.widthPx ?? 4) + 2,
+      lineWidthUnits: "pixels",
+      lineWidthMinPixels: 3,
+      parameters: { depthWriteEnabled: false, depthCompare: "always" },
+    }) as Layer,
+    new GeoJsonLayer({
+      id: "flood-risk-overlay",
+      data: coloured as unknown as FeatureCollection,
+      pickable: true,
+      stroked: true,
+      filled: false,
+      getLineColor: (f: { properties?: WaterwayFeatureProps }) =>
+        riskStatusToRgba(f.properties?.riskStatus ?? "unknown"),
+      getLineWidth: (f: { properties?: WaterwayFeatureProps }) => f.properties?.widthPx ?? 4,
+      lineWidthUnits: "pixels",
+      lineWidthMinPixels: 2,
+      parameters: { depthWriteEnabled: false, depthCompare: "always" },
+    }) as Layer,
+  ];
+}
+
+// Re-export the helper so App.tsx can compute the dominant risk for the
+// layer palette chip without importing the lib directly.
+export { dominantRisk as dominantFloodRisk } from "../lib/floodRiskOverlay";
+export type { WaterwayRiskStatus };

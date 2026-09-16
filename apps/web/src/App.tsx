@@ -76,6 +76,7 @@ import {
   distanceGridLabelsLayer,
   civicPointsLayer,
   waterwaysLayer,
+  floodRiskOverlayLayer,
   fisheriesLayer,
   nationalWaterwaysLayer,
   nationalFloodProneLayer,
@@ -1602,6 +1603,14 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
     if (enabledLayers.has("civic-points") && civicPoints) out.push(civicPointsLayer(civicPoints, { zoomBucket }) as Layer);
     // Waterways (canals + rivers + drains)
     if (enabledLayers.has("waterways") && waterways) out.push(waterwaysLayer(waterways) as Layer);
+    // Kid-readable flood risk overlay — paints the same waterways as wide
+    // status-coloured bands (calm = thin cyan, critical = thick red) so a
+    // child can see "which rivers are flooding right now" without reading
+    // any gauge data. Sized for city zoom (4-12 px), rides the same
+    // toggle as the regular waterways layer so the two stay coherent.
+    if (enabledLayers.has("flood-risk-overlay") && waterways) {
+      out.push(...(floodRiskOverlayLayer(waterways, waterGauges.data) as Layer[]));
+    }
     // National waterways (NST province from Overpass API)
     if (enabledLayers.has("national-waterways") && nationalWaterways.data.length > 0)
       out.push(nationalWaterwaysLayer(nationalWaterways.data) as Layer);
