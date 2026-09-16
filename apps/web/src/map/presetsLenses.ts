@@ -185,8 +185,10 @@ export const LENSES: Lens[] = [
       "satellite-esri",
       "river-buffer",
       "waterways",
-      // waterway-flow is opt-in — particle animation keeps the GPU busy on
-      // every FLOOD entry and starves rail clicks under Playwright.
+      // Animated flow dots — the primary "direction" visual a reader sees on
+      // the map. ENV/EAR already pull this in; FLOOD needs it too because
+      // surface flow direction is the key piece of the water-ecosystem view.
+      "waterway-flow",
       "watershed-nodes",
       "water-heatmap",
       "water-gauges",

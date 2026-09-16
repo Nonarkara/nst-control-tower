@@ -192,6 +192,7 @@ import { DeviceCheckIn } from "./components/DeviceCheckIn";
 import { useSystemHealth } from "./hooks/useSystemHealth";
 import { MobileNav, type MobilePanel } from "./components/MobileNav";
 import { ChatBox } from "./components/ChatBox";
+import { LiveCascadeReadout } from "./components/LiveCascadeReadout";
 import { PredictivePanel, METRIC_LAYER_MAP, METRIC_LABEL, type ForecastMetric } from "./components/PredictivePanel";
 import { ExecutiveBriefing } from "./components/ExecutiveBriefing";
 import { API_BASE } from "./lib/apiBase";
@@ -2502,6 +2503,24 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
           />
         )}
       </Suspense>
+      {/* Live cascade readout — surfaces the upstream→city water-ecosystem
+          math on top of the map for FLOOD / ENV / INT lenses, where the
+          water-graphic layer is on. Hidden elsewhere so it doesn't compete
+          with the rail panels in day-to-day OPS / MOB views. */}
+      {(lens === "flood" || lens === "environment" || lens === "intelligence") && (
+        <LiveCascadeReadout
+          summaries={watershedSummaries}
+          // useFeed's fallbackTier is `FallbackTier | "loading"`. The readout
+          // only renders when the cascade has data; pass through only the
+          // tiers the panel can show.
+          fallbackTier={
+            waterGauges.fallbackTier === "loading"
+              ? undefined
+              : waterGauges.fallbackTier
+          }
+          className="lcr lcr--overlay"
+        />
+      )}
       {shortcutsOpen && (
         <ShortcutsDialog
           lenses={LENSES}

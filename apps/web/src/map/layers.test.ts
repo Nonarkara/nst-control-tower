@@ -182,12 +182,18 @@ describe("watershedNodesLayer — basin-band bridge", () => {
     ];
     expect(() => watershedNodesLayer(summaries, [])).not.toThrow();
     const layers = watershedNodesLayer(summaries, []);
-    // 4 layers: flow line + nodes scatter + zone labels + verdict pills.
-    // (The verdict pill emits for the upstream zone with a real ETA; the
-    // city has no upstream ETA so it gets filtered.)
-    expect(layers).toHaveLength(4);
+    // 5 layers: flow line + nodes scatter + zone labels + readings chip +
+    // verdict pills. (The verdict pill emits for the upstream zone with a
+    // real ETA; the city has no upstream ETA so it gets filtered.)
+    expect(layers).toHaveLength(5);
     const ids = layers.map((l) => String((l as unknown as { id: string }).id));
-    expect(ids).toEqual(["watershed-flow", "watershed-nodes", "watershed-node-labels", "watershed-verdict-pills"]);
+    expect(ids).toEqual([
+      "watershed-flow",
+      "watershed-nodes",
+      "watershed-node-labels",
+      "watershed-verdict-pills",
+      "watershed-node-readings",
+    ]);
   });
 
   test("accepts the basin balance without crashing when summaries are empty", () => {

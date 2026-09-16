@@ -3785,6 +3785,55 @@ export function watershedNodesLayer(summaries: ZoneSummary[], basinBalance?: Bas
     );
   }
 
+  // ── Live sensor readings — visible label per marker showing the live
+  //    water level + a trend glyph (▲ rising · ▼ falling · → stable).
+  //    The reading is the upstream → → downstream data a non-operator needs
+  //    to read "how much water is here, right now?". Stations with no live
+  //    level fall back to a "—" so the chip stays where the marker is. ──
+  const reading = summaries.map((s, i) => {
+    const m = markers[i];
+    if (!m) return null;
+    const lvl = s.levelMsl;
+    // ZoneSummary exposes `rising: boolean` (any gauge rising) — we surface
+    // rising vs not, not the underlying per-gauge trend enum, since the
+    // cascade summary aggregates several gauges into one zone-level signal.
+    const text =
+      lvl != null
+        ? `${lvl.toFixed(2)} m${s.rising ? " ▲" : ""}`
+        : "—";
+    return { m, text };
+  }).filter((r): r is { m: WatershedMarker; text: string } => r != null);
+
+  if (reading.length > 0) {
+    layers.push(
+      new TextLayer<{ m: WatershedMarker; text: string }>({
+        id: "watershed-node-readings",
+        data: reading,
+        getPosition: (d) => [d.m.lng, d.m.lat],
+        getText: (d) => d.text,
+        getSize: 12,
+        getColor: () => [255, 255, 255, 235],
+        characterSet: "0123456789.m▲▼→·",
+        // Sits between the name label (-8) and the verdict pill (+10): the
+        // mid-band of the on-marker stack. For the city marker the band is
+        // 18 → 38; readings land at 28.
+        getPixelOffset: (d) =>
+          side(d.m) === "left" ? [-16, 0] : side(d.m) === "right" ? [16, 0] : [0, 28],
+        getTextAnchor: (d) => anchorFor(d.m),
+        getAlignmentBaseline: (d) => (side(d.m) === "below" ? "top" : "center"),
+        updateTriggers: { getPixelOffset: ["side-v1"], getTextAnchor: ["side-v1"], getAlignmentBaseline: ["side-v1"] },
+        billboard: true,
+        fontFamily: MAP_FONT,
+        fontWeight: 600,
+        getBackgroundColor: [14, 14, 14, 195],
+        background: true,
+        backgroundPadding: [3, 1],
+        parameters: { depthWriteEnabled: false, depthCompare: "always" },
+        pickable: false,
+      }) as Layer,
+    );
+  }
+
   return layers;
 }
 
@@ -3916,10 +3965,12 @@ export function etaArcRingsLayer(summaries: ZoneSummary[]): Layer[] {
   // One label per ring, anchored to the north of the ring at the city centre's
   // longitude (so all three stack vertically above the city — a glanceable
   // "1h above 3h above 6h" ladder). Offset slightly inside each ring so the
-  // label sits ON the line, not floating above it.
+  // label sits ON the line, not floating above it. "REACH Xh" is the
+  // listener-friendly phrasing (the rings show what distance water can cover
+  // in X hours — a flood wave's reach, not an arbitrary circle).
   const labelData = rings.map((r) => ({
     position: ringLabelPos(city.zone.lng, city.zone.lat, r.km),
-    text: `${r.hours}h · ${r.km.toFixed(1)} km`,
+    text: `${r.hours}h reach · ${r.km.toFixed(1)} km`,
     color: r.color,
   }));
   out.push(
