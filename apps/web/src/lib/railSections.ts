@@ -22,6 +22,10 @@ export type RailSectionKey =
   | "weather"
   | "air-quality"
   | "sensor-signals"
+  | "level-watch"
+  | "live-cascade"
+  | "flood-story"
+  | "top-stations"
   | "water-balance"
   | "water-network"
   | "flood-brief"
@@ -62,6 +66,17 @@ export const RAIL_SECTIONS: Record<RailSectionKey, RailSectionRule> = {
   weather: { lenses: ALL, openIn: ["environment", "vibes"] },
   "air-quality": { lenses: ["operations", "environment"], openIn: ["environment"] },
   "sensor-signals": { lenses: ["operations", "flood", "safety", "intelligence"], openIn: [] },
+  // The exceedance report — the one panel that answers "is water above the
+  // allowed level anywhere, and can I look?". Opens by default on FLOOD.
+  "level-watch": { lenses: ["flood", "safety", "environment"], openIn: ["flood"] },
+  // Former on-map overlays (they floated over the map; the shell allows only
+  // map controls there). Collapsed by default — the map + LEVEL WATCH carry
+  // the operational picture; these are the explainers.
+  "live-cascade": { lenses: ["flood", "environment", "intelligence"], openIn: [] },
+  "flood-story": { lenses: ["flood", "environment", "intelligence"], openIn: [] },
+  // Visible on FLOOD / ENV / INT but not auto-opened — preserves the
+  // ≤3 open-sections rule for each lens; users expand when they want it.
+  "top-stations": { lenses: ["flood", "environment", "intelligence"], openIn: [] },
   "water-balance": { lenses: ["flood"], openIn: ["flood"] },
   "water-network": { lenses: ["flood", "safety", "executive", "environment"], openIn: ["safety", "executive"] },
   "flood-brief": { lenses: ["flood", "safety", "executive"], openIn: [] },

@@ -2168,6 +2168,13 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
           </RailSection>
         )}
 
+        {/* ThaiWater-style 'top stations to watch' rail — anchored inside the
+            left rail (NOT overlay on the map) so it lives next to the cascade
+            / flood-story panels instead of floating over the city. */}
+        <RailSection sectionKey="top-stations" lens={lens} title="Top Stations to Watch · สถานีต้องเฝ้าระวัง">
+          <TopStationsRail gauges={waterGauges.data} />
+        </RailSection>
+
         <RailSection sectionKey="water-balance" lens={lens} title="Water Balance">
           <WaterBalancePanel
             basins={waterBalance.data}
@@ -2675,16 +2682,6 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
           / INT. */}
       {(lens === "flood" || lens === "environment" || lens === "intelligence") && (
         <MetroInfographic summaries={watershedSummaries} />
-      )}
-      {/* Top stations rail — ThaiWater-style horizontal strip of the
-          most-at-risk water gauges. Always visible on FLOOD / ENV / INT
-          so the operator can see "which stations are bad right now"
-          without opening a modal. Click a card to recentre the map. */}
-      {(lens === "flood" || lens === "environment" || lens === "intelligence") && (
-        <TopStationsRail
-          gauges={waterGauges.data}
-          className="tsr--overlay"
-        />
       )}
       {shortcutsOpen && (
         <ShortcutsDialog
