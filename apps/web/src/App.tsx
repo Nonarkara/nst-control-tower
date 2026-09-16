@@ -173,6 +173,7 @@ const Whitepaper = lazy(() => import("./components/Whitepaper").then((m) => ({ d
 const SheetsPanel = lazy(() => import("./components/SheetsPanel").then((m) => ({ default: m.SheetsPanel })));
 const SituationDigest = lazy(() => import("./components/SituationDigest").then((m) => ({ default: m.SituationDigest })));
 const AtlasView = lazy(() => import("./components/atlas/AtlasView").then((m) => ({ default: m.AtlasView })));
+const Heritage3DDemo = lazy(() => import("./components/Heritage3DDemo").then((m) => ({ default: m.Heritage3DDemo })));
 const FloodOpsBoard = lazy(() => import("./components/FloodOpsBoard").then((m) => ({ default: m.FloodOpsBoard })));
 const PlatformView = lazy(() => import("./components/platform/PlatformView").then((m) => ({ default: m.PlatformView })));
 const ShortcutsDialog = lazy(() => import("./components/ShortcutsDialog").then((m) => ({ default: m.ShortcutsDialog })));
@@ -419,6 +420,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
   const [atlasOpen, setAtlasOpen] = useState(false);
   const [platformOpen, setPlatformOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [heritage3dOpen, setHeritage3dOpen] = useState(false);
   const [sheetsConfigured, setSheetsConfigured] = useState(() => {
     try { return Boolean(localStorage.getItem(SHEETS_STORAGE_KEY)); } catch { return false; }
   });
@@ -1968,6 +1970,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
         onOpenShortcuts={useCallback(() => setShortcutsOpen(true), [])}
         onOpenFloodGuide={useCallback(() => setFloodGuideOpen(true), [])}
         onOpenCctvCommand={openCctvCommandCenter}
+        onOpenHeritage3D={useCallback(() => setHeritage3dOpen(true), [])}
         onOpenWhitepaper={useCallback(() => setWhitepaperOpen(true), [])}
         onOpenAtlas={useCallback(() => setAtlasOpen(true), [])}
         onOpenPlatform={useCallback(() => setPlatformOpen(true), [])}
@@ -2627,6 +2630,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
       </Suspense>
       <Suspense fallback={null}>
         {floodGuideOpen && <FloodKnowledge open={floodGuideOpen} onClose={() => setFloodGuideOpen(false)} />}
+        {heritage3dOpen && <Heritage3DDemo open={heritage3dOpen} onClose={() => setHeritage3dOpen(false)} />}
       </Suspense>
       <Suspense fallback={null}>
         {atlasOpen && <AtlasView onClose={() => setAtlasOpen(false)} />}

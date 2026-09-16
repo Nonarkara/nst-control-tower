@@ -38,6 +38,7 @@ interface Props {
   onOpenPlatform: () => void;
   onOpenFloodGuide: () => void;
   onOpenCctvCommand: () => void;
+  onOpenHeritage3D?: () => void;
   onFlip?: () => void;
   sheetsConfigured: boolean;
   /** Retained for API compatibility with the university fork; not shown. */
@@ -139,6 +140,7 @@ export function TopBar({
   onOpenSheets,
   onOpenAtlas,
   onOpenFloodGuide,
+  onOpenHeritage3D,
   onOpenCctvCommand,
   onFlip,
   sheetsConfigured,
@@ -221,6 +223,16 @@ export function TopBar({
         <button type="button" className="btn" onClick={onOpenFloodGuide} aria-label="Open flood guide — how flooding works and what this dashboard monitors">
           Flood guide
         </button>
+        {onOpenHeritage3D && (
+          <button
+            type="button"
+            className="btn topbar-heritage-3d"
+            onClick={onOpenHeritage3D}
+            aria-label="Open heritage 3D demo — photogrammetry viewer"
+          >
+            3D heritage
+          </button>
+        )}
         {onFlip && (
           <button type="button" className="btn" onClick={onFlip} aria-label="Open terminal — real-time and reference data view">
             Terminal
