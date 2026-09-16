@@ -30,8 +30,11 @@ test.describe("EO layer toggles", () => {
     await ensureSectionOpen(page, "Earth Observation");
 
     // The Rain toggle (satellite-imerg) renders with text "Rain" and a "on"/"off" caption.
-    // Its accessible name comes from text content, not aria-label or title.
-    const rainToggle = page.locator(".layer-toggle", { hasText: /^Rain/ }).first();
+    // Its accessible name comes from text content, not aria-label or title. EAR's
+    // Imagery group now also carries a "Rain radar (live nowcast)" toggle
+    // (precip-radar) — exclude it so the plain-/^Rain/ match stays pinned to
+    // this one, not whichever happens to sit first in DOM order.
+    const rainToggle = page.locator(".layer-toggle", { hasText: /^Rain(?!\s*radar)/ }).first();
     await expect(rainToggle).toBeVisible({ timeout: 10_000 });
 
     const initialState = await rainToggle.getAttribute("aria-pressed");
