@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { ensureSectionOpen, selectLens } from "./floodSmokeHelpers";
+import { ensureSectionOpen, selectLens, stubHiiSurvey } from "./floodSmokeHelpers";
 
 test.setTimeout(90_000);
 
@@ -136,6 +136,11 @@ test.describe("Map camera — programmatic flights", () => {
 
 test.describe("WATER BALANCE — basin ledger + Flood Ops board", () => {
   test("panel renders basin rows and OPS BOARD opens the full-screen board", async ({ page }) => {
+    // The real 1.9 MB waterways extract pegs the GPU/main-thread after a FLOOD
+    // lens entry in headless CI (see floodSmokeHelpers.stubHiiSurvey) — stub
+    // it so this test's own assertions get their timeout budget instead of
+    // losing it all to lens-switch rendering.
+    await stubHiiSurvey(page);
     await page.goto("/");
     await expect(page.locator(".map-host")).toBeVisible({ timeout: 20_000 });
 

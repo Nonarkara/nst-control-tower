@@ -1468,21 +1468,6 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
     };
   }, [thaDeeFlowColor, watershedSummaries]);
   type FlowFeature = Feature<LineString, { waterway?: string; name?: string | null; nameTh?: string | null; flowClass?: "slow" | "medium" | "fast"; slopePct?: number; downhillConfident?: boolean }>;
-  const preparedFlows = useMemo(() => {
-    if (!waterwayFlowEnabled || !waterways?.features?.length) return [];
-    return prepareWaterwayFlows(waterways.features as unknown as FlowFeature[], thaDeeOverride);
-  }, [waterwayFlowEnabled, waterways, thaDeeOverride]);
-  // Province/city zoom gets the TRUNK rivers only (Tha Dee, named rivers,
-  // fast reaches, ≥8 km) — ~200 of 843 ways. That's the "simple lines with
-  // arrows from Khiri Wong to the city, and from the other sources" view;
-  // the full network still waits for street zoom.
-  // (observed.zoomBucket, not the `zoomBucket` const — that is declared further down.)
-  const trunkBucket: 0 | 1 = observed.zoomBucket === 0 ? 0 : 1;
-  const trunkFlows = useMemo(() => {
-    if (!waterwayFlowEnabled || !waterways?.features?.length) return [];
-    const trunk = (waterways.features as unknown as ThaDeeWaterwayFeature[]).filter((f) => isTrunkWaterway(f, trunkBucket));
-    return prepareWaterwayFlows(trunk as unknown as FlowFeature[], thaDeeOverride);
-  }, [waterwayFlowEnabled, waterways, thaDeeOverride, trunkBucket]);
 
   // RainViewer live radar nowcast (animated precipitation).
   const rainRadar = useRainRadar(enabledLayers.has("precip-radar"));
@@ -1498,7 +1483,24 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
   // so the ~4k-dot animation doesn't drown the watershed cascade). Use the
   // bucket here too — same LOD contract as the buildings/roads above.
   const flowOverview = zoomBucket !== 2;
-  const activeFlows = flowOverview ? trunkFlows : preparedFlows;
+  // Province/city zoom gets the TRUNK rivers only (Tha Dee, named rivers,
+  // fast reaches, ≥8 km) — ~200 of 843 ways. That's the "simple lines with
+  // arrows from Khiri Wong to the city, and from the other sources" view;
+  // the full network still waits for street zoom. Only ONE of the two sets
+  // is ever rendered (activeFlows picks by flowOverview) — prepare only that
+  // one. `prepareWaterwayFlows` walks the full waterways feature list, so
+  // computing both unconditionally on every waterways/thaDeeOverride change
+  // was double the geometry work (and double the main-thread stall) for no
+  // reason: the other half was thrown away every render.
+  const trunkBucket: 0 | 1 = zoomBucket === 0 ? 0 : 1;
+  const activeFlows = useMemo(() => {
+    if (!waterwayFlowEnabled || !waterways?.features?.length) return [];
+    if (flowOverview) {
+      const trunk = (waterways.features as unknown as ThaDeeWaterwayFeature[]).filter((f) => isTrunkWaterway(f, trunkBucket));
+      return prepareWaterwayFlows(trunk as unknown as FlowFeature[], thaDeeOverride);
+    }
+    return prepareWaterwayFlows(waterways.features as unknown as FlowFeature[], thaDeeOverride);
+  }, [waterwayFlowEnabled, waterways, thaDeeOverride, flowOverview, trunkBucket]);
   const waterwayFlow = useWaterwayFlow(activeFlows, waterwayFlowEnabled, zoomBucket, flowOverview);
 
   // Lines + chevrons in ONE PathLayer, recomputed only when the active flow
