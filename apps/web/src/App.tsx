@@ -113,6 +113,7 @@ import {
   ffpiPinsLayer,
   waterSystemPictureLayer,
   metroRouteLayer,
+  mahatat3DLayer,
   waterGaugesLayer,
   waterLevelHeatmapLayer,
   waterLevelDensityFallbackLayer,
@@ -1559,6 +1560,16 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
       out.push(memoizedBuildingsLayer);
     if (enabledLayers.has("building-roofs") && memoizedRoofsLayer)
       out.push(memoizedRoofsLayer);
+    // ── Mahatat 3D — parametric model of Wat Phra Mahathat Voramahavihan ──
+    // The great chedi is the tallest structure in southern Thailand (~78m)
+    // and the defining landmark of the city. Mounted after the buildings
+    // layer so it draws on top of the hand-authored cloister footprint from
+    // buildings.geojson — the parametric model REPLACES the cloister's flat
+    // box extrusion with the iconic Sri-Lankan bell + spire + surrounding
+    // ubosot/wihan/prang/ho-trai/satellite-chedi cluster. Toggleable via the
+    // `mahatat-3d` layer id so it ships ON by default but an operator can
+    // turn it off if the bell silhouette competes with a current scenario.
+    out.push(...(mahatat3DLayer(enabledLayers.has("mahatat-3d"), is3D ? 1.65 : 1) as Layer[]));
     // Photorealistic 3D Tiles (Google) — textured glTF mesh streamed by deck.gl
     if (tile3d.layer) out.push(tile3d.layer as Layer);
     if (enabledLayers.has("road-network") && roads)

@@ -184,6 +184,21 @@ describe("LENSES", () => {
     expect(ops!.layers).toContain("flood-risk-overlay");
   });
 
+  it("OPS / FLOOD / EXEC lenses all carry the Mahatat 3D model", () => {
+    // Wat Phra Mahathat is the city-defining landmark. The 3D model must
+    // ride the three lenses an operator/visitor opens most often — without
+    // it the Old Town reads as an empty rectangle of buildings, and the
+    // city loses its visual identity.
+    for (const lensId of ["operations", "flood", "executive"] as const) {
+      const lens = LENSES.find((l) => l.id === lensId);
+      expect(lens, `${lensId} lens missing`).toBeDefined();
+      expect(
+        lens!.layers,
+        `${lensId} lens must carry mahatat-3d`,
+      ).toContain("mahatat-3d");
+    }
+  });
+
   it("does not expose the retired Deep South security / poverty lenses", () => {
     expect(LENSES.find((l) => l.id === "security")).toBeUndefined();
     expect(LENSES.find((l) => l.id === "poverty")).toBeUndefined();

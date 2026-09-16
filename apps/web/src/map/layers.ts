@@ -5291,3 +5291,9 @@ export function floodRiskOverlayLayer(
 // layer palette chip without importing the lib directly.
 export { dominantRisk as dominantFloodRisk } from "../lib/floodRiskOverlay";
 export type { WaterwayRiskStatus };
+
+// Re-export the Mahatat 3D model so App.tsx can mount it as a layer without
+// importing the lib directly (kept in layers.ts to make the "every layer the
+// dashboard uses" contract easier to grep).
+export { mahatat3DLayer } from "../lib/mahatat3d";
+export { MAHATAT_CENTER } from "../lib/mahatat3d";

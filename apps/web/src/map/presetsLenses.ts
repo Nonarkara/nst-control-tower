@@ -123,7 +123,10 @@ export type LayerId =
   | "precip-radar"
   | "air-waqi-field"
   | "level-posts"
-  | "flood-extent-2025";
+  | "flood-extent-2025"
+  // 3D parametric landmarks — the great chedi at Wat Phra Mahathat
+  // (bell + spire + ubosot + wihan + prang + ho trai + 8 satellite chedis)
+  | "mahatat-3d";
 
 export type MapViewState =
   | { kind: "lens"; lensId: LensId }
@@ -155,6 +158,11 @@ export const LENSES: Lens[] = [
       "road-network",
       "datago-points",
       "gistda-pois",
+      // The 3D Mahatat model is the EXEC lens's "city heartbeat" — without
+      // it the executive briefing shows an empty old-town rectangle. With
+      // it the briefing reads as "this is the city, and this is its
+      // defining landmark" in a single glance.
+      "mahatat-3d",
     ],
   },
   {
@@ -168,6 +176,12 @@ export const LENSES: Lens[] = [
       "road-network",
       "civic-points",
       "flood-risk-overlay",
+      // The iconic 3D model of Wat Phra Mahathat — the city-defining landmark.
+      // Renders as a parametric stacked-primitive bell chedi + ubosot + wihan +
+      // prang + ho trai + 8 satellite chedis, anchored at the canonical Old
+      // Town coordinates. Without this on the default lens the city reads as
+      // "buildings + traffic" with no recognisable heart.
+      "mahatat-3d",
       // Kid-readable water ecosystem on the default lens — the cascade subway
       // line, animated flow dots, and the mountain / city / bay pictogram all
       // appear at province zoom out of the box. A 5-year-old opening the
@@ -199,6 +213,10 @@ export const LENSES: Lens[] = [
       "satellite-esri",
       "river-buffer",
       "waterways",
+      // The iconic 3D model of Wat Phra Mahathat — the city-defining landmark
+      // sits in the flood plain and the basin cascade ends here, so FLOOD lens
+      // must carry the temple silhouette as a recognisable backdrop.
+      "mahatat-3d",
       // Animated flow dots — the primary "direction" visual a reader sees on
       // the map. ENV/EAR already pull this in; FLOOD needs it too because
       // surface flow direction is the key piece of the water-ecosystem view.
