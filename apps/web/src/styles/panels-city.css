@@ -767,3 +767,187 @@ button.pred-strip:hover { background: var(--ground); border-color: var(--line); 
   .mtr { grid-template-columns: 1fr; }
   .mtr__stage { border-right: 0; border-bottom: 1px solid var(--line-2); min-height: 360px; }
 }
+
+/* ── 22. Top stations to watch (tsr-) ──────────────────────────────────
+   ThaiWater-style horizontal strip of per-station cards. Each card
+   answers "which station is currently the worst?" at a glance — level,
+   24h delta, % of bank, status pill — without leaving the dashboard. */
+.tsr {
+  font-family: 'Inter', 'IBM Plex Sans Thai', sans-serif;
+  background: var(--panel);
+  border: 1px solid var(--line-2);
+  color: var(--ink);
+}
+.tsr--overlay {
+  position: relative;
+  margin: 0;
+}
+
+.tsr__hdr {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--s-2) var(--s-3);
+  border-bottom: 1px solid var(--line);
+  border-left: 4px solid;
+  background: var(--ground);
+}
+.tsr__eyebrow {
+  margin: 0;
+  font-size: 10px;
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.tsr__sub {
+  margin: 2px 0 0;
+  font-size: 11px;
+  color: var(--ink-2);
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+.tsr__chip {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-label);
+  padding: 1px 6px;
+  text-transform: uppercase;
+  background: var(--ground);
+  color: var(--ink);
+  border: 1px solid var(--line-2);
+}
+.tsr__chip--bad { background: var(--bad); color: var(--on-status); border-color: var(--bad); }
+.tsr__chip--alert { background: var(--alert); color: var(--on-status); border-color: var(--alert); }
+.tsr__chip--warn { background: var(--warn); color: var(--paper); border-color: var(--warn); }
+
+.tsr__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0;
+}
+.tsr__list > li { border-right: 1px solid var(--line); border-top: 1px solid var(--line); }
+.tsr__list > li:last-child { border-right: 0; }
+@media (max-width: 720px) {
+  .tsr__list { grid-template-columns: 1fr 1fr; }
+  .tsr__list > li:nth-child(2n) { border-right: 0; }
+  .tsr__list > li:nth-child(n+3) { border-top: 1px solid var(--line); }
+}
+
+.tsr__card {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  padding: var(--s-2) var(--s-3);
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+.tsr__card:hover { background: var(--ground); }
+.tsr__card[data-band="critical"] { background: rgba(255, 107, 94, 0.06); }
+.tsr__card[data-band="warning"] { background: rgba(255, 154, 61, 0.06); }
+
+.tsr__card-hdr {
+  display: flex;
+  align-items: center;
+  gap: var(--s-1);
+  margin-bottom: var(--s-2);
+}
+.tsr__station {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-bold);
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 11ch;
+}
+.tsr__station-en {
+  font-size: 10px;
+  color: var(--ink-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+.tsr__pill {
+  margin-left: auto;
+  font-size: 10px;
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-label);
+  padding: 1px 6px;
+  color: var(--on-status);
+}
+
+.tsr__reading {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-2);
+  margin-bottom: var(--s-1);
+}
+.tsr__level {
+  font-size: var(--text-lg);
+  font-weight: var(--weight-bold);
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.tsr__msl {
+  font-size: 10px;
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.tsr__delta {
+  margin-left: auto;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.tsr__bank {
+  position: relative;
+  height: 6px;
+  background: var(--ground);
+  margin-top: var(--s-1);
+}
+.tsr__bank-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  height: 100%;
+  transition: width 240ms ease-out;
+}
+.tsr.is-rm .tsr__bank-fill { transition: none; }
+.tsr__bank-mark {
+  position: absolute;
+  top: -14px;
+  font-size: 9px;
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--ink-3);
+  transform: translateX(-50%);
+}
+.tsr__bank-meta {
+  margin: var(--s-1) 0 0;
+  font-size: 11px;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+.tsr__reason {
+  margin: var(--s-1) 0 0;
+  font-size: 11px;
+  color: var(--ink-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

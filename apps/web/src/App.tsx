@@ -128,6 +128,8 @@ import {
   streetFloodLayer,
   wrfRainGridLayer,
   southProvinceWatchLayer,
+  levelPostsLayer,
+  floodExtentLayer,
   southRiverCascadeLayer,
   type FloodMarkProps,
   type RoadLevelProps,
@@ -199,6 +201,7 @@ import { LiveCascadeReadout } from "./components/LiveCascadeReadout";
 import { FloodStoryCard } from "./components/FloodStoryCard";
 import { FlashFloodAlert } from "./components/FlashFloodAlert";
 import { MetroInfographic } from "./components/MetroInfographic";
+import { TopStationsRail } from "./components/TopStationsRail";
 import { rankFfpi } from "./lib/flashFlood";
 import { PredictivePanel, METRIC_LAYER_MAP, METRIC_LABEL, type ForecastMetric } from "./components/PredictivePanel";
 import { ExecutiveBriefing } from "./components/ExecutiveBriefing";
@@ -210,6 +213,9 @@ import { SensorSituationBoard } from "./components/SensorSituationBoard";
 import { useFlowAnimation } from "./map/useFlowAnimation";
 import { useRainRadar } from "./map/useRainRadar";
 import { useWaterwayFlow } from "./map/useWaterwayFlow";
+import { isTrunkWaterway, stitchThaDeePath, THA_DEE_WAY_IDS, type WaterwayFeature as ThaDeeWaterwayFeature } from "./lib/thaDee";
+import type { GistdaLevelPost, GistdaFloodExtentTambon } from "@nst/shared";
+import { LevelWatchPanel } from "./components/LevelWatchPanel";
 import type { NasaEarthReadings, FacebookPost } from "@nst/shared";
 import { useDevicePresence } from "./hooks/useDevicePresence";
 import { useIsMobile } from "./hooks/useMediaQuery";
@@ -897,6 +903,21 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
         lines.push(`${parts.join(" · ")}${obs ? ` · ⏱ ${obs.slice(-5)}` : ""}`);
         break;
       }
+      case "flood-extent-2025": {
+        title = `🌊 ต.${pick("tambon") ?? "—"} · อ.${pick("amphoe") ?? "—"}`;
+        const rai = num("floodAreaRai");
+        lines.push(`น้ำท่วม พ.ย. 2568 ${rai != null ? `${Math.round(rai).toLocaleString()} ไร่` : "—"}`);
+        lines.push("GISTDA SAR flood extent · Nov 2025 · reference");
+        break;
+      }
+      case "level-posts": {
+        title = `📏 ${pick("name") ?? "Level post"}`;
+        const vmax = num("vMaxM");
+        lines.push(`${pick("river") ?? "—"} · ${pick("kind") === "telemetry" ? "โทรมาตรขนาดเล็ก" : "เสาระดับ"}`);
+        lines.push(vmax != null && vmax > 0 ? `ระดับสูงสุดที่เคยบันทึก ${vmax.toFixed(2)} ม.` : "ยังไม่มีระดับสูงสุดบันทึก");
+        lines.push(`${pick("amphoe") ?? ""} · GISTDA`);
+        break;
+      }
       case "rain-stations": {
         title = `☔ ${pick("name") ?? "Rain station"}`;
         const r24 = num("rain24h");
@@ -1265,6 +1286,10 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
   const waterRain = useFeed<RainfallStation>(`${API_BASE}/api/water/rain`, 30 * 60_000);
   const ewsStations = useFeed<EwsStation>(`${API_BASE}/api/water/ews`, 15 * 60_000);
   const ridReservoirs = useFeed<RidReservoir>(`${API_BASE}/api/water/reservoirs-rid`, 60 * 60_000);
+  // GISTDA water-level posts (static reference, 2021 upload) — daily is plenty.
+  const levelPosts = useFeed<GistdaLevelPost>(`${API_BASE}/api/gistda/level-posts`, 24 * 60 * 60_000);
+  // GISTDA SAR flood footprint (Nov 2025 event, static) — daily.
+  const floodExtent = useFeed<GistdaFloodExtentTambon>(`${API_BASE}/api/gistda/flood-extent`, 24 * 60 * 60_000);
   const nationalWaterways = useFeed<WaterwayFeature>(`${API_BASE}/api/water/national-waterways`, 7 * 24 * 60 * 60_000);
   const nationalFloodProne = useFeed<NationalFloodProneFeed>(`${API_BASE}/api/flood/national-prone`, 24 * 60 * 60_000);
   // NOTE: keep this under ~24.8 days (setInterval's 32-bit-ms ceiling — see
@@ -1398,7 +1423,13 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
       }),
     [waterGauges.data, waterRain.data, ewsStations.data, ridReservoirs.data, waterBalance.data],
   );
-  const thaDeeFlow = useMemo(() => thaDeeFlowPath(watershedSummaries), [watershedSummaries]);
+  // The REAL คลองท่าดี geometry (lib/thaDee.ts) — the animated dots and the
+  // cascade line follow the river, not straight segments between zone
+  // centroids. Falls back to the centroid path only until waterways load.
+  const thaDeeFlow = useMemo(() => {
+    const real = stitchThaDeePath(waterways as Parameters<typeof stitchThaDeePath>[0]);
+    return real.length >= 2 ? real : thaDeeFlowPath(watershedSummaries);
+  }, [waterways, watershedSummaries]);
   // Dots reuse the cascade's real live status color (not a new invented
   // signal) — flood-state cascade animates red, calm animates green/blue.
   const thaDeeFlowColor = ZONE_STATUS_RGB[worstStatus(watershedSummaries.filter(isThaDeeZone))];
@@ -1413,23 +1444,34 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
   // layer appended in allLayers. Gauged Tha Dee reaches take the live cascade
   // color; the modelled majority is coloured by slope class inside the builder.
   const waterwayFlowEnabled = enabledLayers.has("waterway-flow");
+  // Tha Dee reaches take the live cascade colour and speed up in flood. OSM
+  // doesn't name the Tha Dee here, so this matches the curated way ids in
+  // lib/thaDee.ts (a name match found nothing and the line stayed grey).
+  const thaDeeOverride = useMemo<NonNullable<Parameters<typeof prepareWaterwayFlows>[1]>>(() => {
+    const worst = worstStatus(watershedSummaries.filter(isThaDeeZone));
+    const speed = worst === "flood" ? 2.2 : worst === "high" ? 1.6 : 1.1;
+    const color = thaDeeFlowColor;
+    return (f) => {
+      const id = (f.properties as { id?: string }).id;
+      return id && THA_DEE_WAY_IDS.has(id) ? { speed, color } : null;
+    };
+  }, [thaDeeFlowColor, watershedSummaries]);
+  type FlowFeature = Feature<LineString, { waterway?: string; name?: string | null; nameTh?: string | null; flowClass?: "slow" | "medium" | "fast"; slopePct?: number; downhillConfident?: boolean }>;
   const preparedFlows = useMemo(() => {
     if (!waterwayFlowEnabled || !waterways?.features?.length) return [];
-    const thaDeeColor = thaDeeFlowColor;
-    return prepareWaterwayFlows(
-      waterways.features as unknown as Feature<LineString, { waterway?: string; name?: string | null; nameTh?: string | null; flowClass?: "slow" | "medium" | "fast"; slopePct?: number; downhillConfident?: boolean }>[],
-      (f) => {
-        const name = `${f.properties.name ?? ""}${f.properties.nameTh ?? ""}`;
-        // Tha Dee trunk: colour by the live cascade status, speed up when in flood.
-        if (name.includes("ท่าดี") || /tha\s*dee/i.test(name)) {
-          const worst = worstStatus(watershedSummaries.filter(isThaDeeZone));
-          const speed = worst === "flood" ? 2.2 : worst === "high" ? 1.6 : 1.1;
-          return { speed, color: thaDeeColor };
-        }
-        return null;
-      },
-    );
-  }, [waterwayFlowEnabled, waterways, thaDeeFlowColor, watershedSummaries]);
+    return prepareWaterwayFlows(waterways.features as unknown as FlowFeature[], thaDeeOverride);
+  }, [waterwayFlowEnabled, waterways, thaDeeOverride]);
+  // Province/city zoom gets the TRUNK rivers only (Tha Dee, named rivers,
+  // fast reaches, ≥8 km) — ~200 of 843 ways. That's the "simple lines with
+  // arrows from Khiri Wong to the city, and from the other sources" view;
+  // the full network still waits for street zoom.
+  // (observed.zoomBucket, not the `zoomBucket` const — that is declared further down.)
+  const trunkBucket: 0 | 1 = observed.zoomBucket === 0 ? 0 : 1;
+  const trunkFlows = useMemo(() => {
+    if (!waterwayFlowEnabled || !waterways?.features?.length) return [];
+    const trunk = (waterways.features as unknown as ThaDeeWaterwayFeature[]).filter((f) => isTrunkWaterway(f, trunkBucket));
+    return prepareWaterwayFlows(trunk as unknown as FlowFeature[], thaDeeOverride);
+  }, [waterwayFlowEnabled, waterways, thaDeeOverride, trunkBucket]);
 
   // RainViewer live radar nowcast (animated precipitation).
   const rainRadar = useRainRadar(enabledLayers.has("precip-radar"));
@@ -1444,15 +1486,17 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
   // waterway-flow layer is gated on zoomBucket (skipped at province/city scale
   // so the ~4k-dot animation doesn't drown the watershed cascade). Use the
   // bucket here too — same LOD contract as the buildings/roads above.
-  const waterwayFlow = useWaterwayFlow(preparedFlows, waterwayFlowEnabled, zoomBucket);
+  const flowOverview = zoomBucket !== 2;
+  const activeFlows = flowOverview ? trunkFlows : preparedFlows;
+  const waterwayFlow = useWaterwayFlow(activeFlows, waterwayFlowEnabled, zoomBucket, flowOverview);
 
-  // Lines + chevrons in ONE PathLayer, recomputed only when the prepared flow
-  // set or zoom bucket changes. LOD gate is inside the layer fn (zoomBucket < 2
-  // returns null), same contract as the dots layer. Static — no rAF loop, so
-  // it's just a useMemo, not a hook.
+  // Lines + chevrons in ONE PathLayer, recomputed only when the active flow
+  // set or zoom bucket changes. At overview zoom the set is the thinned trunk
+  // list (so the gate is lifted); at street zoom it's everything. Static — no
+  // rAF loop, so it's just a useMemo, not a hook.
   const waterwayFlowDirection = useMemo(
-    () => waterwayFlowDirectionLayer(preparedFlows, zoomBucket),
-    [preparedFlows, zoomBucket],
+    () => waterwayFlowDirectionLayer(activeFlows, zoomBucket, { overview: flowOverview }),
+    [activeFlows, zoomBucket, flowOverview],
   );
 
   // Pre-memoize the two largest layers (20,877 buildings each). The umbrella
@@ -1523,6 +1567,10 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
     if (enabledLayers.has("cctv-cameras")) out.push(cctvLayer(cctv.data) as Layer);
     if (enabledLayers.has("cctv-water-level"))
       out.push(cctvLayer(cctv.data.filter((c) => c.category === "water"), "cctv-water-level") as Layer);
+    if (enabledLayers.has("level-posts") && levelPosts.data.length > 0)
+      out.push(levelPostsLayer(levelPosts.data) as Layer);
+    if (enabledLayers.has("flood-extent-2025") && floodExtent.data.length > 0)
+      out.push(floodExtentLayer(floodExtent.data) as Layer);
     if (enabledLayers.has("incidents-city-reports")) out.push(incidentLayer("incidents-city-reports", cityReports.data) as Layer);
     if (enabledLayers.has("incidents-itic")) out.push(incidentLayer("incidents-itic", iticEvents.data) as Layer);
     // Maritime
@@ -1623,10 +1671,14 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
     // toggles). (The animated flow dots are composed OUTSIDE this memo —
     // see allLayers below — so their ~10 Hz layer swaps never rebuild this
     // whole array.)
+    // The cascade line now follows the real river (thaDeeFlow). The ETA
+    // rings + wide status bands that used to stack on top were the "random
+    // geometry" complaint — three concentric circles and straight bands
+    // between centroids read as nothing on a map. The zone markers stay (they
+    // are the sensor readouts on the line); the ring/band info lives in the
+    // rail panels (WATERSHED // UPSTREAM → CITY, Water Balance).
     if (enabledLayers.has("watershed-nodes") && waterGauges.data.length > 0) {
-      out.push(...(etaArcRingsLayer(watershedSummaries) as Layer[]));
-      out.push(...(flowInfoGraphicLayer(watershedSummaries, waterBalance.data) as Layer[]));
-      out.push(...(watershedNodesLayer(watershedSummaries, waterBalance.data) as Layer[]));
+      out.push(...(watershedNodesLayer(watershedSummaries, waterBalance.data, thaDeeFlow) as Layer[]));
     }
     // Picture-book framing (mountain / city / bay icons anchored at real
     // lng/lat) — gates independently so OPS can opt in without the heavier
@@ -1640,8 +1692,10 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
     // rendering as an opaque grey slab over several real city blocks. Drop it
     // once the operator has zoomed in far enough that the real map should
     // carry the detail instead of the picture-book stand-in.
+    // Opt-in only (`water-pictures` toggle): it no longer rides watershed-nodes,
+    // so the default FLOOD map shows the river and the sensors, not cartoons.
     if (
-      (enabledLayers.has("watershed-nodes") || enabledLayers.has("water-pictures")) &&
+      enabledLayers.has("water-pictures") &&
       waterGauges.data.length > 0 &&
       zoomBucket !== 2
     ) {
@@ -1712,6 +1766,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
     waterGauges.data, waterRain.data, ewsStations.data,
     air4thai.data, airQuality.data,
     southernRisk.data, southernRivers.data,
+    thaDeeFlow, levelPosts.data, floodExtent.data,
     watershedSummaries,
     waterBalance.data,
     floodMarks, wrfGrid.data,
@@ -1778,6 +1833,8 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
     "navigation-aids":        maritimeNavAids?.features.length ?? 0,
     "cctv-cameras":           cctv.data.length,
     "cctv-water-level":       cctv.data.filter((c) => c.category === "water").length,
+    "level-posts":            levelPosts.data.length,
+    "flood-extent-2025":      floodExtent.data.length,
     "incidents-itic":         iticEvents.data.length,
     "incidents-city-reports": cityReports.data.length,
     "datago-points":          datago.data.length,
@@ -1815,6 +1872,8 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
   const layerStatuses = useMemo<Partial<Record<LayerId, LayerStatus>>>(() => ({
     "cctv-cameras":           { tier: cctv.fallbackTier, note: cctv.note },
     "cctv-water-level":       { tier: cctv.fallbackTier, note: cctv.note },
+    "level-posts":            { tier: levelPosts.fallbackTier, note: levelPosts.note },
+    "flood-extent-2025":      { tier: floodExtent.fallbackTier, note: floodExtent.note },
     "incidents-itic":         { tier: iticEvents.fallbackTier, note: iticEvents.note },
     "incidents-city-reports": { tier: cityReports.fallbackTier, note: cityReports.note },
     "datago-points":          { tier: datago.fallbackTier, note: datago.note },
@@ -2074,6 +2133,40 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
             onFocus={(lng, lat) => flyTo(lng, lat, 12.5)}
           />
         </RailSection>
+
+        {/* LEVEL WATCH — every gauge / post above its watch, critical or bank
+            level, with the nearest water-level camera one click away. */}
+        <RailSection sectionKey="level-watch" lens={lens} title="Level Watch">
+          <LevelWatchPanel
+            gauges={waterGauges.data}
+            posts={levelPosts.data}
+            cameras={cctv.data.filter((c) => c.category === "water")}
+            ageMinutes={waterGauges.ageMinutes}
+            fallbackTier={waterGauges.fallbackTier === "loading" ? undefined : waterGauges.fallbackTier}
+            onOpenCamera={(c) => { highlightCamera(c.id); setSelectedCctv(c); }}
+            onFocus={(lng, lat) => flyTo(lng, lat, 14.5)}
+          />
+        </RailSection>
+
+        <RailSection sectionKey="live-cascade" lens={lens} title="Live Cascade">
+          <LiveCascadeReadout
+            summaries={watershedSummaries}
+            fallbackTier={waterGauges.fallbackTier === "loading" ? undefined : waterGauges.fallbackTier}
+            className="lcr"
+          />
+        </RailSection>
+
+        {waterGauges.data.length > 0 && (
+          <RailSection sectionKey="flood-story" lens={lens} title="How a Flood Happens">
+            <FloodStoryCard
+              summaries={watershedSummaries}
+              peakRain24hMm={
+                waterRain.data.reduce<number>((m, s) => Math.max(m, s.rain24h ?? 0), 0) || null
+              }
+              className="fsc"
+            />
+          </RailSection>
+        )}
 
         <RailSection sectionKey="water-balance" lens={lens} title="Water Balance">
           <WaterBalancePanel
@@ -2558,37 +2651,9 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
           />
         )}
       </Suspense>
-      {/* Live cascade readout — surfaces the upstream→city water-ecosystem
-          math on top of the map for FLOOD / ENV / INT lenses, where the
-          water-graphic layer is on. Hidden elsewhere so it doesn't compete
-          with the rail panels in day-to-day OPS / MOB views. */}
-      {(lens === "flood" || lens === "environment" || lens === "intelligence") && (
-        <LiveCascadeReadout
-          summaries={watershedSummaries}
-          // useFeed's fallbackTier is `FallbackTier | "loading"`. The readout
-          // only renders when the cascade has data; pass through only the
-          // tiers the panel can show.
-          fallbackTier={
-            waterGauges.fallbackTier === "loading"
-              ? undefined
-              : waterGauges.fallbackTier
-          }
-          className="lcr lcr--overlay"
-        />
-      )}
-      {/* Flood story card — kid-readable explanation of the 7 stages that
-          the on-map flood story layer draws. Sits next to LiveCascadeReadout
-          when the user is on FLOOD / ENV / INT and the cascade is loaded. */}
-      {(lens === "flood" || lens === "environment" || lens === "intelligence") &&
-        waterGauges.data.length > 0 && (
-          <FloodStoryCard
-            summaries={watershedSummaries}
-            peakRain24hMm={
-              waterRain.data.reduce<number>((m, s) => Math.max(m, s.rain24h ?? 0), 0) || null
-            }
-            className="fsc fsc--overlay"
-          />
-        )}
+      {/* LiveCascadeReadout + FloodStoryCard moved into the left rail
+          (sections live-cascade / flood-story) — nothing floats over the map
+          except map controls. */}
       {/* Flash flood alert — ONWR-style popup surfaced automatically when
           any sub-district crosses `prepare` or `critical` band. The map
           pins surface the same data geographically; the modal explains
@@ -2610,6 +2675,16 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
           / INT. */}
       {(lens === "flood" || lens === "environment" || lens === "intelligence") && (
         <MetroInfographic summaries={watershedSummaries} />
+      )}
+      {/* Top stations rail — ThaiWater-style horizontal strip of the
+          most-at-risk water gauges. Always visible on FLOOD / ENV / INT
+          so the operator can see "which stations are bad right now"
+          without opening a modal. Click a card to recentre the map. */}
+      {(lens === "flood" || lens === "environment" || lens === "intelligence") && (
+        <TopStationsRail
+          gauges={waterGauges.data}
+          className="tsr--overlay"
+        />
       )}
       {shortcutsOpen && (
         <ShortcutsDialog
