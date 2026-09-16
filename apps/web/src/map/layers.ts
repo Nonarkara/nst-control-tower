@@ -2199,7 +2199,14 @@ export function waterwaysLayer(collection: FeatureCollection<LineString, Record<
     },
     getLineWidth: (f) => {
       const t = String(f.properties?.waterway ?? "stream").toLowerCase();
-      return t === "river" ? 4 : t === "canal" ? 2.5 : 1;
+      const base = t === "river" ? 4 : t === "canal" ? 2.5 : 1;
+      // Scale by flowClass (if the upstream digest tagged it) so the base line
+      // itself reads as flow magnitude: slow → thin, fast → thick. 5-year-old
+      // rule: bigger line = more water.
+      const fc = f.properties?.flowClass as string | undefined;
+      if (fc === "fast") return base * 1.6;
+      if (fc === "slow") return base * 0.7;
+      return base;
     },
     lineWidthUnits: "pixels",
     lineWidthMinPixels: 1,
@@ -3385,6 +3392,236 @@ export function flowInfoGraphicLayer(
   ];
 }
 
+/** Pak Phanang Bay — exit point where the Tha Dee canal reaches the Gulf of
+ *  Thailand. Anchors the on-map water system picture. Coordinates are
+ *  approximate — Pak Chong subdistrict mouth — keeps the picture aligned
+ *  with the city's east axis. */
+export const PAK_PHANANG_BAY_CENTROID: { lng: number; lat: number } = {
+  lng: 100.184,
+  lat: 8.4942,
+};
+
+/** On-map "how is the water moving" picture — picture-book framing anchored
+ *  in the cascade's real geography. Three picture elements rendered as small
+ *  polygon/path layers at real lng/lat:
+ *
+ *    ⛰ Khao Luang (3 overlapping triangles) at Khiri Wong's gauge,
+ *    🏙 NST City (cluster of building blocks) at the city centroid,
+ *    🌊 Pak Phanang Bay (4 stacked waves) east of the city.
+ *
+ *  Plus bilingual EN/TH labels for each waypoint. The picture elements
+ *  render as muted ink so they read as background context, not foreground
+ *  alerts; status colour lives on the connecting river bands (rendered by
+ *  flowInfoGraphicLayer) so the eye still sees the cascade's mood at a
+ *  glance.
+ *
+ *  Always safe: returns [] when summaries don't have a Khiri Wong + city.
+ *  Layer ids are deterministic so the user can toggle via the layer
+ *  palette without surprises.
+ */
+export function waterSystemPictureLayer(summaries: ZoneSummary[]): Layer[] {
+  const khiriWong = summaries.find((s) => s.zone.key === "khiri-wong");
+  const city = summaries.find((s) => s.zone.isCity);
+  if (!khiriWong || !city) return [];
+
+  const mountainAnchor: [number, number] = [khiriWong.zone.lng, khiriWong.zone.lat];
+  const cityAnchor: [number, number] = [city.zone.lng, city.zone.lat];
+  const bayAnchor: [number, number] = [PAK_PHANANG_BAY_CENTROID.lng, PAK_PHANANG_BAY_CENTROID.lat];
+
+  // Approx 1° lat ≈ 111 km. SCALE in degrees sets the picture at the
+  // right size for a city/province zoom — small enough to read but big
+  // enough to anchor at the real geographic point.
+  const SCALE = 0.04;       // ~4.4 km peak-to-peak
+  const SCALE_H = SCALE * 0.55;
+
+  // ── 1. Khao Luang — 3 overlapping triangles anchored at KW ───────────
+  const khaoLuangPeaks: [number, number][] = [
+    // leftmost
+    [
+      mountainAnchor[0] - SCALE, mountainAnchor[1] + SCALE_H * 0.4,
+    ],
+    [
+      mountainAnchor[0] - SCALE * 0.5, mountainAnchor[1] - SCALE_H,
+    ],
+    [
+      mountainAnchor[0] - SCALE * 0.1, mountainAnchor[1] + SCALE_H * 0.4,
+    ],
+    // middle (tallest)
+    [
+      mountainAnchor[0] - SCALE * 0.4, mountainAnchor[1] + SCALE_H * 0.4,
+    ],
+    [
+      mountainAnchor[0] + SCALE * 0.1, mountainAnchor[1] - SCALE_H * 1.5,
+    ],
+    [
+      mountainAnchor[0] + SCALE * 0.55, mountainAnchor[1] + SCALE_H * 0.4,
+    ],
+    // rightmost
+    [
+      mountainAnchor[0] + SCALE * 0.2, mountainAnchor[1] + SCALE_H * 0.4,
+    ],
+    [
+      mountainAnchor[0] + SCALE * 0.6, mountainAnchor[1] - SCALE_H * 0.6,
+    ],
+    [
+      mountainAnchor[0] + SCALE * 0.95, mountainAnchor[1] + SCALE_H * 0.4,
+    ],
+  ];
+
+  const khaoLuangMountain: Layer = new PolygonLayer<{ polygon: [number, number][] }>({
+    id: "water-picture-khao-luang",
+    data: [{ polygon: khaoLuangPeaks }],
+    getPolygon: (d) => d.polygon,
+    getFillColor: withAlpha(grey(190), 200),
+    getLineColor: withAlpha(grey(140), 230),
+    getLineWidth: 1,
+    lineWidthUnits: "pixels",
+    stroked: true,
+    filled: true,
+    pickable: false,
+    parameters: { depthWriteEnabled: false, depthCompare: "always" },
+  });
+
+  // ── 2. NST City silhouette — cluster of building blocks ─────────────
+  type Block = { polygon: [number, number][] };
+  function block(xOff: number, hFrac: number): Block {
+    const w = SCALE * 0.18;
+    const h = SCALE_H * hFrac;
+    const x0 = cityAnchor[0] + xOff * SCALE;
+    const y0 = cityAnchor[1] - SCALE_H * 0.3 - h;
+    return {
+      polygon: [
+        [x0, y0],
+        [x0 + w, y0],
+        [x0 + w, y0 + h],
+        [x0, y0 + h],
+        [x0, y0],
+      ],
+    };
+  }
+  const cityBlocks: Block[] = [
+    block(-0.55, 0.6),
+    block(-0.36, 1.0),
+    block(-0.18, 0.55),
+    block(0.0,   0.85),
+    block(0.18,  0.5),
+  ];
+  const cityLayer: Layer = new PolygonLayer<Block>({
+    id: "water-picture-city",
+    data: cityBlocks,
+    getPolygon: (d) => d.polygon,
+    getFillColor: withAlpha(grey(180), 220),
+    getLineColor: withAlpha(grey(110), 230),
+    getLineWidth: 1,
+    lineWidthUnits: "pixels",
+    stroked: true,
+    filled: true,
+    pickable: false,
+    parameters: { depthWriteEnabled: false, depthCompare: "always" },
+  });
+
+  // ── 3. Bay wash + wave lines, east of the city ───────────────────────
+  const bayWash: Layer = new PolygonLayer<{ polygon: [number, number][] }>({
+    id: "water-picture-bay-wash",
+    data: [{
+      polygon: [
+        [bayAnchor[0] - SCALE * 0.9, bayAnchor[1] - SCALE_H * 0.5],
+        [bayAnchor[0] + SCALE * 0.9, bayAnchor[1] - SCALE_H * 0.5],
+        [bayAnchor[0] + SCALE * 0.9, bayAnchor[1] + SCALE_H * 1.4],
+        [bayAnchor[0] - SCALE * 0.9, bayAnchor[1] + SCALE_H * 1.4],
+        [bayAnchor[0] - SCALE * 0.9, bayAnchor[1] - SCALE_H * 0.5],
+      ],
+    }],
+    getPolygon: (d) => d.polygon,
+    getFillColor: withAlpha([56, 119, 174], 36),
+    getLineColor: [0, 0, 0, 0],
+    stroked: false,
+    filled: true,
+    pickable: false,
+    parameters: { depthWriteEnabled: false, depthCompare: "always" },
+  });
+
+  const waveCount = 4;
+  const bayWavePaths = Array.from({ length: waveCount }, (_, i) => {
+    const dy = SCALE_H * 0.35 + i * SCALE_H * 0.35;
+    const halfW = SCALE * 0.7;
+    const startLng = bayAnchor[0] - halfW;
+    const segments = 12;
+    const path: [number, number][] = [];
+    for (let s = 0; s <= segments; s++) {
+      const t = s / segments;
+      const lng = startLng + t * halfW * 2;
+      const ampFrac = 1 - Math.abs(t - 0.5) * 0.6;
+      const amp = (SCALE_H * 0.25) * ampFrac;
+      const lat = bayAnchor[1] + dy + Math.sin(t * Math.PI * 2) * amp;
+      path.push([lng, lat]);
+    }
+    return { id: `wave-${i}`, path };
+  });
+  const bayLayer: Layer = new PathLayer<{ path: [number, number][] }>({
+    id: "water-picture-bay",
+    data: bayWavePaths,
+    getPath: (d) => d.path,
+    getColor: withAlpha([110, 156, 200], 220),
+    getWidth: 2.4,
+    widthUnits: "pixels",
+    widthMinPixels: 1.5,
+    capRounded: true,
+    pickable: false,
+    parameters: { depthWriteEnabled: false, depthCompare: "always" },
+  });
+
+  // ── 4. Labels (mountain / city / bay) — bilingual EN above TH below ──
+  const labels: Layer[] = [
+    new TextLayer<{ position: [number, number]; text: string }>({
+      id: "water-picture-labels-en",
+      data: [
+        { position: [mountainAnchor[0], mountainAnchor[1] + SCALE_H * 0.8], text: "KHAO LUANG" },
+        { position: [cityAnchor[0], cityAnchor[1] + SCALE_H * 0.95], text: "NST CITY" },
+        { position: [bayAnchor[0], bayAnchor[1] + SCALE_H * 1.65], text: "PAK PHANANG BAY" },
+      ],
+      getPosition: (d) => d.position,
+      getText: (d) => d.text,
+      getSize: 10,
+      getColor: withAlpha(grey(110), 240),
+      fontFamily: "'Inter', 'IBM Plex Sans Thai', sans-serif",
+      fontWeight: "bold",
+      getTextAnchor: "middle",
+      getAlignmentBaseline: "center",
+      getBackgroundColor: [10, 14, 20, 200],
+      background: true,
+      backgroundPadding: [3, 1],
+      billboard: true,
+      pickable: false,
+      parameters: { depthWriteEnabled: false, depthCompare: "always" },
+    }),
+    new TextLayer<{ position: [number, number]; text: string }>({
+      id: "water-picture-labels-th",
+      data: [
+        { position: [mountainAnchor[0], mountainAnchor[1] + SCALE_H * 1.05], text: "เขาหลวง" },
+        { position: [cityAnchor[0], cityAnchor[1] + SCALE_H * 1.20], text: "เมืองนครศรีธรรมราช" },
+        { position: [bayAnchor[0], bayAnchor[1] + SCALE_H * 1.95], text: "อ่าวปากพนัง" },
+      ],
+      getPosition: (d) => d.position,
+      getText: (d) => d.text,
+      getSize: 9,
+      getColor: withAlpha(grey(135), 240),
+      fontFamily: "'Inter', 'IBM Plex Sans Thai', sans-serif",
+      fontWeight: "600",
+      getTextAnchor: "middle",
+      getAlignmentBaseline: "center",
+      getBackgroundColor: [10, 14, 20, 200],
+      background: true,
+      backgroundPadding: [3, 1],
+      billboard: true,
+      pickable: false,
+      parameters: { depthWriteEnabled: false, depthCompare: "always" },
+    }),
+  ];
+
+  return [bayWash, khaoLuangMountain, cityLayer, bayLayer, ...labels];
+}
+
 export function watershedNodesLayer(summaries: ZoneSummary[], basinBalance?: BasinWaterBalance[]): Layer[] {
   // Build a basinId → first-horizon (24h) stress band map from the FloodDash
   // water-balance ledger. Falls back to undefined when the ledger hasn't
@@ -3902,6 +4139,180 @@ export function waterwayFlowLayer(dots: WaterwayFlowDot[], zoomBucket: 0 | 1 | 2
     radiusMaxPixels: 6,
     getFillColor: (d) => [d.color[0], d.color[1], d.color[2], 225],
     stroked: false,
+    pickable: false,
+    parameters: { depthWriteEnabled: false, depthCompare: "always" },
+  });
+}
+
+// ── Waterway flow direction (lines + chevrons in ONE layer) ─────────────────
+// One PathLayer per the operator's directive: "lines in different colors AND
+// arrows AND sizes to show where water is coming from and going to — in the
+// style a 5-year-old understands." Three reinforcing cues so the direction
+// reads without any text:
+//   1. Line width + brightness scale with flowClass (slow → thin dim, fast →
+//      thick near-white). The line itself reads as flow magnitude.
+//   2. Chevron `▶` markers along each line, sized with flowClass, bright
+//      contrasting color, pointing in flow direction (first → last coord).
+//      A child sees arrows = water moves that way.
+//   3. The existing animated dots layer stays on top for "moving water" feel.
+//
+// All in a single PathLayer keyed off `PreparedFlowLine[]` (the same digest the
+// dots use), so a single feature change recomputes everything.
+
+const CHEVRON_PER_DEG = 0.025;     // one chevron per ~2.8 km of river length
+const CHEVRON_MIN = 3;
+const CHEVRON_MAX = 14;
+const CHEVRON_SIZE_DEG = 0.0014;   // ~150 m chevron arm length at unit scale
+const CHEVRON_HALF_WIDTH_DEG = 0.0007;  // ~75 m wing spread at unit scale
+
+type FlowPath = {
+  path: [number, number][];
+  kind: "line" | "chevron";
+  width: number;
+  color: [number, number, number, number];
+};
+
+/** Three-point chevron polyline (wing1, tip, wing2) pointing downstream at
+ *  `count` evenly-spaced fractions of a line of `total` length (in degrees). */
+function chevronPolylinesAlongLine(
+  coords: [number, number][],
+  count: number,
+  sizeDeg: number,
+  halfWidth: number,
+): [number, number][][] {
+  if (coords.length < 2 || count <= 0 || sizeDeg <= 0) return [];
+  const total = lineLengthDeg(coords);
+  if (total <= 0) return [];
+  const out: [number, number][][] = [];
+  for (let i = 1; i <= count; i++) {
+    const frac = i / (count + 1);
+    const targetDist = frac * total;
+    let cumDist = 0;
+    let idx = 0;
+    while (idx < coords.length - 1) {
+      const segLen = Math.hypot(
+        coords[idx + 1][0] - coords[idx][0],
+        coords[idx + 1][1] - coords[idx][1],
+      );
+      if (cumDist + segLen >= targetDist) break;
+      cumDist += segLen;
+      idx++;
+    }
+    if (idx >= coords.length - 1) continue;
+    const a = coords[idx];
+    const b = coords[idx + 1];
+    const segLen = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    const t = segLen > 0 ? (targetDist - cumDist) / segLen : 0;
+    const cx = a[0] + t * (b[0] - a[0]);
+    const cy = a[1] + t * (b[1] - a[1]);
+    const dx = b[0] - a[0];
+    const dy = b[1] - a[1];
+    const mag = Math.hypot(dx, dy);
+    if (mag === 0) continue;
+    const ux = dx / mag;
+    const uy = dy / mag;
+    const px = -uy;
+    const py = ux;
+    const tip: [number, number] = [cx + ux * sizeDeg, cy + uy * sizeDeg];
+    const w1: [number, number] = [
+      cx - ux * sizeDeg * 0.4 + px * halfWidth,
+      cy - uy * sizeDeg * 0.4 + py * halfWidth,
+    ];
+    const w2: [number, number] = [
+      cx - ux * sizeDeg * 0.4 - px * halfWidth,
+      cy - uy * sizeDeg * 0.4 - py * halfWidth,
+    ];
+    out.push([w1, tip, w2]);
+  }
+  return out;
+}
+
+/**
+ * Lines + chevrons in ONE PathLayer. Each prepared flow line contributes:
+ *   - 1 entry with kind='line' (the full polyline), width by flow class
+ *   - N entries with kind='chevron' (one per ~2.8 km), pointing downstream
+ * Width and color both scale with flow class; gauged flows use the live
+ * cascade color (already baked into `line.color` upstream).
+ *
+ * LOD: like the dots layer, skip province/city scale (zoomBucket < 2) so
+ * the ~600+ arrows + ~843 lines don't drown the more important watershed
+ * cascade and rain radar.
+ */
+export function waterwayFlowDirectionLayer(
+  prepared: PreparedFlowLine[],
+  zoomBucket: 0 | 1 | 2 = 2,
+): PathLayer<FlowPath> | null {
+  if (zoomBucket < 2) return null;
+  const paths: FlowPath[] = [];
+  for (const line of prepared) {
+    const total = lineLengthDeg(line.coords);
+    if (total <= 0) continue;
+
+    // Flow class → line width: slow 1.5 px, medium 3 px, fast 5.5 px. The line
+    // itself becomes the magnitude signal.
+    const lineWidth =
+      line.color === FLOW_CLASS_COLOR.fast ? 5.5
+      : line.color === FLOW_CLASS_COLOR.slow ? 1.5
+      : 3;
+    const lineAlpha = line.gauged ? 255 : 230;
+    paths.push({
+      path: line.coords,
+      kind: "line",
+      width: lineWidth,
+      color: [line.color[0], line.color[1], line.color[2], lineAlpha],
+    });
+
+    // Chevrons sized by flow class. Fast → big bright; slow → small dim.
+    const nChevrons = Math.max(
+      CHEVRON_MIN,
+      Math.min(CHEVRON_MAX, Math.round(total / CHEVRON_PER_DEG)),
+    );
+    const sizeScale =
+      line.color === FLOW_CLASS_COLOR.fast ? 1.6
+      : line.color === FLOW_CLASS_COLOR.slow ? 0.7
+      : 1;
+    const sizeDeg = CHEVRON_SIZE_DEG * sizeScale;
+    const halfWidth = CHEVRON_HALF_WIDTH_DEG * sizeScale;
+    const chevrons = chevronPolylinesAlongLine(
+      line.coords,
+      nChevrons,
+      sizeDeg,
+      halfWidth,
+    );
+    // Chevrons get a bright tint (whitened toward white) so they pop against
+    // the line they sit on. Same hue, more luminance.
+    const chevColor: [number, number, number] = [
+      Math.min(255, line.color[0] + (255 - line.color[0]) * 0.45),
+      Math.min(255, line.color[1] + (255 - line.color[1]) * 0.45),
+      Math.min(255, line.color[2] + (255 - line.color[2]) * 0.45),
+    ];
+    const chevAlpha = line.gauged ? 255 : 245;
+    const chevWidth =
+      line.color === FLOW_CLASS_COLOR.fast ? 5
+      : line.color === FLOW_CLASS_COLOR.slow ? 2.5
+      : 3.5;
+    for (const c of chevrons) {
+      paths.push({
+        path: c,
+        kind: "chevron",
+        width: chevWidth,
+        color: [chevColor[0], chevColor[1], chevColor[2], chevAlpha],
+      });
+    }
+  }
+
+  return new PathLayer<FlowPath>({
+    id: "waterway-flow-direction",
+    data: paths,
+    getPath: (d) => d.path,
+    getColor: (d) => d.color,
+    getWidth: (d) => d.width,
+    widthUnits: "pixels",
+    widthMinPixels: 1.5,
+    widthMaxPixels: 8,
+    capRounded: true,
+    jointRounded: false,
+    billboard: false,
     pickable: false,
     parameters: { depthWriteEnabled: false, depthCompare: "always" },
   });

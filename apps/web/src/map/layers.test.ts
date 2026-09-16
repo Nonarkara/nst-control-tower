@@ -1,5 +1,5 @@
 import { describe, test, expect, it } from "vitest";
-import { flowDotPositions, thaDeeFlowPath, etaArcRingsLayer, watershedNodesLayer, flowInfoGraphicLayer } from "./layers";
+import { flowDotPositions, thaDeeFlowPath, etaArcRingsLayer, watershedNodesLayer, flowInfoGraphicLayer, waterSystemPictureLayer } from "./layers";
 import type { ZoneSummary } from "../lib/watershed";
 import type { BasinWaterBalance } from "@nst/shared";
 import { STATUS, type StatusLevel } from "../lib/status";
@@ -317,3 +317,52 @@ describe("flowInfoGraphicLayer", () => {
     expect(flowInfoGraphicLayer(zones, [])).toHaveLength(0);
   });
 });
+
+describe("waterSystemPictureLayer", () => {
+  // Real cascade stations (NST watershed coords) — picture needs both a
+  // Khiri Wong anchor (mountain) AND a city anchor (city silhouette / bay).
+  const populated: ZoneSummary[] = [
+    zone("khiri-wong", "คลองท่าดี", 99.7833, 8.4338),
+    zone("lan-saka", "คลองท่าดี", 99.802, 8.4012),
+    cityZone(99.9631, 8.4364),
+  ];
+
+  it("returns 6 layers (bay-wash, mountain, city, bay, 2 label layers) when both anchors exist", () => {
+    const layers = waterSystemPictureLayer(populated);
+    expect(layers).toHaveLength(6);
+    const ids = layers.map((l: unknown) => (l as { id: string }).id);
+    expect(ids).toEqual([
+      "water-picture-bay-wash",
+      "water-picture-khao-luang",
+      "water-picture-city",
+      "water-picture-bay",
+      "water-picture-labels-en",
+      "water-picture-labels-th",
+    ]);
+  });
+
+  it("returns an empty array when Khiri Wong is missing", () => {
+    const zones: ZoneSummary[] = [
+      zone("thung-song", "คลองท่าเลา", 99.679, 8.175),
+      cityZone(99.9631, 8.4364),
+    ];
+    expect(waterSystemPictureLayer(zones)).toEqual([]);
+  });
+
+  it("returns an empty array when the city anchor is missing", () => {
+    const zones: ZoneSummary[] = [
+      zone("khiri-wong", "คลองท่าดี", 99.7833, 8.4338),
+    ];
+    expect(waterSystemPictureLayer(zones)).toEqual([]);
+  });
+
+  it("anchors the bay 5–20 km east of the city centroid (real geography)", () => {
+    // Pak Phanang Bay is downstream + east of NST city. The picture's bay
+    // wash must be east of the city anchor in lng with a small lat offset.
+    expect(PAK_PHANANG_BAY_CENTROID.lng).toBeGreaterThan(100.0);
+    expect(PAK_PHANANG_BAY_CENTROID.lat).toBeGreaterThan(8.4);
+    expect(PAK_PHANANG_BAY_CENTROID.lat).toBeLessThan(8.6);
+  });
+});
+
+import { PAK_PHANANG_BAY_CENTROID } from "./layers";

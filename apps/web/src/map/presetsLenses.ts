@@ -46,6 +46,7 @@ export type LayerId =
   | "dam-status"
   | "river-buffer"
   | "watershed-nodes"
+  | "water-pictures"
   // NST — HII survey + WRF model
   | "flood-marks"
   | "street-flood-sim"
@@ -162,6 +163,7 @@ export const LENSES: Lens[] = [
       "ring-roads",
       "road-network",
       "civic-points",
+      "water-pictures",
       "traffic-heatmap",
       "incidents-city-reports",
       "incidents-itic",

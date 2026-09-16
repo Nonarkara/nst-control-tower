@@ -19,6 +19,8 @@ export const ALL_LAYERS_PART_B: LayerEntry[] = [
     describe: "DWR community early-warning stations in the Khao Luang headwaters, coloured by official alert status (0 normal · 1 watch · 2 prepare · 3 critical) with soil-moisture %. These are the stations that trigger village sirens." },
   { id: "watershed-nodes",   label: "Watershed (upstream→city)", swatch: "#2EA05E", group: "environment",
     describe: "The Tha Dee flow cascade made geographic — ทุ่งสง / คีรีวง / ลานสกา upstream nodes feeding the city, with a flow line down คลองท่าดี (คีรีวง → ลานสกา → city). Each node is coloured by live status (gauges + rainfall + DWR EWS soil). Upstream rises here lead the city by hours." },
+  { id: "water-pictures",    label: "Water system picture",      swatch: "#56B4E9", group: "environment",
+    describe: "Picture-book iconography for the watershed: Khao Luang mountain at the source, NST city silhouette at the cascade terminus, Pak Phanang Bay's waves to the east, with bilingual EN/TH labels. Anchored at the real lng/lat so a non-operator can read 'where the water comes from and where it goes' at a glance. Lighter than watershed-nodes — opt-in for OPS / day-to-day viewing." },
   { id: "dam-status",        label: "Khao Luang runoff",         swatch: "#2EA05E", group: "environment",
     describe: "Khao Luang watershed runoff trend — NST has no major regulating dam, so flash flooding tracks upstream discharge directly. Rising discharge precedes downstream flooding in the city + Pak Phanang lowlands." },
   { id: "alphaearth-landcover", label: "AlphaEarth land cover",  swatch: "#009E73", group: "environment",

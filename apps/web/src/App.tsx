@@ -58,6 +58,7 @@ import {
   prepareWaterwayFlows,
   waterwayFlowDots,
   waterwayFlowLayer,
+  waterwayFlowDirectionLayer,
   esriSatelliteLayer,
   gibsLayer,
   googleTilesLayer,
@@ -107,6 +108,7 @@ import {
   watershedNodesLayer,
   etaArcRingsLayer,
   flowInfoGraphicLayer,
+  waterSystemPictureLayer,
   waterGaugesLayer,
   waterLevelHeatmapLayer,
   waterLevelDensityFallbackLayer,
@@ -1419,6 +1421,15 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
   // bucket here too — same LOD contract as the buildings/roads above.
   const waterwayFlow = useWaterwayFlow(preparedFlows, waterwayFlowEnabled, zoomBucket);
 
+  // Lines + chevrons in ONE PathLayer, recomputed only when the prepared flow
+  // set or zoom bucket changes. LOD gate is inside the layer fn (zoomBucket < 2
+  // returns null), same contract as the dots layer. Static — no rAF loop, so
+  // it's just a useMemo, not a hook.
+  const waterwayFlowDirection = useMemo(
+    () => waterwayFlowDirectionLayer(preparedFlows, zoomBucket),
+    [preparedFlows, zoomBucket],
+  );
+
   // Pre-memoize the two largest layers (20,877 buildings each). The umbrella
   // `layers` memo below has ~40 deps including SWR feed polls — if any of those
   // change, the buildings/roofs GeoJsonLayer would otherwise be re-instantiated
@@ -1592,6 +1603,16 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
       out.push(...(flowInfoGraphicLayer(watershedSummaries, waterBalance.data) as Layer[]));
       out.push(...(watershedNodesLayer(watershedSummaries, waterBalance.data) as Layer[]));
     }
+    // Picture-book framing (mountain / city / bay icons anchored at real
+    // lng/lat) — gates independently so OPS can opt in without the heavier
+    // watershed-nodes stack. Also rides the watershed-nodes toggle so it
+    // vanishes together with the bands when the operator turns them off.
+    if (
+      (enabledLayers.has("watershed-nodes") || enabledLayers.has("water-pictures")) &&
+      waterGauges.data.length > 0
+    ) {
+      out.push(...(waterSystemPictureLayer(watershedSummaries) as Layer[]));
+    }
     // ── Live sensor telemetry dots — every dot hovers to a real reading ────
     if (enabledLayers.has("rain-stations") && waterRain.data.length > 0)
       out.push(rainStationsLayer(waterRain.data) as Layer);
@@ -1676,17 +1697,19 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
     // dot clouds sit on top.
     const radar = rainRadar.layer as Layer | null;
     const wwFlow = waterwayFlow.layer as Layer | null;
+    const wwDir = waterwayFlowDirection as Layer | null;
     const cctvPulse = cctvPulseLayer(highlightedCctvId, cctv.data, cctvPulseRadius);
-    if (!streetFloodSimLayer && !flowAnim.layer && !radar && !wwFlow && !cctvPulse) return layers;
+    if (!streetFloodSimLayer && !flowAnim.layer && !radar && !wwFlow && !wwDir && !cctvPulse) return layers;
     return [
       ...(radar ? [radar] : []),
       ...(streetFloodSimLayer ? [streetFloodSimLayer] : []),
       ...layers,
       ...(wwFlow ? [wwFlow] : []),
+      ...(wwDir ? [wwDir] : []),
       ...(cctvPulse ? [cctvPulse] : []),
       ...(flowAnim.layer ? [flowAnim.layer as Layer] : []),
     ];
-  }, [layers, streetFloodSimLayer, flowAnim.layer, rainRadar.layer, waterwayFlow.layer, highlightedCctvId, cctv.data, cctvPulseRadius]);
+  }, [layers, streetFloodSimLayer, flowAnim.layer, rainRadar.layer, waterwayFlow.layer, waterwayFlowDirection, highlightedCctvId, cctv.data, cctvPulseRadius]);
 
   // Feature counts — passed to LayerPalette so every toggle shows a number,
   // making it immediately obvious whether the layer has data or not.
