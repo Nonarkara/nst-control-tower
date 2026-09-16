@@ -51,9 +51,10 @@ export const NST: CampusConfig = {
     "Phatthanakan Khukhwang Road",
     "Si Thammasok Road",
   ],
-  // Default camera frames the WHOLE PROVINCE (zoom ~8.4) so the map opens on the
-  // full provincial extent with the city visible; zoom in past ~13 for the Old
-  // Town building fabric. pitch kept gentle for the province overview.
+  // Default camera frames the WHOLE PROVINCE (zoom ~8.4) so the map opens on
+  // the hydrology view the operator needs first — every river + district +
+  // flow arrow visible at once, the way RID's printed watershed maps read.
+  // Zoom in past ~13 for the Old Town building fabric + Mahatat chedi.
   defaultView: {
     longitude: 99.83,
     latitude: 8.62,

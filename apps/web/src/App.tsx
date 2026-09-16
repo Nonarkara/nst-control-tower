@@ -114,6 +114,8 @@ import {
   waterSystemPictureLayer,
   metroRouteLayer,
   mahatat3DLayer,
+  districtBoundariesLayer,
+  hydroFlowArrowsLayer,
   waterGaugesLayer,
   waterLevelHeatmapLayer,
   waterLevelDensityFallbackLayer,
@@ -1226,7 +1228,11 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
     enabledLayers.has("conflict-choropleth") ? "/geo/nst/boundaries/provinces.geojson" : null,
   );
   const districtBoundaries = useGeoJson<FeatureCollection<Polygon | MultiPolygon, Record<string, unknown>>>(
-    enabledLayers.has("poverty-choropleth") ? "/geo/nst/boundaries/districts.geojson" : null,
+    enabledLayers.has("poverty-choropleth") ||
+    enabledLayers.has("district-boundaries") ||
+    enabledLayers.has("hydro-flow-arrows")
+      ? "/geo/nst/boundaries/districts.geojson"
+      : null,
   );
 
   // Civic POIs + waterways — Yala municipal OSM extract.
@@ -1710,6 +1716,31 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
       // connector. The modal MetroInfographic uses the same layer; here it
       // rides the watershed-nodes toggle so it shares the cascade's lifecycle.
       out.push(...(metroRouteLayer(watershedSummaries, { translucent: true }) as Layer[]));
+    }
+    // ── Province-scale hydrology: district boundaries + flow arrows on every river ──
+    // The Songkhla-style printed-map view. Renders ON TOP of the basemap but
+    // BELOW the watershed cascade (so the cascade markers don't get hidden by
+    // a sea of arrows). The arrows are static triangle polygons computed from
+    // each waterway's geometry — they always point downstream regardless of
+    // the user's panning direction.
+    if (
+      (enabledLayers.has("district-boundaries") || enabledLayers.has("hydro-flow-arrows")) &&
+      waterways?.features?.length
+    ) {
+      if (enabledLayers.has("hydro-flow-arrows")) {
+        out.push(...(hydroFlowArrowsLayer(waterways) as Layer[]));
+      }
+      if (enabledLayers.has("district-boundaries") && districtBoundaries) {
+        // The fetched districtBoundaries is a Polygon | MultiPolygon
+        // collection — narrow to Polygon for the label centroid math.
+        const polyOnly = {
+          type: "FeatureCollection",
+          features: districtBoundaries.features.filter(
+            (f) => f.geometry.type === "Polygon" || f.geometry.type === "MultiPolygon",
+          ),
+        } as FeatureCollection<Polygon, { id: string; name: string | null; nameTh: string | null; admin_level: number }>;
+        out.push(...(districtBoundariesLayer(polyOnly) as Layer[]));
+      }
     }
     // Picture-book framing (mountain / city / bay icons anchored at real
     // lng/lat) — gates independently so OPS can opt in without the heavier

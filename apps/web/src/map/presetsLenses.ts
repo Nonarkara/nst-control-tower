@@ -126,7 +126,10 @@ export type LayerId =
   | "flood-extent-2025"
   // 3D parametric landmarks — the great chedi at Wat Phra Mahathat
   // (bell + spire + ubosot + wihan + prang + ho trai + 8 satellite chedis)
-  | "mahatat-3d";
+  | "mahatat-3d"
+  // Province-scale hydrology: district boundaries + flow arrows on every river
+  | "district-boundaries"
+  | "hydro-flow-arrows";
 
 export type MapViewState =
   | { kind: "lens"; lensId: LensId }
@@ -175,6 +178,14 @@ export const LENSES: Lens[] = [
       "ring-roads",
       "road-network",
       "civic-points",
+      // Province-scale hydrology: every river + every district + flow arrows
+      // so the operator sees "water comes from Khao Luang, flows through the
+      // cascade, into Pak Phanang Bay" the moment they open the dashboard.
+      // This is the Songkhla-style printed watershed view the operator asked
+      // for — district boundaries dashed + labelled, rivers as blue lines,
+      // red arrows pointing downstream every ~3 km.
+      "district-boundaries",
+      "hydro-flow-arrows",
       "flood-risk-overlay",
       // The iconic 3D model of Wat Phra Mahathat — the city-defining landmark.
       // Renders as a parametric stacked-primitive bell chedi + ubosot + wihan +
@@ -213,6 +224,10 @@ export const LENSES: Lens[] = [
       "satellite-esri",
       "river-buffer",
       "waterways",
+      // Province hydrology baseline — districts + flow arrows so the FLOOD
+      // lens also reads as a printed watershed map.
+      "district-boundaries",
+      "hydro-flow-arrows",
       // The iconic 3D model of Wat Phra Mahathat — the city-defining landmark
       // sits in the flood plain and the basin cascade ends here, so FLOOD lens
       // must carry the temple silhouette as a recognisable backdrop.

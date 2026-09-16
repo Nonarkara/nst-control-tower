@@ -5297,3 +5297,10 @@ export type { WaterwayRiskStatus };
 // dashboard uses" contract easier to grep).
 export { mahatat3DLayer } from "../lib/mahatat3d";
 export { MAHATAT_CENTER } from "../lib/mahatat3d";
+
+// Re-export the hydrology map layers — district boundaries + flow arrows on
+// every river — so App.tsx can mount them as a single layer group without
+// importing the lib directly. Together they form the printed-map-style
+// watershed view (the Songkhla-style hydrology reference the user keeps
+// asking for) at province zoom.
+export { districtBoundariesLayer, hydroFlowArrowsLayer } from "../lib/hydroMap";

@@ -199,6 +199,24 @@ describe("LENSES", () => {
     }
   });
 
+  it("OPS + FLOOD lenses carry the province-scale hydrology stack (district-boundaries + hydro-flow-arrows)", () => {
+    // The Songkhla-style hydrology view: district boundaries (dashed) + flow
+    // arrows on every river pointing downstream. Without these the operator
+    // sees a metro line and gauges but no printed-map watershed.
+    for (const lensId of ["operations", "flood"] as const) {
+      const lens = LENSES.find((l) => l.id === lensId);
+      expect(lens, `${lensId} lens missing`).toBeDefined();
+      expect(
+        lens!.layers,
+        `${lensId} lens must carry district-boundaries`,
+      ).toContain("district-boundaries");
+      expect(
+        lens!.layers,
+        `${lensId} lens must carry hydro-flow-arrows`,
+      ).toContain("hydro-flow-arrows");
+    }
+  });
+
   it("does not expose the retired Deep South security / poverty lenses", () => {
     expect(LENSES.find((l) => l.id === "security")).toBeUndefined();
     expect(LENSES.find((l) => l.id === "poverty")).toBeUndefined();
