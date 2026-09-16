@@ -156,6 +156,17 @@ export function classifyBuilding(props: BuildingProperties): LandmarkKind {
     if (r === "muslim")    return "mosque";
     return "temple";
   }
+  // OSM `building=temple/mosque/church/religious` — applied to sub-structures
+  // inside the temple complex (ubosot, wihan, chedi base, monk quarters) that
+  // OSM mappers tag with the building kind rather than `amenity=place_of_worship`.
+  // Without this branch every cloister wall + auxiliary hall renders as the
+  // neutral UNTYPED grey — the temple complex reads as a flat slab instead of
+  // a gold cluster, and Mahatat (which has ~60 such sub-buildings) loses its
+  // shape entirely.
+  if (b === "temple") return "temple";
+  if (b === "mosque") return "mosque";
+  if (b === "church" || b === "cathedral" || b === "chapel") return "church";
+  if (b === "religious") return r === "muslim" ? "mosque" : r === "christian" ? "church" : "temple";
   if (a === "townhall" || of === "government" || a === "courthouse") return "government";
   if (t === "hotel" || b === "hotel") return "hotel";
   if (op.includes("egat") || op.includes("pea ") || op.includes("การไฟฟ้า")) return "power";

@@ -108,6 +108,32 @@ describe("classifyBuilding — amenity tags", () => {
     expect(classifyBuilding(b({ amenity: "college" }))).toBe("university");
   });
 
+  // OSM `building=temple/mosque/church` sub-structure tags — these are how
+  // cloister walls, ubosot, wihan, and monk quarters are mapped inside a
+  // temple complex. Without these branches the whole complex reads as a
+  // flat grey slab and Mahatat's silhouette disappears.
+  it("building=temple → 'temple' (cloister walls + sub-structures)", () => {
+    expect(classifyBuilding(b({ building: "temple" }))).toBe("temple");
+  });
+  it("building=mosque → 'mosque'", () => {
+    expect(classifyBuilding(b({ building: "mosque" }))).toBe("mosque");
+  });
+  it("building=church → 'church'", () => {
+    expect(classifyBuilding(b({ building: "church" }))).toBe("church");
+  });
+  it("building=cathedral → 'church'", () => {
+    expect(classifyBuilding(b({ building: "cathedral" }))).toBe("church");
+  });
+  it("building=religious + religion=muslim → 'mosque'", () => {
+    expect(classifyBuilding(b({ building: "religious", religion: "muslim" }))).toBe("mosque");
+  });
+  it("building=religious + religion=christian → 'church'", () => {
+    expect(classifyBuilding(b({ building: "religious", religion: "christian" }))).toBe("church");
+  });
+  it("building=religious (no religion tag) → 'temple'", () => {
+    expect(classifyBuilding(b({ building: "religious" }))).toBe("temple");
+  });
+
   it("townhall amenity → 'government'", () => {
     expect(classifyBuilding(b({ amenity: "townhall" }))).toBe("government");
   });

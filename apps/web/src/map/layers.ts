@@ -473,6 +473,11 @@ export function buildingsLayer(
   // we keep all but drop pickable — pickable is per-pixel-per-frame work and
   // not useful when the user is panning around the whole city. At street
   // scale (bucket 2) everything is on.
+  //
+  // The province-scale floor was 20m (mid-rise+ only). Lifted to 12m so the
+  // 2-3 story Old Town fabric survives the zoom-out — without that you only
+  // see the tall landmarks and the city reads as "landmarks floating on a
+  // flat green plain" instead of a real Old Town.
   const features = collection.features;
   const filtered =
     zoomBucket === 0
@@ -480,7 +485,8 @@ export function buildingsLayer(
           const p = f.properties as BuildingProperties & { _elevM?: number };
           if (p.mnType) return true;
           if (p.name) return true;
-          if (typeof p._elevM === "number" && p._elevM >= 20) return true;
+          if (typeof p._elevM === "number" && p._elevM >= 12) return true;
+          if (classifyBuilding(p)) return true; // classified residential/retail/etc still reads as fabric at province scale
           return false;
         })
       : extruded
@@ -531,7 +537,13 @@ export function buildingsLayer(
         return [base[0], base[1], base[2], 32] as [number, number, number, number];
       }
       if (extruded) {
-        return [base[0], base[1], base[2], hasKind ? 230 : 210] as [number, number, number, number];
+        // Anonymous footprints in 3D used to fill at 210/255 — present, but
+        // 10,000+ adjacent blocks at the same alpha blended into a flat
+        // mid-grey wash that read as "background" rather than "city fabric".
+        // Lifted to 235 so the residential block pattern stays visible as
+        // *texture* under the landmarks. Landmarks (hasKind) hold at 230
+        // because they're already saturated by their category hue.
+        return [base[0], base[1], base[2], hasKind ? 230 : 235] as [number, number, number, number];
       }
       // Anonymous footprints (no OSM type, no name — ~14k of ~21k buildings,
       // packed wall-to-wall in old-town blocks) previously filled at 70/255.
@@ -581,19 +593,19 @@ export function buildingsLayer(
 }
 
 /**
- * LIGHTWEIGHTNESS — drop the bottom 30% of unclassified untagged
- * low-rise buildings in 3D mode. The 20.9k buildings break down roughly as:
- *   - ~250 landmarks (mnType) + 50 super-tall (≥20 m)
- *   - ~1,500 named (street-color outline)
- *   - ~13,800 "OSM building=yes" untagged low-rise (the drop candidate)
- *   - ~5,400 short-tagged (`building=residential`/`house`) — already classified
+ * LIGHTWEIGHTNESS — keep most of the 1-2 storey untagged fabric in 3D mode.
+ * The breakdown is roughly:
+ *   - ~250 landmarks (mnType) + 50 super-tall (≥20 m)        — always kept
+ *   - ~1,500 named (street-color outline)                    — always kept
+ *   - ~5,400 short-tagged (`building=residential`/`house`)  — always kept
+ *   - ~13,800 "OSM building=yes" untagged low-rise          — kept at 70%
  *
- * The untagged low-rise dominates the tessellation count and adds zero
- * silhouette signal at street scale (they're 1-2 storey terrace). Drop the
- * bottom 30% by stable alphabetical id order — no geographic bias. Kept
- * in 2D so BuildingSearch can still find any one of them.
+ * The original 30% cap made the 3D map look like "landmarks floating on a
+ * flat plain" — the residential fabric dropped out, the city felt empty.
+ * Lifted to 70% so a 5-year-old can still trace the block pattern under
+ * the landmarks. Kept in 2D so BuildingSearch can still find every one.
  */
-function capUntaggedFor3D(
+export function capUntaggedFor3D(
   features: Feature<Polygon | MultiPolygon, BuildingProperties>[],
 ): Feature<Polygon | MultiPolygon, BuildingProperties>[] {
   const keep: typeof features = [];
@@ -612,7 +624,7 @@ function capUntaggedFor3D(
     const bi = String((b.properties as { id?: string }).id ?? "");
     return ai.localeCompare(bi);
   });
-  const cap = Math.floor(maybeDrop.length * 0.3);
+  const cap = Math.floor(maybeDrop.length * 0.7);
   const survivors = maybeDrop.slice(0, cap);
   return [...keep, ...survivors];
 }
