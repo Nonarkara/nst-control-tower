@@ -3395,11 +3395,10 @@ export function flowInfoGraphicLayer(
 /** Pak Phanang Bay — exit point where the Tha Dee canal reaches the Gulf of
  *  Thailand. Anchors the on-map water system picture. Coordinates are
  *  approximate — Pak Chong subdistrict mouth — keeps the picture aligned
- *  with the city's east axis. */
-export const PAK_PHANANG_BAY_CENTROID: { lng: number; lat: number } = {
-  lng: 100.184,
-  lat: 8.4942,
-};
+ *  with the city's east axis. Re-exported from @nst/shared so multiple
+ *  modules agree on a single source of truth. */
+import { PAK_PHANANG_BAY_CENTROID as SHARED_BAY_CENTROID } from "@nst/shared";
+export const PAK_PHANANG_BAY_CENTROID = SHARED_BAY_CENTROID;
 
 /** On-map "how is the water moving" picture — picture-book framing anchored
  *  in the cascade's real geography. Three picture elements rendered as small
@@ -4956,3 +4955,173 @@ export function ffpiPinsLayer(rows: FfpiRow[]): Layer[] {
 // parallel with the layer without needing to import two paths.
 export type { FfpiRow };
 export { ffpiBandToStatusLevel };
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  Metro route layer — watershed-as-subway line for the infographic
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// One PathLayer per line, drawn at 4 px width with status-coloured
+// stroke and a thin white outline (the standard "subway map above the
+// map" treatment). Stations sit on top via ScatterplotLayer — square
+// for local stops, rounded-square for transfer, larger pill for
+// terminus. Labels live in a TextLayer placed beside each station,
+// offset direction depends on the line's direction of travel.
+
+import { buildCascadeLine, buildLineGeometry, METRO, type MetroLine, type MetroStatus } from "../lib/metroLines";
+
+const LINE_WIDTH_PX = 4;
+
+function statusHex(status: MetroStatus): [number, number, number] {
+  const hex = METRO.STATUS_COLOR[status];
+  const v = hex.startsWith("#") ? hex.slice(1) : hex;
+  const r = parseInt(v.slice(0, 2), 16);
+  const g = parseInt(v.slice(2, 4), 16);
+  const b = parseInt(v.slice(4, 6), 16);
+  return [r, g, b];
+}
+
+function pickStationShape(kind: "terminus" | "transfer" | "local"): number {
+  if (kind === "terminus") return 11;
+  if (kind === "transfer") return 9;
+  return 7;
+}
+
+export interface MetroLayerOptions {
+  /** When true, fade the line slightly (60% α) so the basemap reads
+   *  through. Default true — the layer sits on the live deck.gl canvas. */
+  translucent: boolean;
+}
+
+export function metroRouteLayer(
+  summaries: ZoneSummary[],
+  options: Partial<MetroLayerOptions> = {},
+): Layer[] {
+  const translucent = options.translucent ?? true;
+  const line: MetroLine = buildCascadeLine(summaries);
+  const path = buildLineGeometry(line, 48);
+  const out: Layer[] = [];
+
+  // The line outline — a thicker white stroke behind the coloured line
+  // so the diagram reads as a subway line over the basemap.
+  out.push(
+    new PathLayer<{ path: [number, number][] }>({
+      id: "metro-line-outline",
+      data: [{ path }],
+      getPath: (d) => d.path,
+      getColor: [255, 255, 255, 220] as [number, number, number, number],
+      getWidth: LINE_WIDTH_PX + 3,
+      widthUnits: "pixels",
+      widthMinPixels: LINE_WIDTH_PX + 2,
+      capRounded: true,
+      jointRounded: true,
+      parameters: { depthWriteEnabled: false, depthCompare: "always" },
+    }) as Layer,
+  );
+
+  const [r, g, b] = statusHex(line.overallStatus);
+  out.push(
+    new PathLayer<{ path: [number, number][] }>({
+      id: "metro-line-tha-dee",
+      data: [{ path }],
+      getPath: (d) => d.path,
+      getColor: [r, g, b, translucent ? 235 : 255] as [number, number, number, number],
+      getWidth: LINE_WIDTH_PX,
+      widthUnits: "pixels",
+      widthMinPixels: 3,
+      capRounded: true,
+      jointRounded: true,
+      parameters: { depthWriteEnabled: false, depthCompare: "always" },
+    }) as Layer,
+  );
+
+  // Stations — sized by kind, filled with status colour, bordered white.
+  out.push(
+    new ScatterplotLayer<typeof line.stations[number]>({
+      id: "metro-stations",
+      data: line.stations,
+      getPosition: (s) => [s.lng, s.lat],
+      getRadius: (s) => pickStationShape(s.kind),
+      radiusUnits: "pixels",
+      radiusMinPixels: pickStationShape("local"),
+      radiusMaxPixels: pickStationShape("terminus") + 2,
+      stroked: true,
+      getFillColor: (s) => {
+        const [sr, sg, sb] = statusHex(s.status);
+        return [sr, sg, sb, 235] as [number, number, number, number];
+      },
+      getLineColor: [255, 255, 255, 245] as [number, number, number, number],
+      lineWidthMinPixels: 1.5,
+      pickable: true,
+      parameters: { depthWriteEnabled: false, depthCompare: "always" },
+    }) as Layer,
+  );
+
+  // Labels — sit beside each station with a dark pill so the labels
+  // remain legible on the basemap. English first, Thai below.
+  out.push(
+    new TextLayer<{ s: typeof line.stations[number] }>({
+      id: "metro-station-labels-en",
+      data: line.stations.map((s) => ({ s })),
+      getPosition: (d) => [d.s.lng, d.s.lat],
+      getText: (d) => d.s.labelEn,
+      getSize: 12,
+      getColor: [255, 255, 255, 230],
+      fontFamily: "'Inter', sans-serif",
+      fontWeight: 700,
+      characterSet: "auto",
+      getPixelOffset: (d) => labelOffsetFor(d.s),
+      getTextAnchor: (d) => labelAnchorFor(d.s),
+      getAlignmentBaseline: "center",
+      getBackgroundColor: [10, 14, 20, 200],
+      background: true,
+      backgroundPadding: [3, 1],
+      billboard: true,
+      pickable: false,
+      parameters: { depthWriteEnabled: false, depthCompare: "always" },
+    }) as Layer,
+  );
+  out.push(
+    new TextLayer<{ s: typeof line.stations[number] }>({
+      id: "metro-station-labels-th",
+      data: line.stations.map((s) => ({ s })),
+      getPosition: (d) => [d.s.lng, d.s.lat],
+      getText: (d) => d.s.labelTh,
+      getSize: 11,
+      getColor: [255, 255, 255, 220],
+      fontFamily: "'Inter', 'IBM Plex Sans Thai', sans-serif",
+      fontWeight: 600,
+      characterSet: "auto",
+      getPixelOffset: (d) => thLabelOffsetFor(d.s),
+      getTextAnchor: (d) => labelAnchorFor(d.s),
+      getAlignmentBaseline: "center",
+      getBackgroundColor: [10, 14, 20, 200],
+      background: true,
+      backgroundPadding: [3, 1],
+      billboard: true,
+      pickable: false,
+      parameters: { depthWriteEnabled: false, depthCompare: "always" },
+    }) as Layer,
+  );
+
+  return out;
+}
+
+// Label placement — orient labels above/below in line direction so they
+// don't sit on top of the line itself. For the MVP we just put labels
+// above each station; a future iteration can flip sides per direction.
+
+type MetroStationKind = "terminus" | "transfer" | "local";
+
+function labelAnchorFor(_s: { kind: MetroStationKind }): "start" | "middle" | "end" {
+  return "middle";
+}
+
+function labelOffsetFor(s: { kind: MetroStationKind }): [number, number] {
+  void s;
+  return [0, -16];
+}
+
+function thLabelOffsetFor(s: { kind: MetroStationKind }): [number, number] {
+  void s;
+  return [0, 18];
+}

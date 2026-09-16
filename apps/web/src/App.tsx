@@ -197,6 +197,7 @@ import { ChatBox } from "./components/ChatBox";
 import { LiveCascadeReadout } from "./components/LiveCascadeReadout";
 import { FloodStoryCard } from "./components/FloodStoryCard";
 import { FlashFloodAlert } from "./components/FlashFloodAlert";
+import { MetroInfographic } from "./components/MetroInfographic";
 import { rankFfpi } from "./lib/flashFlood";
 import { PredictivePanel, METRIC_LAYER_MAP, METRIC_LABEL, type ForecastMetric } from "./components/PredictivePanel";
 import { ExecutiveBriefing } from "./components/ExecutiveBriefing";
@@ -2577,6 +2578,15 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
           ews={ewsStations.data}
           gauges={waterGauges.data}
         />
+      )}
+      {/* Metro infographic — watershed-as-subway standalone modal.
+          Path follows real lng/lat between stations so the shape agrees
+          with the actual map; styling is subway-map (rounded stroke,
+          station markers, status-coloured line). Stays on the rail as a
+          trigger button so the user can open it any time on FLOOD / ENV
+          / INT. */}
+      {(lens === "flood" || lens === "environment" || lens === "intelligence") && (
+        <MetroInfographic summaries={watershedSummaries} />
       )}
       {shortcutsOpen && (
         <ShortcutsDialog

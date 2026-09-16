@@ -102,3 +102,12 @@ export const WATERSHED_FORECAST_POINTS: WatershedForecastPoint[] = [
 export const YALA = NST;
 export const CHONBURI = NST;
 export const CHULA = NST;
+
+// Pak Phanang Bay outlet — the centroid of the basin's terminal reach
+// where the Tha Dee Canal meets the Gulf of Thailand. Used by the
+// watershed picture / flood story / metro infographic layers as the
+// "stage 7" anchor for the cascade story.
+export const PAK_PHANANG_BAY_CENTROID: { lng: number; lat: number } = {
+  lng: 100.184,
+  lat: 8.4942,
+};
