@@ -44,6 +44,7 @@ import { fetchEwsStations } from "./adapters/dwrEws.js";
 import { fetchRidReservoirs } from "./adapters/rid.js";
 import { fetchFlights } from "./adapters/flights.js";
 import { fetchDatagoPoints, fetchDatagoDatasets, fetchReservoirs, fetchDisasterStats, fetchFahfon, fetchProvincialKPIs } from "./adapters/datago.js";
+import { fetchLocalCatalog } from "./adapters/localCatalog.js";
 import { fetchTourismVisitors } from "./adapters/tourism-visitors.js";
 import { fetchFacebookPosts } from "./adapters/facebook.js";
 import { buildAtlasSnapshot, getAtlasModule, ATLAS_SOURCES } from "./data/index.js";
@@ -531,6 +532,7 @@ app.get("/api/datago/points", (c) => {
   return c.json(feed);
 });
 app.get("/api/datago/datasets",  async (c) => safeFeed(c, fetchDatagoDatasets, "datago-datasets"));
+app.get("/api/datago/local-catalog", async (c) => safeFeed(c, fetchLocalCatalog, "datago-local-catalog"));
 app.get("/api/datago/reservoirs", async (c) => {
   const token = c.env.DATA_GO_TH_TOKEN ?? "";
   return safeFeed(c, () => fetchReservoirs(token), "reservoirs");

@@ -211,6 +211,11 @@ export const LENSES: Lens[] = [
       "unosat-2021-exposure",
       "south-province-watch",
       "south-river-cascade",
+      // NOT precip-radar here: alphaearth-floodprone above is this lens's one
+      // MAP_COLORIZE_LAYERS member already (see the exclusivity comment on
+      // that const) — a second one just re-creates the stacked-colorizer mud
+      // bug presets.test.ts guards against for this lens. Rain radar lives in
+      // EAR (its own description already promises it) instead.
     ],
   },
   {
@@ -259,6 +264,7 @@ export const LENSES: Lens[] = [
       "waterways",
       "waterway-flow",
       "air4thai-stations",
+      "precip-radar",
     ],
   },
   {
@@ -297,6 +303,8 @@ export const LENSES: Lens[] = [
       "flood-gauges",
       "incidents-city-reports",
       "waterways",
+      // NOT precip-radar here — satellite-imerg above is already this lens's
+      // MAP_COLORIZE_LAYERS member; see the same note on the FLOOD lens.
     ],
   },
 ];
@@ -320,7 +328,9 @@ export const SATELLITE_BASE_LAYERS: LayerId[] = [
 
 /** Full-area data overlays that colour the whole map. Pick at most one. */
 export const MAP_COLORIZE_LAYERS: LayerId[] = [
-  "satellite-imerg",        // rainfall
+  "satellite-imerg",        // rainfall (satellite rain-rate estimate)
+  "precip-radar",           // rainfall (live radar nowcast) — same family as IMERG,
+                             // stacking both washes the map in redundant blue
   "satellite-ndvi",         // vegetation
   "satellite-lst",          // land temperature
   "satellite-aerosol",      // haze / AOD

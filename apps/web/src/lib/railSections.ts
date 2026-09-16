@@ -15,6 +15,7 @@ export type RailSectionKey =
   | "executive-brief"
   | "provincial-kpis"
   | "tourism-visitors"
+  | "local-catalog"
   | "municipal-ops"
   | "municipal-brief"
   | "sensor-situation"
@@ -54,15 +55,16 @@ export const RAIL_SECTIONS: Record<RailSectionKey, RailSectionRule> = {
   "executive-brief": { lenses: ["executive"], openIn: ["executive"] },
   "provincial-kpis": { lenses: ["executive"], openIn: [] },
   "tourism-visitors": { lenses: ["executive"], openIn: [] },
+  "local-catalog": { lenses: ["executive", "intelligence"], openIn: [] },
   "municipal-ops": { lenses: ["operations", "mobility"], openIn: ["operations"] },
-  "municipal-brief": { lenses: ["operations", "executive"], openIn: ["executive"] },
+  "municipal-brief": { lenses: ["operations", "executive"], openIn: [] },
   "sensor-situation": { lenses: ["operations", "flood", "environment", "safety", "vibes"], openIn: ["operations", "flood", "vibes"] },
   weather: { lenses: ALL, openIn: ["environment", "vibes"] },
   "air-quality": { lenses: ["operations", "environment"], openIn: ["environment"] },
   "sensor-signals": { lenses: ["operations", "flood", "safety", "intelligence"], openIn: [] },
   "water-balance": { lenses: ["flood"], openIn: ["flood"] },
   "water-network": { lenses: ["flood", "safety", "executive", "environment"], openIn: ["safety", "executive"] },
-  "flood-brief": { lenses: ["flood", "safety", "executive"], openIn: ["safety"] },
+  "flood-brief": { lenses: ["flood", "safety", "executive"], openIn: [] },
   "flood-posture": { lenses: ["flood", "safety", "executive"], openIn: ["safety"] },
   "flood-risk-villages": { lenses: ["flood", "safety"], openIn: [] },
   "damage-hotspots": { lenses: ["operations", "mobility"], openIn: [] },
@@ -76,7 +78,7 @@ export const RAIL_SECTIONS: Record<RailSectionKey, RailSectionRule> = {
   "predictive-panel": { lenses: ["intelligence"], openIn: ["intelligence"] },
   "device-checkin": { lenses: ["operations"], openIn: [] },
   "speed-test": { lenses: ["operations"], openIn: [] },
-  "right-cctv": { lenses: ALL, openIn: ["operations", "mobility", "safety", "flood"] },
+  "right-cctv": { lenses: ALL, openIn: ["mobility", "safety", "flood"] },
   "right-trends": { lenses: ["executive", "intelligence"], openIn: [] },
   "right-news": { lenses: ALL, openIn: ["operations", "mobility", "executive", "intelligence", "earth", "environment", "vibes"] },
 };

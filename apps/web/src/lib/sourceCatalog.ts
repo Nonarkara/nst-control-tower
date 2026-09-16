@@ -46,6 +46,7 @@ export const API_PATH_TO_ADAPTER: Array<[RegExp, string]> = [
   [/\/api\/cctv\/longdo$/, "cctv"],
   [/\/api\/trends$/, "trends"],
   [/\/api\/datago\/datasets$/, "datago-datasets"],
+  [/\/api\/datago\/local-catalog$/, "datago-local-catalog"],
   [/\/api\/datago\/reservoirs$/, "reservoirs"],
   [/\/api\/datago\/disasters$/, "disasters"],
   [/\/api\/datago\/fahfon$/, "fahfon"],

@@ -19,12 +19,12 @@ const TEAL = "var(--accent)";
 const GOLD = "var(--warn)";
 const CATEGORICAL = [
   "var(--accent)", "var(--warn)", "var(--data)", "var(--good)",
-  "#a78bfa", "#f472b6", "#22d3ee", "#fb923c", "#94a3b8", "#facc15",
+  "var(--ink-2)", "var(--ink-3)", "var(--alert)", "var(--bad)",
 ];
 const catColor = (i: number, explicit?: string) => explicit ?? CATEGORICAL[i % CATEGORICAL.length];
 
 const STATUS_COLOR: Record<string, string> = {
-  good: "var(--good)", watch: "var(--warn)", alert: "#fb923c",
+  good: "var(--good)", watch: "var(--warn)", alert: "var(--alert)",
   critical: "var(--bad)", neutral: "var(--ink-3)",
 };
 

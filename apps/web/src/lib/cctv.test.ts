@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import type { CctvCamera } from "../map/layers";
-import { filterCameras, summarizeCctv, wallCandidates } from "./cctv";
+import { filterCameras, reliableWall, summarizeCctv, wallCandidates } from "./cctv";
 
 function cam(sourceId: string, extra: Partial<CctvCamera> = {}): CctvCamera {
   return { id: `nstcctv-${sourceId}`, sourceId, name: sourceId, lat: 8.43, lng: 99.96, vendor: "nst-municipality", ...extra };
@@ -42,5 +42,16 @@ describe("filterCameras", () => {
 describe("wallCandidates", () => {
   test("drops known-offline cameras and cameras with no playable stream", () => {
     expect(wallCandidates(CAMS).map((c) => c.sourceId)).toEqual(["TF010", "WL005", "SC004"]);
+  });
+});
+
+describe("reliableWall", () => {
+  test("orders online first, then unknown, offline never", () => {
+    expect(reliableWall(CAMS).map((c) => c.sourceId)).toEqual(["TF010", "WL005", "SC004"]);
+  });
+
+  test("keeps a stable slot order so wall paging does not reshuffle", () => {
+    const twice = [reliableWall(CAMS).map((c) => c.id), reliableWall(CAMS).map((c) => c.id)];
+    expect(twice[0]).toEqual(twice[1]);
   });
 });

@@ -1,7 +1,9 @@
 /**
  * CCTV directory — every camera the city publishes (nstcctv.nakhoncity.org)
  * plus Longdo public cameras: filter by purpose, search by name or id, open a
- * live view, or watch four at a time on the wall.
+ * live view, or watch twelve at a time on the wall. Twelve still-friendly
+ * tiles is what city bandwidth holds; the full-city sweep lives in CCTV mode
+ * (both rails, reliable-12 paging + all-city scroll).
  */
 
 import { useId, useMemo, useState } from "react";
@@ -26,7 +28,7 @@ interface Props {
 }
 
 const LIST_PREVIEW = 40;
-const WALL_SIZE = 4;
+const WALL_SIZE = 12;
 
 export function CctvDirectory({ cameras, ageMinutes, fallbackTier, note, onOpen }: Props) {
   const [category, setCategory] = useState<CctvCategory | "all">("all");

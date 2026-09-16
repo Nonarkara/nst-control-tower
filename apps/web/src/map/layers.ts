@@ -531,7 +531,15 @@ export function buildingsLayer(
       if (extruded) {
         return [base[0], base[1], base[2], hasKind ? 230 : 210] as [number, number, number, number];
       }
-      return [base[0], base[1], base[2], hasKind ? 130 : 70] as [number, number, number, number];
+      // Anonymous footprints (no OSM type, no name — ~14k of ~21k buildings,
+      // packed wall-to-wall in old-town blocks) previously filled at 70/255.
+      // Individually that reads as a faint wash, but thousands of adjacent
+      // polygons at the same alpha compound visually into a solid slab
+      // covering whole blocks — worse against the dark basemap, where the
+      // mid-grey composite sits well above the background. Fill them at
+      // near-zero so the block reads as street pattern, not a grey mass;
+      // named/classified buildings (the informative ones) keep full fill.
+      return [base[0], base[1], base[2], hasKind ? 130 : 22] as [number, number, number, number];
     }) as unknown as [number, number, number, number],
     getLineColor: ((f: Feature<Polygon | MultiPolygon, BuildingProperties>) => {
       const cached = _kindCache.get(f as typeof filtered[number]);
@@ -539,9 +547,16 @@ export function buildingsLayer(
         const c = cached.base;
         return [c[0], c[1], c[2], lineA] as [number, number, number, number];
       }
-      return f.properties.name
-        ? withAlpha(grey(200), lineA) as [number, number, number, number]
-        : withAlpha(INK_DARK, lineA) as [number, number, number, number];
+      if (f.properties.name) return withAlpha(grey(200), lineA) as [number, number, number, number];
+      // Fully anonymous buildings (no kind, no name) previously got a
+      // near-black outline (INK_DARK) at the same ~86% opacity as every
+      // other footprint. Same compounding problem as the fill above: at
+      // street scale, thousands of near-black edges sharing walls in a
+      // dense block fuse into a solid dark rectangle — the artifact this
+      // fixes. These footprints carry no information (see capUntaggedFor3D
+      // above), so a faint outline is enough to keep the street pattern
+      // legible without dominating the block.
+      return withAlpha(grey(150), Math.round(lineA * 0.3)) as [number, number, number, number];
     }) as unknown as [number, number, number, number],
     getLineWidth: ((f: Feature<Polygon | MultiPolygon, BuildingProperties>) =>
       _kindCache.get(f as typeof filtered[number])?.kind ? 1.2 : 0.6) as unknown as number,

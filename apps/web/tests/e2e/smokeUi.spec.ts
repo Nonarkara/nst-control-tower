@@ -174,6 +174,10 @@ test.describe("CCTV directory", () => {
     await page.goto("/");
     await expect(page.locator(".map-host")).toBeVisible({ timeout: 20_000 });
 
+    // right-cctv no longer opens by default in the operations lens (it now
+    // only auto-opens in mobility/safety/flood — see lib/railSections.ts;
+    // full-city CCTV browsing moved to CCTV mode). Open it explicitly.
+    await ensureSectionOpen(page, "CCTV");
     const directory = page.getByRole("region", { name: "CCTV cameras" });
     await expect(directory).toBeVisible({ timeout: 15_000 });
 

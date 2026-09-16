@@ -254,6 +254,37 @@ kbd {
 .row-btn__id { font-weight: var(--weight-bold); color: var(--ink); }
 .row-btn__name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); }
 .row-btn__meta { font-size: var(--text-xs); color: var(--ink-3); white-space: nowrap; }
+/* The base 4-column template (auto auto minmax(0,1fr) auto) needs a short,
+   single-line meta (see the CCTV directory's "Online"/"Offline") to leave
+   room for the name in its 1fr column. These two consumers have a longer,
+   un-truncated meta line ("ZIP · PDF · 2 files · 2021-10-31") inside a
+   narrow rail (~185px) — side-by-side, that meta's own content width alone
+   can starve the name down to a few px. Stack name above meta instead: full
+   width for both, name gets up to 2 lines before it clamps. */
+.row-btn--compact,
+.row-btn--glyph {
+  grid-template-rows: auto auto;
+  row-gap: 2px;
+  min-height: 0;
+  padding-block: var(--s-2);
+}
+.row-btn--compact { grid-template-columns: minmax(0, 1fr); }
+.row-btn--compact .row-btn__name { grid-column: 1; }
+.row-btn--compact .row-btn__meta { grid-column: 1; }
+.row-btn--glyph { grid-template-columns: auto minmax(0, 1fr); align-items: start; }
+.row-btn--glyph .status-glyph { grid-row: 1 / 3; align-self: center; }
+.row-btn--glyph .row-btn__name,
+.row-btn--glyph .row-btn__meta { grid-column: 2; }
+.row-btn--compact .row-btn__name,
+.row-btn--glyph .row-btn__name {
+  white-space: normal;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+.row-btn--compact .row-btn__meta,
+.row-btn--glyph .row-btn__meta { overflow: hidden; text-overflow: ellipsis; }
 
 .pager { display: flex; align-items: center; justify-content: space-between; gap: var(--s-2); }
 .pager__label { font-size: var(--text-sm); color: var(--ink-2); }

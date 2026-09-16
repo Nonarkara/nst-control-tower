@@ -43,3 +43,8 @@ __pycache__/
 SIWW*/
 **/Roundtable*/
 .backups/
+
+# data.go.th crawl cache (local research asset, ~600 MB — regenerate via
+# scripts/crawlDataGoTh.ts + scripts/buildDatasetManifest.ts; the slim
+# checked-in index lives at apps/api/src/data/localDatasets.ts)
+apps/api/datasets/

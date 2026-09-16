@@ -22,6 +22,7 @@ import {
   CCTV_CATEGORIES,
   CCTV_CATEGORY_LABEL,
   filterCameras,
+  reliableWall,
   statusLabel,
   summarizeCctv,
 } from "../lib/cctv";
@@ -53,12 +54,12 @@ const STATUS_CHIP: { value: "all" | CctvStatus; label: string; tone: string }[] 
   { value: "unknown", label: "Unknown", tone: "var(--ink-3)" },
 ];
 
-// Wall renders ALL filtered cameras in a single scrollable rail —
-// no pagination. The slot manager (MAX 4 concurrent WebRTC streams)
-// keeps the browser stable; the IntersectionObserver per cell mounts
-// an iframe only when scrolled into view + a slot is free. The
-// impression-of-density comes from seeing the full camera inventory
-// scroll past, not from clicking through pages.
+// Two wall modes. RELIABLE (default): the `reliableWall` ordering — online
+// first, then status-unknown — paged 12 per side (24 across both rails).
+// Twelve still-frame tiles is what city bandwidth + the capture pool (a few
+// concurrent WHEP grabs) can actually hold; paging is what makes 200+
+// cameras watchable. ALL: the full filtered inventory in one scroll for the
+// guard-tour sweep.
 
 // Wall clock — Asia/Bangkok, HH:MM:SS. One shared formatter; the ticking value
 // is computed once per second in the parent and passed down, so we never spin
@@ -121,10 +122,14 @@ function whepUrlFor(camera: CctvCamera): string | undefined {
   return camera.embedUrl.replace(/\/?$/, "/") + "whep";
 }
 
+const WALL_PAGE_SIZE = 12;
+
 export function CctvCommandCenter({ cameras, side, highlightedId, onSelect, onExit }: Props) {
   const [category, setCategory] = useState<CctvCategory | "all">("all");
   const [status, setStatus] = useState<"all" | CctvStatus>("all");
   const [query, setQuery] = useState("");
+  const [mode, setMode] = useState<"reliable" | "all">("reliable");
+  const [page, setPage] = useState(0);
   const searchId = useId();
   const wallRef = useRef<HTMLDivElement>(null);
 
@@ -141,19 +146,29 @@ export function CctvCommandCenter({ cameras, side, highlightedId, onSelect, onEx
     return () => window.clearInterval(t);
   }, []);
 
-  // Half of the cameras for this rail. We filter THEN split (so parity
-  // is stable across filter changes — same camera goes to the same rail
-  // regardless of which categories the operator is currently viewing).
+  // Half of the cameras for this rail. We filter THEN order THEN split (so
+  // parity is stable across filter changes — same camera goes to the same
+  // rail regardless of which categories the operator is currently viewing).
   const fullFiltered = useMemo(
     () => filterCameras(cameras, { category, query }).filter((c) => status === "all" ? true : (c.status ?? "unknown") === status),
     [cameras, category, query, status],
   );
-  const myHalf = useMemo(() => splitByParity(fullFiltered, side), [fullFiltered, side]);
-  const summary = useMemo(() => summarizeCctv(myHalf), [myHalf]);
+  const ordered = useMemo(
+    () => (mode === "reliable" ? reliableWall(fullFiltered) : fullFiltered),
+    [fullFiltered, mode],
+  );
+  const myHalfFull = useMemo(() => splitByParity(ordered, side), [ordered, side]);
+  const pages = Math.max(1, Math.ceil(myHalfFull.length / WALL_PAGE_SIZE));
+  const safePage = mode === "reliable" ? Math.min(page, pages - 1) : 0;
+  const myHalf = mode === "reliable"
+    ? myHalfFull.slice(safePage * WALL_PAGE_SIZE, safePage * WALL_PAGE_SIZE + WALL_PAGE_SIZE)
+    : myHalfFull;
+  const summary = useMemo(() => summarizeCctv(myHalfFull), [myHalfFull]);
 
-  // Map→wall sync: find the matching tile and scrollIntoView. The wall
-  // is a single scrollable column now (no pagination), so this just
-  // scrolls the rail's overflow container — easy.
+  // Reset to the first wall page whenever the set changes.
+  useEffect(() => { setPage(0); }, [category, status, query, mode, side, cameras.length]);
+
+  // Map→wall sync: find the matching tile and scrollIntoView.
   useEffect(() => {
     if (!highlightedId || !wallRef.current) return;
     const raf = requestAnimationFrame(() => {
@@ -161,7 +176,7 @@ export function CctvCommandCenter({ cameras, side, highlightedId, onSelect, onEx
       el?.scrollIntoView({ behavior: "smooth", block: "center" });
     });
     return () => cancelAnimationFrame(raf);
-  }, [highlightedId, myHalf]);
+  }, [highlightedId, myHalf, safePage]);
 
   return (
     <div className="cctv-cc" aria-label={`CCTV wall — ${side} rail`}>
@@ -230,20 +245,66 @@ export function CctvCommandCenter({ cameras, side, highlightedId, onSelect, onEx
         />
       </label>
 
+      <div className="segmented" role="group" aria-label="Wall mode">
+        <button
+          type="button"
+          className="segmented__btn"
+          aria-pressed={mode === "reliable"}
+          onClick={() => setMode("reliable")}
+          title="Online-first, 12 per side — the wall city bandwidth can hold"
+        >
+          Reliable 12
+        </button>
+        <button
+          type="button"
+          className="segmented__btn"
+          aria-pressed={mode === "all"}
+          onClick={() => setMode("all")}
+          title="Full filtered inventory in one scroll"
+        >
+          All city
+        </button>
+      </div>
+
       {myHalf.length === 0 ? (
         <div className="cctv-cc__empty mono">No cameras.</div>
       ) : (
-        <div className="cctv-cc__wall" ref={wallRef}>
-          {myHalf.map((c) => (
-            <CameraCell
-              key={c.id}
-              camera={c}
-              tone={statusTone(c.status)}
-              highlighted={c.id === highlightedId}
-              onClick={() => onSelect(c)}
-            />
-          ))}
-        </div>
+        <>
+          <div className="cctv-cc__wall" ref={wallRef}>
+            {myHalf.map((c) => (
+              <CameraCell
+                key={c.id}
+                camera={c}
+                tone={statusTone(c.status)}
+                highlighted={c.id === highlightedId}
+                onClick={() => onSelect(c)}
+              />
+            ))}
+          </div>
+          {mode === "reliable" && pages > 1 && (
+            <div className="pager" role="group" aria-label="Wall pages">
+              <button
+                type="button"
+                className="btn"
+                disabled={safePage === 0}
+                onClick={() => setPage(safePage - 1)}
+              >
+                Previous
+              </button>
+              <span className="pager__label num" aria-live="polite">
+                {safePage * WALL_PAGE_SIZE + 1}–{Math.min(myHalfFull.length, (safePage + 1) * WALL_PAGE_SIZE)} of {myHalfFull.length}
+              </span>
+              <button
+                type="button"
+                className="btn"
+                disabled={safePage >= pages - 1}
+                onClick={() => setPage(safePage + 1)}
+              >
+                Next
+              </button>
+            </div>
+          )}
+        </>
       )}
 
       <button

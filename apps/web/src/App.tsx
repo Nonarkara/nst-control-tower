@@ -148,6 +148,7 @@ import { FacebookPanel } from "./components/FacebookPanel";
 import { WaterPanel, type ReservoirStatus } from "./components/WaterPanel";
 import { ProvincialKPIs, type ProvincialKPIs as ProvincialKPIsType } from "./components/ProvincialKPIs";
 import { TourismVisitorsPanel, type TourismFeedRecord } from "./components/TourismVisitorsPanel";
+import { LocalCatalogPanel, type LocalCatalogEntry } from "./components/LocalCatalogPanel";
 import { DamageHotspotPanel } from "./components/DamageHotspotPanel";
 import { FloodRiskPanel } from "./components/FloodRiskPanel";
 import { EarthAlphaBrief } from "./components/EarthAlphaBrief";
@@ -1168,6 +1169,8 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
   const reservoirs = useFeed<ReservoirStatus>(`${API_BASE}/api/datago/reservoirs`, 60 * 60_000);
   const provincialKPIs = useFeed<ProvincialKPIsType>(`${API_BASE}/api/datago/provincial-kpis`, 6 * 60 * 60_000);
   const tourismVisitors = useFeed<TourismFeedRecord>(`${API_BASE}/api/tourism-visitors`, 30 * 24 * 60 * 60_000);
+  // Static crawl snapshot (see localCatalog.ts) — daily poll is plenty.
+  const localCatalog = useFeed<LocalCatalogEntry>(`${API_BASE}/api/datago/local-catalog`, 24 * 60 * 60_000);
   const gistdaPois = useFeed<GistdaPoi>(`${API_BASE}/api/gistda/poi`, 60 * 60_000);
   const gistdaSolar = useFeed<GistdaSolarBuilding>(`${API_BASE}/api/gistda/solar`, 6 * 60 * 60_000);
   const gistdaLandUse = useFeed<GistdaLandUse>(`${API_BASE}/api/gistda/landuse`, 60 * 60_000);
@@ -1629,9 +1632,18 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
     // lng/lat) — gates independently so OPS can opt in without the heavier
     // watershed-nodes stack. Also rides the watershed-nodes toggle so it
     // vanishes together with the bands when the operator turns them off.
+    //
+    // The picture's shapes are a FIXED geographic size (~4.4 km, see SCALE in
+    // waterSystemPictureLayer) so they read as a small pictogram at province/
+    // city scale — but at street scale (zoomBucket 2) that same ~4.4 km
+    // "city block" cartoon dwarfs the real buildings and roads underneath it,
+    // rendering as an opaque grey slab over several real city blocks. Drop it
+    // once the operator has zoomed in far enough that the real map should
+    // carry the detail instead of the picture-book stand-in.
     if (
       (enabledLayers.has("watershed-nodes") || enabledLayers.has("water-pictures")) &&
-      waterGauges.data.length > 0
+      waterGauges.data.length > 0 &&
+      zoomBucket !== 2
     ) {
       out.push(...(waterSystemPictureLayer(watershedSummaries) as Layer[]));
       // Flood story — 7 numbered stages from rain to bay. Tells the
@@ -2019,6 +2031,17 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
               loading={tourismVisitors.fallbackTier === "loading"}
               ageMinutes={tourismVisitors.ageMinutes}
               fallbackTier={tourismVisitors.fallbackTier === "loading" ? undefined : tourismVisitors.fallbackTier}
+            />
+          </RailSection>
+        )}
+        {localCatalog.data.length > 0 && (
+          <RailSection sectionKey="local-catalog" lens={lens} title="Open Data · NST">
+            <LocalCatalogPanel
+              entries={localCatalog.data}
+              loading={localCatalog.fallbackTier === "loading"}
+              ageMinutes={localCatalog.ageMinutes}
+              fallbackTier={localCatalog.fallbackTier === "loading" ? undefined : localCatalog.fallbackTier}
+              note={localCatalog.note}
             />
           </RailSection>
         )}

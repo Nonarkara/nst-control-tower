@@ -64,11 +64,11 @@ test.describe("Source catalog modal", () => {
     await sourcesBtn.focus();
     await sourcesBtn.click();
 
-    const dialog = page.getByRole("dialog", { name: /Source catalog/i });
+    const dialog = page.getByRole("dialog", { name: /SOURCES/i });
     // SourceCatalog is lazy-loaded — give the chunk time to arrive on first open.
     await expect(dialog).toBeVisible({ timeout: 15_000 });
     // Catalog row count summary is always rendered (even if /api/health hasn't returned)
-    await expect(dialog.getByText(/SOURCE CATALOG/i)).toBeVisible();
+    await expect(dialog.getByText(/DATA PIPELINES/i)).toBeVisible();
 
     await page.keyboard.press("Escape");
     await expect(dialog).toBeHidden({ timeout: 5_000 });
@@ -138,7 +138,7 @@ test.describe("Source catalog — filter buttons", () => {
     const sourcesBtn = page.getByRole("button", { name: "Open source catalog" });
     await sourcesBtn.focus();
     await sourcesBtn.click();
-    const dialog = page.getByRole("dialog", { name: /Source catalog/i });
+    const dialog = page.getByRole("dialog", { name: /SOURCES/i });
     await expect(dialog).toBeVisible({ timeout: 10_000 });
 
     // Click the LIVE filter — the button's accessible name IS "LIVE" (text content)
@@ -146,11 +146,11 @@ test.describe("Source catalog — filter buttons", () => {
     await liveFilter.click();
     await expect(liveFilter).toHaveAttribute("aria-pressed", "true");
 
-    // Verify filtered view: at least one live entry is visible and the first pill reads LIVE.
-    // We don't iterate all pills (race-prone with React re-render timing).
-    const statusPills = dialog.locator(".catalog-status");
-    await expect(statusPills.first()).toBeVisible({ timeout: 5_000 });
-    await expect(statusPills.first()).toHaveText("LIVE");
+    // Verify filtered view: at least one live entry is visible and its meta reads LIVE.
+    // We don't iterate all rows (race-prone with React re-render timing).
+    const rows = dialog.locator(".sources-list .row-btn__meta");
+    await expect(rows.first()).toBeVisible({ timeout: 5_000 });
+    await expect(rows.first()).toContainText("LIVE");
   });
 });
 
