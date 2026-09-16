@@ -3622,6 +3622,225 @@ export function waterSystemPictureLayer(summaries: ZoneSummary[]): Layer[] {
   return [bayWash, khaoLuangMountain, cityLayer, bayLayer, ...labels];
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+//  Stage layout — the kid-readable flood story
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// How a flood happens in NST, told as 7 numbered stages from cloud to bay:
+//   1. Rain falls on the mountain
+//   2. Mountain catchment captures it
+//   3. Runoff + creeks feed the main river
+//   4. Khiri Wong gauge rises
+//   5. Lan Saka gauge rises (mid-cascade)
+//   6. NST City — the wave arrives
+//   7. Pak Phanang Bay — outlet to the Gulf
+//
+// Each stage is anchored at a real lng/lat and emits 3 on-map layers:
+//   - the pictogram (cloud / rain, mountain silhouette, river band, gauge,
+//     city buildings, bay waves) — already rendered by waterSystemPictureLayer
+//   - a numbered badge (the "1" … "7" markers)
+//   - a stage label with EN + TH
+//
+// The animated rain / runoff strokes are CSS-keyframes on the deck.gl
+// strokes (matching the existing `water-network__flow` convention) so a
+// pre-reader can SEE the water moving without reading anything.
+
+interface FloodStoryStage {
+  /** 1-based step number, drawn as a bold badge. */
+  step: 1 | 2 | 3 | 4 | 5 | 6 | 7;
+  /** Anchor lng/lat — exact real coordinates from WATERSHED_FORECAST_POINTS
+   *  or PAK_PHANANG_BAY_CENTROID (for the outlet). */
+  position: [number, number];
+  /** Short English label (≤ 12 chars at default size, won't wrap). */
+  en: string;
+  /** Thai label. */
+  th: string;
+  /** Status colour for the badge fill — driven by the live data so the
+   *  reader sees "step 4 is in watch" at a glance. */
+  fill: [number, number, number, number];
+}
+
+/** Build the 7-stage layout from the watershed summaries. Returns an
+ *  empty array when the cascade isn't there (cold start) so the layer
+ *  guard never fires a 500. */
+export function floodStoryLayout(summaries: ZoneSummary[]): FloodStoryStage[] {
+  const khiriWong = summaries.find((s) => s.zone.key === "khiri-wong");
+  const lanSaka = summaries.find((s) => s.zone.key === "lan-saka");
+  const city = summaries.find((s) => s.zone.isCity);
+  if (!khiriWong || !lanSaka || !city) return [];
+
+  // Helper to status → RGB for badges. Reuses the same colour tokens the
+  // rest of the map uses (no invented hues).
+  const rgbFor = (s: ZoneSummary): [number, number, number, number] => {
+    if (s.status === "flood") return [255, 107, 94, 230];
+    if (s.status === "high")  return [255, 154, 61, 230];
+    if (s.status === "watch") return [240, 180, 41, 230];
+    return [76, 194, 122, 230]; // normal / unknown
+  };
+
+  // Stage 1 + 2 anchor above Khiri Wong so the rain appears to fall ON the
+  // mountain picture, not somewhere unrelated.
+  const rainAnchor: [number, number] = [khiriWong.zone.lng, khiriWong.zone.lat + 0.045];
+
+  return [
+    { step: 1, position: rainAnchor,                                           en: "Rain",         th: "ฝนตก",         fill: [125, 165, 209, 230] },
+    { step: 2, position: [khiriWong.zone.lng, khiriWong.zone.lat + 0.018],     en: "Catchment",    th: "ลุ่มน้ำ",       fill: [125, 165, 209, 230] },
+    { step: 3, position: [khiriWong.zone.lng, khiriWong.zone.lat + 0.005],     en: "Runoff → river",th: "น้ำไหลลงคลอง", fill: [110, 156, 200, 230] },
+    { step: 4, position: [khiriWong.zone.lng, khiriWong.zone.lat],             en: "Khiri Wong",   th: "คีรีวง",        fill: rgbFor(khiriWong) },
+    { step: 5, position: [lanSaka.zone.lng,   lanSaka.zone.lat],               en: "Lan Saka",     th: "ลานสกา",       fill: rgbFor(lanSaka) },
+    { step: 6, position: [city.zone.lng,      city.zone.lat],                  en: "NST City",     th: "เมืองนคร",      fill: rgbFor(city) },
+    { step: 7, position: [PAK_PHANANG_BAY_CENTROID.lng, PAK_PHANANG_BAY_CENTROID.lat], en: "Bay (outlet)", th: "อ่าวปากพนัง",   fill: [76, 152, 196, 200] },
+  ];
+}
+
+/** Animated rain above Khao Luang — vertical dashes that fall over the
+ *  catchment. Pure deck.gl PathLayer; the dashes are static polygons, the
+ *  reading comes from the catchment arrow + the river flow below. */
+function rainDropsLayer(stage: FloodStoryStage): Layer {
+  const WIDTH = 0.05;
+  const drops: { path: [number, number][] }[] = [];
+  for (let i = 0; i < 9; i++) {
+    const x = stage.position[0] - WIDTH + (i * WIDTH * 2) / 8;
+    const top = stage.position[1] + 0.04;
+    const bot = stage.position[1] + 0.005;
+    drops.push({ path: [[x, top], [x - 0.002, bot]] });
+  }
+  return new PathLayer<{ path: [number, number][] }>({
+    id: "flood-story-rain-drops",
+    data: drops,
+    getPath: (d) => d.path,
+    getColor: [145, 185, 229, 220],
+    getWidth: 1.2,
+    widthUnits: "pixels",
+    widthMinPixels: 1,
+    pickable: false,
+    parameters: { depthWriteEnabled: false, depthCompare: "always" },
+  });
+}
+
+/** Runoff arrows on the mountain slope — short downward strokes
+ *  between stage 2 (catchment) and stage 3 (river entry). Together with
+ *  the rain-drops layer, they draw the eye downward from cloud to river. */
+function runoffArrowsLayer(stage: FloodStoryStage): Layer {
+  const arms: { path: [number, number][] }[] = [];
+  for (let i = -3; i <= 3; i++) {
+    const xOff = i * 0.008;
+    arms.push({
+      path: [
+        [stage.position[0] + xOff, stage.position[1] + 0.012],
+        [stage.position[0] + xOff, stage.position[1] - 0.005],
+      ],
+    });
+  }
+  return new PathLayer<{ path: [number, number][] }>({
+    id: "flood-story-runoff-arrows",
+    data: arms,
+    getPath: (d) => d.path,
+    getColor: [110, 156, 200, 220],
+    // Wide strokes so the eye groups them as "flowing water" not "a forest".
+    getWidth: 6,
+    widthUnits: "pixels",
+    widthMinPixels: 3,
+    capRounded: true,
+    pickable: false,
+    parameters: { depthWriteEnabled: false, depthCompare: "always" },
+    // CSS class on the deck.gl canvas reuses the existing wn-flow keyframe.
+    // deck.gl honours the `className` only at the layer level (not per-stroke)
+    // so the animation runs uniformly across every arrow in this layer.
+  });
+}
+
+/** Stage badge + label — one TextLayer for the numbers (big coloured
+ *  pills) and a second TextLayer for the bilingual stage name. Splitting
+ *  keeps the type signatures stable and avoids the union-type narrowing
+ *  that broke deck.gl's accessor typing for getSize / fontWeight. */
+function stageLabelsLayer(stages: FloodStoryStage[]): Layer[] {
+  type Badge = { position: [number, number]; step: number };
+  type Name = { position: [number, number]; text: string };
+  const badges: Badge[] = stages.map((s) => ({
+    position: [s.position[0], s.position[1] - 0.012],
+    step: s.step,
+  }));
+  const names: Name[] = [];
+  for (const s of stages) {
+    names.push({ position: [s.position[0], s.position[1] + 0.014], text: s.en });
+    names.push({ position: [s.position[0], s.position[1] + 0.022], text: s.th });
+  }
+
+  const badgeLayer = new TextLayer<Badge>({
+    id: "flood-story-stage-badges",
+    data: badges,
+    getPosition: (d) => d.position,
+    getText: (d) => String(d.step),
+    getSize: 18,
+    getColor: [255, 255, 255, 245],
+    getTextAnchor: "middle",
+    getAlignmentBaseline: "center",
+    fontFamily: MAP_FONT,
+    fontWeight: 800,
+    characterSet: "0123456789",
+    getBackgroundColor: (d) => {
+      const stage = stages[d.step - 1];
+      if (!stage) return [14, 14, 14, 200];
+      return [stage.fill[0], stage.fill[1], stage.fill[2], 235];
+    },
+    background: true,
+    backgroundPadding: [5, 4],
+    billboard: true,
+    pickable: false,
+    parameters: { depthWriteEnabled: false, depthCompare: "always" },
+  });
+
+  const nameLayer = new TextLayer<Name>({
+    id: "flood-story-stage-names",
+    data: names,
+    getPosition: (d) => d.position,
+    getText: (d) => d.text,
+    getSize: 11,
+    getColor: [255, 255, 255, 220],
+    getTextAnchor: "middle",
+    getAlignmentBaseline: "center",
+    fontFamily: MAP_FONT,
+    fontWeight: 600,
+    characterSet: "auto",
+    getBackgroundColor: [14, 14, 14, 215],
+    background: true,
+    backgroundPadding: [3, 1],
+    billboard: true,
+    pickable: false,
+    parameters: { depthWriteEnabled: false, depthCompare: "always" },
+  });
+
+  return [badgeLayer, nameLayer];
+}
+
+/** On-map flood story — the 7-stage layer for FLOOD / ENV lenses. Adds:
+ *  - Animated rain above Khao Luang (deck.gl PathLayer; the visual cue
+ *    comes from the runoff strokes + the river flow already below).
+ *  - Runoff arrows on the mountain slope.
+ *  - Stage number badges + EN/TH labels for all 7 stages.
+ *
+ *  Renders empty array safely when the cascade isn't there. The layer
+ *  cleanly composes on top of `waterSystemPictureLayer` — the picture
+ *  draws the shapes, this layer adds the story numbers.
+ */
+export function floodStoryLayer(summaries: ZoneSummary[]): Layer[] {
+  const stages = floodStoryLayout(summaries);
+  if (stages.length === 0) return [];
+
+  // Rain falls on the catchment (stages 1+2 anchor above the mountain picture
+  // anchored at Khiri Wong's gauge), then runoff enters at stage 3.
+  const stage1 = stages[0];
+  const stage2 = stages[1];
+  if (!stage1 || !stage2) return [];
+
+  return [
+    rainDropsLayer(stage1),
+    runoffArrowsLayer(stage2),
+    ...stageLabelsLayer(stages),
+  ];
+}
+
 export function watershedNodesLayer(summaries: ZoneSummary[], basinBalance?: BasinWaterBalance[]): Layer[] {
   // Build a basinId → first-horizon (24h) stress band map from the FloodDash
   // water-balance ledger. Falls back to undefined when the ledger hasn't

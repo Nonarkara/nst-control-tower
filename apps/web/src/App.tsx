@@ -108,6 +108,7 @@ import {
   watershedNodesLayer,
   etaArcRingsLayer,
   flowInfoGraphicLayer,
+  floodStoryLayer,
   waterSystemPictureLayer,
   waterGaugesLayer,
   waterLevelHeatmapLayer,
@@ -193,6 +194,7 @@ import { useSystemHealth } from "./hooks/useSystemHealth";
 import { MobileNav, type MobilePanel } from "./components/MobileNav";
 import { ChatBox } from "./components/ChatBox";
 import { LiveCascadeReadout } from "./components/LiveCascadeReadout";
+import { FloodStoryCard } from "./components/FloodStoryCard";
 import { PredictivePanel, METRIC_LAYER_MAP, METRIC_LABEL, type ForecastMetric } from "./components/PredictivePanel";
 import { ExecutiveBriefing } from "./components/ExecutiveBriefing";
 import { API_BASE } from "./lib/apiBase";
@@ -1613,6 +1615,10 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
       waterGauges.data.length > 0
     ) {
       out.push(...(waterSystemPictureLayer(watershedSummaries) as Layer[]));
+      // Flood story — 7 numbered stages from rain to bay. Tells the
+      // "how does a flood happen" picture-book story in geographic form;
+      // rides the same toggle as the picture so they appear together.
+      out.push(...(floodStoryLayer(watershedSummaries) as Layer[]));
     }
     // ── Live sensor telemetry dots — every dot hovers to a real reading ────
     if (enabledLayers.has("rain-stations") && waterRain.data.length > 0)
@@ -2521,6 +2527,19 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
           className="lcr lcr--overlay"
         />
       )}
+      {/* Flood story card — kid-readable explanation of the 7 stages that
+          the on-map flood story layer draws. Sits next to LiveCascadeReadout
+          when the user is on FLOOD / ENV / INT and the cascade is loaded. */}
+      {(lens === "flood" || lens === "environment" || lens === "intelligence") &&
+        waterGauges.data.length > 0 && (
+          <FloodStoryCard
+            summaries={watershedSummaries}
+            peakRain24hMm={
+              waterRain.data.reduce<number>((m, s) => Math.max(m, s.rain24h ?? 0), 0) || null
+            }
+            className="fsc fsc--overlay"
+          />
+        )}
       {shortcutsOpen && (
         <ShortcutsDialog
           lenses={LENSES}
