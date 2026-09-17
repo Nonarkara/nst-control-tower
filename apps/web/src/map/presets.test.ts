@@ -229,6 +229,10 @@ describe("LENSES", () => {
         lens!.layers,
         `${lensId} lens must carry historical-floods`,
       ).toContain("historical-floods");
+      expect(
+        lens!.layers,
+        `${lensId} lens must carry provincial-roads`,
+      ).toContain("provincial-roads");
     }
   });
 

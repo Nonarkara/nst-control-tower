@@ -12,7 +12,7 @@
 import { describe, it, expect } from "vitest";
 import type { FeatureCollection, LineString, Polygon } from "geojson";
 import { GeoJsonLayer, PolygonLayer, TextLayer } from "@deck.gl/layers";
-import { districtBoundariesLayer, hydroFlowArrowsLayer, mountainIconLayer, bayIconLayer, namedCanalsLayer, regionalRiversLayer, historicalFloodsLayer } from "./hydroMap";
+import { districtBoundariesLayer, hydroFlowArrowsLayer, mountainIconLayer, bayIconLayer, namedCanalsLayer, regionalRiversLayer, historicalFloodsLayer, provincialRoadsLayer } from "./hydroMap";
 import { ColumnLayer } from "@deck.gl/layers";
 
 function makeWaterway(
@@ -421,5 +421,57 @@ describe("historicalFloodsLayer", () => {
     const fc: FeatureCollection<Polygon, never> = { type: "FeatureCollection", features: [] };
     const layers = historicalFloodsLayer(fc as unknown as FeatureCollection<Polygon, { id: string; name: string; nameEn: string; nameTh: string; district: string; severity: "high" | "medium" | "low"; households: number; source: string; eventStart: string; eventEnd: string }>);
     expect(layers.length).toBe(1);
+  });
+});
+
+describe("provincialRoadsLayer", () => {
+  function makeCollection(): FeatureCollection<LineString, { id: string; routeNumber: string; class: "national" | "provincial"; name: string; nameEn: string; nameTh: string }> {
+    return {
+      type: "FeatureCollection",
+      features: [
+        { type: "Feature", id: "hwy/41", properties: { id: "hwy/41", routeNumber: "41", class: "national", name: "Highway 41", nameEn: "Highway 41 (NST-Krabi-Trang-Phatthalung)", nameTh: "ทางหลวงแผ่นดิน 41" }, geometry: { type: "LineString", coordinates: [[99.50, 9.30], [99.78, 8.51], [99.83, 8.13]] } },
+        { type: "Feature", id: "hwy/401", properties: { id: "hwy/401", routeNumber: "401", class: "provincial", name: "Highway 401", nameEn: "Highway 401 (NST → Phatthalung)", nameTh: "ทางหลวง 401" }, geometry: { type: "LineString", coordinates: [[99.85, 8.30], [99.95, 8.40], [100.18, 8.49]] } },
+        { type: "Feature", id: "hwy/403", properties: { id: "hwy/403", routeNumber: "403", class: "provincial", name: "Highway 403", nameEn: "Highway 403 (NST → Pak Phanang)", nameTh: "ทางหลวง 403" }, geometry: { type: "LineString", coordinates: [[99.96, 8.30], [99.98, 8.44], [100.18, 8.49]] } },
+      ],
+    };
+  }
+
+  it("renders halo + core stroke + shield labels = 3 layers", () => {
+    const layers = provincialRoadsLayer(makeCollection());
+    expect(layers.length).toBe(3);
+    expect(layers[0]).toBeInstanceOf(GeoJsonLayer); // halo
+    expect(layers[1]).toBeInstanceOf(GeoJsonLayer); // core
+    expect(layers[2]).toBeInstanceOf(TextLayer);   // labels
+  });
+
+  it("emits one shield label per route (3 features = 3 labels)", () => {
+    const layers = provincialRoadsLayer(makeCollection());
+    const labelLayer = layers[2] as unknown as { props: { data: { text: string }[] } };
+    expect(labelLayer.props.data.length).toBe(3);
+    expect(labelLayer.props.data.map((d) => d.text)).toEqual(["41", "401", "403"]);
+  });
+
+  it("national highways are drawn thicker than provincials", () => {
+    const layers = provincialRoadsLayer(makeCollection());
+    const halo = layers[0] as unknown as { props: { getLineWidth: (f: { properties: { class: string } }) => number } };
+    const national = halo.props.getLineWidth({ properties: { class: "national" } });
+    const provincial = halo.props.getLineWidth({ properties: { class: "provincial" } });
+    expect(national).toBeGreaterThan(provincial);
+  });
+
+  it("national highways render in orange (warmer), provincials in grey (cooler)", () => {
+    const layers = provincialRoadsLayer(makeCollection());
+    const core = layers[1] as unknown as { props: { getLineColor: (f: { properties: { class: string } }) => [number, number, number, number] } };
+    const nationalCol = core.props.getLineColor({ properties: { class: "national" } });
+    const provincialCol = core.props.getLineColor({ properties: { class: "provincial" } });
+    // National = orange dominant (R > B); provincial = grey (R ≈ G ≈ B)
+    expect(nationalCol[0]).toBeGreaterThan(nationalCol[2]!);
+    expect(Math.abs(provincialCol[0]! - provincialCol[2]!)).toBeLessThan(20);
+  });
+
+  it("returns 3 layers (with empty labels) for an empty collection", () => {
+    const fc: FeatureCollection<LineString, never> = { type: "FeatureCollection", features: [] };
+    const layers = provincialRoadsLayer(fc as unknown as FeatureCollection<LineString, { id: string; routeNumber: string; class: "national" | "provincial"; name: string; nameEn: string; nameTh: string }>);
+    expect(layers.length).toBe(3);
   });
 });

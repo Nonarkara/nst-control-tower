@@ -121,6 +121,7 @@ import {
   namedCanalsLayer,
   regionalRiversLayer,
   historicalFloodsLayer,
+  provincialRoadsLayer,
   cityPoisLayer,
   waterGaugesLayer,
   waterLevelHeatmapLayer,
@@ -1264,6 +1265,11 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
   const cityPois = useGeoJson<FeatureCollection<Point, Record<string, unknown>>>(
     enabledLayers.has("city-pois") ? "/geo/nst/city-pois.geojson" : null,
   );
+  // Hand-authored PROVINCIAL HIGHWAYS — the 22 major routes from the
+  // panteethai.com road map (Hwy 41, Hwy 4, plus 20 provincial routes).
+  const provincialRoads = useGeoJson<FeatureCollection<LineString, Record<string, unknown>>>(
+    enabledLayers.has("provincial-roads") ? "/geo/nst/provincial-roads.geojson" : null,
+  );
 
   // Civic POIs + waterways — Yala municipal OSM extract.
   const civicPoints = useGeoJson<FeatureCollection<Point, Record<string, unknown>>>(
@@ -1829,6 +1835,13 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
     // find the hospital, market, temple, etc. without a search.
     if (enabledLayers.has("city-pois") && cityPois?.features?.length) {
       out.push(...(cityPoisLayer(cityPois as unknown as FeatureCollection<Point, { id: string; name: string | null; nameEn: string | null; nameTh: string | null; category: string }>) as Layer[]));
+    }
+    // Provincial highways — the 22 major routes from the NST road map.
+    // National highways (Hwy 41 N-S, Hwy 4 Phetkasem) render as yellow-
+    // orange double-stroke; provincials render as grey. Highway shield
+    // numbers (41, 401, 403, etc.) shown as labels at each route midpoint.
+    if (enabledLayers.has("provincial-roads") && provincialRoads?.features?.length) {
+      out.push(...(provincialRoadsLayer(provincialRoads as unknown as FeatureCollection<LineString, { id: string; routeNumber: string; class: "national" | "provincial"; name: string | null; nameEn: string | null; nameTh: string | null }>) as Layer[]));
     }
     // Picture-book framing (mountain / city / bay icons anchored at real
     // lng/lat) — gates independently so OPS can opt in without the heavier

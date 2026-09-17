@@ -5311,9 +5311,11 @@ export {
   namedCanalsLayer,
   regionalRiversLayer,
   historicalFloodsLayer,
+  provincialRoadsLayer,
   type MountainOptions,
   type NamedCanalProps,
   type RegionalRiverProps,
   type HistoricalFloodProps,
+  type ProvincialRoadProps,
 } from "../lib/hydroMap";
 export { cityPoisLayer, type CityPoisProps } from "../lib/cityPois";

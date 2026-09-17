@@ -933,3 +933,114 @@ export function historicalFloodsLayer(
 
   return out;
 }
+
+/**
+ * Provincial roads — the major highways of NST province, hand-authored
+ * from the panteethai.com road map. 22 routes covering the national
+ * spines (Hwy 41 N-S, Hwy 4 Phetkasem E-W) plus 20 provincial 4-digit
+ * routes connecting districts to NST City.
+ *
+ * Rendered with a two-stroke technique: a bright halo so the route reads
+ * against any basemap, plus a darker core. National highways get a
+ * yellow-orange road-shield colour; provincials get grey. Highway
+ * shield numbers (e.g. "41", "401") rendered as labels at each route's
+ * midpoint so the user can identify the route without the printed-map
+ * legend.
+ */
+export interface ProvincialRoadProps {
+  id: string;
+  routeNumber: string;
+  class: "national" | "provincial";
+  name: string | null;
+  nameEn: string | null;
+  nameTh: string | null;
+}
+
+export function provincialRoadsLayer(
+  collection: FeatureCollection<LineString, ProvincialRoadProps>,
+): Layer[] {
+  const out: Layer[] = [];
+
+  // Two-stroke technique: a wider bright halo + a darker core so the
+  // road reads against any basemap (dark Carto, light OpenTopo, satellite).
+  // National highways (Hwy 41, Hwy 4) get yellow-orange; provincials
+  // get muted grey.
+  const isNational = (f: { properties?: ProvincialRoadProps }): boolean =>
+    f.properties?.class === "national";
+
+  out.push(
+    new GeoJsonLayer<ProvincialRoadProps>({
+      id: "provincial-roads-halo",
+      data: collection,
+      stroked: true,
+      filled: false,
+      pickable: false,
+      getLineColor: (f) => isNational(f as { properties?: ProvincialRoadProps })
+        ? [255, 220, 140, 240]
+        : [180, 180, 190, 220] as [number, number, number, number],
+      getLineWidth: (f) => isNational(f as { properties?: ProvincialRoadProps }) ? 7 : 4.5,
+      lineWidthUnits: "pixels",
+      lineWidthMinPixels: 2,
+      lineWidthMaxPixels: 9,
+    }) as Layer,
+  );
+
+  out.push(
+    new GeoJsonLayer<ProvincialRoadProps>({
+      id: "provincial-roads",
+      data: collection,
+      stroked: true,
+      filled: false,
+      pickable: false,
+      getLineColor: (f) => isNational(f as { properties?: ProvincialRoadProps })
+        ? [220, 130, 30, 250]
+        : [110, 110, 120, 245] as [number, number, number, number],
+      getLineWidth: (f) => isNational(f as { properties?: ProvincialRoadProps }) ? 4 : 2.5,
+      lineWidthUnits: "pixels",
+      lineWidthMinPixels: 1.5,
+      lineWidthMaxPixels: 6,
+    }) as Layer,
+  );
+
+  // Highway shield numbers — small white pill labels at the midpoint of
+  // each route. National shields are larger; provincial are smaller.
+  const labelFeatures: { pos: [number, number]; text: string; class: string }[] = [];
+  for (const f of collection.features) {
+    const g = f.geometry;
+    if (g.type !== "LineString") continue;
+    const coords = g.coordinates as [number, number][];
+    if (coords.length < 2) continue;
+    const idx = Math.max(1, Math.floor(coords.length * 0.4));
+    labelFeatures.push({
+      pos: [coords[idx]![0], coords[idx]![1]],
+      text: f.properties.routeNumber,
+      class: f.properties.class,
+    });
+  }
+  // Always push the labels layer — when there are no routes (empty
+  // collection) deck.gl draws nothing, but the layer is consistently
+  // present so consumers don't have to defensively check for absence.
+  out.push(
+    new TextLayer<{ pos: [number, number]; text: string; class: string }>({
+      id: "provincial-roads-labels",
+      data: labelFeatures,
+      getPosition: (d) => d.pos,
+      getText: (d) => d.text,
+      getSize: (d) => (d.class === "national" ? 12 : 10),
+      getColor: [40, 30, 20, 245] as [number, number, number, number],
+      fontFamily: "'Inter', sans-serif",
+      fontWeight: 700,
+      characterSet: "auto",
+      background: true,
+      backgroundPadding: [3, 1],
+      getBackgroundColor: (d) => d.class === "national"
+        ? [255, 220, 100, 245]
+        : [240, 240, 240, 240] as [number, number, number, number],
+      billboard: true,
+      parameters: { depthWriteEnabled: false, depthCompare: "always" },
+      pickable: false,
+    }) as Layer,
+  );
+
+  return out;
+}

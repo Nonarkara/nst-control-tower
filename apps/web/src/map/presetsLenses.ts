@@ -138,7 +138,9 @@ export type LayerId =
   // Hand-authored historical floods (GISTDA Sentinel-1 SAR, Dec 2024)
   | "historical-floods"
   // Hand-authored city POIs from the official NST City Municipality Map
-  | "city-pois";
+  | "city-pois"
+  // Hand-authored provincial highways from the panteethai.com road map
+  | "provincial-roads";
 
 export type MapViewState =
   | { kind: "lens"; lensId: LensId }
@@ -170,6 +172,10 @@ export const LENSES: Lens[] = [
       "road-network",
       "datago-points",
       "gistda-pois",
+      // Provincial highways — the executive briefing points at major
+      // transport corridors so it answers "which roads can be used
+      // for evacuation?" alongside the city's institutions.
+      "provincial-roads",
       // City POIs — the executive briefing needs to point at the Old Town
       // landmarks by name (Wat Phra Mahathat, City Hall, the stadium, etc.).
       // City-scale only — won't crowd the province view.
@@ -184,6 +190,10 @@ export const LENSES: Lens[] = [
       // GISTDA data) so the briefing answers "is the current forecast
       // aligned with a known risk zone?"
       "historical-floods",
+      // Provincial highways — the executive briefing points at major
+      // transport corridors so the briefing answers "which roads are
+      // affected / can be used for evacuation?" alongside the flood risk.
+      "provincial-roads",
     ],
   },
   {
@@ -217,6 +227,7 @@ export const LENSES: Lens[] = [
       "named-canals",
       "regional-rivers",
       "historical-floods",
+      "provincial-roads",
       "flood-risk-overlay",
       // The iconic 3D model of Wat Phra Mahathat — the city-defining landmark.
       // Renders as a parametric stacked-primitive bell chedi + ubosot + wihan +
@@ -262,6 +273,7 @@ export const LENSES: Lens[] = [
       "named-canals",
       "regional-rivers",
       "historical-floods",
+      "provincial-roads",
       // The iconic 3D model of Wat Phra Mahathat — the city-defining landmark
       // sits in the flood plain and the basin cascade ends here, so FLOOD lens
       // must carry the temple silhouette as a recognisable backdrop.
