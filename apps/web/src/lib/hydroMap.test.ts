@@ -12,7 +12,7 @@
 import { describe, it, expect } from "vitest";
 import type { FeatureCollection, LineString, Polygon } from "geojson";
 import { GeoJsonLayer, PolygonLayer, TextLayer } from "@deck.gl/layers";
-import { districtBoundariesLayer, hydroFlowArrowsLayer, mountainIconLayer, bayIconLayer, namedCanalsLayer } from "./hydroMap";
+import { districtBoundariesLayer, hydroFlowArrowsLayer, mountainIconLayer, bayIconLayer, namedCanalsLayer, regionalRiversLayer } from "./hydroMap";
 import { ColumnLayer } from "@deck.gl/layers";
 
 function makeWaterway(
@@ -292,5 +292,67 @@ describe("namedCanalsLayer", () => {
     const labelLayer = layers.find((l) => l instanceof TextLayer && (l as unknown as { id: string }).id === "named-canals-labels") as unknown as { props: { data: { name: string }[] } };
     expect(labelLayer.props.data.length).toBe(2);
     expect(labelLayer.props.data.map((d) => d.name)).toEqual(["คลอง A", "คลอง B"]);
+  });
+});
+
+describe("regionalRiversLayer", () => {
+  it("renders the Tapi as halo + core stroke + name label + badge = 4 layers", () => {
+    const fc: FeatureCollection<LineString, { id: string; name: string; nameEn: string; nameTh: string; waterway: string; flowClass: string; _riverLengthKm?: number; _riverBadge?: string }> = {
+      type: "FeatureCollection",
+      features: [{
+        type: "Feature",
+        id: "hand/tapi",
+        properties: {
+          id: "hand/tapi",
+          name: "Tapi River",
+          nameEn: "Tapi River",
+          nameTh: "แม่น้ำตาปี",
+          waterway: "river",
+          flowClass: "regional",
+          _riverLengthKm: 230,
+          _riverBadge: "Longest river in southern Thailand",
+        },
+        geometry: {
+          type: "LineString",
+          coordinates: [
+            [99.6, 8.7], [99.55, 8.85], [99.5, 9.0], [99.4, 9.1], [99.3, 9.15], [99.2, 9.18], [99.15, 9.18], [99.14, 9.15],
+          ],
+        },
+      }],
+    };
+    const layers = regionalRiversLayer(fc);
+    // halo + core (2 GeoJsonLayers) + name label TextLayer + badge TextLayer = 4 layers
+    expect(layers.length).toBe(4);
+    const textLayers = layers.filter((l) => l instanceof TextLayer);
+    expect(textLayers.length).toBe(2); // name + badge
+  });
+
+  it("skips the badge when no _riverBadge property is set", () => {
+    const fc: FeatureCollection<LineString, { id: string; name: string; nameEn: string; nameTh: string; waterway: string; flowClass: string; _riverLengthKm?: number; _riverBadge?: string }> = {
+      type: "FeatureCollection",
+      features: [{
+        type: "Feature",
+        id: "hand/test",
+        properties: {
+          id: "hand/test",
+          name: "Test River",
+          nameEn: "Test River",
+          nameTh: "แม่น้ำทดสอบ",
+          waterway: "river",
+          flowClass: "regional",
+        },
+        geometry: { type: "LineString", coordinates: [[99.5, 8.5], [99.6, 8.6], [99.7, 8.7]] },
+      }],
+    };
+    const layers = regionalRiversLayer(fc);
+    // halo + core + name label (no badge) = 3 layers
+    expect(layers.length).toBe(3);
+  });
+
+  it("returns no layers for an empty collection", () => {
+    const fc: FeatureCollection<LineString, never> = { type: "FeatureCollection", features: [] };
+    const layers = regionalRiversLayer(fc as unknown as FeatureCollection<LineString, { id: string; name: string; nameEn: string; nameTh: string; waterway: string; flowClass: string; _riverLengthKm?: number; _riverBadge?: string }>);
+    // No rivers → no stroke layers, no labels, no badges → 0 layers
+    expect(layers.length).toBe(0);
   });
 });

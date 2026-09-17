@@ -132,7 +132,9 @@ export type LayerId =
   | "hydro-flow-arrows"
   // Hand-authored major canals — Tha Dee, Tha Wang, Royal Project Canal
   // (under construction), Pak Phanang, Cha Uat, etc.
-  | "named-canals";
+  | "named-canals"
+  // Hand-authored regional rivers (Tapi, etc.) — cross-province hydrology
+  | "regional-rivers";
 
 export type MapViewState =
   | { kind: "lens"; lensId: LensId }
@@ -195,6 +197,7 @@ export const LENSES: Lens[] = [
       "district-boundaries",
       "hydro-flow-arrows",
       "named-canals",
+      "regional-rivers",
       "flood-risk-overlay",
       // The iconic 3D model of Wat Phra Mahathat — the city-defining landmark.
       // Renders as a parametric stacked-primitive bell chedi + ubosot + wihan +
@@ -238,6 +241,7 @@ export const LENSES: Lens[] = [
       "district-boundaries",
       "hydro-flow-arrows",
       "named-canals",
+      "regional-rivers",
       // The iconic 3D model of Wat Phra Mahathat — the city-defining landmark
       // sits in the flood plain and the basin cascade ends here, so FLOOD lens
       // must carry the temple silhouette as a recognisable backdrop.

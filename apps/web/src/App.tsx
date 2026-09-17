@@ -119,6 +119,7 @@ import {
   mountainIconLayer,
   bayIconLayer,
   namedCanalsLayer,
+  regionalRiversLayer,
   waterGaugesLayer,
   waterLevelHeatmapLayer,
   waterLevelDensityFallbackLayer,
@@ -1243,6 +1244,12 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
   const namedCanals = useGeoJson<FeatureCollection<LineString, Record<string, unknown>>>(
     enabledLayers.has("named-canals") ? "/geo/nst/named-canals.geojson" : null,
   );
+  // Hand-authored REGIONAL rivers — bigger than NST municipality canals,
+  // cross province boundaries. Currently: แม่น้ำตาปี (Tapi River, 230 km,
+  // longest in southern Thailand).
+  const regionalRivers = useGeoJson<FeatureCollection<LineString, Record<string, unknown>>>(
+    enabledLayers.has("regional-rivers") ? "/geo/nst/regional-rivers.geojson" : null,
+  );
 
   // Civic POIs + waterways — Yala municipal OSM extract.
   const civicPoints = useGeoJson<FeatureCollection<Point, Record<string, unknown>>>(
@@ -1782,6 +1789,12 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
     // "(under construction · ระหว่างก่อสร้าง)" badge.
     if (enabledLayers.has("named-canals") && namedCanals?.features?.length) {
       out.push(...(namedCanalsLayer(namedCanals as unknown as FeatureCollection<LineString, { id: string; name: string | null; nameEn: string | null; nameTh: string | null; waterway: string; flowClass: string; _canalStatus?: "complete" | "under-construction" | "planned"; _plannedReach?: [number, number] | null }>) as Layer[]));
+    }
+    // Regional rivers — bigger than canals, drawn in dark navy with the
+    // "Longest in southern Thailand" badge on the Tapi. Cross province
+    // boundaries so the user can see NST as part of the bigger watershed.
+    if (enabledLayers.has("regional-rivers") && regionalRivers?.features?.length) {
+      out.push(...(regionalRiversLayer(regionalRivers as unknown as FeatureCollection<LineString, { id: string; name: string | null; nameEn: string | null; nameTh: string | null; waterway: string; flowClass: string; _riverLengthKm?: number; _riverBadge?: string; _riverSource?: { en: string; th: string }; _riverMouth?: { en: string; th: string } }>) as Layer[]));
     }
     // Picture-book framing (mountain / city / bay icons anchored at real
     // lng/lat) — gates independently so OPS can opt in without the heavier

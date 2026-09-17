@@ -687,3 +687,145 @@ export function bayIconLayer(
   );
   return out;
 }
+
+
+/**
+ * Regional rivers — major rivers that cross province boundaries (or are
+ * larger than a municipal canal). Distinct from `namedCanalsLayer`:
+ *  - drawn THICKER (regional rivers are the hydrological skeleton)
+ *  - dark navy core instead of bright blue (so they don't compete with
+ *    the canals visually)
+ *  - carry a "longest in southern Thailand" or similar badge
+ *
+ * Currently ships: แม่น้ำตาปี (Tapi River, 230 km, longest in the south).
+ */
+export interface RegionalRiverProps {
+  id: string;
+  name: string | null;
+  nameEn: string | null;
+  nameTh: string | null;
+  waterway: string;
+  flowClass: string;
+  _riverLengthKm?: number;
+  _riverBadge?: string;
+  _riverSource?: { en: string; th: string };
+  _riverMouth?: { en: string; th: string };
+}
+
+export function regionalRiversLayer(
+  collection: FeatureCollection<LineString, RegionalRiverProps>,
+): Layer[] {
+  const out: Layer[] = [];
+  const labelFeatures: {
+    pos: [number, number];
+    name: string;
+    nameEn: string;
+    nameTh: string;
+    lengthKm: number | undefined;
+    badge: string | undefined;
+  }[] = [];
+  const strokeFeatures: { path: [number, number][]; lengthKm: number | undefined }[] = [];
+
+  for (const f of collection.features) {
+    const g = f.geometry;
+    if (g.type !== "LineString") continue;
+    const coords = g.coordinates as [number, number][];
+    if (coords.length < 2) continue;
+    const props = f.properties;
+    strokeFeatures.push({ path: coords, lengthKm: props._riverLengthKm });
+    const idx = Math.max(1, Math.floor(coords.length * 0.3));
+    labelFeatures.push({
+      pos: [coords[idx]![0], coords[idx]![1]],
+      name: props.nameTh ?? props.nameEn ?? "",
+      nameEn: props.nameEn ?? "",
+      nameTh: props.nameTh ?? "",
+      lengthKm: props._riverLengthKm,
+      badge: props._riverBadge,
+    });
+  }
+
+  if (strokeFeatures.length > 0) {
+    out.push(
+      new GeoJsonLayer<{ path: [number, number][]; lengthKm: number | undefined }>({
+        id: "regional-rivers-halo",
+        data: { type: "FeatureCollection", features: strokeFeatures.map((s) => ({
+          type: "Feature",
+          properties: {},
+          geometry: { type: "LineString", coordinates: s.path },
+        })) } as unknown as FeatureCollection<LineString, Record<string, unknown>>,
+        stroked: true,
+        filled: false,
+        pickable: false,
+        getLineColor: [180, 210, 240, 220] as [number, number, number, number],
+        getLineWidth: 9,
+        lineWidthUnits: "pixels",
+        lineWidthMinPixels: 4,
+        lineWidthMaxPixels: 14,
+      }) as Layer,
+    );
+    out.push(
+      new GeoJsonLayer<{ path: [number, number][]; lengthKm: number | undefined }>({
+        id: "regional-rivers",
+        data: { type: "FeatureCollection", features: strokeFeatures.map((s) => ({
+          type: "Feature",
+          properties: {},
+          geometry: { type: "LineString", coordinates: s.path },
+        })) } as unknown as FeatureCollection<LineString, Record<string, unknown>>,
+        stroked: true,
+        filled: false,
+        pickable: false,
+        getLineColor: [22, 60, 150, 250] as [number, number, number, number],
+        getLineWidth: 5.5,
+        lineWidthUnits: "pixels",
+        lineWidthMinPixels: 3,
+        lineWidthMaxPixels: 9,
+      }) as Layer,
+    );
+  }
+
+  for (const lf of labelFeatures) {
+    out.push(
+      new TextLayer<{ pos: [number, number]; text: string }>({
+        id: `regional-river-label-${lf.nameEn}`,
+        data: [{ pos: lf.pos }],
+        getPosition: (d) => d.pos,
+        getText: () => `${lf.nameTh}\n${lf.nameEn}${lf.lengthKm ? ` · ${lf.lengthKm} km` : ""}`,
+        getSize: 13,
+        getColor: [10, 35, 90, 245] as [number, number, number, number],
+        fontFamily: "'IBM Plex Sans Thai', 'Inter', sans-serif",
+        fontWeight: 700,
+        characterSet: "auto",
+        background: true,
+        backgroundPadding: [4, 3],
+        getBackgroundColor: [240, 248, 255, 240],
+        billboard: true,
+        parameters: { depthWriteEnabled: false, depthCompare: "always" },
+        pickable: false,
+      }) as Layer,
+    );
+    if (lf.badge) {
+      out.push(
+        new TextLayer<{ pos: [number, number]; text: string }>({
+          id: `regional-river-badge-${lf.nameEn}`,
+          data: [{ pos: lf.pos }],
+          getPosition: (d) => d.pos,
+          getText: () => `★ ${lf.badge}`,
+          getSize: 10,
+          getColor: [40, 80, 160, 245] as [number, number, number, number],
+          fontFamily: "'IBM Plex Sans Thai', 'Inter', sans-serif",
+          fontWeight: 600,
+          characterSet: "auto",
+          background: true,
+          backgroundPadding: [3, 2],
+          getBackgroundColor: [255, 250, 230, 235],
+          getPixelOffset: [0, -32],
+          billboard: true,
+          parameters: { depthWriteEnabled: false, depthCompare: "always" },
+          pickable: false,
+        }) as Layer,
+      );
+    }
+  }
+
+  return out;
+}
