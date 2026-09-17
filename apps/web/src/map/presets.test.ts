@@ -199,10 +199,12 @@ describe("LENSES", () => {
     }
   });
 
-  it("OPS + FLOOD lenses carry the province-scale hydrology stack (district-boundaries + hydro-flow-arrows)", () => {
+  it("OPS + FLOOD lenses carry the province-scale hydrology stack (district-boundaries + hydro-flow-arrows + named-canals)", () => {
     // The Songkhla-style hydrology view: district boundaries (dashed) + flow
-    // arrows on every river pointing downstream. Without these the operator
-    // sees a metro line and gauges but no printed-map watershed.
+    // arrows on every river pointing downstream + the hand-authored major
+    // canals (Tha Dee, Tha Wang, Royal Project Canal, etc.) rendered as
+    // thicker lines with Thai labels. Without these the operator sees a
+    // metro line and gauges but no printed-map watershed.
     for (const lensId of ["operations", "flood"] as const) {
       const lens = LENSES.find((l) => l.id === lensId);
       expect(lens, `${lensId} lens missing`).toBeDefined();
@@ -214,6 +216,10 @@ describe("LENSES", () => {
         lens!.layers,
         `${lensId} lens must carry hydro-flow-arrows`,
       ).toContain("hydro-flow-arrows");
+      expect(
+        lens!.layers,
+        `${lensId} lens must carry named-canals`,
+      ).toContain("named-canals");
     }
   });
 

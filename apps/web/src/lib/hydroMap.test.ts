@@ -12,7 +12,7 @@
 import { describe, it, expect } from "vitest";
 import type { FeatureCollection, LineString, Polygon } from "geojson";
 import { GeoJsonLayer, PolygonLayer, TextLayer } from "@deck.gl/layers";
-import { districtBoundariesLayer, hydroFlowArrowsLayer, mountainIconLayer, bayIconLayer } from "./hydroMap";
+import { districtBoundariesLayer, hydroFlowArrowsLayer, mountainIconLayer, bayIconLayer, namedCanalsLayer } from "./hydroMap";
 import { ColumnLayer } from "@deck.gl/layers";
 
 function makeWaterway(
@@ -122,18 +122,19 @@ describe("hydroFlowArrowsLayer", () => {
 });
 
 describe("districtBoundariesLayer", () => {
-  it("returns 2 layers (dashed polygon + label TextLayer) for any non-empty collection", () => {
+  it("returns 3 layers (fill + dashed outline + label TextLayer) for any non-empty collection", () => {
     const fc = makeDistrictCollection();
     const layers = districtBoundariesLayer(fc);
-    expect(layers.length).toBe(2);
-    expect(layers[0]).toBeInstanceOf(GeoJsonLayer);
-    expect(layers[1]).toBeInstanceOf(TextLayer);
+    expect(layers.length).toBe(3);
+    expect(layers[0]).toBeInstanceOf(GeoJsonLayer);  // pastel fill
+    expect(layers[1]).toBeInstanceOf(GeoJsonLayer);  // dashed outline
+    expect(layers[2]).toBeInstanceOf(TextLayer);
   });
 
   it("emits one label per district with a name or nameTh", () => {
     const fc = makeDistrictCollection();
     const layers = districtBoundariesLayer(fc);
-    const labelLayer = layers[1] as unknown as { props: { data: { text: string }[] } };
+    const labelLayer = layers[2] as unknown as { props: { data: { text: string }[] } };
     const labels = labelLayer.props.data;
     expect(labels.length).toBe(2);
     expect(labels.map((l) => l.text)).toEqual([
@@ -147,7 +148,7 @@ describe("districtBoundariesLayer", () => {
     fc.features[1]!.properties.name = null;
     fc.features[1]!.properties.nameTh = null;
     const layers = districtBoundariesLayer(fc);
-    const labelLayer = layers[1] as unknown as { props: { data: { text: string }[] } };
+    const labelLayer = layers[2] as unknown as { props: { data: { text: string }[] } };
     expect(labelLayer.props.data.length).toBe(1);
   });
 });
@@ -155,9 +156,10 @@ describe("districtBoundariesLayer", () => {
 describe("hydro map visual contract", () => {
   it("district borders are dashed (lineDashArray set on the GeoJsonLayer)", () => {
     const layers = districtBoundariesLayer(makeDistrictCollection());
-    const polygonLayer = layers[0] as unknown as { props: { lineDashArray: number[] | null } };
-    expect(polygonLayer.props.lineDashArray).not.toBeNull();
-    expect(polygonLayer.props.lineDashArray).toEqual([4, 3]);
+    // Find the dashed outline layer (second GeoJsonLayer)
+    const outlineLayer = layers[1] as unknown as { props: { lineDashArray: number[] | null } };
+    expect(outlineLayer.props.lineDashArray).not.toBeNull();
+    expect(outlineLayer.props.lineDashArray).toEqual([4, 3]);
   });
 
   it("flow arrows are filled red triangles (PolygonLayer with red fill)", () => {
@@ -201,5 +203,94 @@ describe("bayIconLayer", () => {
     expect(layers.length).toBe(2);
     expect(layers[0]).toBeInstanceOf(ColumnLayer);
     expect(layers[1]).toBeInstanceOf(TextLayer);
+  });
+});
+
+describe("namedCanalsLayer", () => {
+  it("renders every named canal as solid blue + Thai label = 3 layers", () => {
+    const fc: FeatureCollection<LineString, { id: string; name: string; nameEn: string; nameTh: string; waterway: string; flowClass: string; _canalStatus?: "complete" | "under-construction" | "planned"; _plannedReach?: [number, number] | null }> = {
+      type: "FeatureCollection",
+      features: [{
+        type: "Feature",
+        id: "hand/test",
+        properties: {
+          id: "hand/test",
+          name: "Tha Dee",
+          nameEn: "Tha Dee Canal",
+          nameTh: "คลองท่าดี",
+          waterway: "canal",
+          flowClass: "fast",
+          _canalStatus: "complete",
+          _plannedReach: null,
+        },
+        geometry: {
+          type: "LineString",
+          coordinates: [[99.7, 8.4], [99.8, 8.45], [99.9, 8.5]],
+        },
+      }],
+    };
+    const layers = namedCanalsLayer(fc);
+    // solid GeoJsonLayer + label TextLayer = 2 layers
+    expect(layers.length).toBe(2);
+    expect(layers[0]).toBeInstanceOf(GeoJsonLayer);
+    expect(layers[1]).toBeInstanceOf(TextLayer);
+  });
+
+  it("renders the Royal Project Canal as solid built + dashed planned + under-construction badge", () => {
+    const fc: FeatureCollection<LineString, { id: string; name: string; nameEn: string; nameTh: string; waterway: string; flowClass: string; _canalStatus?: "complete" | "under-construction" | "planned"; _plannedReach?: [number, number] | null }> = {
+      type: "FeatureCollection",
+      features: [{
+        type: "Feature",
+        id: "hand/royal-project-canal",
+        properties: {
+          id: "hand/royal-project-canal",
+          name: "Royal Project Canal",
+          nameEn: "Royal Project Canal",
+          nameTh: "คลองพระราชดำริ",
+          waterway: "canal",
+          flowClass: "fast",
+          _canalStatus: "under-construction",
+          _plannedReach: [0, 3],
+        },
+        geometry: {
+          type: "LineString",
+          coordinates: [
+            [99.9, 8.4],  // planned start
+            [100.0, 8.4],  // planned
+            [100.1, 8.45], // planned
+            [100.2, 8.5],  // boundary (planned[1]=3, so this is the first BUILT vertex)
+            [100.3, 8.5],  // built
+            [100.4, 8.5],  // built
+          ],
+        },
+      }],
+    };
+    const layers = namedCanalsLayer(fc);
+    // planned GeoJsonLayer + solid GeoJsonLayer + label TextLayer + under-construction badge TextLayer = 4 layers
+    expect(layers.length).toBe(4);
+    const labels = layers.filter((l) => l instanceof TextLayer);
+    expect(labels.length).toBe(2); // canal name + under-construction badge
+  });
+
+  it("emits one Thai label per canal at the midpoint", () => {
+    const fc: FeatureCollection<LineString, { id: string; name: string; nameEn: string; nameTh: string; waterway: string; flowClass: string; _canalStatus?: "complete" | "under-construction" | "planned"; _plannedReach?: [number, number] | null }> = {
+      type: "FeatureCollection",
+      features: [
+        {
+          type: "Feature", id: "hand/c1",
+          properties: { id: "hand/c1", name: "c1", nameEn: "c1", nameTh: "คลอง A", waterway: "canal", flowClass: "medium", _canalStatus: "complete", _plannedReach: null },
+          geometry: { type: "LineString", coordinates: [[99.7, 8.4], [99.8, 8.45], [99.9, 8.5]] },
+        },
+        {
+          type: "Feature", id: "hand/c2",
+          properties: { id: "hand/c2", name: "c2", nameEn: "c2", nameTh: "คลอง B", waterway: "canal", flowClass: "medium", _canalStatus: "complete", _plannedReach: null },
+          geometry: { type: "LineString", coordinates: [[99.7, 8.5], [99.8, 8.5], [99.9, 8.5]] },
+        },
+      ],
+    };
+    const layers = namedCanalsLayer(fc);
+    const labelLayer = layers.find((l) => l instanceof TextLayer && (l as unknown as { id: string }).id === "named-canals-labels") as unknown as { props: { data: { name: string }[] } };
+    expect(labelLayer.props.data.length).toBe(2);
+    expect(labelLayer.props.data.map((d) => d.name)).toEqual(["คลอง A", "คลอง B"]);
   });
 });

@@ -118,6 +118,50 @@ export function districtBoundariesLayer(
   collection: FeatureCollection<Polygon, { id: string; name: string | null; nameTh: string | null; admin_level: number }>,
 ): Layer[] {
   const out: Layer[] = [];
+
+  // ── Pastel district fills — one deterministic colour per district id ──
+  // The user wanted the printed-map look where each district reads as its
+  // own pastel block (like the Songkhla reference). We hash the district
+  // id to pick from a fixed Okabe–Ito-friendly palette so adjacent
+  // districts never share a colour but the same district is always the
+  // same colour across reloads.
+  const PASTEL_PALETTE: [number, number, number][] = [
+    [255, 230, 220], // peach
+    [220, 240, 230], // mint
+    [225, 225, 245], // lilac
+    [245, 235, 210], // sand
+    [220, 230, 245], // sky
+    [240, 220, 235], // rose
+    [225, 245, 225], // sage
+    [235, 220, 220], // salmon
+    [230, 235, 215], // cream-green
+    [240, 230, 245], // pale-pink
+    [220, 235, 235], // pale-teal
+    [245, 225, 220], // apricot
+    [220, 245, 230], // pale-mint
+    [230, 220, 240], // lavender
+    [245, 240, 215], // cream
+  ];
+  function hashDistrictId(id: string): number {
+    let h = 0;
+    for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+    return h;
+  }
+  out.push(
+    new GeoJsonLayer<{ id: string; name: string | null; nameTh: string | null; admin_level: number }>({
+      id: "district-boundaries-fill",
+      data: collection,
+      stroked: false,
+      filled: true,
+      pickable: false,
+      getFillColor: (f) => {
+        const id = (f.properties as { id?: string }).id ?? "0";
+        const idx = hashDistrictId(id) % PASTEL_PALETTE.length;
+        const [r, g, b] = PASTEL_PALETTE[idx]!;
+        return [r, g, b, 175] as [number, number, number, number];
+      },
+    }) as Layer,
+  );
   // Dashed outline. The GeoJsonLayer type doesn't surface lineDashArray
   // in its props; deck.gl accepts it via the PathLayer it composes for
   // stroking, so we pass it through with a typed cast.
@@ -174,6 +218,189 @@ export function districtBoundariesLayer(
       pickable: false,
     }) as Layer,
   );
+  return out;
+}
+
+/**
+ * Named canals — the major Thai-named channels in NST City Municipality.
+ * Drawn THICKER than the OSM waterways so they read as the headline
+ * features of the watershed. The Royal Project Canal (คลองพระราชดำริ)
+ * is flagged as "under construction" and rendered with a dashed planned
+ * reach + a solid built reach so the user can see which segment exists
+ * and which is still in the works.
+ */
+export interface NamedCanalProps {
+  id: string;
+  name: string | null;
+  nameEn: string | null;
+  nameTh: string | null;
+  waterway: string;
+  flowClass: string;
+  _canalStatus?: "complete" | "under-construction" | "planned";
+  _plannedReach?: [number, number] | null;
+}
+
+export function namedCanalsLayer(
+  collection: FeatureCollection<LineString, NamedCanalProps>,
+): Layer[] {
+  const out: Layer[] = [];
+
+  // Split each canal into a "solid" reach (built) and a "dashed" reach
+  // (planned / under construction). Most canals have only solid; the
+  // Royal Project Canal has both — its plannedReach property marks the
+  // vertex indices that are NOT YET built.
+  const solidFeatures: { path: [number, number][]; name: string; class: string }[] = [];
+  const dashedFeatures: { path: [number, number][]; name: string; class: string }[] = [];
+  const labelFeatures: { pos: [number, number]; name: string; status: string | undefined }[] = [];
+  for (const f of collection.features) {
+    const g = f.geometry;
+    if (g.type !== "LineString") continue;
+    const coords = g.coordinates as [number, number][];
+    if (coords.length < 2) continue;
+    const props = f.properties;
+    const isUnderConstruction = props._canalStatus === "under-construction";
+    const planned = props._plannedReach;
+    if (isUnderConstruction && planned && planned.length === 2) {
+      const [lo, hi] = planned;
+      // Planned reach (dashed) — from lo to hi
+      const plannedSlice = coords.slice(lo, hi + 1);
+      if (plannedSlice.length >= 2) {
+        dashedFeatures.push({
+          path: plannedSlice,
+          name: props.nameTh ?? props.name ?? "",
+          class: props.flowClass ?? "medium",
+        });
+      }
+      // Built reach (solid) — everything else. If planned is [0, n], the
+      // built portion is from n onwards; if planned is [0, k], built is k..end.
+      const built1 = coords.slice(0, lo + 1);
+      const built2 = coords.slice(hi);
+      if (built1.length >= 2 && hi > 0) {
+        solidFeatures.push({
+          path: built1,
+          name: props.nameTh ?? props.name ?? "",
+          class: props.flowClass ?? "medium",
+        });
+      }
+      if (built2.length >= 2) {
+        solidFeatures.push({
+          path: built2,
+          name: props.nameTh ?? props.name ?? "",
+          class: props.flowClass ?? "medium",
+        });
+      }
+    } else {
+      solidFeatures.push({
+        path: coords,
+        name: props.nameTh ?? props.name ?? "",
+        class: props.flowClass ?? "medium",
+      });
+    }
+    // Label at midpoint of full canal
+    if (coords.length >= 2) {
+      const mid = Math.floor(coords.length / 2);
+      labelFeatures.push({
+        pos: [coords[mid]![0], coords[mid]![1]],
+        name: props.nameTh ?? props.name ?? "",
+        status: props._canalStatus,
+      });
+    }
+  }
+
+  // Dashed planned reach (only the Royal Project Canal today)
+  if (dashedFeatures.length > 0) {
+    out.push(
+      new GeoJsonLayer<{ path: [number, number][]; name: string; class: string }>({
+        id: "named-canals-planned",
+        data: { type: "FeatureCollection", features: dashedFeatures.map((d) => ({
+          type: "Feature",
+          properties: { name: d.name, class: d.class },
+          geometry: { type: "LineString", coordinates: d.path },
+        })) } as FeatureCollection<LineString, { name: string; class: string }>,
+        stroked: true,
+        filled: false,
+        pickable: false,
+        getLineColor: [220, 130, 30, 235] as [number, number, number, number], // orange — "under construction"
+        getLineWidth: 4,
+        lineWidthUnits: "pixels",
+        lineWidthMinPixels: 2,
+        lineWidthMaxPixels: 6,
+        ...({ lineDashArray: [6, 4] } as Record<string, unknown>),
+      } as unknown as Layer) as Layer,
+    );
+  }
+
+  // Solid built canals (every canal + the built reach of the Royal Project)
+  out.push(
+    new GeoJsonLayer<{ path: [number, number][]; name: string; class: string }>({
+      id: "named-canals",
+      data: { type: "FeatureCollection", features: solidFeatures.map((d) => ({
+        type: "Feature",
+        properties: { name: d.name, class: d.class },
+        geometry: { type: "LineString", coordinates: d.path },
+      })) } as FeatureCollection<LineString, { name: string; class: string }>,
+      stroked: true,
+      filled: false,
+      pickable: false,
+      getLineColor: [25, 85, 195, 250] as [number, number, number, number],
+      getLineWidth: 4.5,
+      lineWidthUnits: "pixels",
+      lineWidthMinPixels: 2.5,
+      lineWidthMaxPixels: 7,
+    }) as Layer,
+  );
+
+  // Thai name labels — small white pill, no halo (already thick enough)
+  if (labelFeatures.length > 0) {
+    out.push(
+      new TextLayer<{ pos: [number, number]; name: string; status: string | undefined }>({
+        id: "named-canals-labels",
+        data: labelFeatures,
+        getPosition: (d) => d.pos,
+        getText: (d) => d.name,
+        getSize: 12,
+        getColor: [15, 50, 100, 245] as [number, number, number, number],
+        fontFamily: "'IBM Plex Sans Thai', 'Inter', sans-serif",
+        fontWeight: 700,
+        characterSet: "auto",
+        background: true,
+        backgroundPadding: [3, 2],
+        getBackgroundColor: [255, 255, 255, 220],
+        billboard: true,
+        parameters: { depthWriteEnabled: false, depthCompare: "always" },
+        pickable: false,
+      }) as Layer,
+    );
+  }
+
+  // Special "under construction" badge for the Royal Project Canal so the
+  // user sees the status at a glance.
+  const rpc = collection.features.find((f) => (f.properties as NamedCanalProps)._canalStatus === "under-construction");
+  if (rpc && rpc.geometry.type === "LineString") {
+    const coords = rpc.geometry.coordinates as [number, number][];
+    const mid = Math.floor(coords.length / 2);
+    out.push(
+      new TextLayer<{ pos: [number, number] }>({
+        id: "named-canals-rpc-badge",
+        data: [{ pos: [coords[mid]![0], coords[mid]![1]] }],
+        getPosition: (d) => d.pos,
+        getText: () => "(ระหว่างก่อสร้าง · under construction)",
+        getSize: 10,
+        getColor: [180, 80, 0, 245] as [number, number, number, number],
+        fontFamily: "'IBM Plex Sans Thai', 'Inter', sans-serif",
+        fontWeight: 600,
+        characterSet: "auto",
+        background: true,
+        backgroundPadding: [3, 1],
+        getBackgroundColor: [255, 240, 220, 235],
+        getPixelOffset: [0, -22],
+        billboard: true,
+        parameters: { depthWriteEnabled: false, depthCompare: "always" },
+        pickable: false,
+      }) as Layer,
+    );
+  }
+
   return out;
 }
 

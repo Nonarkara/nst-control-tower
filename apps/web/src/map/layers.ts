@@ -5308,5 +5308,7 @@ export {
   hydroFlowArrowsLayer,
   mountainIconLayer,
   bayIconLayer,
+  namedCanalsLayer,
   type MountainOptions,
+  type NamedCanalProps,
 } from "../lib/hydroMap";

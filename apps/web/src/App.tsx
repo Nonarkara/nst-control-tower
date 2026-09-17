@@ -118,6 +118,7 @@ import {
   hydroFlowArrowsLayer,
   mountainIconLayer,
   bayIconLayer,
+  namedCanalsLayer,
   waterGaugesLayer,
   waterLevelHeatmapLayer,
   waterLevelDensityFallbackLayer,
@@ -1236,6 +1237,12 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
       ? "/geo/nst/boundaries/districts.geojson"
       : null,
   );
+  // Hand-authored major canals (Tha Dee, Tha Wang, Royal Project Canal,
+  // Pak Phanang, Cha Uat, Nakhon Noi, Phra Phrom, Ban Na). OSM doesn't cover
+  // these — the dataset was hand-traced from the RID hydrology chart.
+  const namedCanals = useGeoJson<FeatureCollection<LineString, Record<string, unknown>>>(
+    enabledLayers.has("named-canals") ? "/geo/nst/named-canals.geojson" : null,
+  );
 
   // Civic POIs + waterways — Yala municipal OSM extract.
   const civicPoints = useGeoJson<FeatureCollection<Point, Record<string, unknown>>>(
@@ -1767,6 +1774,14 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
       out.push(...(bayIconLayer(
         { lng: 100.184, lat: 8.4942 }, "PAK PHANANG BAY", "อ่าวปากพนัง",
       ) as Layer[]));
+    }
+    // Named canals (Tha Dee, Tha Wang, Royal Project Canal, etc.) — the
+    // headline canals of the RID watershed chart, drawn thicker than the
+    // OSM waterways so they read as the main channels. The Royal Project
+    // Canal's planned reach renders as a dashed orange line + an
+    // "(under construction · ระหว่างก่อสร้าง)" badge.
+    if (enabledLayers.has("named-canals") && namedCanals?.features?.length) {
+      out.push(...(namedCanalsLayer(namedCanals as unknown as FeatureCollection<LineString, { id: string; name: string | null; nameEn: string | null; nameTh: string | null; waterway: string; flowClass: string; _canalStatus?: "complete" | "under-construction" | "planned"; _plannedReach?: [number, number] | null }>) as Layer[]));
     }
     // Picture-book framing (mountain / city / bay icons anchored at real
     // lng/lat) — gates independently so OPS can opt in without the heavier
