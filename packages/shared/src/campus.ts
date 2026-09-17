@@ -51,16 +51,20 @@ export const NST: CampusConfig = {
     "Phatthanakan Khukhwang Road",
     "Si Thammasok Road",
   ],
-  // Default camera frames the WHOLE PROVINCE (zoom ~8.4) so the map opens on
-  // the hydrology view the operator needs first — every river + district +
-  // flow arrow visible at once, the way RID's printed watershed maps read.
-  // Zoom in past ~13 for the Old Town building fabric + Mahatat chedi.
+  // Default camera boots at CITY zoom (~14) centered on the Old Town,
+  // so the very first frame the operator sees is the city itself — the real
+  // 3D buildings, the Mahatat, the OSM roads, the rail. The province-scale
+  // hydrology layers (Khao Luang pyramid, Pak Phanang Bay disc, district
+  // fills, flow arrows, named canals, regional rivers, historical floods,
+  // cascade subway) are gated to zoomBucket === 0, so they only appear when
+  // the operator zooms past 15.2 → no. Zoom out to 8.4 if you want the
+  // RID-style basin overview.
   defaultView: {
-    longitude: 99.83,
-    latitude: 8.62,
-    zoom: 8.4,
-    pitch: 25,
-    bearing: 0,
+    longitude: 99.9631,
+    latitude: 8.4367,
+    zoom: 14,
+    pitch: 35,
+    bearing: -10,
   },
 };
 
