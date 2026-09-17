@@ -136,7 +136,9 @@ export type LayerId =
   // Hand-authored regional rivers (Tapi, etc.) — cross-province hydrology
   | "regional-rivers"
   // Hand-authored historical floods (GISTDA Sentinel-1 SAR, Dec 2024)
-  | "historical-floods";
+  | "historical-floods"
+  // Hand-authored city POIs from the official NST City Municipality Map
+  | "city-pois";
 
 export type MapViewState =
   | { kind: "lens"; lensId: LensId }
@@ -168,6 +170,10 @@ export const LENSES: Lens[] = [
       "road-network",
       "datago-points",
       "gistda-pois",
+      // City POIs — the executive briefing needs to point at the Old Town
+      // landmarks by name (Wat Phra Mahathat, City Hall, the stadium, etc.).
+      // City-scale only — won't crowd the province view.
+      "city-pois",
       // The 3D Mahatat model is the EXEC lens's "city heartbeat" — without
       // it the executive briefing shows an empty old-town rectangle. With
       // it the briefing reads as "this is the city, and this is its
@@ -195,6 +201,11 @@ export const LENSES: Lens[] = [
       "ring-roads",
       "road-network",
       "civic-points",
+      // City POIs — the 48 important places from the official NST City
+      // Municipality Map (hotels, temples, hospitals, markets, etc.).
+      // City-scale visibility so the day-to-day view shows the city places
+      // without a search.
+      "city-pois",
       // Province-scale hydrology: every river + every district + flow arrows
       // so the operator sees "water comes from Khao Luang, flows through the
       // cascade, into Pak Phanang Bay" the moment they open the dashboard.

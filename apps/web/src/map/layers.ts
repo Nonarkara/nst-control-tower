@@ -5316,3 +5316,4 @@ export {
   type RegionalRiverProps,
   type HistoricalFloodProps,
 } from "../lib/hydroMap";
+export { cityPoisLayer, type CityPoisProps } from "../lib/cityPois";

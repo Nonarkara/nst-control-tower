@@ -232,6 +232,21 @@ describe("LENSES", () => {
     }
   });
 
+  it("OPS + EXEC lenses carry the city POIs (hotels, temples, hospitals, etc.)", () => {
+    // The 48 important places from the official NST City Municipality Map
+    // must ride the day-to-day lens (OPS) so the operator can find the
+    // hospital, market, etc. without searching, AND the executive lens
+    // (EXEC) so the executive briefing points at landmarks by name.
+    for (const lensId of ["operations", "executive"] as const) {
+      const lens = LENSES.find((l) => l.id === lensId);
+      expect(lens, `${lensId} lens missing`).toBeDefined();
+      expect(
+        lens!.layers,
+        `${lensId} lens must carry city-pois`,
+      ).toContain("city-pois");
+    }
+  });
+
   it("does not expose the retired Deep South security / poverty lenses", () => {
     expect(LENSES.find((l) => l.id === "security")).toBeUndefined();
     expect(LENSES.find((l) => l.id === "poverty")).toBeUndefined();

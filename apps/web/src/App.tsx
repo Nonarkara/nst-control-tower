@@ -121,6 +121,7 @@ import {
   namedCanalsLayer,
   regionalRiversLayer,
   historicalFloodsLayer,
+  cityPoisLayer,
   waterGaugesLayer,
   waterLevelHeatmapLayer,
   waterLevelDensityFallbackLayer,
@@ -1257,6 +1258,12 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
   const historicalFloods = useGeoJson<FeatureCollection<Polygon | MultiPolygon, Record<string, unknown>>>(
     enabledLayers.has("historical-floods") ? "/geo/nst/historical-floods-2024-12.geojson" : null,
   );
+  // Hand-authored CITY POIs — the 48 important places from the official
+  // Nakhon Si Thammarat City Municipality Map (hotels, temples, hospitals,
+  // markets, important places, tourist attractions, restaurants).
+  const cityPois = useGeoJson<FeatureCollection<Point, Record<string, unknown>>>(
+    enabledLayers.has("city-pois") ? "/geo/nst/city-pois.geojson" : null,
+  );
 
   // Civic POIs + waterways — Yala municipal OSM extract.
   const civicPoints = useGeoJson<FeatureCollection<Point, Record<string, unknown>>>(
@@ -1814,6 +1821,14 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
         features: historicalFloods.features.filter((f) => f.geometry.type === "Polygon"),
       } as FeatureCollection<Polygon, { id: string; name: string | null; nameEn: string | null; nameTh: string | null; district: string; severity: "high" | "medium" | "low"; households: number; source: string; eventStart: string; eventEnd: string }>;
       out.push(...(historicalFloodsLayer(polyOnly) as Layer[]));
+    }
+    // City POIs — 48 important places from the official NST City Map.
+    // Colour-coded by category (gold=landmark, gold=temple, blue=hotel,
+    // red=hospital, orange=market, slate=government, green=tourist,
+    // pink=restaurant). Visible from city zoom down so the operator can
+    // find the hospital, market, temple, etc. without a search.
+    if (enabledLayers.has("city-pois") && cityPois?.features?.length) {
+      out.push(...(cityPoisLayer(cityPois as unknown as FeatureCollection<Point, { id: string; name: string | null; nameEn: string | null; nameTh: string | null; category: string }>) as Layer[]));
     }
     // Picture-book framing (mountain / city / bay icons anchored at real
     // lng/lat) — gates independently so OPS can opt in without the heavier
