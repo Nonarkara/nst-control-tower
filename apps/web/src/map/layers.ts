@@ -1,4 +1,5 @@
 import { GeoJsonLayer, GridCellLayer, IconLayer, PathLayer, TextLayer } from "@deck.gl/layers";
+import { judgeGauge } from "../lib/levelWatch";
 import type { Layer } from "@deck.gl/core";
 import { HeatmapLayer } from "@deck.gl/aggregation-layers";
 import { ScatterplotLayer } from "@deck.gl/layers";
@@ -87,6 +88,8 @@ const CAT: Record<"orange" | "sky" | "green" | "yellow" | "blue" | "vermil" | "p
   vermil: [213, 94, 0],
   pink: [204, 121, 167],
 };
+/** Category palette, exported for legends (MapLegend) so keys match the map. */
+export const MAP_CAT = CAT;
 
 /** Mix toward white: t = 0 → the colour, t = 1 → white. */
 function tint(c: readonly number[], t: number): RGB {
@@ -2967,24 +2970,37 @@ export const SITUATION_RGB: Record<number, [number, number, number]> = statusRgb
   5: "critical",
 });
 
-/** All ~26 HII/RID telemetry water-level stations, coloured by situation level. */
+/**
+ * All HII/RID telemetry water-level stations, coloured by the SAME judgement
+ * the headline card and LEVEL WATCH use (lib/levelWatch.judgeGauge): over
+ * bank / at RID critical = critical, ≥ 90 % full or within 0.5 m = warning,
+ * ≥ 80 % or within 1 m = watch, otherwise normal. Colouring by HII situation
+ * level alone painted a 97 %-full channel green while the rail called it
+ * near capacity.
+ */
+export function gaugeStatusLevel(g: WaterGauge): "normal" | "watch" | "warning" | "critical" {
+  const v = judgeGauge(g);
+  return v ? v.level : "normal";
+}
+
 export function waterGaugesLayer(gauges: WaterGauge[]) {
   return new ScatterplotLayer<WaterGauge>({
     id: "water-gauges",
     data: gauges,
     getPosition: (g) => [g.lng, g.lat],
     // Alerting stations read bigger from a province-wide zoom.
-    getRadius: (g) => (g.situationLevel >= 5 ? 160 : g.situationLevel >= 4 ? 120 : 70),
+    getRadius: (g) => {
+      const lvl = gaugeStatusLevel(g);
+      return lvl === "critical" ? 170 : lvl === "warning" ? 130 : lvl === "watch" ? 100 : 70;
+    },
     radiusMinPixels: 5,
     radiusMaxPixels: 16,
-    getFillColor: (g) => {
-      const c = SITUATION_RGB[g.situationLevel] ?? SITUATION_RGB[3];
-      return [c[0], c[1], c[2], 235] as [number, number, number, number];
-    },
+    getFillColor: (g) => statusRgba(gaugeStatusLevel(g), 235),
     stroked: true,
     getLineColor: [255, 255, 255, 220],
     lineWidthMinPixels: 1.5,
     pickable: true,
+    updateTriggers: { getFillColor: gauges, getRadius: gauges },
   });
 }
 

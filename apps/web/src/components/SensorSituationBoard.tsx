@@ -1,6 +1,5 @@
 import type { AirQualityPoint, FallbackTier, RainfallStation, WaterGauge } from "@nst/shared";
 import { PanelHeader } from "./PanelHeader";
-import { WaterFlowPicture } from "./WaterFlowPicture";
 import {
   bandLabel,
   bandStatus,
@@ -8,11 +7,11 @@ import {
   summarizeAir,
   summarizeRain,
   summarizeWater,
-  thaDeeFlowSteps,
   type SituationBand,
 } from "../lib/sensorSituation";
-import { STATUS } from "../lib/status";
-import { StatusText, statusStyle } from "../lib/cityStatus";
+import type { StatusLevel } from "../lib/status";
+import { StatusText } from "../lib/cityStatus";
+import { aqiBand } from "../lib/worldStrip";
 
 /**
  * SENSOR SITUATION — graphic understanding of what the city is facing.
@@ -33,9 +32,13 @@ interface Props {
   onShowAirHeat?: () => void;
 }
 
-const WATER_BAR_MAX = 120;
-const RAIN_BAR_MAX = 120;
-const PM25_BAR_MAX = 150;
+// Bar scales are stated next to every bar. Fullness: 100% = water at the
+// bank crest (the feed can exceed 100 when overbank; the bar just fills).
+// Rain: 90 mm / 24 h is TMD's "very heavy" threshold. PM2.5: 55.5 µg/m³ is
+// where US-EPA "unhealthy" begins.
+const WATER_BAR_MAX = 100;
+const RAIN_BAR_MAX = 90;
+const PM25_BAR_MAX = 55.5;
 
 function fmt1(n: number | null, unit = ""): string {
   if (n == null || !Number.isFinite(n)) return "—";
@@ -56,11 +59,14 @@ function ConcentrationBar({
   value,
   max,
   unit,
+  scale,
 }: {
   label: string;
   value: number | null;
   max: number;
   unit: string;
+  /** What a full bar means, in words. */
+  scale: string;
 }) {
   const pct = value == null ? 0 : Math.min(100, Math.max(0, (value / max) * 100));
   return (
@@ -72,6 +78,7 @@ function ConcentrationBar({
       <span className="pc-bar" aria-hidden="true">
         <span className="pc-bar__fill" style={{ width: `${pct}%` }} />
       </span>
+      <span className="sit-bar__scale">{scale}</span>
     </div>
   );
 }
@@ -89,7 +96,11 @@ export function SensorSituationBoard({
   const water = summarizeWater(waterGauges);
   const rain = summarizeRain(rainfall);
   const air = summarizeAir(airStations);
-  const flow = thaDeeFlowSteps(waterGauges);
+  // Air speaks the same AQI words as the header ("moderate"), not a
+  // separate CALM/WATCH scale that contradicted it.
+  const airWords = aqiBand(air.maxAqi);
+  const airLevel: StatusLevel =
+    air.maxAqi == null ? "unknown" : air.maxAqi <= 50 ? "normal" : air.maxAqi <= 100 ? "watch" : air.maxAqi <= 150 ? "warning" : "critical";
 
   const overall: SituationBand =
     water.band === "critical" || rain.band === "critical" || air.band === "critical"
@@ -149,43 +160,22 @@ export function SensorSituationBoard({
         </dl>
 
         <ConcentrationBar
-          label="Channel fullness (peak)"
+          label="Fullest channel"
           value={water.maxFullnessPct}
           max={WATER_BAR_MAX}
           unit="%"
+          scale="Full bar = water at the bank"
         />
         <ConcentrationBar
-          label="Rain 24 h (peak station)"
+          label="Most rain in 24 h (one station)"
           value={rain.maxRain24h}
           max={RAIN_BAR_MAX}
           unit=" mm"
+          scale="Full bar = 90 mm, very heavy rain"
         />
 
-        {flow.length >= 2 && (
-          <div className="pc-section">
-            <h4 className="pc-label" id="sit-flow-label">
-              FLOW · <span lang="th">น้ำไหลจากเขาลงเมือง</span> · mountains → city
-            </h4>
-            <WaterFlowPicture steps={flow} fallbackTier={fallbackTier} />
-          </div>
-        )}
-
-        {water.worst && (
-          <button
-            type="button"
-            className="sit-worst"
-            onClick={() => onFocus(water.worst!.lng, water.worst!.lat)}
-          >
-            <span className="pc-label">HOTTEST GAUGE</span>
-            <span className="sit-worst__name">{water.worst.name}</span>
-            <span className="sit-worst__meta num">
-              <span className="pc-glyph" style={statusStyle(situationLevelStatus(water.worst.situationLevel))} aria-hidden="true">
-                {STATUS[situationLevelStatus(water.worst.situationLevel)].glyph}{" "}
-              </span>
-              L{water.worst.situationLevel} · {fmt1(water.worst.levelMsl, " m")} · {water.worst.trend}
-            </span>
-          </button>
-        )}
+        {/* The worst gauge and its time to overtop are in the headline card
+            at the top of this rail — not repeated here. */}
 
         {onShowWaterHeat && (
           <button type="button" className="btn" onClick={onShowWaterHeat}>
@@ -198,7 +188,7 @@ export function SensorSituationBoard({
       <section className="pc-section" aria-label="Air situation">
         <header className="sit-pane__hdr">
           <h3 className="sit-pane__title">AIR</h3>
-          <BandLabel band={air.band} />
+          <StatusText level={airLevel}>{air.maxAqi == null ? "NO DATA" : airWords.label.toUpperCase()}</StatusText>
         </header>
 
         <dl className="pc-stats">
@@ -221,10 +211,11 @@ export function SensorSituationBoard({
         </dl>
 
         <ConcentrationBar
-          label="PM2.5 concentration (peak)"
+          label="Highest PM2.5"
           value={air.maxPm25}
           max={PM25_BAR_MAX}
           unit=" µg/m³"
+          scale="Full bar = 55.5 µg/m³, unhealthy"
         />
 
         {air.worst && (

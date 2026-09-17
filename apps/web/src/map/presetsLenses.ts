@@ -142,6 +142,20 @@ export type LayerId =
   // Hand-authored provincial highways from the panteethai.com road map
   | "provincial-roads";
 
+/**
+ * Hand-drawn schematic layers: 3-vertex "highways", 5-vertex canals, a
+ * 14-vertex Tapi and hexagon flood outlines. On a real basemap they read as
+ * straight spokes and random shapes that follow no road or river, so they are
+ * never on by default in any lens (presets.test.ts enforces it). The real
+ * geometry is road-network (OSM, 5.5k roads) and waterways (OSM, 843 ways).
+ */
+export const SCHEMATIC_LAYERS: readonly LayerId[] = [
+  "provincial-roads",
+  "named-canals",
+  "regional-rivers",
+  "historical-floods",
+];
+
 export type MapViewState =
   | { kind: "lens"; lensId: LensId }
   | { kind: "custom"; label: string };
@@ -160,7 +174,7 @@ export interface Lens {
 export const LENSES: Lens[] = [
   {
     id: "executive",
-    label: "EXEC",
+    label: "Executive",
     describe:
       "Strategic — municipal boundary, the historic Old Town axis (Ratchadamnoen Rd), high-res satellite, transit + open-data POIs. Focused on Nakhon Si Thammarat City Municipality (~22.6 km²).",
     layers: [
@@ -172,10 +186,6 @@ export const LENSES: Lens[] = [
       "road-network",
       "datago-points",
       "gistda-pois",
-      // Provincial highways — the executive briefing points at major
-      // transport corridors so it answers "which roads can be used
-      // for evacuation?" alongside the city's institutions.
-      "provincial-roads",
       // City POIs — the executive briefing needs to point at the Old Town
       // landmarks by name (Wat Phra Mahathat, City Hall, the stadium, etc.).
       // City-scale only — won't crowd the province view.
@@ -185,146 +195,47 @@ export const LENSES: Lens[] = [
       // it the briefing reads as "this is the city, and this is its
       // defining landmark" in a single glance.
       "mahatat-3d",
-      // Historical floods — the executive briefing includes the
-      // "where it flooded last time" overlay (Dec 2024 SAR-derived
-      // GISTDA data) so the briefing answers "is the current forecast
-      // aligned with a known risk zone?"
-      "historical-floods",
-      // Provincial highways — the executive briefing points at major
-      // transport corridors so the briefing answers "which roads are
-      // affected / can be used for evacuation?" alongside the flood risk.
-      "provincial-roads",
     ],
   },
   {
     id: "operations",
-    label: "OPS",
-    describe: "Operations — every building in 3D, the Old Town axis, road network, civic POIs (hospitals/police/fire/schools/temples/markets), live traffic, incidents, CCTV. The default day-to-day view for the municipality. Carries the kid-readable watershed cascade (mountain → upstream → city → bay) so the day-to-day view tells the water story too, not just the road story.",
+    label: "Operations",
+    describe: "Operations — the day-to-day view. The city's real rivers and canals with the water gauges that sit on them, coloured by how full they are. Roads, buildings, traffic, incidents and cameras are one tap away in Layers.",
+    // The default view answers one question: is the water OK? Only real
+    // geometry (OSM waterways) and live gauges. Everything else is opt-in —
+    // with roads, buildings, flow spokes, polygons and bilingual labels all
+    // on at once, nothing stood out and the city centre was a label pile.
     layers: [
-      // Province-scale topographic basemap — OpenTopoMap hillshade +
-      // contour lines so the operator sees the mountain rising behind the
-      // cascade (Khao Luang, 1,835m, is the source of every river in NST).
-      // This is the "topographic lines" the user asked for.
-      "satellite-terrain",
       "municipality-boundary-line",
-      "municipality-buildings",
-      "ring-roads",
-      "road-network",
-      "civic-points",
-      // City POIs — the 48 important places from the official NST City
-      // Municipality Map (hotels, temples, hospitals, markets, etc.).
-      // City-scale visibility so the day-to-day view shows the city places
-      // without a search.
-      "city-pois",
-      // Province-scale hydrology: every river + every district + flow arrows
-      // so the operator sees "water comes from Khao Luang, flows through the
-      // cascade, into Pak Phanang Bay" the moment they open the dashboard.
-      // This is the Songkhla-style printed watershed view the operator asked
-      // for — district boundaries dashed + labelled, rivers as blue lines,
-      // red arrows pointing downstream every ~3 km.
-      "district-boundaries",
-      "hydro-flow-arrows",
-      "named-canals",
-      "regional-rivers",
-      "historical-floods",
-      "provincial-roads",
-      "flood-risk-overlay",
-      // The iconic 3D model of Wat Phra Mahathat — the city-defining landmark.
-      // Renders as a parametric stacked-primitive bell chedi + ubosot + wihan +
-      // prang + ho trai + 8 satellite chedis, anchored at the canonical Old
-      // Town coordinates. Without this on the default lens the city reads as
-      // "buildings + traffic" with no recognisable heart.
-      "mahatat-3d",
-      // Kid-readable water ecosystem on the default lens — the cascade subway
-      // line, animated flow dots, and the mountain / city / bay pictogram all
-      // appear at province zoom out of the box. A 5-year-old opening the
-      // dashboard sees "water comes from the mountain, flows through the
-      // cascade, into the bay" without reading a single label. Operators
-      // who only ever live on OPS also get the flash-flood risk pins.
-      "watershed-nodes",
-      "waterway-flow",
-      "water-pictures",
-      "ffpi-pins",
-      "traffic-heatmap",
-      "incidents-city-reports",
-      "incidents-itic",
-      "cctv-cameras",
-      "gistda-pois",
-      "news-pins",
+      "waterways",
+      "water-gauges",
     ],
   },
   {
     id: "flood",
-    label: "FLOOD",
-    describe: "Flood — the headline risk. Pak Phanang + Tha Dee river corridors + buffer, the upstream→city watershed cascade (ทุ่งสง · คีรีวง · ลานสกา → city), river/canal gauges (GloFAS), Khao Luang runoff, surveyed flood marks + street elevations (HII 2025) with the FLOOD COMMAND scenario, hand-authored flood-risk polygons, WRF-ROMS forecast rain.",
-    // Esri imagery + the flood-prone fill as the single colorizer + flood
-    // vectors (risk zones, river buffer, gauges). Tap IMERG rainfall to swap the
-    // colorizer to live rain — it replaces the flood-prone fill, so the map never
-    // shows competing blue + orange washes.
+    label: "Flood",
+    describe: "Flood — the real rivers and canals with arrows showing which way the water moves, and every sensor on them: water gauges, GISTDA level posts, water-level cameras and dams. Past flood footprints, rain and risk maps are opt-in layers.",
     layers: [
       "municipality-boundary-line",
-      "satellite-esri",
-      "river-buffer",
       "waterways",
-      // Province hydrology baseline — districts + flow arrows so the FLOOD
-      // lens also reads as a printed watershed map.
-      "district-boundaries",
-      "hydro-flow-arrows",
-      "named-canals",
-      "regional-rivers",
-      "historical-floods",
-      "provincial-roads",
-      // The iconic 3D model of Wat Phra Mahathat — the city-defining landmark
-      // sits in the flood plain and the basin cascade ends here, so FLOOD lens
-      // must carry the temple silhouette as a recognisable backdrop.
-      "mahatat-3d",
-      // Animated flow dots — the primary "direction" visual a reader sees on
-      // the map. ENV/EAR already pull this in; FLOOD needs it too because
-      // surface flow direction is the key piece of the water-ecosystem view.
+      // Direction: chevrons + moving dots along the real OSM channels
+      // (trunk rivers only at overview zoom — lib/thaDee.ts).
       "waterway-flow",
-      // Kid-readable flood overlay — every river + canal painted with the
-      // status colour of its nearest upstream WaterGauge (cyan = calm,
-      // orange = warning, red = critical, width-scaled 4–12 px so a
-      // 5-year-old sees "this river is dangerous today". The headline risk
-      // lens must carry it by default.
-      "flood-risk-overlay",
-      "watershed-nodes",
-      "ffpi-pins",
-      "water-heatmap",
       "water-gauges",
-      "rain-stations",
-      "ews-stations",
-      "cctv-water-level",
       "level-posts",
-      "flood-gauges",
+      "cctv-water-level",
       "dam-status",
-      "flood-marks",
-      // street-flood-sim is opt-in: the 2.1 MB / 18k-point HII road survey
-      // freezes the main thread if it lands on every FLOOD lens entry. Flood
-      // Command (and the layer toggle) pull it in when a scenario is armed.
-      // NOT flood-risk-zones by default: five hand-drawn 5-vertex boxes
-      // (public/geo/nst/flood-risk.geojson) — they read as random rectangles
-      // over the real map. The GISTDA SAR footprint below is the real thing.
-      "flood-extent-2025",
-      "alphaearth-floodprone",
-      "national-waterways",
-      "national-flood-prone",
-      "hii-tambon-risk",
-      "unosat-2021-exposure",
-      // NOT south-province-watch by default: it fills the whole province with
-      // a ~80%-alpha status colour, which at the lens's default zoom is the
-      // entire viewport painted orange. Still a toggle for regional context.
-      "south-river-cascade",
-      // NOT precip-radar here: alphaearth-floodprone above is this lens's one
-      // MAP_COLORIZE_LAYERS member already (see the exclusivity comment on
-      // that const) — a second one just re-creates the stacked-colorizer mud
-      // bug presets.test.ts guards against for this lens. Rain radar lives in
-      // EAR (its own description already promises it) instead.
+      // Opt-in, not default: flood-extent-2025 / historical footprints and
+      // every choropleth (they wash the whole view one colour), the
+      // watershed cascade markers (their NEAR CAPACITY / ETA pills piled on
+      // top of each other in the city centre — that story now lives in the
+      // rail's headline card), and the hand-drawn schematic layers
+      // (SCHEMATIC_LAYERS below).
     ],
   },
   {
     id: "mobility",
-    label: "MOB",
+    label: "Traffic",
     describe: "Mobility — road network, the Old Town axis, the SRT rail terminus + bus terminal + airport links, traffic heatmap, iTIC events, CCTV. For dispatch + routing across the long N–S city.",
     layers: [
       "municipality-boundary-line",
@@ -339,7 +250,7 @@ export const LENSES: Lens[] = [
   },
   {
     id: "environment",
-    label: "ENV",
+    label: "Environment",
     describe: "Environment — Esri high-res satellite, flood-risk polygons, waterways with live flow direction, AlphaEarth land cover (rubber/oil-palm vs forest), the AirDash air-quality field + stations, solar rooftop potential. Opt into MODIS NDVI/LST/AOD when zoomed out.",
     layers: [
       "municipality-boundary-line",
@@ -357,7 +268,7 @@ export const LENSES: Lens[] = [
   },
   {
     id: "earth",
-    label: "EAR",
+    label: "Satellite",
     describe: "EarthAlpha — earth-observation lens for rain, flood, heat, haze, greenery, land use, waterways, terrain relief, and AlphaEarth embeddings around Nakhon Si Thammarat, the Khao Luang massif, and the Pak Phanang basin.",
     // 3D terrain relief as the base (the massif is the whole story here) + ONE
     // colorizer (NDVI greenery) by default. Rain radar, IMERG, heat, haze, NO₂,
@@ -373,7 +284,7 @@ export const LENSES: Lens[] = [
   },
   {
     id: "safety",
-    label: "SAF",
+    label: "Safety",
     describe: "Safety — flood-risk zones, surveyed flood marks, citizen reports (Traffy), iTIC, CCTV, waterways for drainage, hospitals + fire + police, MODIS flood detection.",
     layers: [
       "municipality-boundary-line",
@@ -391,13 +302,13 @@ export const LENSES: Lens[] = [
   },
   {
     id: "vibes",
-    label: "VIB",
+    label: "Showcase",
     describe: "Vibes — pretty view. Municipal boundary + the Old Town axis + MODIS true-color satellite. Use this when presenting Nakhon Si Thammarat at a glance.",
     layers: ["municipality-boundary-line", "ring-roads", "satellite-true-color"],
   },
   {
     id: "intelligence",
-    label: "INT",
+    label: "Forecast",
     describe: "Integrated Intelligence — TimesFM rainfall/flood forecast alerts wired to Earth Observation. Click any forecast metric in the left rail to activate its map layer. Pairs with the Predictive Intelligence and Earth Obs panels.",
     layers: [
       "municipality-boundary-line",

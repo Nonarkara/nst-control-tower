@@ -31,9 +31,10 @@ export async function ensureSectionOpen(
   }
 }
 
-/** Switch lens by its visible label (EXEC / OPS / FLOOD / EAR …). */
+/** Switch lens by its visible label (Executive / Operations / Flood / Satellite …).
+ *  Case-insensitive: the labels are title-case in the DOM, uppercased by CSS. */
 export async function selectLens(page: Page, label: string) {
-  const button = page.locator(".lens").locator("button", { hasText: new RegExp(`^${label}$`) });
+  const button = page.locator(".lens").locator("button", { hasText: new RegExp(`^${label}$`, "i") });
   // Lens buttons sit in the top bar — same WebGL starvation can stall pointer
   // clicks after a prior FLOOD visit in the same worker; DOM click is fine.
   await button.evaluate((el) => (el as HTMLButtonElement).click());

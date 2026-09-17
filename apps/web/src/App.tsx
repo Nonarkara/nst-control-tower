@@ -153,7 +153,7 @@ import { ALL_LAYERS, LENSES, layerCanEnable, enforceLayerExclusivity, exclusiveG
 
 import { TopBar } from "./components/TopBar";
 import { MapCompass } from "./components/MapCompass";
-import { BuildingLegend } from "./components/BuildingLegend";
+import { MapLegend } from "./components/MapLegend";
 import { LayerPalette, type LayerStatus } from "./components/LayerPalette";
 import { KpiStrip } from "./components/KpiStrip";
 import { PmcuBrief } from "./components/PmcuBrief";
@@ -229,6 +229,7 @@ import { useWaterwayFlow } from "./map/useWaterwayFlow";
 import { isTrunkWaterway, stitchThaDeePath, THA_DEE_WAY_IDS, type WaterwayFeature as ThaDeeWaterwayFeature } from "./lib/thaDee";
 import type { GistdaLevelPost, GistdaFloodExtentTambon } from "@nst/shared";
 import { LevelWatchPanel } from "./components/LevelWatchPanel";
+import { SituationHeadline } from "./components/SituationHeadline";
 import type { NasaEarthReadings, FacebookPost } from "@nst/shared";
 import { useDevicePresence } from "./hooks/useDevicePresence";
 import { useIsMobile } from "./hooks/useMediaQuery";
@@ -1275,13 +1276,17 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
   const civicPoints = useGeoJson<FeatureCollection<Point, Record<string, unknown>>>(
     "/geo/nst/civic-pois.geojson",
   );
-  // Waterways is the second-largest static asset (~1.9 MB after slimming) and
-  // is only used by the FLOOD / ENV / EAR / SAF / INT lenses. Defer the fetch
-  // on every other lens — passing `null` here makes the hook a no-op (no
-  // network request, no parser pass, no memory).
-  const waterwaysPath = lens === "flood" || lens === "environment" || lens === "earth" ||
-                        lens === "safety" || lens === "intelligence"
-                        ? "/geo/nst/waterways.geojson" : null;
+  // Waterways is the second-largest static asset (~1.9 MB after slimming).
+  // Fetch it when a layer that draws from it is on — not by lens name, which
+  // silently left the default OPS view without its rivers (the map showed the
+  // basemap's own dark river lines instead). `null` makes the hook a no-op.
+  const needsWaterways =
+    enabledLayers.has("waterways") ||
+    enabledLayers.has("waterway-flow") ||
+    enabledLayers.has("flood-risk-overlay") ||
+    enabledLayers.has("hydro-flow-arrows") ||
+    enabledLayers.has("watershed-nodes");
+  const waterwaysPath = needsWaterways ? "/geo/nst/waterways.geojson" : null;
   const waterways = useGeoJson<FeatureCollection<LineString, Record<string, unknown>>>(
     waterwaysPath,
   );
@@ -2186,6 +2191,18 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
           ExecutiveBrief / StrategicAlerts / PeerComparison panels were built
           for a university and don't belong on a city mayor's desk. ── */}
       <aside id="rail-left" className={`left-bar ${cctvCommandOpen ? "is-cctv-mode" : ""}`} aria-label="City panels" aria-hidden={cctvCommandOpen || (isMobile && mobilePanel !== "brief")}>
+        {/* ── RIGHT NOW: worst gauge + time to overtop, suggested action, data
+            age. First in the rail on every lens so the answer to "is the city
+            OK?" is always above the fold. ── */}
+        <SituationHeadline
+          gauges={waterGauges.data}
+          basins={waterBalance.data}
+          cameras={cctv.data.filter((c) => c.category === "water")}
+          ageMinutes={waterGauges.data.length > 0 ? waterGauges.ageMinutes : null}
+          tier={waterGauges.fallbackTier}
+          onFocus={(lng, lat) => flyTo(lng, lat, 14)}
+          onOpenCamera={(c) => { highlightCamera(c.id); setSelectedCctv(c); }}
+        />
         {/* ── Mobile only: the world strip (weather + clocks), feed health, and
             the secondary actions relocate here so the Map tab stays a clean,
             full-screen map. Reflowed into readable blocks by CSS. ── */}
@@ -2285,7 +2302,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
             />
           </RailSection>
         )}
-        <RailSection sectionKey="sensor-situation" lens={lens} title="Sensor Situation">
+        <RailSection sectionKey="sensor-situation" lens={lens} title="Water & Air Details">
           <SensorSituationBoard
             waterGauges={waterGauges.data}
             rainfall={waterRain.data}
@@ -2317,7 +2334,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
 
         {/* LEVEL WATCH — every gauge / post above its watch, critical or bank
             level, with the nearest water-level camera one click away. */}
-        <RailSection sectionKey="level-watch" lens={lens} title="Level Watch">
+        <RailSection sectionKey="level-watch" lens={lens} title="Gauges Near Their Limit">
           <LevelWatchPanel
             gauges={waterGauges.data}
             posts={levelPosts.data}
@@ -2642,7 +2659,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
           <MapCompass bearing={observed.bearing} onResetNorth={resetNorth} />
           {/* Bottom-left HUD: building-type legend (when buildings are shown) + live coordinate readout */}
           <div className="map-hud-bl">
-            {enabledLayers.has("municipality-buildings") && <BuildingLegend />}
+            <MapLegend enabled={enabledLayers} />
             <div className="coord-readout" aria-hidden="true">
               <span className="coord-label">⌖</span>
               <span className="coord-val" ref={coordRef}>—</span>
@@ -2766,14 +2783,19 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
       {/* ── Bottom bar: ident / traffic timeline / counts ── */}
       <div className="bottom-bar">
         <div className="bottom-ident">
-          <span className="pill">v0.1</span>
-          <span>Nakhon Si Thammarat · Old Town &amp; Khao Luang</span>
-          <span className="pill pill-standard" title="UNDP-JTC Digital Twins for Cities (Jul 2025) · ADB Digital Twin Framework (May 2025)">DT·L2</span>
-          <span className="bottom-standard mono">UNDP · ADB</span>
+          <span>Nakhon Si Thammarat City Municipality</span>
         </div>
+        {/* What the city is being watched with, in plain words. No framework
+            codes (DT·L2), no layer counts, and never a zero that only
+            advertises a feed that didn't load. */}
         <div className="bottom-stats">
-          <span>{buildings?.features.length ?? 0} BUILDINGS · {(roads?.features.length ?? 0).toLocaleString()} ROADS · {allLayers.length} LAYERS</span>
-          <span>{civicPoints?.features.length ?? 0} CIVIC · {cctv.data.length} CCTV · {gistdaPois.data.length} GISTDA</span>
+          <span>
+            {[
+              waterGauges.data.length > 0 ? `${waterGauges.data.length} water gauges` : null,
+              cctv.data.length > 0 ? `${cctv.data.length} cameras` : null,
+              waterRain.data.length > 0 ? `${waterRain.data.length} rain gauges` : null,
+            ].filter(Boolean).join(" · ")}
+          </span>
         </div>
         <div className="bottom-partners">
           <a href="https://flood.nonarkara.org" target="_blank" rel="noreferrer">

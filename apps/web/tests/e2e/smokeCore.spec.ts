@@ -56,8 +56,8 @@ test.describe("Lens switching", () => {
     // Lens buttons are named by their visible label (EXEC / OPS / MOB / FLOOD / etc.);
     // the long description is aria-describedby. Match by exact text inside .lens container.
     const lensPalette = page.locator(".lens");
-    const intButton = lensPalette.locator("button", { hasText: /^INT$/ });
-    const floodButton = lensPalette.locator("button", { hasText: /^FLOOD$/ });
+    const intButton = lensPalette.locator("button", { hasText: /^Forecast$/i });
+    const floodButton = lensPalette.locator("button", { hasText: /^Flood$/i });
 
     await intButton.click();
     await expect(intButton).toHaveAttribute("aria-pressed", "true");
@@ -117,7 +117,7 @@ test.describe("EAR lens — Earth obs panel header", () => {
     await expect(page.locator(".map-host")).toBeVisible({ timeout: 20_000 });
 
     // Rail sections are lens-driven (lib/railSections.ts) — open the lens that owns this panel.
-    await selectLens(page, "EAR");
+    await selectLens(page, "Satellite");
 
     // EarthAlphaBrief lives in the EAR (and ENV) lens rail.
     // PanelHeader renders "EARTH OBS · NASA GIBS + GISTDA" immediately on mount.
@@ -134,7 +134,7 @@ test.describe("EXEC lens — executive briefing header", () => {
 
     // ExecutiveBriefing IS gated by lens === "executive". Lens buttons are named by their
     // visible label; hasText keeps the match exact against the text content.
-    const execButton = page.locator(".lens").locator("button", { hasText: /^EXEC$/ });
+    const execButton = page.locator(".lens").locator("button", { hasText: /^Executive$/i });
     await execButton.click();
     await expect(execButton).toHaveAttribute("aria-pressed", "true");
 

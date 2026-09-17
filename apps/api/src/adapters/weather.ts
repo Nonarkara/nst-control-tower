@@ -24,13 +24,20 @@ const WEATHER_CODE: Record<number, string> = {
   3: "Overcast",
   45: "Foggy",
   48: "Rime fog",
+  // WMO 4677 code table as Open-Meteo documents it. 55 is "dense" drizzle —
+  // still drizzle, not heavy rain; calling it "heavy" overstated the weather.
   51: "Light drizzle",
-  55: "Heavy drizzle",
+  53: "Drizzle",
+  55: "Dense drizzle",
   61: "Light rain",
   63: "Rain",
   65: "Heavy rain",
-  80: "Showers",
+  80: "Light showers",
+  81: "Showers",
+  82: "Violent showers",
   95: "Thunderstorm",
+  96: "Thunderstorm with hail",
+  99: "Thunderstorm with heavy hail",
 };
 
 async function fetchWeatherInner(): Promise<NormalizedFeed<WeatherSnapshot>> {

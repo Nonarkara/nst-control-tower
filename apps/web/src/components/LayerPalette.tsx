@@ -108,7 +108,7 @@ export function LayerPalette({ lens, onLensChange, enabled, onToggleLayer, count
                   data-glyph={disc.glyph}
                   aria-hidden="true"
                 />
-                {l.label}
+                <span className="lens__label">{l.label}</span>
               </button>
             );
           })}

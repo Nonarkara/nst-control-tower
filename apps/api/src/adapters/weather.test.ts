@@ -141,11 +141,11 @@ describe("weather adapter — WEATHER_CODE lookup (isolated)", () => {
     [45, "Foggy"],
     [48, "Rime fog"],
     [51, "Light drizzle"],
-    [55, "Heavy drizzle"],
+    [55, "Dense drizzle"],
     [61, "Light rain"],
     [63, "Rain"],
     [65, "Heavy rain"],
-    [80, "Showers"],
+    [80, "Light showers"],
     [95, "Thunderstorm"],
   ])("weather_code %i → '%s'", async (code, expected) => {
     vi.resetModules();

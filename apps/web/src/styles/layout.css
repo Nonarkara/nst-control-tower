@@ -5067,3 +5067,36 @@ input:focus-visible,
   .cctv-cell__live-dot,
   .cctv-cc__clock-dot { animation: none; }
 }
+
+/* ── Map key — one legend for whatever is drawn ── */
+.map-legend {
+  border: 1px solid var(--line-2);
+  background: color-mix(in srgb, var(--panel) 88%, transparent);
+  padding: var(--s-2);
+  max-width: 280px;
+  font-size: var(--text-xs);
+  color: var(--ink-2);
+}
+[data-theme="light"] .map-legend { background: color-mix(in srgb, var(--panel) 94%, transparent); }
+.map-legend summary {
+  cursor: pointer;
+  list-style: none;
+  color: var(--ink);
+  font-weight: var(--weight-bold);
+  user-select: none;
+}
+.map-legend summary::-webkit-details-marker { display: none; }
+.map-legend summary::before { content: "▾ "; color: var(--ink-3); }
+.map-legend:not([open]) > summary::before,
+.map-legend__sub:not([open]) > summary::before { content: "▸ "; }
+.map-legend__sub { margin-top: var(--s-2); }
+.map-legend__sub > summary { font-weight: normal; color: var(--ink-2); }
+.map-legend__rows { list-style: none; margin: var(--s-2) 0 0; padding: 0; display: grid; gap: var(--s-1); }
+.map-legend__rows--grid { grid-template-columns: 1fr 1fr; column-gap: var(--s-3); }
+.map-legend__rows li { display: flex; align-items: center; gap: var(--s-2); }
+.map-legend__mark { flex: 0 0 auto; display: inline-block; width: 14px; height: 10px; position: relative; }
+.map-legend__mark--dot::before { content: ""; position: absolute; inset: 1px 3px; border-radius: 50%; background: currentColor; outline: 1px solid rgb(255 255 255 / 0.8); }
+.map-legend__mark--ring::before { content: ""; position: absolute; inset: 1px 3px; border-radius: 50%; border: 2px solid currentColor; }
+.map-legend__mark--line::before { content: ""; position: absolute; left: 0; right: 0; top: 4px; height: 2px; background: currentColor; }
+.map-legend__mark--arrow::before { content: "›"; position: absolute; inset: -5px 0 0 3px; font-size: 14px; font-weight: 700; line-height: 1; color: currentColor; }
+.map-legend__mark--fill::before { content: ""; position: absolute; inset: 0; background: currentColor; opacity: 0.55; border: 1px solid currentColor; }

@@ -24,7 +24,7 @@ test.describe("EO layer toggles", () => {
     await expect(page.locator(".map-host")).toBeVisible({ timeout: 20_000 });
 
     // Rail sections are lens-driven (lib/railSections.ts) — open the lens that owns this panel.
-    await selectLens(page, "EAR");
+    await selectLens(page, "Satellite");
 
     // EarthAlphaBrief lives in the EAR lens rail — wait for its PanelHeader to confirm mount
     await expect(page.getByText(/EARTH OBS/i).first()).toBeVisible({ timeout: 15_000 });

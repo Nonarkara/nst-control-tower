@@ -58,18 +58,26 @@ function useClock(): Date {
   return now;
 }
 
-const HEALTH_WORD: Record<NonNullable<Props["systemStatus"]>, string> = {
-  healthy: "All systems normal",
-  degraded: "Degraded",
-  down: "Down",
-  unknown: "Status unknown",
-};
-const HEALTH_DOT: Record<NonNullable<Props["systemStatus"]>, string> = {
-  healthy: "live",
-  degraded: "stale",
-  down: "unavailable",
-  unknown: "loading",
-};
+/**
+ * Feed health in words. It never says "all normal" unless every feed is
+ * live: "All systems normal · 4/9 live" beside WATER ◆ ELEVATED was a
+ * contradiction in the most prominent spot on the screen. Situation (is the
+ * city OK?) lives in the rail's headline card; this button only answers
+ * "can I trust the numbers?", worded from the worst case, not the count of
+ * healthy feeds.
+ */
+export function feedHealthWord(
+  systemStatus: NonNullable<Props["systemStatus"]>,
+  live: number,
+  total: number,
+): { word: string; dot: "live" | "stale" | "unavailable" | "loading" } {
+  if (systemStatus === "down") return { word: "Data server unreachable", dot: "unavailable" };
+  if (total === 0 || systemStatus === "unknown") return { word: "Checking data feeds", dot: "loading" };
+  if (live >= total) return { word: "All data feeds live", dot: "live" };
+  if (live === 0) return { word: "No live data feeds", dot: "unavailable" };
+  const notLive = total - live;
+  return { word: `${notLive} of ${total} feeds not live`, dot: "stale" };
+}
 
 function MoreMenu({ items }: { items: Array<{ label: string; onSelect: () => void }> }) {
   const [open, setOpen] = useState(false);
@@ -151,6 +159,7 @@ export function TopBar({
   const { theme, toggle } = useTheme();
   const { locale, toggle: toggleLocale } = useLocale();
   const liveCount = feeds.filter((f) => f.tier === "live").length;
+  const health = feedHealthWord(systemStatus, liveCount, feeds.length);
   const air = aqiBand(conditions?.aqi ?? null);
   const nextView = viewMode === "2D" ? "3D" : "2D";
   const nextTheme = theme === "dark" ? "light" : "dark";
@@ -196,13 +205,11 @@ export function TopBar({
         type="button"
         className="btn topbar-health"
         onClick={onOpenCatalog}
-        aria-label={`System health: ${HEALTH_WORD[systemStatus]}, ${liveCount} of ${feeds.length} feeds live. Open feed details.`}
+        aria-label={`Data feeds: ${health.word}. Open feed details.`}
+        title="Which data feeds are live, stale or down — opens the source catalog"
       >
-        <span className={`dot ${HEALTH_DOT[systemStatus]}`} aria-hidden="true" />
-        <span>{HEALTH_WORD[systemStatus]}</span>
-        <span className="num topbar-health__count">
-          {liveCount}/{feeds.length} live
-        </span>
+        <span className={`dot ${health.dot}`} aria-hidden="true" />
+        <span>{health.word}</span>
       </button>
 
       <nav className="topbar-nav" aria-label="Tools">
@@ -233,13 +240,11 @@ export function TopBar({
             3D heritage
           </button>
         )}
-        {onFlip && (
-          <button type="button" className="btn" onClick={onFlip} aria-label="Open terminal — real-time and reference data view">
-            Terminal
-          </button>
-        )}
         <MoreMenu
           items={[
+            // The analyst data view stays reachable, but not as a top-level
+            // "Terminal" button in a mayor's header.
+            ...(onFlip ? [{ label: "Analyst data view", onSelect: onFlip }] : []),
             { label: sheetsConfigured ? "Google Sheet (live)" : "Connect Google Sheet", onSelect: onOpenSheets },
             { label: "User manual", onSelect: onOpenManual },
             { label: "Whitepaper", onSelect: onOpenWhitepaper },

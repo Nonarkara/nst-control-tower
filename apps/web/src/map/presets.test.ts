@@ -9,6 +9,7 @@ import {
   exclusiveGroupOf,
   SATELLITE_BASE_LAYERS,
   MAP_COLORIZE_LAYERS,
+  SCHEMATIC_LAYERS,
 } from "./presets";
 import type { LayerId, LensId, LayerGroup } from "./presets";
 
@@ -158,96 +159,36 @@ describe("LENSES", () => {
     }
   });
 
-  it("operations lens includes traffic-heatmap and incidents", () => {
+  it("operations (default) lens is water-first: real waterways + gauges, nothing else competing", () => {
+    // The default view answers "is the water OK?". With roads, buildings,
+    // flow spokes, polygons and bilingual labels all on at once the city
+    // centre was an unreadable label pile — everything else is opt-in.
     const ops = LENSES.find((l) => l.id === "operations");
     expect(ops).toBeDefined();
-    expect(ops!.layers).toContain("traffic-heatmap");
-    expect(ops!.layers).toContain("incidents-city-reports");
-    expect(ops!.layers).toContain("incidents-itic");
-  });
-
-  it("operations lens carries the kid-readable watershed + flow stack by default", () => {
-    // OPS is the lens the operator lands on. A 5-year-old opening the
-    // dashboard must see "water comes from the mountain, flows through the
-    // cascade, into the bay" without switching lenses. The cascade subway
-    // line rides the watershed-nodes toggle, the animated dots ride the
-    // waterway-flow toggle, the mountain / city / bay pictogram rides the
-    // water-pictures toggle, and the flash-flood risk pins ride the
-    // ffpi-pins toggle. If any of these go missing from OPS the day-to-day
-    // view silently loses the water story.
-    const ops = LENSES.find((l) => l.id === "operations");
-    expect(ops).toBeDefined();
-    expect(ops!.layers).toContain("watershed-nodes");
-    expect(ops!.layers).toContain("waterway-flow");
-    expect(ops!.layers).toContain("water-pictures");
-    expect(ops!.layers).toContain("ffpi-pins");
-    expect(ops!.layers).toContain("flood-risk-overlay");
-  });
-
-  it("OPS / FLOOD / EXEC lenses all carry the Mahatat 3D model", () => {
-    // Wat Phra Mahathat is the city-defining landmark. The 3D model must
-    // ride the three lenses an operator/visitor opens most often — without
-    // it the Old Town reads as an empty rectangle of buildings, and the
-    // city loses its visual identity.
-    for (const lensId of ["operations", "flood", "executive"] as const) {
-      const lens = LENSES.find((l) => l.id === lensId);
-      expect(lens, `${lensId} lens missing`).toBeDefined();
-      expect(
-        lens!.layers,
-        `${lensId} lens must carry mahatat-3d`,
-      ).toContain("mahatat-3d");
+    expect(ops!.layers).toContain("waterways");
+    expect(ops!.layers).toContain("water-gauges");
+    expect(ops!.layers.length).toBeLessThanOrEqual(4);
+    for (const noisy of ["traffic-heatmap", "watershed-nodes", "water-pictures", "news-pins", "city-pois", "district-boundaries"] as const) {
+      expect(ops!.layers, `OPS must not default ${noisy}`).not.toContain(noisy);
     }
   });
 
-  it("OPS + FLOOD lenses carry the province-scale hydrology stack (district-boundaries + hydro-flow-arrows + named-canals + regional-rivers)", () => {
-    // The Songkhla-style hydrology view: district boundaries (dashed) + flow
-    // arrows on every river pointing downstream + the hand-authored major
-    // canals (Tha Dee, Tha Wang, Royal Project Canal, etc.) + the regional
-    // rivers that cross province boundaries (Tapi, 230 km — longest in
-    // southern Thailand). Without these the operator sees a metro line and
-    // gauges but no printed-map watershed.
-    for (const lensId of ["operations", "flood"] as const) {
-      const lens = LENSES.find((l) => l.id === lensId);
-      expect(lens, `${lensId} lens missing`).toBeDefined();
-      expect(
-        lens!.layers,
-        `${lensId} lens must carry district-boundaries`,
-      ).toContain("district-boundaries");
-      expect(
-        lens!.layers,
-        `${lensId} lens must carry hydro-flow-arrows`,
-      ).toContain("hydro-flow-arrows");
-      expect(
-        lens!.layers,
-        `${lensId} lens must carry named-canals`,
-      ).toContain("named-canals");
-      expect(
-        lens!.layers,
-        `${lensId} lens must carry regional-rivers`,
-      ).toContain("regional-rivers");
-      expect(
-        lens!.layers,
-        `${lensId} lens must carry historical-floods`,
-      ).toContain("historical-floods");
-      expect(
-        lens!.layers,
-        `${lensId} lens must carry provincial-roads`,
-      ).toContain("provincial-roads");
+  it("no lens turns on hand-drawn schematic geometry by default", () => {
+    // provincial-roads (median 3 vertices), named-canals, regional-rivers and
+    // historical-floods follow no real road or river — on a live basemap they
+    // read as straight spokes and random shapes.
+    expect(SCHEMATIC_LAYERS.length).toBeGreaterThan(0);
+    for (const lens of LENSES) {
+      for (const id of SCHEMATIC_LAYERS) {
+        expect(lens.layers, `${lens.id} must not default schematic ${id}`).not.toContain(id);
+      }
     }
   });
 
-  it("OPS + EXEC lenses carry the city POIs (hotels, temples, hospitals, etc.)", () => {
-    // The 48 important places from the official NST City Municipality Map
-    // must ride the day-to-day lens (OPS) so the operator can find the
-    // hospital, market, etc. without searching, AND the executive lens
-    // (EXEC) so the executive briefing points at landmarks by name.
-    for (const lensId of ["operations", "executive"] as const) {
-      const lens = LENSES.find((l) => l.id === lensId);
-      expect(lens, `${lensId} lens missing`).toBeDefined();
-      expect(
-        lens!.layers,
-        `${lensId} lens must carry city-pois`,
-      ).toContain("city-pois");
+  it("lens labels are plain words, not codes", () => {
+    for (const lens of LENSES) {
+      expect(lens.label.length, `${lens.id} label "${lens.label}"`).toBeGreaterThan(3);
+      expect(lens.label, `${lens.id} label must not be an all-caps code`).not.toMatch(/^[A-Z]{2,4}$/);
     }
   });
 
@@ -256,29 +197,16 @@ describe("LENSES", () => {
     expect(LENSES.find((l) => l.id === "poverty")).toBeUndefined();
   });
 
-  it("flood lens includes river + dam + the real flood footprint, not the hand-drawn boxes", () => {
+  it("flood lens shows the rivers, their direction and every sensor on them — polygons opt-in", () => {
     const flood = LENSES.find((l) => l.id === "flood");
     expect(flood).toBeDefined();
-    expect(flood!.layers).toContain("flood-gauges");
-    expect(flood!.layers).toContain("dam-status");
-    // GISTDA SAR footprint (Nov 2025) replaces the five hand-drawn
-    // flood-risk boxes as the default "where it floods" layer; the boxes
-    // stay toggleable but read as random rectangles on the live map.
-    expect(flood!.layers).toContain("flood-extent-2025");
-    expect(flood!.layers).not.toContain("flood-risk-zones");
-    // The province-wide choropleth is opt-in too — at the lens's default
-    // zoom it painted the entire viewport one status colour.
-    expect(flood!.layers).not.toContain("south-province-watch");
-    expect(flood!.layers).toContain("level-posts");
-    expect(flood!.layers).toContain("water-heatmap");
-    // street-flood-sim stays opt-in — the 18k-point HII survey must not land
-    // on every FLOOD lens entry (main-thread freeze / smoke timeouts).
-    expect(flood!.layers).not.toContain("street-flood-sim");
-    // The headline FLOOD lens must carry the kid-readable flood overlay by
-    // default — colour-coded waterways + width-scaled so a 5-year-old sees
-    // "this river is dangerous today". It belongs here as much as the
-    // gauges themselves.
-    expect(flood!.layers).toContain("flood-risk-overlay");
+    for (const id of ["waterways", "waterway-flow", "water-gauges", "level-posts", "cctv-water-level", "dam-status"] as const) {
+      expect(flood!.layers).toContain(id);
+    }
+    // Washes and pill-label stacks are opt-in: they buried the sensors.
+    for (const id of ["flood-risk-zones", "south-province-watch", "street-flood-sim", "watershed-nodes", "flood-extent-2025", "national-flood-prone", "hii-tambon-risk"] as const) {
+      expect(flood!.layers, `flood must not default ${id}`).not.toContain(id);
+    }
   });
 
   it("environment lens includes AirDash concentration heatmap", () => {
