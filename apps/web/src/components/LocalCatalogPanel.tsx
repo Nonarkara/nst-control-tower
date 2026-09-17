@@ -9,6 +9,7 @@
 
 import { useId, useMemo, useState } from "react";
 import { PanelHeader } from "./PanelHeader";
+import { DatasetPreviewModal } from "./DatasetPreviewModal";
 import type { FallbackTier } from "@nst/shared";
 
 export interface LocalCatalogEntry {
@@ -38,6 +39,7 @@ export function LocalCatalogPanel({ entries, loading, ageMinutes, fallbackTier, 
   const [query, setQuery] = useState("");
   const [org, setOrg] = useState<string>("all");
   const [showAll, setShowAll] = useState(false);
+  const [openEntry, setOpenEntry] = useState<LocalCatalogEntry | null>(null);
   const searchId = useId();
 
   const orgs = useMemo(() => {
@@ -128,12 +130,12 @@ export function LocalCatalogPanel({ entries, loading, ageMinutes, fallbackTier, 
           <ul className="row-list">
             {rows.map((e) => (
               <li key={e.id}>
-                <a
+                <button
+                  type="button"
                   className="row-btn row-btn--compact"
-                  href={e.url}
-                  target="_blank"
-                  rel="noreferrer"
                   title={e.notes || e.title}
+                  aria-label={`Preview ${e.title}`}
+                  onClick={() => setOpenEntry(e)}
                 >
                   <span className="row-btn__name" lang="th">{e.title}</span>
                   <span className="row-btn__meta">
@@ -141,7 +143,7 @@ export function LocalCatalogPanel({ entries, loading, ageMinutes, fallbackTier, 
                     {e.formats.length > 0 ? " · " : ""}{e.resourceCount} {e.resourceCount === 1 ? "file" : "files"}
                     {e.updatedAt ? ` · ${e.updatedAt}` : ""}
                   </span>
-                </a>
+                </button>
               </li>
             ))}
           </ul>
@@ -152,6 +154,7 @@ export function LocalCatalogPanel({ entries, loading, ageMinutes, fallbackTier, 
           )}
         </>
       )}
+      <DatasetPreviewModal open={openEntry !== null} entry={openEntry} onClose={() => setOpenEntry(null)} />
     </section>
   );
 }
