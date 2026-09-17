@@ -12,7 +12,7 @@
 import { describe, it, expect } from "vitest";
 import type { FeatureCollection, LineString, Polygon } from "geojson";
 import { GeoJsonLayer, PolygonLayer, TextLayer } from "@deck.gl/layers";
-import { districtBoundariesLayer, hydroFlowArrowsLayer, mountainIconLayer, bayIconLayer, namedCanalsLayer, regionalRiversLayer } from "./hydroMap";
+import { districtBoundariesLayer, hydroFlowArrowsLayer, mountainIconLayer, bayIconLayer, namedCanalsLayer, regionalRiversLayer, historicalFloodsLayer } from "./hydroMap";
 import { ColumnLayer } from "@deck.gl/layers";
 
 function makeWaterway(
@@ -354,5 +354,72 @@ describe("regionalRiversLayer", () => {
     const layers = regionalRiversLayer(fc as unknown as FeatureCollection<LineString, { id: string; name: string; nameEn: string; nameTh: string; waterway: string; flowClass: string; _riverLengthKm?: number; _riverBadge?: string }>);
     // No rivers → no stroke layers, no labels, no badges → 0 layers
     expect(layers.length).toBe(0);
+  });
+});
+
+describe("historicalFloodsLayer", () => {
+  function makeCollection(): FeatureCollection<Polygon, { id: string; name: string; nameEn: string; nameTh: string; district: string; severity: "high" | "medium" | "low"; households: number; source: string; eventStart: string; eventEnd: string }> {
+    return {
+      type: "FeatureCollection",
+      features: [
+        {
+          type: "Feature", id: "flood-2024-12/pak-phanang-mouth",
+          properties: { id: "flood-2024-12/pak-phanang-mouth", name: "Pak Phanang mouth", nameEn: "Pak Phanang mouth", nameTh: "ปากพนังตอนล่าง", district: "Pak Phanang", severity: "high", households: 28000, source: "GISTDA Sentinel-1", eventStart: "2024-12-16", eventEnd: "2024-12-18" },
+          geometry: { type: "Polygon", coordinates: [[[100.10, 8.46], [100.16, 8.46], [100.18, 8.43], [100.18, 8.40], [100.14, 8.38], [100.10, 8.40], [100.08, 8.43], [100.10, 8.46]]] },
+        },
+        {
+          type: "Feature", id: "flood-2024-12/cha-uat-canal",
+          properties: { id: "flood-2024-12/cha-uat-canal", name: "Cha Uat Canal", nameEn: "Cha Uat Canal", nameTh: "คลองชะอวด", district: "Cha Uat", severity: "medium", households: 4800, source: "GISTDA Sentinel-1", eventStart: "2024-12-16", eventEnd: "2024-12-18" },
+          geometry: { type: "Polygon", coordinates: [[[99.85, 8.40], [99.90, 8.40], [99.91, 8.37], [99.87, 8.36], [99.84, 8.38], [99.85, 8.40]]] },
+        },
+        {
+          type: "Feature", id: "flood-2024-12/cha-uat-town",
+          properties: { id: "flood-2024-12/cha-uat-town", name: "Cha Uat town", nameEn: "Cha Uat town", nameTh: "ชะอวดตอนใต้", district: "Cha Uat", severity: "low", households: 2200, source: "GISTDA Sentinel-1", eventStart: "2024-12-16", eventEnd: "2024-12-18" },
+          geometry: { type: "Polygon", coordinates: [[[99.79, 8.34], [99.83, 8.34], [99.84, 8.31], [99.81, 8.30], [99.78, 8.32], [99.79, 8.34]]] },
+        },
+      ],
+    };
+  }
+
+  it("renders polygon fill + district label TextLayer = 2 layers", () => {
+    const layers = historicalFloodsLayer(makeCollection());
+    expect(layers.length).toBe(2);
+    expect(layers[0]).toBeInstanceOf(GeoJsonLayer);
+    expect(layers[1]).toBeInstanceOf(TextLayer);
+  });
+
+  it("emits one label per polygon (3 features = 3 labels)", () => {
+    const layers = historicalFloodsLayer(makeCollection());
+    const labelLayer = layers[1] as unknown as { props: { data: { text: string }[] } };
+    expect(labelLayer.props.data.length).toBe(3);
+  });
+
+  it("labels are Thai names of the affected areas", () => {
+    const layers = historicalFloodsLayer(makeCollection());
+    const labelLayer = layers[1] as unknown as { props: { data: { text: string }[] } };
+    expect(labelLayer.props.data.map((d) => d.text)).toEqual([
+      "ปากพนังตอนล่าง",
+      "คลองชะอวด",
+      "ชะอวดตอนใต้",
+    ]);
+  });
+
+  it("colour-codes severity (high=red, medium=orange, low=yellow)", () => {
+    const fc = makeCollection();
+    const layers = historicalFloodsLayer(fc);
+    const fillLayer = layers[0] as unknown as { props: { getFillColor: (f: { properties: { severity: string } }) => [number, number, number, number] } };
+    const high = fillLayer.props.getFillColor({ properties: { severity: "high" } });
+    const med = fillLayer.props.getFillColor({ properties: { severity: "medium" } });
+    const low = fillLayer.props.getFillColor({ properties: { severity: "low" } });
+    // High = red dominant, medium = orange dominant, low = yellow dominant
+    expect(high[0]).toBeGreaterThan(high[2]!);  // R > B for red
+    expect(med[0]).toBeGreaterThan(med[2]!);
+    expect(low[0]).toBeGreaterThan(low[2]!);
+  });
+
+  it("returns just the fill layer when given an empty collection (no labels)", () => {
+    const fc: FeatureCollection<Polygon, never> = { type: "FeatureCollection", features: [] };
+    const layers = historicalFloodsLayer(fc as unknown as FeatureCollection<Polygon, { id: string; name: string; nameEn: string; nameTh: string; district: string; severity: "high" | "medium" | "low"; households: number; source: string; eventStart: string; eventEnd: string }>);
+    expect(layers.length).toBe(1);
   });
 });

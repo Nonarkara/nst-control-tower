@@ -120,6 +120,7 @@ import {
   bayIconLayer,
   namedCanalsLayer,
   regionalRiversLayer,
+  historicalFloodsLayer,
   waterGaugesLayer,
   waterLevelHeatmapLayer,
   waterLevelDensityFallbackLayer,
@@ -1250,6 +1251,12 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
   const regionalRivers = useGeoJson<FeatureCollection<LineString, Record<string, unknown>>>(
     enabledLayers.has("regional-rivers") ? "/geo/nst/regional-rivers.geojson" : null,
   );
+  // Hand-authored HISTORICAL flood polygons — GISTDA Sentinel-1 SAR flood
+  // detection, 16-18 Dec 2024 southern Thailand flood. Province-scale only;
+  // at city/street zoom the live data is what matters.
+  const historicalFloods = useGeoJson<FeatureCollection<Polygon | MultiPolygon, Record<string, unknown>>>(
+    enabledLayers.has("historical-floods") ? "/geo/nst/historical-floods-2024-12.geojson" : null,
+  );
 
   // Civic POIs + waterways — Yala municipal OSM extract.
   const civicPoints = useGeoJson<FeatureCollection<Point, Record<string, unknown>>>(
@@ -1795,6 +1802,18 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
     // boundaries so the user can see NST as part of the bigger watershed.
     if (enabledLayers.has("regional-rivers") && regionalRivers?.features?.length) {
       out.push(...(regionalRiversLayer(regionalRivers as unknown as FeatureCollection<LineString, { id: string; name: string | null; nameEn: string | null; nameTh: string | null; waterway: string; flowClass: string; _riverLengthKm?: number; _riverBadge?: string; _riverSource?: { en: string; th: string }; _riverMouth?: { en: string; th: string } }>) as Layer[]));
+    }
+    // Historical floods — GISTDA SAR-derived polygons from the Dec 2024
+    // southern Thailand flood. Province-scale only; renders the "where it
+    // flooded last time" overlay so the operator can compare current
+    // forecast rain against known risk zones.
+    if (enabledLayers.has("historical-floods") && historicalFloods?.features?.length) {
+      // Narrow to Polygon (MultiPolygon rare in hand-authored data)
+      const polyOnly = {
+        type: "FeatureCollection",
+        features: historicalFloods.features.filter((f) => f.geometry.type === "Polygon"),
+      } as FeatureCollection<Polygon, { id: string; name: string | null; nameEn: string | null; nameTh: string | null; district: string; severity: "high" | "medium" | "low"; households: number; source: string; eventStart: string; eventEnd: string }>;
+      out.push(...(historicalFloodsLayer(polyOnly) as Layer[]));
     }
     // Picture-book framing (mountain / city / bay icons anchored at real
     // lng/lat) — gates independently so OPS can opt in without the heavier

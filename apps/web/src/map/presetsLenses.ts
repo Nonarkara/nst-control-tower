@@ -134,7 +134,9 @@ export type LayerId =
   // (under construction), Pak Phanang, Cha Uat, etc.
   | "named-canals"
   // Hand-authored regional rivers (Tapi, etc.) — cross-province hydrology
-  | "regional-rivers";
+  | "regional-rivers"
+  // Hand-authored historical floods (GISTDA Sentinel-1 SAR, Dec 2024)
+  | "historical-floods";
 
 export type MapViewState =
   | { kind: "lens"; lensId: LensId }
@@ -171,6 +173,11 @@ export const LENSES: Lens[] = [
       // it the briefing reads as "this is the city, and this is its
       // defining landmark" in a single glance.
       "mahatat-3d",
+      // Historical floods — the executive briefing includes the
+      // "where it flooded last time" overlay (Dec 2024 SAR-derived
+      // GISTDA data) so the briefing answers "is the current forecast
+      // aligned with a known risk zone?"
+      "historical-floods",
     ],
   },
   {
@@ -198,6 +205,7 @@ export const LENSES: Lens[] = [
       "hydro-flow-arrows",
       "named-canals",
       "regional-rivers",
+      "historical-floods",
       "flood-risk-overlay",
       // The iconic 3D model of Wat Phra Mahathat — the city-defining landmark.
       // Renders as a parametric stacked-primitive bell chedi + ubosot + wihan +
@@ -242,6 +250,7 @@ export const LENSES: Lens[] = [
       "hydro-flow-arrows",
       "named-canals",
       "regional-rivers",
+      "historical-floods",
       // The iconic 3D model of Wat Phra Mahathat — the city-defining landmark
       // sits in the flood plain and the basin cascade ends here, so FLOOD lens
       // must carry the temple silhouette as a recognisable backdrop.

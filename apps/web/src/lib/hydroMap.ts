@@ -829,3 +829,107 @@ export function regionalRiversLayer(
 
   return out;
 }
+
+
+/**
+ * Historical flood polygons — hand-traced from GISTDA Sentinel-1 SAR flood
+ * detection rasters. Currently ships one event (16-18 December 2024,
+ * พ.ศ. 2567 — the same event that flooded 632 lanes in the Pak Phanang
+ * basin and damaged 2,570 households across 7 districts). The polygons
+ * carry severity + household counts so the renderer can colour them
+ * high / medium / low and label with the affected district.
+ *
+ * Renders ONLY at province zoom (bucket 0). At city/street scale the
+ * historical flood overlay is too coarse — the modern live data is what
+ * the operator needs at that resolution.
+ */
+export interface HistoricalFloodProps {
+  id: string;
+  name: string | null;
+  nameEn: string | null;
+  nameTh: string | null;
+  district: string;
+  severity: "high" | "medium" | "low";
+  households: number;
+  source: string;
+  eventStart: string;
+  eventEnd: string;
+}
+
+const FLOOD_SEVERITY_COLOR: Record<string, { fill: [number, number, number]; stroke: [number, number, number] }> = {
+  high:   { fill: [220, 30, 30],   stroke: [200, 0, 0] },
+  medium: { fill: [240, 130, 30],  stroke: [200, 90, 0] },
+  low:    { fill: [250, 200, 60],  stroke: [210, 160, 0] },
+};
+
+export function historicalFloodsLayer(
+  collection: FeatureCollection<Polygon, HistoricalFloodProps>,
+): Layer[] {
+  const out: Layer[] = [];
+
+  out.push(
+    new GeoJsonLayer<HistoricalFloodProps>({
+      id: "historical-floods-fill",
+      data: collection,
+      stroked: true,
+      filled: true,
+      pickable: true,
+      getFillColor: (f) => {
+        const sev = f.properties.severity ?? "medium";
+        const [r, g, b] = FLOOD_SEVERITY_COLOR[sev]!.fill;
+        return [r, g, b, 40] as [number, number, number, number];
+      },
+      getLineColor: (f) => {
+        const sev = f.properties.severity ?? "medium";
+        const [r, g, b] = FLOOD_SEVERITY_COLOR[sev]!.stroke;
+        return [r, g, b, 220] as [number, number, number, number];
+      },
+      getLineWidth: 1.5,
+      lineWidthUnits: "pixels",
+      lineWidthMinPixels: 1,
+    }) as Layer,
+  );
+
+  const labelFeatures: { pos: [number, number]; text: string; households: number; severity: string }[] = [];
+  for (const f of collection.features) {
+    const ring = f.geometry.type === "Polygon" ? f.geometry.coordinates[0] : null;
+    if (!ring || ring.length === 0) continue;
+    let sx = 0;
+    let sy = 0;
+    for (const c of ring) {
+      sx += c[0]!;
+      sy += c[1]!;
+    }
+    const cx = sx / ring.length;
+    const cy = sy / ring.length;
+    labelFeatures.push({
+      pos: [cx, cy],
+      text: `${f.properties.nameTh ?? f.properties.nameEn ?? ""}`,
+      households: f.properties.households,
+      severity: f.properties.severity,
+    });
+  }
+  if (labelFeatures.length > 0) {
+    out.push(
+      new TextLayer<{ pos: [number, number]; text: string; households: number; severity: string }>({
+        id: "historical-floods-labels",
+        data: labelFeatures,
+        getPosition: (d) => d.pos,
+        getText: (d) => d.text,
+        getSize: 11,
+        getColor: [140, 20, 20, 240] as [number, number, number, number],
+        fontFamily: "'IBM Plex Sans Thai', 'Inter', sans-serif",
+        fontWeight: 700,
+        characterSet: "auto",
+        background: true,
+        backgroundPadding: [3, 1],
+        getBackgroundColor: [255, 245, 240, 220],
+        billboard: true,
+        parameters: { depthWriteEnabled: false, depthCompare: "always" },
+        pickable: false,
+      }) as Layer,
+    );
+  }
+
+  return out;
+}

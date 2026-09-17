@@ -5310,7 +5310,9 @@ export {
   bayIconLayer,
   namedCanalsLayer,
   regionalRiversLayer,
+  historicalFloodsLayer,
   type MountainOptions,
   type NamedCanalProps,
   type RegionalRiverProps,
+  type HistoricalFloodProps,
 } from "../lib/hydroMap";
