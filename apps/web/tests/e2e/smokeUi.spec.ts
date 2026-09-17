@@ -16,6 +16,10 @@ test.describe("PART MODELLED chip on municipality ops panel", () => {
 
 test.describe("EO layer toggles", () => {
   test("clicking a satellite layer toggle flips its aria-pressed state", async ({ page }) => {
+    // EAR's default layer set includes waterway-flow same as FLOOD — the real
+    // 1.9 MB waterways extract pegs the GPU/main-thread in headless CI (see
+    // floodSmokeHelpers.stubHiiSurvey), so stub it before the lens switch.
+    await stubHiiSurvey(page);
     await page.goto("/");
     await expect(page.locator(".map-host")).toBeVisible({ timeout: 20_000 });
 

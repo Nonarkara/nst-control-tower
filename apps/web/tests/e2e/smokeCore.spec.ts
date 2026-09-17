@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { selectLens } from "./floodSmokeHelpers";
+import { selectLens, stubHiiSurvey } from "./floodSmokeHelpers";
 
 /**
  * Smoke tests — these are the contracts that, if broken, mean a council
@@ -109,6 +109,10 @@ test.describe("Layer palette — count badge suppression", () => {
 
 test.describe("EAR lens — Earth obs panel header", () => {
   test("EarthAlphaBrief PanelHeader eyebrow is visible in the sidebar", async ({ page }) => {
+    // EAR's default layer set includes waterway-flow same as FLOOD — the real
+    // 1.9 MB waterways extract pegs the GPU/main-thread in headless CI (see
+    // floodSmokeHelpers.stubHiiSurvey), so stub it before the lens switch.
+    await stubHiiSurvey(page);
     await page.goto("/");
     await expect(page.locator(".map-host")).toBeVisible({ timeout: 20_000 });
 
