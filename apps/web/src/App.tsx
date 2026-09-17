@@ -116,6 +116,8 @@ import {
   mahatat3DLayer,
   districtBoundariesLayer,
   hydroFlowArrowsLayer,
+  mountainIconLayer,
+  bayIconLayer,
   waterGaugesLayer,
   waterLevelHeatmapLayer,
   waterLevelDensityFallbackLayer,
@@ -1708,7 +1710,16 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
     // between centroids read as nothing on a map. The zone markers stay (they
     // are the sensor readouts on the line); the ring/band info lives in the
     // rail panels (WATERSHED // UPSTREAM → CITY, Water Balance).
-    if (enabledLayers.has("watershed-nodes") && waterGauges.data.length > 0) {
+    // Watershed cascade nodes + metro subway line — CITY SCALE ONLY.
+    // At province scale (zoomBucket 0) the cascade markers cluster into a
+    // 6-dot blob over the city, the metro line is redundant with the real
+    // river network, and the ETA labels overlap each other. Skip them at
+    // bucket 0; they belong to the city-scale view.
+    if (
+      enabledLayers.has("watershed-nodes") &&
+      waterGauges.data.length > 0 &&
+      zoomBucket !== 0
+    ) {
       out.push(...(watershedNodesLayer(watershedSummaries, waterBalance.data, thaDeeFlow) as Layer[]));
       // Kid-readable "subway" line on top of the cascade — same data, but
       // rendered with the metro-map metaphor (rounded status-coloured stroke
@@ -1719,7 +1730,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
       // rides the watershed-nodes toggle so it shares the cascade's lifecycle.
       out.push(...(metroRouteLayer(watershedSummaries, { translucent: true }) as Layer[]));
     }
-    // ── Province-scale hydrology: district boundaries + flow arrows on every river ──
+    // ── Province-scale hydrology: district boundaries + flow arrows + mountain + bay ──
     // The Songkhla-style printed-map view. Renders ON TOP of the basemap but
     // BELOW the watershed cascade (so the cascade markers don't get hidden by
     // a sea of arrows). The arrows are static triangle polygons computed from
@@ -1743,6 +1754,19 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
         } as FeatureCollection<Polygon, { id: string; name: string | null; nameTh: string | null; admin_level: number }>;
         out.push(...(districtBoundariesLayer(polyOnly) as Layer[]));
       }
+    }
+    // Khao Luang summit — the SOURCE of every river in NST. Mountain icon
+    // only renders when hydrology is on (otherwise it's a random pyramid
+    // floating on the basemap with no context). Visible at all zooms so
+    // the user can always see "where the water comes from".
+    if (enabledLayers.has("hydro-flow-arrows")) {
+      out.push(...(mountainIconLayer(
+        { position: { lng: 99.733, lat: 8.500 }, heightM: 1835, labelEn: "KHAO LUANG", labelTh: "เขาหลวง" },
+        is3D ? 1.65 : 1,
+      ) as Layer[]));
+      out.push(...(bayIconLayer(
+        { lng: 100.184, lat: 8.4942 }, "PAK PHANANG BAY", "อ่าวปากพนัง",
+      ) as Layer[]));
     }
     // Picture-book framing (mountain / city / bay icons anchored at real
     // lng/lat) — gates independently so OPS can opt in without the heavier
@@ -1780,8 +1804,10 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
       out.push(rainStationsLayer(waterRain.data) as Layer);
     if (enabledLayers.has("ews-stations") && ewsStations.data.length > 0)
       out.push(ewsStationsLayer(ewsStations.data) as Layer);
-    // FloodDash water concentration wash under the discrete gauge dots
-    if (enabledLayers.has("water-heatmap") && waterGauges.data.length > 0) {
+    // FloodDash water concentration wash — CITY SCALE ONLY.
+    // At province scale the orange/blue blobs paint over the rivers the
+    // user is trying to read. Skip at bucket 0.
+    if (enabledLayers.has("water-heatmap") && waterGauges.data.length > 0 && zoomBucket !== 0) {
       out.push(
         (gpuHeatmapOk
           ? waterLevelHeatmapLayer(waterGauges.data)

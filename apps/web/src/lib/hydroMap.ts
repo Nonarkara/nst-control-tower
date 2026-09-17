@@ -22,7 +22,7 @@
  */
 
 import type { Feature, FeatureCollection, LineString, Polygon } from "geojson";
-import { GeoJsonLayer, PolygonLayer, PathLayer, TextLayer } from "@deck.gl/layers";
+import { ColumnLayer, GeoJsonLayer, PolygonLayer, PathLayer, TextLayer } from "@deck.gl/layers";
 import type { Layer } from "@deck.gl/core";
 
 // ─── Geometry helpers ──────────────────────────────────────────────────────
@@ -99,10 +99,16 @@ function arrowsAlongLine(
 }
 
 // ─── Palette ──────────────────────────────────────────────────────────────
-
-const RIVER_BLUE: [number, number, number] = [70, 130, 200];
-const RIVER_BLUE_TRUNK: [number, number, number] = [50, 100, 180];
-const ARROW_RED: [number, number, number] = [220, 50, 47];
+// River blues — vivid, NOT a faded pastel that disappears over the dark
+// Carto basemap. The province-scale map needs the river network to read
+// as the dominant visual element, so the trunk rivers get a darker core
+// stroke AND a bright halo stroke (two-stroke technique = readable at
+// any zoom + any background).
+const RIVER_CORE: [number, number, number] = [38, 95, 195];      // trunk core: dark vivid blue
+const RIVER_HALO: [number, number, number] = [130, 190, 255];    // bright halo around every river
+const RIVER_BLUE_TRUNK: [number, number, number] = [38, 95, 195];
+const ARROW_RED: [number, number, number] = [232, 50, 35];       // brighter red
+const ARROW_RED_HALO: [number, number, number] = [255, 200, 195]; // pale halo for readability
 const DISTRICT_BORDER: [number, number, number] = [120, 80, 160];
 const DISTRICT_LABEL: [number, number, number] = [60, 50, 80];
 
@@ -180,8 +186,33 @@ export function hydroFlowArrowsLayer(
   collection: FeatureCollection<LineString, { id?: string; name?: string | null; nameTh?: string | null; waterway?: string; flowClass?: string; lengthM?: number }>,
 ): Layer[] {
   const out: Layer[] = [];
-  // All rivers as a single GeoJsonLayer — OSM-derived waterways.geojson
-  // already has valid geometry, so we skip normalize.
+  // Two-stroke rivers: a bright halo first, then a darker core on top. The
+  // halo keeps thin trunk rivers readable against the dark basemap and the
+  // hillshade; the core carries the actual river-blue colour. Width scales
+  // by class so trunk rivers stand out without burying the tributaries.
+  out.push(
+    new GeoJsonLayer<{ waterway?: string; flowClass?: string; lengthM?: number }>({
+      id: "hydro-rivers-halo",
+      data: collection,
+      stroked: true,
+      filled: false,
+      pickable: false,
+      getLineColor: [...RIVER_HALO, 220] as [number, number, number, number],
+      getLineWidth: (f) => {
+        const cls = (f.properties as { flowClass?: string }).flowClass;
+        const w = (f.properties as { waterway?: string }).waterway;
+        const lM = (f.properties as { lengthM?: number }).lengthM ?? 0;
+        const isTrunk = cls === "fast" || lM >= 8000;
+        if (isTrunk) return 10;
+        if (w === "river") return 6;
+        if (w === "canal") return 4;
+        return 2.5;
+      },
+      lineWidthUnits: "pixels",
+      lineWidthMinPixels: 1.5,
+      lineWidthMaxPixels: 14,
+    }) as Layer,
+  );
   out.push(
     new GeoJsonLayer<{ waterway?: string; flowClass?: string; lengthM?: number }>({
       id: "hydro-rivers",
@@ -189,22 +220,27 @@ export function hydroFlowArrowsLayer(
       stroked: true,
       filled: false,
       pickable: false,
-      getLineColor: [...RIVER_BLUE, 230] as [number, number, number, number],
+      getLineColor: [...RIVER_CORE, 235] as [number, number, number, number],
       getLineWidth: (f) => {
         const cls = (f.properties as { flowClass?: string }).flowClass;
         const w = (f.properties as { waterway?: string }).waterway;
-        if (w === "river" && cls === "fast") return 3.5;
-        if (w === "river") return 2;
-        return 1.2;
+        const lM = (f.properties as { lengthM?: number }).lengthM ?? 0;
+        const isTrunk = cls === "fast" || lM >= 8000;
+        if (isTrunk) return 6;
+        if (w === "river") return 3.5;
+        if (w === "canal") return 2.2;
+        return 1.4;
       },
       lineWidthUnits: "pixels",
       lineWidthMinPixels: 1,
-      lineWidthMaxPixels: 5,
+      lineWidthMaxPixels: 10,
     }) as Layer,
   );
 
-  // Flow arrows — sample every ~3 km of river length, draw a red triangle
-  // pointing downstream. Trunk rivers get larger arrows.
+  // Flow arrows — every ~1.5 km on trunk rivers, ~3 km on tributaries.
+  // 3-4x bigger than before so the cascade direction reads at a glance.
+  // Each arrow gets a white halo via the lineWidth trick so it pops
+  // against the river core + the basemap.
   const arrows: { polygon: [number, number][]; tip: [number, number]; size: number }[] = [];
   for (const f of collection.features) {
     const g = f.geometry;
@@ -212,23 +248,40 @@ export function hydroFlowArrowsLayer(
     const coords = g.coordinates as [number, number][];
     const cls = (f.properties as { flowClass?: string }).flowClass ?? "medium";
     const w = (f.properties as { waterway?: string }).waterway ?? "stream";
-    const isTrunk = cls === "fast" || (f.properties as { lengthM?: number }).lengthM! >= 8000;
-    const spacing = isTrunk ? 0.025 : 0.05; // ~2.8 km vs ~5.5 km
-    const arrowDeg = isTrunk ? 0.0014 : 0.0010;
+    const lM = (f.properties as { lengthM?: number }).lengthM ?? 0;
+    const isTrunk = cls === "fast" || lM >= 8000;
+    const spacing = isTrunk ? 0.012 : 0.025; // ~1.3 km vs ~2.8 km (3x more arrows than before)
+    const arrowDeg = isTrunk ? 0.0042 : 0.0028; // ~3x bigger than before
     const items = arrowsAlongLine(coords, spacing, arrowDeg);
     for (const a of items) {
-      arrows.push({ polygon: a.polygon, tip: a.tip, size: isTrunk ? 1.4 : 1 });
+      arrows.push({ polygon: a.polygon, tip: a.tip, size: isTrunk ? 1.6 : 1 });
     }
   }
   if (arrows.length > 0) {
+    // Halo pass — draw the arrows slightly larger in pale red so they pop
+    // against the river core.
+    out.push(
+      new PolygonLayer<{ polygon: [number, number][]; tip: [number, number]; size: number }>({
+        id: "hydro-flow-arrows-halo",
+        data: arrows,
+        getPolygon: (d) => d.polygon,
+        getFillColor: [...ARROW_RED_HALO, 200] as [number, number, number, number],
+        getLineColor: [...ARROW_RED_HALO, 200] as [number, number, number, number],
+        lineWidthMinPixels: 0.8,
+        stroked: true,
+        filled: true,
+        pickable: false,
+        parameters: { depthWriteEnabled: false, depthCompare: "always" },
+      }) as Layer,
+    );
     out.push(
       new PolygonLayer<{ polygon: [number, number][]; tip: [number, number]; size: number }>({
         id: "hydro-flow-arrows",
         data: arrows,
         getPolygon: (d) => d.polygon,
-        getFillColor: [...ARROW_RED, 235] as [number, number, number, number],
-        getLineColor: [...ARROW_RED, 235] as [number, number, number, number],
-        lineWidthMinPixels: 0.5,
+        getFillColor: [...ARROW_RED, 245] as [number, number, number, number],
+        getLineColor: [...ARROW_RED, 245] as [number, number, number, number],
+        lineWidthMinPixels: 1,
         stroked: true,
         filled: true,
         pickable: false,
@@ -265,14 +318,14 @@ export function hydroFlowArrowsLayer(
         data: labelFeatures,
         getPosition: (d) => d.pos,
         getText: (d) => d.text,
-        getSize: 11,
-        getColor: [...RIVER_BLUE_TRUNK, 240] as [number, number, number, number],
+        getSize: 12,
+        getColor: [...RIVER_BLUE_TRUNK, 245] as [number, number, number, number],
         fontFamily: "'IBM Plex Sans Thai', 'Inter', sans-serif",
-        fontWeight: 600,
+        fontWeight: 700,
         characterSet: "auto",
         background: true,
-        backgroundPadding: [2, 1],
-        getBackgroundColor: [255, 255, 255, 200],
+        backgroundPadding: [3, 2],
+        getBackgroundColor: [255, 255, 255, 220],
         billboard: true,
         parameters: { depthWriteEnabled: false, depthCompare: "always" },
         pickable: false,
@@ -280,5 +333,130 @@ export function hydroFlowArrowsLayer(
     );
   }
 
+  return out;
+}
+
+/**
+ * Khao Luang summit — a 3D triangular "mountain" spike rendered as a column.
+ * The summit is the source of every river in NST (1,835 m, the tallest peak
+ * in southern Thailand); making it visually obvious on the province-scale
+ * hydrology map is the difference between "rivers on a basemap" and "water
+ * comes from the mountain". Visible at zoom ≥ 8 (province) — below that
+ * zoom it's a single pixel.
+ *
+ * The column is tapered (radius shrinks with height) so the silhouette
+ * reads as a peak, not a cylinder. Renders ON TOP of the basemap + rivers
+ * + district labels so the user can't miss it.
+ */
+export interface MountainOptions {
+  position: { lng: number; lat: number };
+  heightM: number;
+  labelEn: string;
+  labelTh: string;
+}
+
+export function mountainIconLayer(
+  opts: MountainOptions,
+  elevationScale = 1,
+): Layer[] {
+  const out: Layer[] = [];
+  // Three tiers: base (large), mid (medium), top (small) — stacked to
+  // approximate a tapered peak.
+  const tiers = [
+    { rM: 0.012, hM: 800, baseM: 0,    rgb: [125, 110, 90] as [number, number, number] },  // dark stone
+    { rM: 0.008, hM: 600, baseM: 800,  rgb: [165, 150, 130] as [number, number, number] }, // mid stone
+    { rM: 0.004, hM: 435, baseM: 1400, rgb: [210, 195, 170] as [number, number, number] }, // pale peak
+  ];
+  for (let i = 0; i < tiers.length; i++) {
+    const t = tiers[i]!;
+    out.push(
+      new ColumnLayer<{ pos: [number, number] }>({
+        id: `mountain-${i}`,
+        data: [{ pos: [opts.position.lng, opts.position.lat] }],
+        diskResolution: 16,
+        getPosition: (d) => d.pos,
+        getElevation: () => t.hM * elevationScale,
+        getFillColor: () => [t.rgb[0], t.rgb[1], t.rgb[2], 245] as [number, number, number, number],
+        radius: t.rM,
+        extruded: true,
+        pickable: false,
+        stroked: false,
+        elevationScale,
+      }) as Layer,
+    );
+  }
+  // Label
+  out.push(
+    new TextLayer<{ pos: [number, number] }>({
+      id: "mountain-label",
+      data: [{ pos: [opts.position.lng, opts.position.lat] }],
+      getPosition: (d) => d.pos,
+      getText: () => `${opts.labelEn}\n${opts.labelTh}\n${opts.heightM.toLocaleString()} m`,
+      getSize: 14,
+      getColor: [60, 50, 40, 245] as [number, number, number, number],
+      fontFamily: "'IBM Plex Sans Thai', 'Inter', sans-serif",
+      fontWeight: 700,
+      characterSet: "auto",
+      background: true,
+      backgroundPadding: [4, 3],
+      getBackgroundColor: [255, 250, 240, 235],
+      getPixelOffset: [0, -40],
+      billboard: true,
+      parameters: { depthWriteEnabled: false, depthCompare: "always" },
+      pickable: false,
+    }) as Layer,
+  );
+  return out;
+}
+
+/**
+ * Pak Phanang Bay — a flat teal disc at sea level + label. The "destination"
+ * of the cascade — water flows from Khao Luang through Tha Dee → NST City
+ * → into this bay. Rendered alongside the mountain so the user sees both
+ * ends of the watershed story.
+ */
+export function bayIconLayer(
+  position: { lng: number; lat: number },
+  labelEn: string,
+  labelTh: string,
+): Layer[] {
+  const out: Layer[] = [];
+  // Flat ellipse made of stacked very-thin discs to give a "shimmer" feel
+  out.push(
+    new ColumnLayer<{ pos: [number, number] }>({
+      id: "bay-disc",
+      data: [{ pos: [position.lng, position.lat] }],
+      diskResolution: 24,
+      getPosition: (d) => d.pos,
+      getElevation: () => 0,
+      getFillColor: () => [70, 165, 200, 220] as [number, number, number, number],
+      radius: 0.018,
+      extruded: true,
+      pickable: false,
+      stroked: true,
+      getLineColor: () => [255, 255, 255, 220] as [number, number, number, number],
+      lineWidthMinPixels: 1,
+    }) as Layer,
+  );
+  out.push(
+    new TextLayer<{ pos: [number, number] }>({
+      id: "bay-label",
+      data: [{ pos: [position.lng, position.lat] }],
+      getPosition: (d) => d.pos,
+      getText: () => `${labelEn}\n${labelTh}`,
+      getSize: 13,
+      getColor: [20, 50, 70, 245] as [number, number, number, number],
+      fontFamily: "'IBM Plex Sans Thai', 'Inter', sans-serif",
+      fontWeight: 700,
+      characterSet: "auto",
+      background: true,
+      backgroundPadding: [4, 3],
+      getBackgroundColor: [220, 240, 250, 235],
+      getPixelOffset: [0, 24],
+      billboard: true,
+      parameters: { depthWriteEnabled: false, depthCompare: "always" },
+      pickable: false,
+    }) as Layer,
+  );
   return out;
 }

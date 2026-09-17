@@ -173,6 +173,11 @@ export const LENSES: Lens[] = [
     label: "OPS",
     describe: "Operations — every building in 3D, the Old Town axis, road network, civic POIs (hospitals/police/fire/schools/temples/markets), live traffic, incidents, CCTV. The default day-to-day view for the municipality. Carries the kid-readable watershed cascade (mountain → upstream → city → bay) so the day-to-day view tells the water story too, not just the road story.",
     layers: [
+      // Province-scale topographic basemap — OpenTopoMap hillshade +
+      // contour lines so the operator sees the mountain rising behind the
+      // cascade (Khao Luang, 1,835m, is the source of every river in NST).
+      // This is the "topographic lines" the user asked for.
+      "satellite-terrain",
       "municipality-boundary-line",
       "municipality-buildings",
       "ring-roads",

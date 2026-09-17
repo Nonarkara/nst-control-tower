@@ -12,7 +12,8 @@
 import { describe, it, expect } from "vitest";
 import type { FeatureCollection, LineString, Polygon } from "geojson";
 import { GeoJsonLayer, PolygonLayer, TextLayer } from "@deck.gl/layers";
-import { districtBoundariesLayer, hydroFlowArrowsLayer } from "./hydroMap";
+import { districtBoundariesLayer, hydroFlowArrowsLayer, mountainIconLayer, bayIconLayer } from "./hydroMap";
+import { ColumnLayer } from "@deck.gl/layers";
 
 function makeWaterway(
   id: string,
@@ -70,20 +71,21 @@ function makeDistrictCollection(): FeatureCollection<Polygon, { id: string; name
 }
 
 describe("hydroFlowArrowsLayer", () => {
-  it("returns at least the rivers layer when given a non-empty waterways collection", () => {
+  it("returns the rivers + arrows stack when given a non-empty waterways collection", () => {
     const fc = makeWaterway("w/1", [[99.93, 8.43], [99.96, 8.435], [99.99, 8.44]]);
     const layers = hydroFlowArrowsLayer(fc);
+    // halo + core rivers (2) + halo + core arrows (2) when present = 4
     expect(layers.length).toBeGreaterThanOrEqual(2);
-    // First layer is the rivers GeoJsonLayer; second is the arrows PolygonLayer
+    // First two are the rivers GeoJsonLayers (halo + core)
     expect(layers[0]).toBeInstanceOf(GeoJsonLayer);
-    expect(layers[1]).toBeInstanceOf(PolygonLayer);
+    expect(layers[1]).toBeInstanceOf(GeoJsonLayer);
   });
 
-  it("returns an empty stack when given an empty collection (no rivers)", () => {
+  it("returns just the river-halo + river-core when given an empty collection", () => {
     const fc: FeatureCollection<LineString, never> = { type: "FeatureCollection", features: [] };
     const layers = hydroFlowArrowsLayer(fc as unknown as FeatureCollection<LineString, { id?: string; waterway?: string; flowClass?: string; lengthM?: number }>);
-    // Just the rivers layer (with no features) — no arrows, no labels.
-    expect(layers.length).toBe(1);
+    // No rivers, no arrows, no labels — just the two river layers with empty data
+    expect(layers.length).toBe(2);
   });
 
   it("places ≥2 arrows on a short river line so direction is always visible", () => {
@@ -94,10 +96,9 @@ describe("hydroFlowArrowsLayer", () => {
       [99.95, 8.43],
     ]);
     const layers = hydroFlowArrowsLayer(fc);
-    const arrowLayer = layers[1];
-    expect(arrowLayer).toBeInstanceOf(PolygonLayer);
-    // The PolygonLayer's data is the arrow list — every arrow is a 3-vertex
-    // triangle polygon. Pull the data off via the .props.data accessor.
+    // Find the arrow PolygonLayer (the second PolygonLayer; first is rivers core)
+    const arrowLayer = layers.find((l) => l instanceof PolygonLayer && (l as unknown as { id: string }).id === "hydro-flow-arrows");
+    expect(arrowLayer).toBeDefined();
     const data = (arrowLayer as unknown as { props: { data: unknown[] } }).props.data;
     expect(data.length).toBeGreaterThanOrEqual(2);
   });
@@ -105,19 +106,18 @@ describe("hydroFlowArrowsLayer", () => {
   it("places bigger arrows on trunk rivers (flowClass=fast OR lengthM ≥ 8000)", () => {
     const fast = makeWaterway("w/fast", [[99.93, 8.43], [99.95, 8.43]], { flowClass: "fast" });
     const slow = makeWaterway("w/slow", [[99.93, 8.43], [99.95, 8.43]], { flowClass: "slow" });
-    const fastArrows = (hydroFlowArrowsLayer(fast)[1] as unknown as { props: { data: { size: number }[] } }).props.data;
-    const slowArrows = (hydroFlowArrowsLayer(slow)[1] as unknown as { props: { data: { size: number }[] } }).props.data;
-    expect(fastArrows[0]!.size).toBeGreaterThan(slowArrows[0]!.size);
+    const fastArrowLayer = hydroFlowArrowsLayer(fast).find((l) => l instanceof PolygonLayer && (l as unknown as { id: string }).id === "hydro-flow-arrows") as unknown as { props: { data: { size: number }[] } };
+    const slowArrowLayer = hydroFlowArrowsLayer(slow).find((l) => l instanceof PolygonLayer && (l as unknown as { id: string }).id === "hydro-flow-arrows") as unknown as { props: { data: { size: number }[] } };
+    expect(fastArrowLayer.props.data[0]!.size).toBeGreaterThan(slowArrowLayer.props.data[0]!.size);
   });
 
   it("labels only fast (trunk) rivers so the map doesn't drown in labels", () => {
     const fast = makeWaterway("w/fast", [[99.93, 8.43], [99.95, 8.43]], { flowClass: "fast", name: "Tha Dee" });
     const slow = makeWaterway("w/slow", [[99.93, 8.43], [99.95, 8.43]], { flowClass: "slow", name: "Slow Creek" });
-    const fastLayers = hydroFlowArrowsLayer(fast);
-    const slowLayers = hydroFlowArrowsLayer(slow);
-    expect(fastLayers.length).toBe(3); // rivers + arrows + label
-    expect(slowLayers.length).toBe(2); // rivers + arrows only (no label)
-    expect(fastLayers[2]).toBeInstanceOf(TextLayer);
+    const fastHasLabel = hydroFlowArrowsLayer(fast).some((l) => l instanceof TextLayer);
+    const slowHasLabel = hydroFlowArrowsLayer(slow).some((l) => l instanceof TextLayer);
+    expect(fastHasLabel).toBe(true);
+    expect(slowHasLabel).toBe(false);
   });
 });
 
@@ -161,17 +161,45 @@ describe("hydro map visual contract", () => {
   });
 
   it("flow arrows are filled red triangles (PolygonLayer with red fill)", () => {
-    // The arrows are ARROW_RED = [220, 50, 47] — verify via the layer's
-    // static data array, since getFillColor is a function (not inspectable
-    // without instantiating the layer).
+    // The arrows are ARROW_RED = [232, 50, 35] — verify via the layer's
+    // static data array. We check by id since the layer order may shift
+    // when the halo/core pair is added.
     const fc = makeWaterway("w/1", [[99.93, 8.43], [99.96, 8.435]]);
-    const layers = hydroFlowArrowsLayer(fc);
-    const arrowLayer = layers[1] as unknown as { props: { data: { polygon: unknown[]; tip: unknown[]; size: number }[] } };
+    const arrowLayer = hydroFlowArrowsLayer(fc).find(
+      (l) => l instanceof PolygonLayer && (l as unknown as { id: string }).id === "hydro-flow-arrows",
+    ) as unknown as { props: { data: { polygon: unknown[]; tip: unknown[]; size: number }[] } };
+    expect(arrowLayer).toBeDefined();
     expect(arrowLayer.props.data.length).toBeGreaterThan(0);
-    // Verify the polygon shape — a triangle has exactly 3 vertices.
     for (const arrow of arrowLayer.props.data) {
       expect(arrow.polygon).toHaveLength(3);
       expect(arrow.tip).toHaveLength(2);
     }
+  });
+});
+
+describe("mountainIconLayer", () => {
+  it("renders 3 stacked tiers (base + mid + peak) + a label = 4 layers", () => {
+    const layers = mountainIconLayer(
+      { position: { lng: 99.733, lat: 8.500 }, heightM: 1835, labelEn: "KHAO LUANG", labelTh: "เขาหลวง" },
+    );
+    // 3 ColumnLayer tiers + 1 TextLayer label
+    expect(layers.length).toBe(4);
+    expect(layers.filter((l) => l instanceof ColumnLayer).length).toBe(3);
+    expect(layers[3]).toBeInstanceOf(TextLayer);
+  });
+
+  it("respects the elevationScale argument — same layer count regardless", () => {
+    const a = mountainIconLayer({ position: { lng: 99.733, lat: 8.5 }, heightM: 1835, labelEn: "K", labelTh: "k" }, 1.0);
+    const b = mountainIconLayer({ position: { lng: 99.733, lat: 8.5 }, heightM: 1835, labelEn: "K", labelTh: "k" }, 1.65);
+    expect(a.length).toBe(b.length);
+  });
+});
+
+describe("bayIconLayer", () => {
+  it("renders a flat disc + label = 2 layers", () => {
+    const layers = bayIconLayer({ lng: 100.184, lat: 8.4942 }, "PAK PHANANG BAY", "อ่าวปากพนัง");
+    expect(layers.length).toBe(2);
+    expect(layers[0]).toBeInstanceOf(ColumnLayer);
+    expect(layers[1]).toBeInstanceOf(TextLayer);
   });
 });
