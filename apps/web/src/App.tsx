@@ -1744,24 +1744,25 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
     // between centroids read as nothing on a map. The zone markers stay (they
     // are the sensor readouts on the line); the ring/band info lives in the
     // rail panels (WATERSHED // UPSTREAM → CITY, Water Balance).
-    // Watershed cascade nodes + metro subway line — CITY SCALE ONLY.
-    // At province scale (zoomBucket 0) the cascade markers cluster into a
-    // 6-dot blob over the city, the metro line is redundant with the real
-    // river network, and the ETA labels overlap each other. Skip them at
-    // bucket 0; they belong to the city-scale view.
+    // Watershed cascade nodes + metro subway line — PROVINCE SCALE ONLY.
+    // The cascade path spans ~50 km from Khao Luang to Pak Phanang Bay;
+    // at city zoom (zoomBucket >= 1) it crosses the entire viewport as a
+    // giant curve that competes with the actual city buildings + streets.
+    // Hide at city zoom so the user sees the real rivers + roads in the
+    // city, not a metaphor drawn over them. The metro infographic modal
+    // is still available if the user wants the cascade metaphor.
     if (
       enabledLayers.has("watershed-nodes") &&
       waterGauges.data.length > 0 &&
-      zoomBucket !== 0
+      zoomBucket === 0
     ) {
       out.push(...(watershedNodesLayer(watershedSummaries, waterBalance.data, thaDeeFlow) as Layer[]));
       // Kid-readable "subway" line on top of the cascade — same data, but
       // rendered with the metro-map metaphor (rounded status-coloured stroke
-      // + station markers at KW / LS / CITY / Bay + bilingual labels). This
-      // is the headline "kindergarten water flowing" visual — the operator
-      // (and a 5-year-old) sees the cascade as a subway line, not a plain
-      // connector. The modal MetroInfographic uses the same layer; here it
-      // rides the watershed-nodes toggle so it shares the cascade's lifecycle.
+      // + station markers at KW / LS / CITY / Bay + bilingual labels). The
+      // headline "kindergarten water flowing" visual — the operator (and a
+      // 5-year-old) sees the cascade as a subway line, not a plain connector.
+      // Gated to province zoom so it doesn't dominate the city view.
       out.push(...(metroRouteLayer(watershedSummaries, { translucent: true }) as Layer[]));
     }
     // ── Province-scale hydrology: district boundaries + flow arrows + mountain + bay ──
@@ -1772,7 +1773,8 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
     // the user's panning direction.
     if (
       (enabledLayers.has("district-boundaries") || enabledLayers.has("hydro-flow-arrows")) &&
-      waterways?.features?.length
+      waterways?.features?.length &&
+      zoomBucket === 0
     ) {
       if (enabledLayers.has("hydro-flow-arrows")) {
         out.push(...(hydroFlowArrowsLayer(waterways) as Layer[]));
@@ -1789,11 +1791,11 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
         out.push(...(districtBoundariesLayer(polyOnly) as Layer[]));
       }
     }
-    // Khao Luang summit — the SOURCE of every river in NST. Mountain icon
-    // only renders when hydrology is on (otherwise it's a random pyramid
-    // floating on the basemap with no context). Visible at all zooms so
-    // the user can always see "where the water comes from".
-    if (enabledLayers.has("hydro-flow-arrows")) {
+    // Khao Luang summit + Pak Phanang Bay — province-scale source/destination
+    // icons. At city zoom (>= 1) the 1835m pyramid + bay disc crowd the
+    // city view as giant floating shapes — gate them to zoomBucket === 0.
+    // The user still sees the actual rivers at city zoom via hydroFlowArrowsLayer.
+    if (enabledLayers.has("hydro-flow-arrows") && zoomBucket === 0) {
       out.push(...(mountainIconLayer(
         { position: { lng: 99.733, lat: 8.500 }, heightM: 1835, labelEn: "KHAO LUANG", labelTh: "เขาหลวง" },
         is3D ? 1.65 : 1,
@@ -1804,23 +1806,37 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
     }
     // Named canals (Tha Dee, Tha Wang, Royal Project Canal, etc.) — the
     // headline canals of the RID watershed chart, drawn thicker than the
-    // OSM waterways so they read as the main channels. The Royal Project
-    // Canal's planned reach renders as a dashed orange line + an
-    // "(under construction · ระหว่างก่อสร้าง)" badge.
-    if (enabledLayers.has("named-canals") && namedCanals?.features?.length) {
+    // OSM waterways so they read as the main channels. PROVINCE SCALE ONLY
+    // — at city zoom (>= 1) the canal thick strokes crowd the actual city
+    // streets + buildings so we skip them in favour of the OSM waterways
+    // + city POIs which are the city-scale signal.
+    if (
+      enabledLayers.has("named-canals") &&
+      namedCanals?.features?.length &&
+      zoomBucket === 0
+    ) {
       out.push(...(namedCanalsLayer(namedCanals as unknown as FeatureCollection<LineString, { id: string; name: string | null; nameEn: string | null; nameTh: string | null; waterway: string; flowClass: string; _canalStatus?: "complete" | "under-construction" | "planned"; _plannedReach?: [number, number] | null }>) as Layer[]));
     }
     // Regional rivers — bigger than canals, drawn in dark navy with the
     // "Longest in southern Thailand" badge on the Tapi. Cross province
     // boundaries so the user can see NST as part of the bigger watershed.
-    if (enabledLayers.has("regional-rivers") && regionalRivers?.features?.length) {
+    // PROVINCE SCALE ONLY — at city zoom the Tapi's 230 km line crosses
+    // the viewport as a giant diagonal that obscures everything.
+    if (
+      enabledLayers.has("regional-rivers") &&
+      regionalRivers?.features?.length &&
+      zoomBucket === 0
+    ) {
       out.push(...(regionalRiversLayer(regionalRivers as unknown as FeatureCollection<LineString, { id: string; name: string | null; nameEn: string | null; nameTh: string | null; waterway: string; flowClass: string; _riverLengthKm?: number; _riverBadge?: string; _riverSource?: { en: string; th: string }; _riverMouth?: { en: string; th: string } }>) as Layer[]));
     }
     // Historical floods — GISTDA SAR-derived polygons from the Dec 2024
-    // southern Thailand flood. Province-scale only; renders the "where it
-    // flooded last time" overlay so the operator can compare current
-    // forecast rain against known risk zones.
-    if (enabledLayers.has("historical-floods") && historicalFloods?.features?.length) {
+    // southern Thailand flood. PROVINCE SCALE ONLY — at city zoom the
+    // 117k-household polygon washes overlap the actual city streets.
+    if (
+      enabledLayers.has("historical-floods") &&
+      historicalFloods?.features?.length &&
+      zoomBucket === 0
+    ) {
       // Narrow to Polygon (MultiPolygon rare in hand-authored data)
       const polyOnly = {
         type: "FeatureCollection",
