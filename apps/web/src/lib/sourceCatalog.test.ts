@@ -95,6 +95,16 @@ describe("adapterNameFor — known routes", () => {
     expect(adapterNameFor("/api/water/reservoirs-rid")).toBe("rid-reservoirs");
   });
 
+  it("maps provincial-kpis to the route's adapter name", () => {
+    expect(adapterNameFor("/api/datago/provincial-kpis")).toBe("provincial-kpis");
+  });
+
+  it("maps sub-router feeds and isochrone (safeFeed-extraction fix)", () => {
+    expect(adapterNameFor("/api/flood-risk-villages")).toBe("flood-risk-villages");
+    expect(adapterNameFor("/api/damage-hotspots")).toBe("damage-hotspots");
+    expect(adapterNameFor("/api/isochrone")).toBe("isochrone");
+  });
+
   it("maps previously-unmapped live routes (health-coverage gap fix)", () => {
     expect(adapterNameFor("/api/air-quality/air4thai")).toBe("air4thai");
     expect(adapterNameFor("/api/flood/national-prone")).toBe("national-flood-prone");

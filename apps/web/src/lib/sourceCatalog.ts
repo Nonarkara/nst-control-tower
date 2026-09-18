@@ -51,7 +51,7 @@ export const API_PATH_TO_ADAPTER: Array<[RegExp, string]> = [
   [/\/api\/datago\/disasters$/, "disasters"],
   [/\/api\/datago\/fahfon$/, "fahfon"],
   [/\/api\/datago\/points$/, "datago-points"],
-  [/\/api\/datago\/provincial-kpis$/, "datago-provincial-kpis"],
+  [/\/api\/datago\/provincial-kpis$/, "provincial-kpis"],
   [/\/api\/marine$/, "marine"],
   [/\/api\/tides$/, "tides"],
   [/\/api\/gistda\/poi$/, "gistda-poi"],
@@ -83,6 +83,9 @@ export const API_PATH_TO_ADAPTER: Array<[RegExp, string]> = [
   [/\/api\/wrf\/rain-grid$/, "wrf-rain-grid"],
   [/\/api\/precip-nowcast\/zones$/, "precip-nowcast-zones"],
   [/\/api\/executive$/, "executive"],
+  [/\/api\/flood-risk-villages$/, "flood-risk-villages"],
+  [/\/api\/damage-hotspots$/, "damage-hotspots"],
+  [/\/api\/isochrone$/, "isochrone"],
 ];
 
 /**
