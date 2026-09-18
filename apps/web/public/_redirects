@@ -1,4 +1,6 @@
 # SPA routes that share a path prefix with a static directory (public/data/…).
 # Exact matches only — /data/workbench/*.json must still be served as files.
-/data   /index.html   200
-/data/  /index.html   200
+# Rewrite to "/" (not "/index.html"): Pages 308-redirects /index.html → /,
+# which turned /data into a redirect to the map instead of a rewrite.
+/data   /   200
+/data/  /   200
