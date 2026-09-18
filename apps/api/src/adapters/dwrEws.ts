@@ -65,8 +65,20 @@ function stationType(raw: string | undefined): EwsStation["type"] {
 }
 
 function status(raw: number | string | null | undefined): EwsStation["status"] {
+  // Upstream DWR status values observed in the live response:
+  //   "0"  = NORMAL (no alert) — most populated state, ~1081 / 2275 stations
+  //   "1"  = WATCH — ~20 stations
+  //   "2"  = PREPARE — ~16 stations
+  //   "3"  = CRITICAL — ~24 stations
+  //   "9"  = ?  ~1134 stations — null warn / warning_type / rain12h stays at 0
+  //          for many of them. Not a severity tier; treat as no alert rather
+  //          than risk mapping it to critical (which previously promoted half
+  //          the country's stations to severity 3 and pushed 159 NST villages
+  //          into the "move now" tier even though rain1h was 0–2 mm and
+  //          every gauge was below bank).
+  // Be strict: only 1 / 2 / 3 carry severity. Everything else → 0.
   const s = Math.round(typeof raw === "string" ? parseFloat(raw) : (raw ?? 0));
-  if (s >= 3) return 3;
+  if (s === 3) return 3;
   if (s === 2) return 2;
   if (s === 1) return 1;
   return 0;

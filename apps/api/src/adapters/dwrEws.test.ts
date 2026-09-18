@@ -98,6 +98,56 @@ describe("dwrEws adapter — happy path (isolated)", () => {
     vi.restoreAllMocks();
   });
 
+  // Pin the status-mapping behaviour so future PRs don't regress the
+  // "move-now" tier to noise again. Upstream uses status="9" for ~half
+  // of all stations (a non-severity sentinel — null warn, no rain);
+  // mapping 9 → 3 used to push 159 NST villages into move-now while the
+  // gauges were below bank and rain was 0–2 mm/h. Only 1 / 2 / 3 are real
+  // severities.
+  it("maps upstream status to {0,1,2,3} exactly — 9 is NOT critical", async () => {
+    vi.resetModules();
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify([
+        // NST station with status="9" — was wrongly promoted to severity 3
+        {
+          stn: "STN9001",
+          name: "inactive EWS",
+          stn_type: "RF",
+          province: "นครศรีธรรมราช",
+          latitude: "8.4",
+          longitude: "99.7",
+          status: "9", warn: null, warning_type: null,
+          rain: "0.0", rain12h: "0.0",
+          soil: "50.0",
+          date: "2026-09-18 09:00:00",
+        },
+        // NST station with status=3 — should stay critical
+        {
+          stn: "STN9002",
+          name: "real critical",
+          stn_type: "WL",
+          province: "นครศรีธรรมราช",
+          latitude: "8.5",
+          longitude: "99.8",
+          status: "3", warn: "น้ำล้นตลิ่ง", warning_type: "wl",
+          rain: "0.0", rain12h: "0.0",
+          wl: "5.0",
+          soil: "80.0",
+          date: "2026-09-18 09:00:00",
+        },
+      ]), { status: 200 }),
+    );
+    const { fetchEwsStations: fresh } = (await import("./dwrEws.js")) as unknown as {
+      fetchEwsStations: typeof fetchEwsStations;
+    };
+    const feed = await fresh();
+    expect(feed.features).toHaveLength(2);
+    const byId = Object.fromEntries(feed.features.map((s) => [s.id, s]));
+    expect(byId["STN9001"].status).toBe(0); // was 3 under the buggy mapping
+    expect(byId["STN9002"].status).toBe(3);
+    vi.restoreAllMocks();
+  });
+
   it("returns 'unavailable' with a note when fetch throws", async () => {
     vi.resetModules();
     vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("network down"));
