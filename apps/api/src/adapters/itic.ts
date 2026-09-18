@@ -85,7 +85,13 @@ async function fetchIticInner(): Promise<NormalizedFeed<IncidentFeature>> {
         source: "itic-longdo",
         fetchedAt,
         ageMinutes: cacheAgeMinutes(fetchedAt),
-        fallbackTier: features.length > 0 ? "live" : "scenario",
+        // "live" as long as we successfully fetched upstream, even if zero
+        // features fall inside the NST bbox this minute. "scenario" only
+        // means we hit a fallback path (catch block below), not "the network
+        // is quiet today". Calling zero results "scenario" was making the
+        // TopBar status badge say "5 of 9 feeds not live" when 4 of the
+        // 5 were upstream-OK-but-empty.
+        fallbackTier: "live",
       },
     };
   });

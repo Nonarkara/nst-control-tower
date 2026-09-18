@@ -126,7 +126,12 @@ async function fetchCityReportsInner(): Promise<NormalizedFeed<IncidentFeature>>
         source: "traffy-fondue",
         fetchedAt,
         ageMinutes: cacheAgeMinutes(fetchedAt),
-        fallbackTier: features.length > 0 ? "live" : "scenario",
+        // "live" whenever upstream returned data successfully, even if the
+        // NST bbox filter matched zero incidents today. "scenario" only
+        // means we hit the catch below (upstream threw); it does NOT mean
+        // "the network is quiet". Zero-event days are still "live" — the
+        // dashboard can render an empty list cleanly.
+        fallbackTier: "live",
       },
     };
   });
