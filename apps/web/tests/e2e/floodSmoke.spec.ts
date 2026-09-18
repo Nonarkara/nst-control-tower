@@ -21,6 +21,9 @@ test.describe("FLOOD lens — panel headers", () => {
     // even during loading state — so no API data is required.
     await expect(page.getByText(/WATER MONITORING/i).first()).toBeVisible({ timeout: 15_000 });
     await expect(page.getByText(/WATERSHED/i).first()).toBeVisible({ timeout: 10_000 });
+    // The CV gauge watch panel mounts in the same section — its header is
+    // unconditional, so it proves the wiring without any camera frames.
+    await expect(page.getByText(/CCTV GAUGES/i).first()).toBeVisible({ timeout: 10_000 });
   });
 });
 

@@ -248,6 +248,13 @@ export function getCaptureStats(): CaptureStats {
   return { active: activeCount, cap: MAX_CONCURRENT, imaged: frames.size };
 }
 
+/** Latest captured still for a camera, if the guard tour has imaged it yet.
+ *  Powers the CV gauge watch — analysis rides on frames the wall already
+ *  captured, so the watch costs zero extra upstream requests. */
+export function getCachedFrame(camId: string): WhepFrame | undefined {
+  return frames.get(camId);
+}
+
 export function subscribeCaptureStats(listener: () => void): () => void {
   statsListeners.push(listener);
   return () => {

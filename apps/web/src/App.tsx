@@ -196,6 +196,8 @@ import { AqiBadge, type AqiTrend } from "./components/AqiBadge";
 import { BuildingCard } from "./components/BuildingCard";
 import { CctvStreamModal } from "./components/CctvStreamModal";
 import { CctvDirectory } from "./components/CctvDirectory";
+import { CvGaugePanel } from "./components/CvGaugePanel";
+import { useGaugeWatch } from "./hooks/useGaugeWatch";
 import { CctvCommandCenter } from "./components/CctvCommandCenter";
 import { RailSection } from "./components/RailSection";
 import { WeatherPanel } from "./components/WeatherPanel";
@@ -1132,6 +1134,9 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
   const airQuality = useFeed<AirQualityPoint>(`${API_BASE}/api/air-quality`, 15 * 60_000);
   const air4thai = useFeed<AirQualityPoint>(`${API_BASE}/api/air-quality/air4thai`, 30 * 60_000);
   const cctv = useFeed<CctvCamera>(`${API_BASE}/api/cctv`, 10 * 60_000);
+  // CCTV water-gauge watch — reads WL-camera stills on water lenses and posts
+  // `water-rising` cv-events where telemetry doesn't reach.
+  useGaugeWatch(cctv.data, API_BASE, lens === "flood" || lens === "safety" || lens === "environment");
 
   // CCTV pulse radius — when a camera is highlighted, a separate halo
   // layer renders on the map with an oscillating radius (rAF). The radius
@@ -2594,6 +2599,12 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
             fallbackTier={waterGauges.data.length > 0
               ? (waterGauges.fallbackTier === "loading" ? undefined : waterGauges.fallbackTier)
               : (reservoirs.fallbackTier === "loading" ? undefined : reservoirs.fallbackTier)}
+          />
+          <CvGaugePanel
+            cameras={cctv.data}
+            apiBase={API_BASE}
+            ageMinutes={cctv.ageMinutes}
+            fallbackTier={cctv.fallbackTier === "loading" ? undefined : cctv.fallbackTier}
           />
         </RailSection>
 
