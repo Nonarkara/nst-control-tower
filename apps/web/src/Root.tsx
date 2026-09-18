@@ -12,10 +12,31 @@ const TerminalDashboard = lazy(() =>
   import("./components/terminal/TerminalDashboard").then((m) => ({ default: m.TerminalDashboard })),
 );
 
+// /data — the open-data workbench (every data.go.th dataset for the province).
+// Its own lazy chunk so the map bundle never carries it.
+const DataWorkbenchPage = lazy(() => import("./components/data/DataWorkbenchPage"));
+
 type Mode = "geo" | "terminal";
 const KEY = "nst:mode";
 
+function isDataRoute(): boolean {
+  return /^\/data(\/|$)/.test(window.location.pathname);
+}
+
 export function Root() {
+  if (isDataRoute()) {
+    return (
+      <LocaleProvider>
+        <Suspense fallback={<div style={{ position: "fixed", inset: 0, background: "var(--paper)" }} />}>
+          <DataWorkbenchPage />
+        </Suspense>
+      </LocaleProvider>
+    );
+  }
+  return <Dashboard />;
+}
+
+function Dashboard() {
   const [mode, setMode] = useState<Mode>(() => {
     try { return (localStorage.getItem(KEY) as Mode) || "geo"; } catch { return "geo"; }
   });

@@ -48,3 +48,4 @@ SIWW*/
 # scripts/crawlDataGoTh.ts + scripts/buildDatasetManifest.ts; the slim
 # checked-in index lives at apps/api/src/data/localDatasets.ts)
 apps/api/datasets/
+.venv-data/

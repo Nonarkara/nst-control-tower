@@ -224,6 +224,10 @@ export function TopBar({
         <button type="button" className="btn" onClick={onOpenCatalog} aria-label="Open source catalog">
           Source catalog
         </button>
+        {/* Every data.go.th dataset for the province, parsed into tables. */}
+        <a className="btn" href="/data" aria-label="Open data — every data.go.th dataset for Nakhon Si Thammarat as searchable tables">
+          Data
+        </a>
         <button type="button" className="btn" onClick={onOpenAtlas} aria-label="Open atlas — outcome indicators and data sources">
           Atlas
         </button>

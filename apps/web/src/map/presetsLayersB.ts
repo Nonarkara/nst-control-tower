@@ -15,6 +15,8 @@ export const ALL_LAYERS_PART_B: LayerEntry[] = [
     describe: "All ~26 real HII/RID telemetry water-level stations in the province, coloured by official situation level (5 overbank = critical, 4 high = warning, 1–3 normal). Hover any dot for live level vs bank, channel fullness %, discharge vs rated qmax, and trend. Updates ~10 min." },
   { id: "flood-extent-2025", label: "Flooded Nov 2025 (GISTDA SAR)", swatch: "#E69F00", group: "environment",
     describe: "Where the water actually went in the Nov 2025 southern flood — satellite (SAR) derived flooded area per tambon from GISTDA, 218 NST tambons / ~261,000 rai. A real footprint, not a hand-drawn risk box; static reference for 'which tambons flood first'." },
+  { id: "evac-villages",     label: "Villages to move first", swatch: "#DC2626", group: "environment",
+    describe: "Flood-risk villages from the provincial register (data.go.th, 437 with coordinates) ranked live: move now / get ready / watch, from gauges, flash-flood alarms and rain within 8 km. Dot size = estimated bedridden + homebound residents (district rate × village population). White ring = residents must leave when it floods." },
   { id: "level-posts",       label: "Water-level posts (GISTDA)", swatch: "#56B4E9", group: "environment",
     describe: "The physical เสาระดับ staff-gauge posts and small telemetry units on NST's canals (คลองท่าดี, ท่าวัง, คูพาย, นครน้อย …) — the posts the municipal water-level cameras watch. 13 in the province, with the highest level ever recorded on each. GISTDA portal, static reference." },
   { id: "rain-stations",     label: "Rain telemetry (24 h)",     swatch: "#56B4E9", group: "environment",

@@ -7,19 +7,36 @@
  *   apps/api/datasets/meta/{id}.json        — raw CKAN package_show JSON, one per dataset
  *   apps/api/datasets/files/{id}/{n}.{ext}  — downloaded resource (≤ MAX_BYTES, see .env)
  *
+ * Resumable: re-running reuses meta/{id}.json and any rNN.* file already on
+ * disk, and does not re-try non-tabular resources (PDF, ZIP, …) that failed in
+ * the previous manifest unless RETRY_FAILED=1. Run from repo root:
+ *   npx tsx scripts/crawlDataGoTh.ts
+ * catalog.dopa.go.th serves an incomplete TLS chain that Node's fetch rejects;
+ * any failed fetch is retried once with the system `curl`, which accepts it.
+ *
+ * National datasets that ship one file per province (e.g. "… 76 จังหวัด") only
+ * download the นครศรีธรรมราช file; the other provinces stay in the manifest as
+ * "skipped" with their source URL.
+ *
  * Limit (HTTP-bytes) — per the user's chosen scope ("metadata + small files ≤10 MB").
  * Big resources are listed in the manifest with the original data.go.th URL, so the
  * catalog page can show a "open at source" link instead of shipping a copy.
  */
 
-import { mkdir, writeFile, stat } from "node:fs/promises";
-import { existsSync, createWriteStream } from "node:fs";
+import { mkdir, writeFile, stat, readFile, readdir } from "node:fs/promises";
+import { existsSync, createWriteStream, readFileSync } from "node:fs";
 import { join, extname, resolve } from "node:path";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 
 const Q = "นครศรีธรรมราช";
 const CKAN = "https://data.go.th/api/3/action";
 const ROOT = resolve(process.cwd(), "apps/api/datasets");
 const MAX_BYTES = 10 * 1024 * 1024; // 10 MB per resource
+/** The province's own file inside a national per-province dataset may be bigger. */
+const MAX_BYTES_OWN = 60 * 1024 * 1024;
+const PROVINCES: string[] = JSON.parse(readFileSync(resolve(process.cwd(), "scripts/thaiProvinces.json"), "utf8"));
+const run = promisify(execFile);
 const PAGE = 100;
 
 interface Resource {
@@ -145,7 +162,28 @@ function safeExt(url: string, format?: string): string {
   return m ? "." + m[1].toLowerCase() : "";
 }
 
-async function downloadResource(pkgId: string, res: CkanResource, idx: number): Promise<{
+/** A per-province file of a national dataset that is not ours (see header). */
+export function isOtherProvince(resName: string, siblingCount: number): boolean {
+  if (siblingCount < 20 || resName.includes(Q)) return false;
+  return PROVINCES.some((p) => p !== Q && resName.includes(p));
+}
+
+function isOwnFileOfNationalSet(resName: string, siblingCount: number): boolean {
+  return siblingCount >= 20 && resName.includes(Q);
+}
+
+/** Fallback for hosts whose TLS chain Node rejects (see header). */
+async function curlDownload(url: string, fullPath: string, maxBytes: number): Promise<number | null> {
+  try {
+    await run("curl", ["-sSfL", "--max-time", "120", "--max-filesize", String(maxBytes), "-A", "nst-control-tower/1.0", "-o", fullPath, url]);
+    const s = await stat(fullPath);
+    return s.size > 0 ? s.size : null;
+  } catch {
+    return null;
+  }
+}
+
+async function downloadResource(pkgId: string, res: CkanResource, idx: number, siblings: number): Promise<{
   localPath: string | null;
   status: Resource["downloadStatus"];
   size: number | null;
@@ -154,14 +192,29 @@ async function downloadResource(pkgId: string, res: CkanResource, idx: number): 
   if (!res.url || res.url.startsWith("http://") === false && res.url.startsWith("https://") === false) {
     return { localPath: null, status: "skipped", size: null };
   }
+  if (isOtherProvince(res.name ?? "", siblings)) {
+    return { localPath: null, status: "skipped", size: null };
+  }
+  const maxBytes = isOwnFileOfNationalSet(res.name ?? "", siblings) ? MAX_BYTES_OWN : MAX_BYTES;
   const declared = typeof res.size === "number" ? res.size : null;
-  if (declared !== null && declared > MAX_BYTES) {
+  if (declared !== null && declared > maxBytes) {
     return { localPath: null, status: "oversize", size: declared };
   }
   const ext = safeExt(res.url, res.format);
-  const fileName = `r${String(idx).padStart(2, "0")}${ext}`;
+  const prefix = `r${String(idx).padStart(2, "0")}`;
+  const fileName = `${prefix}${ext}`;
   const dir = join(ROOT, "files", pkgId);
   const fullPath = join(dir, fileName);
+  const existing = await findExisting(dir, prefix);
+  if (existing) {
+    const s = await stat(join(dir, existing));
+    if (s.size > 0) return { localPath: `files/${pkgId}/${existing}`, status: "ok", size: s.size };
+  }
+  const prev = previous.get(`${pkgId}::${idx}`);
+  const tabular = TABULAR.has((res.format ?? "").toUpperCase());
+  if (prev && prev !== "ok" && !tabular && process.env.RETRY_FAILED !== "1") {
+    return { localPath: null, status: prev, size: null };
+  }
   try {
     await mkdir(dir, { recursive: true });
     let got = 0;
@@ -176,7 +229,7 @@ async function downloadResource(pkgId: string, res: CkanResource, idx: number): 
       });
       if (!r.ok) return { localPath: null, status: "fetch-failed", size: null };
       const len = r.headers.get("content-length");
-      if (len && Number(len) > MAX_BYTES) {
+      if (len && Number(len) > maxBytes) {
         return { localPath: null, status: "oversize", size: Number(len) };
       }
       const body = r.body;
@@ -188,7 +241,7 @@ async function downloadResource(pkgId: string, res: CkanResource, idx: number): 
         if (done) break;
         if (!value) continue;
         got += value.byteLength;
-        if (got > MAX_BYTES) {
+        if (got > maxBytes) {
           aborted = true;
           await reader.cancel();
           break;
@@ -207,13 +260,41 @@ async function downloadResource(pkgId: string, res: CkanResource, idx: number): 
     const s = await stat(fullPath);
     return { localPath: `files/${pkgId}/${fileName}`, status: "ok", size: s.size };
   } catch {
+    const size = await curlDownload(res.url, fullPath, maxBytes);
+    if (size !== null) return { localPath: `files/${pkgId}/${fileName}`, status: "ok", size };
     return { localPath: null, status: "fetch-failed", size: null };
   }
+}
+
+const TABULAR = new Set(["CSV", "XLS", "XLSX", "JSON"]);
+/** previous manifest status keyed by `${pkgId}::${idx}` — lets a re-run skip known failures. */
+const previous = new Map<string, Resource["downloadStatus"]>();
+
+async function findExisting(dir: string, prefix: string): Promise<string | null> {
+  if (!existsSync(dir)) return null;
+  const names = await readdir(dir);
+  return names.find((n) => n === prefix || n.startsWith(prefix + ".")) ?? null;
+}
+
+async function loadPrevious(): Promise<void> {
+  const p = join(ROOT, "manifest.json");
+  if (!existsSync(p)) return;
+  const m = JSON.parse(await readFile(p, "utf8")) as Manifest;
+  for (const d of m.datasets) {
+    d.resources.forEach((r, i) => previous.set(`${d.id}::${i}`, r.downloadStatus));
+  }
+}
+
+async function loadOrShow(name: string): Promise<CkanPackage> {
+  const p = join(ROOT, "meta", `${name}.json`);
+  if (existsSync(p)) return JSON.parse(await readFile(p, "utf8")) as CkanPackage;
+  return (await showOne(name)) as CkanPackage;
 }
 
 async function main(): Promise<void> {
   await mkdir(join(ROOT, "files"), { recursive: true });
   await mkdir(join(ROOT, "meta"), { recursive: true });
+  await loadPrevious();
 
   const allResults = await listAll();
   console.log(`Listing returned ${allResults.length} datasets.`);
@@ -227,7 +308,7 @@ async function main(): Promise<void> {
     const row = allResults[i] as { name: string };
     let pkg: CkanPackage;
     try {
-      pkg = (await showOne(row.name)) as CkanPackage;
+      pkg = await loadOrShow(row.name);
     } catch (err) {
       console.warn(`[${i + 1}/${allResults.length}] skip ${row.name}: ${(err as Error).message}`);
       continue;
@@ -238,7 +319,7 @@ async function main(): Promise<void> {
     for (let r = 0; r < pkg.resources.length; r++) {
       const res = pkg.resources[r];
       if (!res) continue;
-      const outcome = await downloadResource(pkg.name, res, r);
+      const outcome = await downloadResource(pkg.name, res, r, pkg.resources.length);
       resources.push({
         id: resourceId(pkg.name, res.id, r),
         url: res.url,

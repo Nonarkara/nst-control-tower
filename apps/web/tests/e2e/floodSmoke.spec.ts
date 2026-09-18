@@ -114,3 +114,20 @@ test.describe("SENSOR SITUATION — FloodDash + AirDash board", () => {
     await expect(floodAnalysis).toHaveAttribute("aria-expanded", "true");
   });
 });
+
+test.describe("PEOPLE FIRST — who to move first", () => {
+  test("ranks the village register and states where its numbers come from", async ({ page }) => {
+    await stubHiiSurvey(page);
+    await page.goto("/");
+    await expect(page.locator(".map-host")).toBeVisible({ timeout: 20_000 });
+    await selectLens(page, "FLOOD");
+
+    const panel = page.getByRole("region", { name: "Who to move first" });
+    await expect(panel).toBeVisible({ timeout: 15_000 });
+    // The register is a static file, so the summary renders even with no backend.
+    await expect(panel.getByText(/villages to move now/)).toBeVisible({ timeout: 15_000 });
+    // Honesty contract: estimates are labelled and names stay with the health office.
+    await expect(panel.getByText(/so they are estimates/)).toBeVisible();
+    await expect(panel.getByText(/held by the local health office/)).toBeVisible();
+  });
+});

@@ -4531,11 +4531,8 @@ export function waterwayFlowLayer(
 // All in a single PathLayer keyed off `PreparedFlowLine[]` (the same digest the
 // dots use), so a single feature change recomputes everything.
 
-const CHEVRON_PER_DEG = 0.025;     // one chevron per ~2.8 km of river length
-const CHEVRON_MIN = 3;
 const CHEVRON_MAX = 14;
-const CHEVRON_SIZE_DEG = 0.0014;   // ~150 m chevron arm length at unit scale
-const CHEVRON_HALF_WIDTH_DEG = 0.0007;  // ~75 m wing spread at unit scale
+const ARROW_SPACING_DEG: Record<0 | 1 | 2, number> = { 0: 0.09, 1: 0.036, 2: 0.015 };
 
 type FlowPath = {
   path: [number, number][];
@@ -4546,26 +4543,28 @@ type FlowPath = {
 
 /** Three-point chevron polyline (wing1, tip, wing2) pointing downstream at
  *  `count` evenly-spaced fractions of a line of `total` length (in degrees). */
-function chevronPolylinesAlongLine(
-  coords: [number, number][],
-  count: number,
-  sizeDeg: number,
-  halfWidth: number,
-): [number, number][][] {
-  if (coords.length < 2 || count <= 0 || sizeDeg <= 0) return [];
+
+
+/** Screen-space flow arrow: where it sits, which way it points (deg, CCW from east). */
+export interface FlowArrow {
+  position: [number, number];
+  angle: number;
+  color: [number, number, number, number];
+  size: number;
+}
+
+/** Evenly spaced arrow anchors along a polyline, pointing downstream. */
+export function arrowPointsAlongLine(coords: [number, number][], count: number): Array<{ position: [number, number]; angle: number }> {
+  if (coords.length < 2 || count <= 0) return [];
   const total = lineLengthDeg(coords);
   if (total <= 0) return [];
-  const out: [number, number][][] = [];
+  const out: Array<{ position: [number, number]; angle: number }> = [];
   for (let i = 1; i <= count; i++) {
-    const frac = i / (count + 1);
-    const targetDist = frac * total;
+    const targetDist = (i / (count + 1)) * total;
     let cumDist = 0;
     let idx = 0;
     while (idx < coords.length - 1) {
-      const segLen = Math.hypot(
-        coords[idx + 1][0] - coords[idx][0],
-        coords[idx + 1][1] - coords[idx][1],
-      );
+      const segLen = Math.hypot(coords[idx + 1][0] - coords[idx][0], coords[idx + 1][1] - coords[idx][1]);
       if (cumDist + segLen >= targetDist) break;
       cumDist += segLen;
       idx++;
@@ -4574,29 +4573,64 @@ function chevronPolylinesAlongLine(
     const a = coords[idx];
     const b = coords[idx + 1];
     const segLen = Math.hypot(b[0] - a[0], b[1] - a[1]);
-    const t = segLen > 0 ? (targetDist - cumDist) / segLen : 0;
-    const cx = a[0] + t * (b[0] - a[0]);
-    const cy = a[1] + t * (b[1] - a[1]);
-    const dx = b[0] - a[0];
-    const dy = b[1] - a[1];
-    const mag = Math.hypot(dx, dy);
-    if (mag === 0) continue;
-    const ux = dx / mag;
-    const uy = dy / mag;
-    const px = -uy;
-    const py = ux;
-    const tip: [number, number] = [cx + ux * sizeDeg, cy + uy * sizeDeg];
-    const w1: [number, number] = [
-      cx - ux * sizeDeg * 0.4 + px * halfWidth,
-      cy - uy * sizeDeg * 0.4 + py * halfWidth,
-    ];
-    const w2: [number, number] = [
-      cx - ux * sizeDeg * 0.4 - px * halfWidth,
-      cy - uy * sizeDeg * 0.4 - py * halfWidth,
-    ];
-    out.push([w1, tip, w2]);
+    if (segLen === 0) continue;
+    const t = (targetDist - cumDist) / segLen;
+    out.push({
+      position: [a[0] + t * (b[0] - a[0]), a[1] + t * (b[1] - a[1])],
+      angle: (Math.atan2(b[1] - a[1], b[0] - a[0]) * 180) / Math.PI,
+    });
   }
   return out;
+}
+
+// A chevron pointing east (0°), drawn white on a canvas so IconLayer can tint
+// it (mask). Built in-memory: deck.gl fetches icon URLs, and the CSP's
+// connect-src (rightly) doesn't allow data: URLs, which silently drew nothing.
+let flowArrowAtlas: HTMLCanvasElement | null = null;
+function getFlowArrowAtlas(): HTMLCanvasElement | null {
+  if (flowArrowAtlas || typeof document === "undefined") return flowArrowAtlas;
+  const c = document.createElement("canvas");
+  c.width = 32;
+  c.height = 32;
+  const ctx = c.getContext("2d");
+  if (!ctx) return null;
+  ctx.strokeStyle = "white";
+  ctx.lineWidth = 6;
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  ctx.beginPath();
+  ctx.moveTo(9, 5);
+  ctx.lineTo(23, 16);
+  ctx.lineTo(9, 27);
+  ctx.stroke();
+  flowArrowAtlas = c;
+  return c;
+}
+const FLOW_ARROW_MAPPING = { arrow: { x: 0, y: 0, width: 32, height: 32, anchorX: 16, anchorY: 16, mask: true } };
+
+/**
+ * Flow arrows at a FIXED SCREEN SIZE (10–14 px). The old chevrons were drawn in
+ * map degrees (~150–240 m arms), so they grew with zoom — ~25 px at city
+ * scale, ~100 px at street scale — and the red Tha Dee ones buried the river.
+ */
+export function waterwayFlowArrowsLayer(arrows: FlowArrow[]): IconLayer<FlowArrow> {
+  return new IconLayer<FlowArrow>({
+    id: "waterway-flow-arrows",
+    data: arrows,
+    getPosition: (d) => d.position,
+    getAngle: (d) => d.angle,
+    // deck's "image" prop accepts a canvas at runtime; its TS type only lists
+    // string | Texture.
+    iconAtlas: (getFlowArrowAtlas() ?? undefined) as unknown as string | undefined,
+    iconMapping: FLOW_ARROW_MAPPING,
+    getIcon: () => "arrow",
+    getSize: (d) => d.size,
+    sizeUnits: "pixels",
+    getColor: (d) => d.color,
+    billboard: true,
+    pickable: false,
+    parameters: { depthWriteEnabled: false, depthCompare: "always" },
+  });
 }
 
 /**
@@ -4615,81 +4649,61 @@ export function waterwayFlowDirectionLayer(
   zoomBucket: 0 | 1 | 2 = 2,
   /** See waterwayFlowLayer — lifts the zoom gate for a pre-thinned trunk set. */
   opts: { overview?: boolean } = {},
-): PathLayer<FlowPath> | null {
+): Layer[] | null {
   if (zoomBucket < 2 && !opts.overview) return null;
   const paths: FlowPath[] = [];
+  const arrows: FlowArrow[] = [];
   for (const line of prepared) {
     const total = lineLengthDeg(line.coords);
     if (total <= 0) continue;
 
-    // Flow class → line width: slow 1.5 px, medium 3 px, fast 5.5 px. The line
-    // itself becomes the magnitude signal.
+    // Flow class → line width: slow 1.5 px, medium 3 px, fast 4.5 px. The line
+    // itself is the magnitude signal.
     const lineWidth =
-      line.color === FLOW_CLASS_COLOR.fast ? 5.5
+      line.color === FLOW_CLASS_COLOR.fast ? 4.5
       : line.color === FLOW_CLASS_COLOR.slow ? 1.5
       : 3;
-    const lineAlpha = line.gauged ? 255 : 230;
     paths.push({
       path: line.coords,
       kind: "line",
       width: lineWidth,
-      color: [line.color[0], line.color[1], line.color[2], lineAlpha],
+      color: [line.color[0], line.color[1], line.color[2], line.gauged ? 255 : 230],
     });
 
-    // Chevrons sized by flow class. Fast → big bright; slow → small dim.
-    const nChevrons = Math.max(
-      CHEVRON_MIN,
-      Math.min(CHEVRON_MAX, Math.round(total / CHEVRON_PER_DEG)),
-    );
-    const sizeScale =
-      line.color === FLOW_CLASS_COLOR.fast ? 1.6
-      : line.color === FLOW_CLASS_COLOR.slow ? 0.7
-      : 1;
-    const sizeDeg = CHEVRON_SIZE_DEG * sizeScale;
-    const halfWidth = CHEVRON_HALF_WIDTH_DEG * sizeScale;
-    const chevrons = chevronPolylinesAlongLine(
-      line.coords,
-      nChevrons,
-      sizeDeg,
-      halfWidth,
-    );
-    // Chevrons get a bright tint (whitened toward white) so they pop against
-    // the line they sit on. Same hue, more luminance.
-    const chevColor: [number, number, number] = [
-      Math.min(255, line.color[0] + (255 - line.color[0]) * 0.45),
-      Math.min(255, line.color[1] + (255 - line.color[1]) * 0.45),
-      Math.min(255, line.color[2] + (255 - line.color[2]) * 0.45),
+    // Arrow spacing follows the zoom so they stay ~40–80 px apart on screen:
+    // ~10 km at province scale, ~4 km at city scale, ~1.7 km on streets.
+    // Small and fixed-size so they mark direction without covering the river.
+    const perDeg = ARROW_SPACING_DEG[zoomBucket];
+    const n = Math.max(1, Math.min(CHEVRON_MAX, Math.round(total / perDeg)));
+    const tint: [number, number, number, number] = [
+      Math.min(255, line.color[0] + (255 - line.color[0]) * 0.35),
+      Math.min(255, line.color[1] + (255 - line.color[1]) * 0.35),
+      Math.min(255, line.color[2] + (255 - line.color[2]) * 0.35),
+      line.gauged ? 255 : 235,
     ];
-    const chevAlpha = line.gauged ? 255 : 245;
-    const chevWidth =
-      line.color === FLOW_CLASS_COLOR.fast ? 5
-      : line.color === FLOW_CLASS_COLOR.slow ? 2.5
-      : 3.5;
-    for (const c of chevrons) {
-      paths.push({
-        path: c,
-        kind: "chevron",
-        width: chevWidth,
-        color: [chevColor[0], chevColor[1], chevColor[2], chevAlpha],
-      });
-    }
+    const base = zoomBucket === 0 ? 11 : 13;
+    const size = line.color === FLOW_CLASS_COLOR.fast ? base + 2 : line.color === FLOW_CLASS_COLOR.slow ? base - 2 : base;
+    for (const a of arrowPointsAlongLine(line.coords, n)) arrows.push({ ...a, color: tint, size });
   }
 
-  return new PathLayer<FlowPath>({
-    id: "waterway-flow-direction",
-    data: paths,
-    getPath: (d) => d.path,
-    getColor: (d) => d.color,
-    getWidth: (d) => d.width,
-    widthUnits: "pixels",
-    widthMinPixels: 1.5,
-    widthMaxPixels: 8,
-    capRounded: true,
-    jointRounded: false,
-    billboard: false,
-    pickable: false,
-    parameters: { depthWriteEnabled: false, depthCompare: "always" },
-  });
+  return [
+    new PathLayer<FlowPath>({
+      id: "waterway-flow-direction",
+      data: paths,
+      getPath: (d) => d.path,
+      getColor: (d) => d.color,
+      getWidth: (d) => d.width,
+      widthUnits: "pixels",
+      widthMinPixels: 1.5,
+      widthMaxPixels: 6,
+      capRounded: true,
+      jointRounded: true,
+      billboard: false,
+      pickable: false,
+      parameters: { depthWriteEnabled: false, depthCompare: "always" },
+    }) as Layer,
+    waterwayFlowArrowsLayer(arrows) as Layer,
+  ];
 }
 
 // ── Conflict incidents (ACLED / Deep South) — critical-hue lightness steps, sized by deaths ──
@@ -5335,3 +5349,31 @@ export {
   type ProvincialRoadProps,
 } from "../lib/hydroMap";
 export { cityPoisLayer, type CityPoisProps } from "../lib/cityPois";
+
+// ── Who to move first — at-risk villages coloured by live evacuation tier ──
+/**
+ * Villages from the provincial flood-risk register, drawn only when a live
+ * signal (or flood season for must-evacuate villages) puts them on the list.
+ * Colour = tier (move now / get ready / watch), size = people who need
+ * someone to move them (estimated bedridden + homebound). A white ring marks
+ * villages whose residents must leave when it floods.
+ */
+export function evacVillagesLayer(rows: import("../lib/evacPriority").EvacRow[]) {
+  const listed = rows.filter((r) => r.tier !== "calm");
+  const level = (t: string) => (t === "move-now" ? "critical" : t === "get-ready" ? "warning" : "watch") as "critical" | "warning" | "watch";
+  return new ScatterplotLayer<import("../lib/evacPriority").EvacRow>({
+    id: "evac-villages",
+    data: listed,
+    getPosition: (r) => [r.village.lng, r.village.lat],
+    getRadius: (r) => 6 + Math.min(10, Math.sqrt(r.needHelp ?? 4) * 1.6),
+    radiusUnits: "pixels",
+    getFillColor: (r) => statusRgba(level(r.tier), r.tier === "watch" ? 170 : 235),
+    stroked: true,
+    getLineColor: (r) => (r.village.mustEvacuate ? [255, 255, 255, 240] : [15, 13, 10, 200]),
+    getLineWidth: (r) => (r.village.mustEvacuate ? 2.5 : 1),
+    lineWidthUnits: "pixels",
+    pickable: true,
+    updateTriggers: { getFillColor: listed, getRadius: listed },
+  });
+}
+

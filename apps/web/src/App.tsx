@@ -141,6 +141,7 @@ import {
   wrfRainGridLayer,
   southProvinceWatchLayer,
   levelPostsLayer,
+  evacVillagesLayer,
   floodExtentLayer,
   southRiverCascadeLayer,
   type FloodMarkProps,
@@ -230,6 +231,8 @@ import { isTrunkWaterway, stitchThaDeePath, THA_DEE_WAY_IDS, type WaterwayFeatur
 import type { GistdaLevelPost, GistdaFloodExtentTambon } from "@nst/shared";
 import { LevelWatchPanel } from "./components/LevelWatchPanel";
 import { SituationHeadline } from "./components/SituationHeadline";
+import { EvacuationPanel } from "./components/EvacuationPanel";
+import { rankEvacuation, summarizeEvacuation, villageLabel, type EvacData, type EvacRow } from "./lib/evacPriority";
 import type { NasaEarthReadings, FacebookPost } from "@nst/shared";
 import { useDevicePresence } from "./hooks/useDevicePresence";
 import { useIsMobile } from "./hooks/useMediaQuery";
@@ -925,6 +928,17 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
         lines.push("GISTDA SAR flood extent · Nov 2025 · reference");
         break;
       }
+      case "evac-villages": {
+        const r = o as unknown as EvacRow;
+        const tierWord = r.tier === "move-now" ? "MOVE NOW · ย้ายทันที" : r.tier === "get-ready" ? "GET READY · เตรียมย้าย" : "WATCH · เฝ้าระวัง";
+        title = `${tierWord}`;
+        lines.push(villageLabel(r.village));
+        if (r.signals[0]) lines.push(r.signals[0].text);
+        if (r.village.population != null) lines.push(`${r.village.population.toLocaleString()} people · ${r.village.households?.toLocaleString() ?? "—"} homes`);
+        if (r.needHelp != null) lines.push(`~${r.est.bedridden} bedridden · ~${r.est.homebound} homebound (estimate)`);
+        if (r.village.mustEvacuate) lines.push("Residents must leave when it floods");
+        break;
+      }
       case "level-posts": {
         title = `📏 ${pick("name") ?? "Level post"}`;
         const vmax = num("vMaxM");
@@ -1337,6 +1351,33 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
   const waterGauges = useFeed<WaterGauge>(`${API_BASE}/api/water/gauges`, 10 * 60_000);
   const waterRain = useFeed<RainfallStation>(`${API_BASE}/api/water/rain`, 30 * 60_000);
   const ewsStations = useFeed<EwsStation>(`${API_BASE}/api/water/ews`, 15 * 60_000);
+  // Who to move first: the provincial flood-risk village register joined with
+  // population + district bedridden/homebound/disabled counts
+  // (scripts/buildEvacData.py), ranked live against the gauges below.
+  const [evacData, setEvacData] = useState<EvacData | null>(null);
+  useEffect(() => {
+    const ctrl = new AbortController();
+    fetch("/data/evac/villages.json", { signal: ctrl.signal })
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
+      .then((j: EvacData) => setEvacData(j))
+      .catch(() => { /* panel shows its loading/empty note; map layer stays empty */ });
+    return () => ctrl.abort();
+  }, []);
+  const evacRows = useMemo<EvacRow[]>(
+    () =>
+      evacData
+        ? rankEvacuation({
+            data: evacData,
+            gauges: waterGauges.data,
+            basins: waterBalance.data,
+            ews: ewsStations.data,
+            rain: waterRain.data,
+            cameras: cctv.data.filter((c) => c.category === "water"),
+          })
+        : [],
+    [evacData, waterGauges.data, waterBalance.data, ewsStations.data, waterRain.data, cctv.data],
+  );
+  const evacSummary = useMemo(() => summarizeEvacuation(evacRows), [evacRows]);
   const ridReservoirs = useFeed<RidReservoir>(`${API_BASE}/api/water/reservoirs-rid`, 60 * 60_000);
   // GISTDA water-level posts (static reference, 2021 upload) — daily is plenty.
   const levelPosts = useFeed<GistdaLevelPost>(`${API_BASE}/api/gistda/level-posts`, 24 * 60 * 60_000);
@@ -1633,6 +1674,8 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
       out.push(cctvLayer(cctv.data.filter((c) => c.category === "water"), "cctv-water-level") as Layer);
     if (enabledLayers.has("level-posts") && levelPosts.data.length > 0)
       out.push(levelPostsLayer(levelPosts.data) as Layer);
+    if (enabledLayers.has("evac-villages") && evacRows.length > 0)
+      out.push(evacVillagesLayer(evacRows) as Layer);
     if (enabledLayers.has("flood-extent-2025") && floodExtent.data.length > 0)
       out.push(floodExtentLayer(floodExtent.data) as Layer);
     if (enabledLayers.has("incidents-city-reports")) out.push(incidentLayer("incidents-city-reports", cityReports.data) as Layer);
@@ -1951,7 +1994,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
     waterGauges.data, waterRain.data, ewsStations.data,
     air4thai.data, airQuality.data,
     southernRisk.data, southernRivers.data,
-    thaDeeFlow, levelPosts.data, floodExtent.data,
+    thaDeeFlow, levelPosts.data, floodExtent.data, evacRows,
     watershedSummaries,
     waterBalance.data,
     floodMarks, wrfGrid.data,
@@ -1982,7 +2025,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
     // dot clouds sit on top.
     const radar = rainRadar.layer as Layer | null;
     const wwFlow = waterwayFlow.layer as Layer | null;
-    const wwDir = waterwayFlowDirection as Layer | null;
+    const wwDir = waterwayFlowDirection as Layer[] | null;
     const cctvPulse = cctvPulseLayer(highlightedCctvId, cctv.data, cctvPulseRadius);
     if (!streetFloodSimLayer && !flowAnim.layer && !radar && !wwFlow && !wwDir && !cctvPulse) return layers;
     return [
@@ -1990,7 +2033,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
       ...(streetFloodSimLayer ? [streetFloodSimLayer] : []),
       ...layers,
       ...(wwFlow ? [wwFlow] : []),
-      ...(wwDir ? [wwDir] : []),
+      ...(wwDir ?? []),
       ...(cctvPulse ? [cctvPulse] : []),
       ...(flowAnim.layer ? [flowAnim.layer as Layer] : []),
     ];
@@ -2019,6 +2062,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
     "cctv-cameras":           cctv.data.length,
     "cctv-water-level":       cctv.data.filter((c) => c.category === "water").length,
     "level-posts":            levelPosts.data.length,
+    "evac-villages":          evacRows.filter((r) => r.tier !== "calm").length,
     "flood-extent-2025":      floodExtent.data.length,
     "incidents-itic":         iticEvents.data.length,
     "incidents-city-reports": cityReports.data.length,
@@ -2202,6 +2246,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
           tier={waterGauges.fallbackTier}
           onFocus={(lng, lat) => flyTo(lng, lat, 14)}
           onOpenCamera={(c) => { highlightCamera(c.id); setSelectedCctv(c); }}
+          evac={evacData ? evacSummary : null}
         />
         {/* ── Mobile only: the world strip (weather + clocks), feed health, and
             the secondary actions relocate here so the Map tab stays a clean,
@@ -2334,6 +2379,19 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
 
         {/* LEVEL WATCH — every gauge / post above its watch, critical or bank
             level, with the nearest water-level camera one click away. */}
+        {/* WHO TO MOVE FIRST — villages ranked by live flood signals × people
+            who can't move alone (bedridden / homebound elderly). */}
+        <RailSection sectionKey="evacuation" lens={lens} title="People First">
+          <EvacuationPanel
+            rows={evacRows}
+            summary={evacSummary}
+            loading={evacData == null}
+            years={evacData?.years ?? null}
+            onFocus={(lng, lat) => flyTo(lng, lat, 14.5)}
+            onOpenCamera={(c) => { highlightCamera(c.id); setSelectedCctv(c); }}
+          />
+        </RailSection>
+
         <RailSection sectionKey="level-watch" lens={lens} title="Gauges Near Their Limit">
           <LevelWatchPanel
             gauges={waterGauges.data}

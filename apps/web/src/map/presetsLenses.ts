@@ -124,6 +124,8 @@ export type LayerId =
   | "air-waqi-field"
   | "level-posts"
   | "flood-extent-2025"
+  // Who to move first — flood-risk villages ranked by live signals
+  | "evac-villages"
   // 3D parametric landmarks — the great chedi at Wat Phra Mahathat
   // (bell + spire + ubosot + wihan + prang + ho trai + 8 satellite chedis)
   | "mahatat-3d"
@@ -209,6 +211,8 @@ export const LENSES: Lens[] = [
       "municipality-boundary-line",
       "waterways",
       "water-gauges",
+      // Villages to move first (only drawn when a live signal lists them).
+      "evac-villages",
     ],
   },
   {
@@ -225,6 +229,7 @@ export const LENSES: Lens[] = [
       "level-posts",
       "cctv-water-level",
       "dam-status",
+      "evac-villages",
       // Opt-in, not default: flood-extent-2025 / historical footprints and
       // every choropleth (they wash the whole view one colour), the
       // watershed cascade markers (their NEAR CAPACITY / ETA pills piled on
@@ -294,6 +299,7 @@ export const LENSES: Lens[] = [
       "flood-risk-zones",
       "flood-marks",
       "water-gauges",
+      "evac-villages",
       "ews-stations",
       "incidents-city-reports",
       "incidents-itic",

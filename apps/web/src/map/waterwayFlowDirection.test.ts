@@ -18,124 +18,79 @@ function line(
 }
 
 describe("waterwayFlowDirectionLayer", () => {
-  test("returns null below zoomBucket=2 (LOD gate)", () => {
+  type Arrow = { position: [number, number]; angle: number; size: number; color: [number, number, number, number] };
+  type PathEntry = { kind: string; width: number; color: [number, number, number, number] };
+  const parts = (prepared: ReturnType<typeof prepareWaterwayFlows>) => {
+    const layers = waterwayFlowDirectionLayer(prepared, 2) as unknown as Array<{ id: string; props: { data: unknown[]; sizeUnits?: string } }>;
+    const lines = layers.find((l) => l.id === "waterway-flow-direction")!;
+    const arrows = layers.find((l) => l.id === "waterway-flow-arrows")!;
+    return { lineData: lines.props.data as PathEntry[], arrows, arrowData: arrows.props.data as Arrow[] };
+  };
+
+  test("returns null below zoomBucket=2 (LOD gate) unless overview", () => {
     const prepared = prepareWaterwayFlows([line(LONG, { flowClass: "medium" })]);
     expect(waterwayFlowDirectionLayer(prepared, 0)).toBeNull();
     expect(waterwayFlowDirectionLayer(prepared, 1)).toBeNull();
+    expect(waterwayFlowDirectionLayer(prepared, 0, { overview: true })).not.toBeNull();
     expect(waterwayFlowDirectionLayer(prepared, 2)).not.toBeNull();
   });
 
-  test("returns null for empty prepared input", () => {
-    const layer = waterwayFlowDirectionLayer([], 2);
-    expect(layer).not.toBeNull();
-    // data is empty, just no paths to render
-    expect((layer as { props: { data: unknown[] } }).props.data).toEqual([]);
+  test("empty input still yields (empty) line + arrow layers", () => {
+    const { lineData, arrowData } = parts([]);
+    expect(lineData).toEqual([]);
+    expect(arrowData).toEqual([]);
   });
 
-  test("one line produces 1 line entry + N chevron entries (N ≥ 3)", () => {
-    const prepared = prepareWaterwayFlows([line(LONG, { flowClass: "medium" })]);
-    const layer = waterwayFlowDirectionLayer(prepared, 2) as { props: { data: { kind: string }[] } };
-    const lines = layer.props.data.filter((d) => d.kind === "line");
-    const chevrons = layer.props.data.filter((d) => d.kind === "chevron");
-    expect(lines).toHaveLength(1);
-    expect(chevrons.length).toBeGreaterThanOrEqual(3);
+  test("one line → one path and ≥ 3 arrows", () => {
+    const { lineData, arrowData } = parts(prepareWaterwayFlows([line(LONG, { flowClass: "medium" })]));
+    expect(lineData).toHaveLength(1);
+    expect(arrowData.length).toBeGreaterThanOrEqual(3);
   });
 
-  test("chevrons sit on the line's own coordinates (within bbox)", () => {
-    const prepared = prepareWaterwayFlows([line(LONG, { flowClass: "medium" })]);
-    const layer = waterwayFlowDirectionLayer(prepared, 2) as {
-      props: { data: { kind: string; path: [number, number][]; width: number }[] };
-    };
-    const chevrons = layer.props.data.filter((d) => d.kind === "chevron");
-    expect(chevrons.length).toBeGreaterThan(0);
-    for (const c of chevrons) {
-      // each chevron is a 3-point polyline, tip must sit within the line's bbox
-      const tip = c.path[1];
-      expect(tip[0]).toBeGreaterThanOrEqual(99.90 - 0.005);
-      expect(tip[0]).toBeLessThanOrEqual(99.93 + 0.005);
-      expect(tip[1]).toBeGreaterThanOrEqual(8.40 - 0.005);
-      expect(tip[1]).toBeLessThanOrEqual(8.43 + 0.005);
+  test("arrows are a fixed screen size (pixels), small enough not to bury the river", () => {
+    const { arrows, arrowData } = parts(prepareWaterwayFlows([line(LONG, { flowClass: "fast" })]));
+    expect(arrows.props.sizeUnits).toBe("pixels");
+    expect(arrowData.length).toBeGreaterThan(0);
+    for (const a of arrowData) {
+      expect(a.size).toBeGreaterThanOrEqual(8);
+      expect(a.size).toBeLessThanOrEqual(16);
     }
   });
 
-  test("chevron tip points downstream (NE direction along the line)", () => {
-    // The line goes SE→NE in coordinates, so flow is NE: tip should be NE
-    // of the wing midpoint. Compute tip - midpoint and check it has positive
-    // dx (east) and positive dy (north) within tolerance.
-    const prepared = prepareWaterwayFlows([line(LONG, { flowClass: "medium" })]);
-    const layer = waterwayFlowDirectionLayer(prepared, 2) as {
-      props: { data: { kind: string; path: [number, number][] }[] };
-    };
-    const chevrons = layer.props.data.filter((d) => d.kind === "chevron");
-    expect(chevrons.length).toBeGreaterThan(0);
-    for (const c of chevrons) {
-      const [w1, tip, w2] = c.path;
-      const mid = [(w1[0] + w2[0]) / 2, (w1[1] + w2[1]) / 2];
-      const dx = tip[0] - mid[0];
-      const dy = tip[1] - mid[1];
-      // Line points NE, so both dx and dy should be positive
-      expect(dx).toBeGreaterThan(0);
-      expect(dy).toBeGreaterThan(0);
+  test("arrows sit on the line and point downstream (NE)", () => {
+    const { arrowData } = parts(prepareWaterwayFlows([line(LONG, { flowClass: "medium" })]));
+    for (const a of arrowData) {
+      expect(a.position[0]).toBeGreaterThanOrEqual(99.90 - 0.005);
+      expect(a.position[0]).toBeLessThanOrEqual(99.93 + 0.005);
+      expect(a.position[1]).toBeGreaterThanOrEqual(8.40 - 0.005);
+      expect(a.position[1]).toBeLessThanOrEqual(8.43 + 0.005);
+      expect(a.angle).toBeGreaterThan(0);   // NE: between east (0°)…
+      expect(a.angle).toBeLessThan(90);     // …and north (90°)
     }
   });
 
-  test("chevron arm length scales with flowClass (fast > medium > slow)", () => {
-    const preparedSlow = prepareWaterwayFlows([line(LONG, { flowClass: "slow" })]);
-    const preparedFast = prepareWaterwayFlows([line(LONG, { flowClass: "fast" })]);
-    const slowLayer = waterwayFlowDirectionLayer(preparedSlow, 2) as {
-      props: { data: { kind: string; width: number; path: [number, number][] }[] };
-    };
-    const fastLayer = waterwayFlowDirectionLayer(preparedFast, 2) as {
-      props: { data: { kind: string; width: number; path: [number, number][] }[] };
-    };
-    const slowChev = slowLayer.props.data.filter((d) => d.kind === "chevron");
-    const fastChev = fastLayer.props.data.filter((d) => d.kind === "chevron");
-    expect(slowChev.length).toBeGreaterThan(0);
-    expect(fastChev.length).toBeGreaterThan(0);
-    // Width is bigger for fast (5 px) vs slow (2.5 px) vs medium (3.5 px)
-    const avg = (arr: number[]) => arr.reduce((a, b) => a + b, 0) / Math.max(1, arr.length);
-    expect(avg(fastChev.map((c) => c.width))).toBeGreaterThan(avg(slowChev.map((c) => c.width)));
+  test("fast rivers get bigger arrows and wider lines than slow ones", () => {
+    const slow = parts(prepareWaterwayFlows([line(LONG, { flowClass: "slow" })]));
+    const fast = parts(prepareWaterwayFlows([line(LONG, { flowClass: "fast" })]));
+    expect(fast.arrowData[0]!.size).toBeGreaterThan(slow.arrowData[0]!.size);
+    expect(fast.lineData[0]!.width).toBeGreaterThan(slow.lineData[0]!.width);
   });
 
-  test("line entry has its flow-class width (fast > medium > slow)", () => {
-    const slowLine = (waterwayFlowDirectionLayer(prepareWaterwayFlows([line(LONG, { flowClass: "slow" })]), 2) as {
-      props: { data: { kind: string; width: number }[] };
-    }).props.data.filter((d) => d.kind === "line")[0];
-    const mediumLine = (waterwayFlowDirectionLayer(prepareWaterwayFlows([line(LONG, { flowClass: "medium" })]), 2) as {
-      props: { data: { kind: string; width: number }[] };
-    }).props.data.filter((d) => d.kind === "line")[0];
-    const fastLine = (waterwayFlowDirectionLayer(prepareWaterwayFlows([line(LONG, { flowClass: "fast" })]), 2) as {
-      props: { data: { kind: string; width: number }[] };
-    }).props.data.filter((d) => d.kind === "line")[0];
-    expect(slowLine.width).toBeLessThan(mediumLine.width);
-    expect(mediumLine.width).toBeLessThan(fastLine.width);
-    expect(slowLine.width).toBeLessThan(fastLine.width);
-  });
-
-  test("gauged flows get full alpha + brighter chevron color", () => {
-    const base = prepareWaterwayFlows([line(LONG, { flowClass: "medium" })]);
-    const gauged = prepareWaterwayFlows(
+  test("gauged flows get full alpha", () => {
+    const base = parts(prepareWaterwayFlows([line(LONG, { flowClass: "medium" })]));
+    const gauged = parts(prepareWaterwayFlows(
       [line(LONG, { flowClass: "medium", name: "ท่าดี" })],
       (f) => (f.properties.name?.includes("ท่าดี") ? { speed: 2.0, color: [255, 255, 255] } : null),
-    );
-    const baseLayer = waterwayFlowDirectionLayer(base, 2) as {
-      props: { data: { kind: string; color: [number, number, number, number] }[] };
-    };
-    const gaugedLayer = waterwayFlowDirectionLayer(gauged, 2) as {
-      props: { data: { kind: string; color: [number, number, number, number] }[] };
-    };
-    const baseLine = baseLayer.props.data.filter((d) => d.kind === "line")[0];
-    const gaugedLine = gaugedLayer.props.data.filter((d) => d.kind === "line")[0];
-    expect(gaugedLine.color[3]).toBe(255);
-    expect(baseLine.color[3]).toBeLessThan(255);
+    ));
+    expect(gauged.lineData[0]!.color[3]).toBe(255);
+    expect(base.lineData[0]!.color[3]).toBeLessThan(255);
+    expect(gauged.arrowData[0]!.color[3]).toBe(255);
   });
 
-  test("sub-minimum stub lines produce no path entries", () => {
+  test("sub-minimum stub lines produce no paths or arrows", () => {
     const stub = line([[99.90, 8.40], [99.9001, 8.4001]], { flowClass: "medium" }); // ~15 m
-    const prepared = prepareWaterwayFlows([stub]);
-    const layer = waterwayFlowDirectionLayer(prepared, 2) as {
-      props: { data: { kind: string }[] };
-    };
-    expect(layer.props.data).toEqual([]);
+    const { lineData, arrowData } = parts(prepareWaterwayFlows([stub]));
+    expect(lineData).toEqual([]);
+    expect(arrowData).toEqual([]);
   });
 });

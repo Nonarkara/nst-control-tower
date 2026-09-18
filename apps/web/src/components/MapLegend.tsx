@@ -42,6 +42,12 @@ const LEGEND: Partial<Record<LayerId, Row[]>> = {
   "cctv-water-level": [{ mark: "dot", color: rgb(CCTV_CATEGORY_RGB.water), label: "Water-level camera" }],
   "cctv-cameras": [{ mark: "dot", color: rgb(CCTV_CATEGORY_RGB.traffic), label: "City camera (colour = camera type)" }],
   "dam-status": [{ mark: "dot", color: "var(--ink-2)", label: "Dam (colour = storage status)" }],
+  "evac-villages": [
+    { mark: "dot", color: "var(--bad)", label: "Village — move people now" },
+    { mark: "dot", color: "var(--alert)", label: "Village — get ready to move" },
+    { mark: "dot", color: "var(--warn)", label: "Village — watch (bigger = more people who need help)" },
+    { mark: "ring", color: "var(--ink)", label: "White ring — residents must leave when it floods" },
+  ],
   "flood-extent-2025": [{ mark: "fill", color: "var(--alert)", label: "Flooded in Nov 2025 (GISTDA satellite)" }],
 };
 
@@ -55,7 +61,9 @@ export function MapLegend({ enabled }: { enabled: ReadonlySet<LayerId> }) {
   if (rows.length === 0 && !buildings) return null;
 
   return (
-    <details className="map-legend" open>
+    // Starts open on wide screens only — on laptops/tablets a long key would
+    // cover the map it explains.
+    <details className="map-legend" open={rows.length <= 5 || (typeof window !== "undefined" && window.innerWidth >= 1600)}>
       <summary>Map key</summary>
       <ul className="map-legend__rows">
         {rows.map((r) => (

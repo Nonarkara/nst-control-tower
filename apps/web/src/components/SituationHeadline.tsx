@@ -9,6 +9,7 @@
 import type { BasinWaterBalance, FallbackTier, WaterGauge } from "@nst/shared";
 import type { CctvCamera } from "../map/layers";
 import { buildSituationHeadline } from "../lib/situationHeadline";
+import type { EvacSummary } from "../lib/evacPriority";
 import { STATUS } from "../lib/status";
 import { statusStyle } from "../lib/cityStatus";
 
@@ -20,9 +21,11 @@ interface Props {
   tier?: FallbackTier | "loading";
   onFocus: (lng: number, lat: number) => void;
   onOpenCamera: (camera: CctvCamera) => void;
+  /** Who-to-move-first totals; null while the village register loads. */
+  evac?: EvacSummary | null;
 }
 
-export function SituationHeadline({ gauges, basins, cameras, ageMinutes, tier, onFocus, onOpenCamera }: Props) {
+export function SituationHeadline({ gauges, basins, cameras, ageMinutes, tier, onFocus, onOpenCamera, evac }: Props) {
   const h = buildSituationHeadline({ gauges, basins, cameras, ageMinutes, tier });
   const st = STATUS[h.level];
 
@@ -36,6 +39,16 @@ export function SituationHeadline({ gauges, basins, cameras, ageMinutes, tier, o
       <p className="situation-headline__action">
         <span className="situation-headline__label">Suggested action</span> {h.action}
       </p>
+      {evac && (evac.moveNow > 0 || evac.getReady > 0) && (
+        <p className="situation-headline__evac">
+          <span className="situation-headline__label">People first</span>
+          {evac.moveNow > 0
+            ? `${evac.moveNow} village${evac.moveNow === 1 ? "" : "s"} to move now — about ${evac.needHelpMoveNow.toLocaleString()} bedridden or homebound residents need help to leave. `
+            : ""}
+          {evac.getReady > 0 ? `${evac.getReady} village${evac.getReady === 1 ? "" : "s"} to get ready. ` : ""}
+          See "People First" below.
+        </p>
+      )}
       {(h.gauge || h.camera) && (
         <div className="situation-headline__buttons">
           {h.gauge && (
