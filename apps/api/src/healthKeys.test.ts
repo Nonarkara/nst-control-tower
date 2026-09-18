@@ -45,6 +45,13 @@ describe("/api/health/keys", () => {
     expect(body.configured).toBe(1);
   });
 
+  it("lists Geoapify (isochrone reachability) in the registry", async () => {
+    const body = await getKeys({ ENVIRONMENT: "test", GEOAPIFY_API_KEY: "key123" });
+    const geo = body.keys.find((k) => k.key === "GEOAPIFY_API_KEY");
+    expect(geo?.configured).toBe(true);
+    expect(geo?.label).toBe("Geoapify");
+  });
+
   it("treats whitespace-only values as not configured", async () => {
     const body = await getKeys({ ENVIRONMENT: "test", AQICN_TOKEN: "   " });
     const aqicn = body.keys.find((k) => k.key === "AQICN_TOKEN");

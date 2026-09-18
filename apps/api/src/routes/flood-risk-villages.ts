@@ -3,12 +3,10 @@
  */
 import { Hono } from "hono";
 import { fetchFloodRiskVillages } from "../adapters/flood-risk-villages.js";
+import { safeFeed } from "../lib/feed.js";
 
 const app = new Hono();
 
-app.get("/", async (c) => {
-  const feed = await fetchFloodRiskVillages();
-  return c.json(feed);
-});
+app.get("/", async (c) => safeFeed(c, fetchFloodRiskVillages, "flood-risk-villages"));
 
 export default app;

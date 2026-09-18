@@ -14,9 +14,9 @@
  *
  * NOTE: Geoapify uses lat,lng order in the waypoints param (opposite of deck.gl).
  *
- * Typical use-cases for Yala municipal ops:
- *   - 15-min walk zone from the central circle (foot-traffic catchment)
- *   - Ambulance coverage from Yala Hospital
+ * Typical use-cases for NST municipal ops:
+ *   - 15-min walk zone from the Old Town clock tower (foot-traffic catchment)
+ *   - Ambulance coverage from Maharaj Hospital
  *   - Flood isolation check — which areas are still reachable after flooding
  *
  * Cache: 30 min TTL (geography changes slowly; free-tier credits are precious).
@@ -75,6 +75,7 @@ export async function fetchIsochrone(
         fetchedAt: new Date().toISOString(),
         ageMinutes: 0,
         fallbackTier: "unavailable",
+        note: "Missing GEOAPIFY_API_KEY env var — isochrone disabled (3,000 free credits/day at geoapify.com)",
       },
     };
   }

@@ -38,7 +38,6 @@ import { fetchWaterBalance } from "./adapters/waterBalance.js";
 import { fetchNationalWaterways } from "./adapters/waterways.js";
 import { fetchHistoricalRainfall } from "./adapters/historicalRain.js";
 import { fetchNationalFloodProne } from "./adapters/floodProne.js";
-import { fetchFloodRiskVillages } from "./adapters/flood-risk-villages.js";
 import { fetchUnosit2021Exposure } from "./adapters/unosatExposure.js";
 import { fetchEwsStations } from "./adapters/dwrEws.js";
 import { fetchRidReservoirs } from "./adapters/rid.js";
@@ -62,7 +61,8 @@ import { fetchNasaEarth } from "./adapters/nasa-power.js";
 import { fetchQuakes } from "./adapters/usgsQuakes.js";
 import { SOURCE_CATALOG, CHONBURI } from "@nst/shared";
 import type { NormalizedFeed, AirQualityPoint, IncidentFeature, IntelligenceItem, ExecutiveSnapshot, MarketSnapshot } from "@nst/shared";
-import { recordAdapterSuccess, recordAdapterError, getAllHealth, getSystemStatus } from "./lib/health.js";
+import { recordAdapterError, getAllHealth, getSystemStatus } from "./lib/health.js";
+import { setMetaHeaders, safeFeed } from "./lib/feed.js";
 import { getMqttStatus } from "./adapters/mqttBridge.js";
 import { twinDbStatus } from "./lib/twinDb.js";
 import twinApp from "./routes/twin.js";
@@ -218,6 +218,7 @@ const API_KEY_REGISTRY: { env: keyof Bindings; label: string; powers: string; ge
   { env: "DATA_GO_TH_TOKEN",  label: "data.go.th",  powers: "Thai open-data: reservoirs, disasters, provincial KPIs", getAt: "https://data.go.th" },
   { env: "AIRLABS_API_KEY",   label: "AirLabs",     powers: "NST airport FIDS — arrivals & departures (free: 1,000 req/month)", getAt: "https://airlabs.co" },
   { env: "GOOGLE_MAPS_API_KEY", label: "Google Maps", powers: "Street View, Geocoding, Places, Air Quality (server-side); 3D tiles + traffic (client)", getAt: "https://console.cloud.google.com/apis/credentials" },
+  { env: "GEOAPIFY_API_KEY", label: "Geoapify", powers: "Reachability polygons (isochrone: walk/drive catchments)", getAt: "https://www.geoapify.com/" },
 ];
 
 app.get("/api/health/keys", (c) => {
@@ -237,16 +238,6 @@ app.get("/api/db/status", async (c) => {
   c.header("Cache-Control", "no-store");
   return c.json(await twinDbStatus());
 });
-
-interface FeedMeta {
-  meta: { ageMinutes: number; fallbackTier: string; source: string };
-}
-
-function setMetaHeaders(c: { header: (k: string, v: string) => void }, feed: FeedMeta) {
-  c.header("x-source", feed.meta.source);
-  c.header("x-age-minutes", String(feed.meta.ageMinutes));
-  c.header("x-fallback-tier", feed.meta.fallbackTier);
-}
 
 const rateLimiter = new Map<string, { count: number; resetAt: number }>();
 // The dashboard legitimately fans out ~40-50 feed requests on first load, plus
@@ -285,33 +276,6 @@ app.use("/api/*", async (c, next) => {
   }
   await next();
 });
-
-async function safeFeed<T>(
-  c: { header: (k: string, v: string) => void; json: (obj: unknown, status?: number) => Response },
-  fetcher: () => Promise<NormalizedFeed<T>>,
-  adapterName?: string,
-): Promise<Response> {
-  try {
-    const feed = await fetcher();
-    setMetaHeaders(c, feed);
-    if (adapterName) {
-      // Treat "unavailable" fallback tier as a health error so the SOURCES catalog
-      // can surface missing-API-key conditions (and other silent failures) instead
-      // of just showing a green dot for a feed that returns zero features.
-      if (feed.meta.fallbackTier === "unavailable") {
-        recordAdapterError(adapterName, feed.meta.note ?? `Adapter unavailable (${feed.meta.source})`);
-      } else {
-        recordAdapterSuccess(adapterName, feed.meta.ageMinutes);
-      }
-    }
-    return c.json(feed);
-  } catch (err) {
-    const message = (err as Error).message ?? "Internal server error";
-    console.error(`API error [${adapterName ?? "unknown"}]:`, message);
-    if (adapterName) recordAdapterError(adapterName, message);
-    return c.json({ error: message }, 500);
-  }
-}
 
 app.get("/api/incidents/city-reports", async (c) => safeFeed(c, fetchCityReports, "city-reports"));
 app.get("/api/incidents/itic", async (c) => safeFeed(c, fetchItic, "itic"));
@@ -557,11 +521,7 @@ app.post("/api/concierge", async (c) => {
   const body = (await c.req.json().catch(() => ({}))) as { question?: string };
   return c.json(await askConcierge(body.question ?? "", { GEMINI_API_KEY: c.env.GEMINI_API_KEY }));
 });
-app.get("/api/datago/points", (c) => {
-  const feed = fetchDatagoPoints();
-  setMetaHeaders(c, feed);
-  return c.json(feed);
-});
+app.get("/api/datago/points", async (c) => safeFeed(c, async () => fetchDatagoPoints(), "datago-points"));
 app.get("/api/datago/datasets",  async (c) => safeFeed(c, fetchDatagoDatasets, "datago-datasets"));
 app.get("/api/datago/local-catalog", async (c) => safeFeed(c, fetchLocalCatalog, "datago-local-catalog"));
 app.get("/api/datago/dataset-detail", datasetDetailHandler);
@@ -580,7 +540,7 @@ app.get("/api/datago/fahfon",     async (c) => {
 });
 app.get("/api/datago/provincial-kpis", async (c) => {
   const token = c.env.DATA_GO_TH_TOKEN ?? "";
-  return safeFeed(c, () => fetchProvincialKPIs(token));
+  return safeFeed(c, () => fetchProvincialKPIs(token), "provincial-kpis");
 });
 app.get("/api/tourism-visitors", async (c) => safeFeed(c, fetchTourismVisitors, "tourism-visitors"));
 app.get("/api/gistda/poi",     async (c) => safeFeed(c, fetchGistdaPoi, "gistda-poi"));
@@ -707,7 +667,7 @@ app.get("/api/isochrone", async (c) => {
   }
 
   return safeFeed(c, () =>
-    fetchIsochrone(lng, lat, minutes, mode, c.env.GEOAPIFY_API_KEY));
+    fetchIsochrone(lng, lat, minutes, mode, c.env.GEOAPIFY_API_KEY), "isochrone");
 });
 
 // ── CCTV computer-vision events ───────────────────────────────────────────────
