@@ -103,46 +103,44 @@ function status(raw: number | string | null | undefined): EwsStation["status"] {
   return 0;
 }
 
+/** How long a last-good snapshot may stand in while DWR is down. Each station
+ *  still carries its own `stale` flag from its own timestamp. */
+const STALE_SERVE_S = 2 * 3600;
+
 export async function fetchEwsStations(): Promise<NormalizedFeed<EwsStation>> {
-  return cached("dwr-ews", TTL, async () => {
+  try {
+    return await cached("dwr-ews", TTL, fetchEwsInner, STALE_SERVE_S);
+  } catch (err) {
+    // Nothing good cached: an honest outage, not a cached empty "feed".
     const fetchedAt = new Date().toISOString();
+    return {
+      features: [],
+      meta: {
+        source: "dwr-ews",
+        fetchedAt,
+        ageMinutes: 0,
+        fallbackTier: "unavailable",
+        note: `DWR EWS unreachable — ${(err as Error).message}. Retries automatically.`,
+      },
+    };
+  }
+}
 
-    let raw: EwsRaw[] | null = null;
-    try {
-      const body = new FormData();
-      body.append("action", "LoadStation");
-      raw = await fetchJsonOrThrow<EwsRaw[]>(URL, {
-        method: "POST",
-        body,
-        headers: { "User-Agent": "Mozilla/5.0" },
-      });
-    } catch (err) {
-      return {
-        features: [],
-        meta: {
-          source: "dwr-ews",
-          fetchedAt,
-          ageMinutes: 0,
-          fallbackTier: "unavailable",
-          note: `DWR EWS fetch failed: ${(err as Error).message}`,
-        },
-      };
-    }
-
-    // fetchJsonOrThrow throws on non-OK / network / DNS failure; the try/catch
-    // above handles that. A non-null raw that isn't an array means upstream
-    // returned malformed data — treat it as empty.
-    if (raw == null || !Array.isArray(raw)) {
-      return {
-        features: [],
-        meta: {
-          source: "dwr-ews",
-          fetchedAt,
-          ageMinutes: 0,
-          fallbackTier: "unavailable",
-          note: "DWR EWS unreachable (ews.dwr.go.th — upstream/DNS). Resolves on public DNS; retries automatically.",
-        },
-      };
+// Throws on any failure so cachedWithStale serves the last good snapshot.
+// ews.dwr.go.th intermittently answers HTTP 522 (its origin times out) or an
+// empty list; before, that result was cached for the full TTL and the map
+// lost every flash-flood station for 15 minutes.
+async function fetchEwsInner(): Promise<NormalizedFeed<EwsStation>> {
+    const fetchedAt = new Date().toISOString();
+    const body = new FormData();
+    body.append("action", "LoadStation");
+    const raw = await fetchJsonOrThrow<EwsRaw[]>(URL, {
+      method: "POST",
+      body,
+      headers: { "User-Agent": "Mozilla/5.0" },
+    });
+    if (raw == null || !Array.isArray(raw) || raw.length === 0) {
+      throw new Error("DWR EWS returned no stations nationwide");
     }
 
     const features: EwsStation[] = raw
@@ -191,5 +189,4 @@ export async function fetchEwsStations(): Promise<NormalizedFeed<EwsStation>> {
         ...(features.length === 0 ? { note: "DWR EWS returned no NST stations" } : {}),
       },
     };
-  });
 }
