@@ -57,14 +57,23 @@ jobs:
       # step turns that into a loud red ❌ on PR/main instead of a 3-week drift.
       - name: Verify live bundle hash matches local
         run: |
-          LIVE=$(curl -sSL "https://nst-control-tower.pages.dev/" | grep -oE 'index-[A-Za-z0-9_-]+\.js' | head -1)
+          # Pages' edge takes a few seconds to minutes to serve a new build;
+          # a single immediate check false-failed on almost every deploy.
+          # Poll for up to 3 minutes before calling the deploy broken.
+          WANT="${{ steps.hash.outputs.value }}"
+          LIVE=""
+          for i in $(seq 1 18); do
+            LIVE=$(curl -sSL "https://nst-control-tower.pages.dev/?cb=$RANDOM" -H 'Cache-Control: no-cache' | grep -oE 'index-[A-Za-z0-9_-]+\.js' | head -1)
+            if [ "$LIVE" = "$WANT" ]; then
+              echo "✅ Live site is serving $LIVE — matches local build (check $i)"
+              exit 0
+            fi
+            sleep 10
+          done
           if [ -z "$LIVE" ]; then
             echo "::error::Live site returned no index-*.js hash — site is broken or unreachable"
-            exit 1
-          fi
-          if [ "$LIVE" != "${{ steps.hash.outputs.value }}" ]; then
-            echo "::error::Live site is serving $LIVE but we just built ${{ steps.hash.outputs.value }}"
+          else
+            echo "::error::After 3 min the live site still serves $LIVE, not $WANT"
             echo "::error::Deploy did NOT take. Investigate before pushing the next commit."
-            exit 1
           fi
-          echo "✅ Live site is serving $LIVE — matches local build"
+          exit 1
