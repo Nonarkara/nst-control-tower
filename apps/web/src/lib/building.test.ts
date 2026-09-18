@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { classifyBuilding, buildingHeightMeters, finitePositive, hexToRgb, heightColor } from "./building";
+import { classifyBuilding, buildingHeightMeters, finitePositive, hexToRgb, heightColor, polygonAreaM2, isGroundsCompound } from "./building";
 import type { BuildingProperties } from "./building";
 
 /**
@@ -439,5 +439,57 @@ describe("classifyBuilding mnType override", () => {
   it("an empty / null mnType falls through to OSM classification", () => {
     expect(classifyBuilding(b({ amenity: "hospital", mnType: "" }))).toBe("hospital");
     expect(classifyBuilding(b({ amenity: "hospital", mnType: null }))).toBe("hospital");
+  });
+});
+
+// ─── polygonAreaM2 ─────────────────────────────────────────────────────────
+
+describe("polygonAreaM2", () => {
+  // 0.001° × 0.001° square at 8.43°N ≈ 110.1 × 110.5 m ≈ 12,170 m².
+  const square = {
+    type: "Polygon",
+    coordinates: [[[99.96, 8.43], [99.961, 8.43], [99.961, 8.431], [99.96, 8.431], [99.96, 8.43]]],
+  };
+
+  it("measures a known square within 2%", () => {
+    expect(polygonAreaM2(square)).toBeCloseTo(12_170, -2);
+  });
+
+  it("sums MultiPolygon parts", () => {
+    const multi = { type: "MultiPolygon", coordinates: [square.coordinates, square.coordinates] };
+    expect(polygonAreaM2(multi)).toBeCloseTo(2 * polygonAreaM2(square), 0);
+  });
+
+  it("returns 0 for garbage, never throws", () => {
+    expect(polygonAreaM2({ type: "Point", coordinates: [0, 0] })).toBe(0);
+    expect(polygonAreaM2({ type: "Polygon", coordinates: [] })).toBe(0);
+    expect(polygonAreaM2({ type: "", coordinates: null })).toBe(0);
+  });
+});
+
+// ─── isGroundsCompound ─────────────────────────────────────────────────────
+
+describe("isGroundsCompound", () => {
+  it("flags Wat Mahathat's 182,000 m² temple wall", () => {
+    expect(isGroundsCompound(
+      b({ building: "temple", nameTh: "วัดพระมหาธาตุ วรมหาวิหาร — กำแพงแก้ว" }),
+      182_000,
+    )).toBe(true);
+  });
+
+  it("flags a huge place_of_worship polygon", () => {
+    expect(isGroundsCompound(b({ amenity: "place_of_worship" }), 20_000)).toBe(true);
+  });
+
+  it("spares a normal temple hall (small footprint)", () => {
+    expect(isGroundsCompound(b({ building: "temple" }), 400)).toBe(false);
+  });
+
+  it("spares a big mall — retail is a real building, not grounds", () => {
+    expect(isGroundsCompound(b({ building: "yes", name: "Central Nakhon Si" }), 26_000)).toBe(false);
+  });
+
+  it("spares a huge anonymous footprint (warehouse district)", () => {
+    expect(isGroundsCompound(b({ building: "yes" }), 12_000)).toBe(false);
   });
 });

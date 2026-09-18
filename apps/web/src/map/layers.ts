@@ -31,6 +31,8 @@ import {
   buildingHeightMeters,
   finitePositive,
   hexToRgb,
+  polygonAreaM2,
+  isGroundsCompound,
   type BuildingProperties,
   type LandmarkKind,
 } from "../lib/building";
@@ -506,11 +508,17 @@ export function buildingsLayer(
   // AND getLineWidth on every frame — that's ~15 string comparisons × 2,457
   // buildings × 60 fps ≈ 2.2 M classifications/sec. Caching here cuts the
   // accessors to a single property read.
-  const _kindCache: WeakMap<typeof filtered[number], { kind: ReturnType<typeof classifyBuilding>; base: readonly [number, number, number] }> = new WeakMap();
+  // Temple grounds mapped as one giant "building" (Wat Mahathat's กำแพงแก้ว:
+  // 182,000 m²) would extrude into a solid block swallowing streets. Flag
+  // compounds once here (area is per-layer-creation, never per-frame) and
+  // render them flat — the shrines inside keep their heights as separate,
+  // smaller footprints.
+  const _kindCache: WeakMap<typeof filtered[number], { kind: ReturnType<typeof classifyBuilding>; base: readonly [number, number, number]; compound: boolean }> = new WeakMap();
   for (const f of filtered) {
     const kind = classifyBuilding(f.properties);
     const base = kind ? LANDMARK_COLOR[kind] : UNTYPED_COLOR;
-    _kindCache.set(f, { kind, base: base as readonly [number, number, number] });
+    const compound = isGroundsCompound(f.properties, polygonAreaM2(f.geometry as { type: string; coordinates: unknown }));
+    _kindCache.set(f, { kind, base: base as readonly [number, number, number], compound });
   }
 
   return new GeoJsonLayer({
@@ -583,6 +591,8 @@ export function buildingsLayer(
     // function call that does ~15 string comparisons per call). Falls back to
     // the function for older data files that haven't been re-slimmed yet.
     getElevation: ((f: Feature<Polygon | MultiPolygon, BuildingProperties>) => {
+      // Grounds render flat — see the compound flag above.
+      if (_kindCache.get(f as typeof filtered[number])?.compound) return 0.8;
       const e = (f.properties as BuildingProperties & { _elevM?: number })._elevM;
       return typeof e === "number" ? e : buildingHeightMeters(f.properties);
     }) as unknown as number,
@@ -658,7 +668,13 @@ export function buildingRoofsLayer(
   // pair comparison (2,457 buildings → ~3 M comparisons in the worst case).
   const elev = (p: BuildingProperties) =>
     (p as BuildingProperties & { _elevM?: number })._elevM ?? buildingHeightMeters(p);
-  const sorted = [...collection.features]
+  // No crowns on grounds — a roof slab on Wat Mahathat's wall would hover a
+  // glowing lid over the whole compound. Compounds stay in the base layer,
+  // flat (see buildingsLayer's compound flag).
+  const roofable = collection.features.filter(
+    (f) => !isGroundsCompound(f.properties, polygonAreaM2(f.geometry as { type: string; coordinates: unknown })),
+  );
+  const sorted = [...roofable]
     .sort((a, b) => elev(b.properties) - elev(a.properties))
     .slice(0, maxRoofs);
 

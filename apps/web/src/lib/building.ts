@@ -82,6 +82,67 @@ const KNOWN_KINDS = new Set<string>([
 ]);
 
 /**
+ * Approximate geodesic area of a Polygon/MultiPolygon in m² (equirectangular
+ * projection around the ring centroid — within ~1% at NST's latitude).
+ * Returns 0 for anything malformed. Used to spot temple compounds / grounds
+ * mapped as a single giant "building" (Wat Mahathat's wall: ~182,000 m²).
+ */
+export function polygonAreaM2(geom: { type: string; coordinates: unknown }): number {
+  try {
+    const polys: unknown[][][] =
+      geom.type === "Polygon"
+        ? (geom.coordinates as unknown[][][])
+        : geom.type === "MultiPolygon"
+          ? (geom.coordinates as unknown[][][][]).map((p) => p[0] as unknown[][])
+          : [];
+    if (polys.length === 0) return 0;
+    // Mean latitude of the first ring for the longitude scale.
+    const ring0 = polys[0]!;
+    let latSum = 0;
+    for (const pt of ring0) latSum += (pt as number[])[1]!;
+    const cosLat = Math.cos((latSum / Math.max(1, ring0.length) * Math.PI) / 180);
+    let areaDeg2 = 0;
+    for (const ring of polys) {
+      let s = 0;
+      for (let i = 0; i < ring.length - 1; i++) {
+        const a = ring[i] as number[];
+        const b = ring[i + 1] as number[];
+        s += a[0]! * b[1]! - b[0]! * a[1]!;
+      }
+      areaDeg2 += Math.abs(s) / 2;
+    }
+    // degrees² → m² (111.32 km per degree longitude × cos(lat), 110.54 km latitude).
+    return areaDeg2 * 111_320 * cosLat * 110_540;
+  } catch {
+    return 0;
+  }
+}
+
+/** Above this footprint a sacred-tagged polygon is grounds, not a building. */
+export const COMPOUND_AREA_M2 = 6_000;
+
+const COMPOUND_BUILDING_TAGS = new Set([
+  "temple", "church", "cathedral", "chapel", "mosque", "religious", "shrine",
+]);
+
+/**
+ * True when a footprint is temple/church/mosque GROUNDS (walls, cloisters,
+ * whole compounds) rather than a building. Extruding those swallows streets —
+ * Wat Mahathat's กำแพงแก้ว rendered as a 182,000 m² solid block. Compounds
+ * render flat (0.8 m) with no roof crown; the actual shrines inside keep
+ * their heights because they are separate, smaller footprints.
+ */
+export function isGroundsCompound(props: BuildingProperties, areaM2: number): boolean {
+  if (!(areaM2 > COMPOUND_AREA_M2)) return false;
+  const kind = classifyBuilding(props);
+  if (kind === "temple" || kind === "church" || kind === "mosque") return true;
+  const b = (props.building ?? "").toLowerCase();
+  if (COMPOUND_BUILDING_TAGS.has(b)) return true;
+  const nm = `${props.name ?? ""} ${props.nameTh ?? ""} ${props.nameEn ?? ""}`;
+  return /กำแพง|วัด|compound|grounds|monastery/i.test(nm);
+}
+
+/**
  * Parse a finite positive number from a value that may be a number, numeric
  * string (possibly with unit suffixes like "3m"), or anything else.
  * Returns null for zero, negative, Infinity, NaN, and non-parseable values.

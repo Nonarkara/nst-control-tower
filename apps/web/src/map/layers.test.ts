@@ -1,4 +1,6 @@
 import { describe, test, expect, it } from "vitest";
+import type { Feature, FeatureCollection, Polygon } from "geojson";
+import type { BuildingProperties } from "../lib/building";
 import { flowDotPositions, thaDeeFlowPath, etaArcRingsLayer, watershedNodesLayer, flowInfoGraphicLayer, waterSystemPictureLayer } from "./layers";
 import type { ZoneSummary } from "../lib/watershed";
 import type { BasinWaterBalance } from "@nst/shared";
@@ -372,3 +374,32 @@ describe("waterSystemPictureLayer", () => {
 });
 
 import { PAK_PHANANG_BAY_CENTROID } from "./layers";
+
+describe("temple compounds render flat (Wat Mahathat wall)", () => {
+  // ~0.5° square ≈ absurdly large grounds; tiny square ≈ a shrine hall.
+  const grounds: Feature<Polygon, BuildingProperties> = {
+    type: "Feature",
+    properties: { id: "w", name: null, nameEn: null, nameTh: "วัดพระมหาธาตุ — กำแพงแก้ว", building: "temple", levels: null, height: null, operator: null },
+    geometry: { type: "Polygon", coordinates: [[[99.9, 8.4], [100.4, 8.4], [100.4, 8.9], [99.9, 8.9], [99.9, 8.4]]] },
+  };
+  const hall: Feature<Polygon, BuildingProperties> = {
+    type: "Feature",
+    properties: { id: "h", name: "ubosot", nameEn: null, nameTh: null, building: "temple", levels: null, height: null, operator: null },
+    geometry: { type: "Polygon", coordinates: [[[99.96, 8.43], [99.9602, 8.43], [99.9602, 8.4302], [99.96, 8.4302], [99.96, 8.43]]] },
+  };
+  const fc: FeatureCollection<Polygon, BuildingProperties> = { type: "FeatureCollection", features: [grounds, hall] };
+
+  test("compound elevation is 0.8 m while the hall keeps its height", () => {
+    const layer = L.buildingsLayer(fc, { extruded: true, zoomBucket: 2 });
+    const getElevation = (layer as unknown as { props: { getElevation: (f: unknown) => number } }).props.getElevation;
+    expect(getElevation(grounds)).toBe(0.8);
+    expect(getElevation(hall)).toBeGreaterThan(10);
+  });
+
+  test("roof crowns skip the grounds", () => {
+    const roofs = L.buildingRoofsLayer(fc);
+    const data = (roofs as unknown as { props: { data: { features: { properties: { id: string } }[] } } }).props.data.features;
+    expect(data.map((f) => f.properties.id)).not.toContain("w");
+    expect(data.map((f) => f.properties.id)).toContain("h");
+  });
+});
