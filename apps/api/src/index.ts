@@ -71,6 +71,8 @@ import damageHotspotsApp from "./routes/damage-hotspots.js";
 
 type Bindings = {
   ENVIRONMENT?: string;
+  /** Commit the worker was deployed from (set by CI: wrangler deploy --var GIT_SHA:…). */
+  GIT_SHA?: string;
   GEMINI_API_KEY?: string;
   OLLAMA_BASE_URL?: string;
   OLLAMA_MODEL?: string;
@@ -187,6 +189,9 @@ app.get("/api/health", (c) =>
     ok: true,
     at: new Date().toISOString(),
     env: c.env.ENVIRONMENT ?? "unknown",
+    // Lets CI (and anyone) confirm which commit is live — hand deploys from
+    // uncommitted trees caused prod/git drift before the API joined CI.
+    version: c.env.GIT_SHA ?? "local",
   }),
 );
 
