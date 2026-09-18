@@ -49,6 +49,7 @@ function ews(p: Partial<EwsStation>): EwsStation {
     alertMax: null,
     warn: null,
     observedAt: "2026-01-01T00:00:00Z",
+    stale: false,
     ...p,
   };
 }

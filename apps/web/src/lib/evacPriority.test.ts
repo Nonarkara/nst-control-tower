@@ -86,6 +86,12 @@ describe("rankEvacuation", () => {
     expect(r.signals[0]!.text).toMatch(/55 mm in 1 h — extreme rain/);
   });
 
+  it("a stale warning station (stopped reporting) is not evidence — even at CRITICAL", () => {
+    const flash = village({ floodTypes: ["flash"] });
+    const dead = { id: "S9", name: "บ้านดินดอน", lat: 8.1, lng: 99.95, status: 3, stale: true } as EwsStation;
+    expect(rankEvacuation({ data: data([flash]), gauges: [], ews: [dead], now: SEPT })[0]!.tier).toBe("calm");
+  });
+
   it("within a tier, flash-flood villages come before standing-water ones", () => {
     const standing = village({ code: "S", population: 5000 });
     const flash = village({ code: "F", population: 500, floodTypes: ["flash"] });

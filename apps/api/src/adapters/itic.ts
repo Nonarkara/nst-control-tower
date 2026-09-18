@@ -52,6 +52,10 @@ async function fetchIticInner(): Promise<NormalizedFeed<IncidentFeature>> {
     const fetchedAt = new Date().toISOString();
     const payload = await fetchJsonOrThrow<{ events?: LongdoEvent[] } | LongdoEvent[]>(EVENT_URL);
     const events = Array.isArray(payload) ? payload : payload?.events ?? [];
+    // Zero events NATIONWIDE is not "a quiet day in NST" — the feed covers all
+    // of Thailand and is never empty when healthy. Throw so the stale cache
+    // (or the unavailable path below) answers, instead of a confident "live".
+    if (events.length === 0) throw new Error("upstream returned no events nationwide");
 
     const features: IncidentFeature[] = [];
 
@@ -85,24 +89,23 @@ async function fetchIticInner(): Promise<NormalizedFeed<IncidentFeature>> {
         source: "itic-longdo",
         fetchedAt,
         ageMinutes: cacheAgeMinutes(fetchedAt),
-        // "live" as long as we successfully fetched upstream, even if zero
-        // features fall inside the NST bbox this minute. "scenario" only
-        // means we hit a fallback path (catch block below), not "the network
-        // is quiet today". Calling zero results "scenario" was making the
-        // TopBar status badge say "5 of 9 feeds not live" when 4 of the
-        // 5 were upstream-OK-but-empty.
+        // Live whenever upstream answered with its nationwide feed — zero
+        // events inside NST is a real, quiet reading, not a degraded one.
         fallbackTier: "live",
+        ...(features.length === 0 ? { note: "Upstream live · no events inside Nakhon Si Thammarat right now" } : {}),
       },
     };
   });
 }
 
-// First-boot outage (throw + no stale to fall back on) → a calm scenario
-// feed, not a 500 through safeFeed.
+// First-boot outage (throw + no stale to fall back on) → an honest
+// unavailable feed, not a 500 through safeFeed.
 export async function fetchItic(): Promise<NormalizedFeed<IncidentFeature>> {
   try {
     return await fetchIticInner();
-  } catch {
+  } catch (err) {
+    // A real outage with nothing cached: say so. "scenario" means modelled
+    // data, which an empty outage feed is not.
     const fetchedAt = new Date().toISOString();
     return {
       features: [],
@@ -110,7 +113,8 @@ export async function fetchItic(): Promise<NormalizedFeed<IncidentFeature>> {
         source: "itic-longdo",
         fetchedAt,
         ageMinutes: cacheAgeMinutes(fetchedAt),
-        fallbackTier: "scenario",
+        fallbackTier: "unavailable",
+        note: `iTIC (Longdo traffic events) unreachable — ${(err as Error).message}. Retries automatically.`,
       },
     };
   }

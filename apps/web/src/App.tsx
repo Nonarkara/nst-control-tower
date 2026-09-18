@@ -961,9 +961,14 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
       case "ews-stations": {
         title = `🔔 ${pick("name") ?? "EWS station"}`;
         const st = num("status") ?? 0;
-        lines.push(
-          ["สถานะ 0 — ปกติ", "สถานะ 1 — เฝ้าระวัง", "สถานะ 2 — เตรียมพร้อม/เตรียมอพยพ", "สถานะ 3 — วิกฤติ/อพยพ"][st] ?? `สถานะ ${st}`,
-        );
+        if ((p as { stale?: boolean }).stale) {
+          const obs = pick("observedAt");
+          lines.push(`ไม่ได้รายงานข้อมูล — ข้อมูลล่าสุด ${obs ? new Date(obs).toLocaleString("th-TH", { dateStyle: "medium", timeStyle: "short" }) : "ไม่ทราบ"} · not reporting`);
+        } else {
+          lines.push(
+            ["สถานะ 0 — ปกติ", "สถานะ 1 — เฝ้าระวัง", "สถานะ 2 — เตรียมพร้อม/เตรียมอพยพ", "สถานะ 3 — วิกฤติ/อพยพ"][st] ?? `สถานะ ${st}`,
+          );
+        }
         const soil = num("soilMoisture");
         const r12 = num("rain12h");
         const wl = num("waterLevel");
@@ -1351,6 +1356,10 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
   const waterGauges = useFeed<WaterGauge>(`${API_BASE}/api/water/gauges`, 10 * 60_000);
   const waterRain = useFeed<RainfallStation>(`${API_BASE}/api/water/rain`, 30 * 60_000);
   const ewsStations = useFeed<EwsStation>(`${API_BASE}/api/water/ews`, 15 * 60_000);
+  // Analyses use only stations that are still reporting: a station frozen
+  // months ago (several in NST) must not count as "normal" or as an alarm.
+  // The map still draws every station — stale ones grey, "not reporting".
+  const ewsCurrent = useMemo(() => ewsStations.data.filter((st) => !st.stale), [ewsStations.data]);
   // Who to move first: the provincial flood-risk village register joined with
   // population + district bedridden/homebound/disabled counts
   // (scripts/buildEvacData.py), ranked live against the gauges below.
@@ -1370,12 +1379,12 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
             data: evacData,
             gauges: waterGauges.data,
             basins: waterBalance.data,
-            ews: ewsStations.data,
+            ews: ewsCurrent,
             rain: waterRain.data,
             cameras: cctv.data.filter((c) => c.category === "water"),
           })
         : [],
-    [evacData, waterGauges.data, waterBalance.data, ewsStations.data, waterRain.data, cctv.data],
+    [evacData, waterGauges.data, waterBalance.data, ewsCurrent, waterRain.data, cctv.data],
   );
   const evacSummary = useMemo(() => summarizeEvacuation(evacRows), [evacRows]);
   const ridReservoirs = useFeed<RidReservoir>(`${API_BASE}/api/water/reservoirs-rid`, 60 * 60_000);
@@ -1486,8 +1495,8 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
   // static flow line/nodes (watershedNodesLayer, below) and the animated flow
   // dots, so both always agree on current status.
   const watershedSummaries = useMemo(
-    () => summarizeWatershed(waterGauges.data, waterRain.data, ewsStations.data, floodGauges.data),
-    [waterGauges.data, waterRain.data, ewsStations.data, floodGauges.data],
+    () => summarizeWatershed(waterGauges.data, waterRain.data, ewsCurrent, floodGauges.data),
+    [waterGauges.data, waterRain.data, ewsCurrent, floodGauges.data],
   );
 
   // Per-amphoe FFPI rollup — feeds both the on-map pins (overflow band ↑
@@ -1502,19 +1511,19 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
       if (!l) { l = []; buckets.set(key, l); }
       l.push(g);
     }
-    return rankFfpi({ rain: waterRain.data, ews: ewsStations.data, gaugesByAmphoe: buckets, limit: 12 });
-  }, [waterRain.data, ewsStations.data, waterGauges.data]);
+    return rankFfpi({ rain: waterRain.data, ews: ewsCurrent, gaugesByAmphoe: buckets, limit: 12 });
+  }, [waterRain.data, ewsCurrent, waterGauges.data]);
   // Live sensor signal cards — recomputed whenever any telemetry feed lands.
   const sensorInsights = useMemo(
     () =>
       buildSensorInsights({
         gauges: waterGauges.data,
         rain: waterRain.data,
-        ews: ewsStations.data,
+        ews: ewsCurrent,
         reservoirs: ridReservoirs.data,
         basins: waterBalance.data,
       }),
-    [waterGauges.data, waterRain.data, ewsStations.data, ridReservoirs.data, waterBalance.data],
+    [waterGauges.data, waterRain.data, ewsCurrent, ridReservoirs.data, waterBalance.data],
   );
   // The REAL คลองท่าดี geometry (lib/thaDee.ts) — the animated dots and the
   // cascade line follow the river, not straight segments between zone
@@ -2470,7 +2479,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
           <FloodPosture
             waterGauges={waterGauges.data}
             rainfall={waterRain.data}
-            ews={ewsStations.data}
+            ews={ewsCurrent}
             dam={damStatus.data[0] ?? null}
             precip={precip.data[0] ?? null}
             ageMinutes={waterGauges.data.length > 0 ? waterGauges.ageMinutes : waterRain.ageMinutes}
@@ -2504,7 +2513,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
           <UpstreamWatershed
             waterGauges={waterGauges.data}
             rainfall={waterRain.data}
-            ews={ewsStations.data}
+            ews={ewsCurrent}
             floodGauges={floodGauges.data}
             precipZones={precipZones.data}
             ageMinutes={waterGauges.data.length > 0 ? waterGauges.ageMinutes : waterRain.ageMinutes}
@@ -2932,7 +2941,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
       {(lens === "flood" || lens === "environment" || lens === "intelligence") && (
         <FlashFloodAlert
           rain={waterRain.data}
-          ews={ewsStations.data}
+          ews={ewsCurrent}
           gauges={waterGauges.data}
         />
       )}

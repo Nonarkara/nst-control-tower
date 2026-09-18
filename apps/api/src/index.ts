@@ -46,6 +46,7 @@ import { fetchFlights } from "./adapters/flights.js";
 import { fetchDatagoPoints, fetchDatagoDatasets, fetchReservoirs, fetchDisasterStats, fetchFahfon, fetchProvincialKPIs } from "./adapters/datago.js";
 import { datasetDetailHandler, previewHandler } from "./adapters/datagoDetail.js";
 import { fetchLocalCatalog } from "./adapters/localCatalog.js";
+import { cacheAgeMinutes } from "./lib/cache.js";
 import { fetchGistdaLevelPosts, fetchGistdaFloodStations, fetchGistdaFloodExtent } from "./adapters/gistdaWater.js";
 import { fetchTourismVisitors } from "./adapters/tourism-visitors.js";
 import { fetchFacebookPosts } from "./adapters/facebook.js";
@@ -310,6 +311,26 @@ async function safeFeed<T>(
 app.get("/api/incidents/city-reports", async (c) => safeFeed(c, fetchCityReports, "city-reports"));
 app.get("/api/incidents/itic", async (c) => safeFeed(c, fetchItic, "itic"));
 app.get("/api/news", async (c) => safeFeed(c, fetchNews, "news"));
+// /api/security/incidents — Yala-era Deep South conflict incidents endpoint.
+// NST forked from Yala so the FE still has `useFeed<…>("/api/security/incidents")`
+// in App.tsx. The OPS / FLOOD / EXEC / ENV lenses don't include the
+// "conflict-incidents" layer in their default set, but the hook fires on mount
+// and was hitting 404 every load. Stub an empty NormalizedFeed so the request
+// returns 200 with `features: []` instead of an embarrassing 404 in the
+// network tab when the mayor asks "what's that red line in the network panel?".
+app.get("/api/security/incidents", (c) => {
+  const fetchedAt = new Date().toISOString();
+  return c.json({
+    features: [],
+    meta: {
+      source: "yala-conflict-incidents-stub",
+      fetchedAt,
+      ageMinutes: cacheAgeMinutes(fetchedAt),
+      fallbackTier: "reference" as const,
+      note: "Conflict-incidents layer is NST-off; stub returns an empty feed so the FE hook doesn't 404.",
+    },
+  });
+});
 
 app.get("/api/news/archive", async (c) => {
   const mod = await tryArchiveApi();

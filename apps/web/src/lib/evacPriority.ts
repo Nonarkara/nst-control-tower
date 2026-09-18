@@ -197,7 +197,9 @@ export function rankEvacuation(opts: {
   now?: Date;
 }): EvacRow[] {
   const month = (opts.now ?? new Date()).getMonth() + 1;
-  const ews = (opts.ews ?? []).filter((s) => Number.isFinite(s.lat) && Number.isFinite(s.lng));
+  // A station that stopped reporting is not evidence either way — a months-old
+  // alarm must never move people now.
+  const ews = (opts.ews ?? []).filter((s) => !s.stale && Number.isFinite(s.lat) && Number.isFinite(s.lng));
   const rain = (opts.rain ?? []).filter((r) => Number.isFinite(r.lat) && Number.isFinite(r.lng));
   const cameras = (opts.cameras ?? []).filter((c) => c.status !== "offline");
   const etaById = new Map<string, number>();

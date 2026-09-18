@@ -71,6 +71,7 @@ function ews(o: Partial<EwsStation> = {}): EwsStation {
     alertMax: null,
     warn: null,
     observedAt: "13/07/69 10:00 น.",
+    stale: false,
     ...o,
   };
 }

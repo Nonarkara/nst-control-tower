@@ -375,7 +375,11 @@ export interface EwsStation {
   alertMax: number | null;
   /** Warning text (null if none). */
   warn: string | null;
+  /** ISO time of the station's last report (parsed from DWR's Thai BE string). */
   observedAt: string;
+  /** Last report older than 6 h (or unparseable) — not current evidence;
+   *  several NST stations stopped reporting months ago. */
+  stale: boolean;
 }
 
 /** Reservoir snapshot from RID (Royal Irrigation Department) public API. */

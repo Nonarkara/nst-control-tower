@@ -71,8 +71,8 @@ describe("iTIC adapter (Longdo)", () => {
   });
 });
 
-describe("iTIC adapter — scenario fallback (isolated)", () => {
-  it("returns scenario tier and empty features when endpoint returns null", async () => {
+describe("iTIC adapter — outage fallback (isolated)", () => {
+  it("returns unavailable tier with a note and empty features when the endpoint fails", async () => {
     vi.resetModules();
     vi.spyOn(globalThis, "fetch").mockImplementation(() =>
       Promise.resolve(new Response(null, { status: 500 })),
@@ -81,7 +81,8 @@ describe("iTIC adapter — scenario fallback (isolated)", () => {
     const { fetchItic: fresh } = await import("./itic");
     const feed = await fresh();
 
-    expect(feed.meta.fallbackTier).toBe("scenario");
+    expect(feed.meta.fallbackTier).toBe("unavailable");
+    expect(feed.meta.note).toMatch(/unreachable/);
     expect(feed.features).toHaveLength(0);
     vi.restoreAllMocks();
   });
@@ -242,6 +243,34 @@ describe("iTIC adapter — bbox filtering (isolated)", () => {
 
     expect(feed.features.some((f) => f.id === "itic-IN-001")).toBe(true);
     expect(feed.features.some((f) => f.id === "itic-OUT-001")).toBe(false);
+    vi.restoreAllMocks();
+  });
+});
+
+describe("iTIC adapter — empty feeds (isolated)", () => {
+  it("zero events nationwide is an outage (unavailable), not a confident 'live'", async () => {
+    vi.resetModules();
+    vi.spyOn(globalThis, "fetch").mockImplementation(() =>
+      Promise.resolve(new Response(JSON.stringify({ events: [] }), { status: 200 })),
+    );
+    const { fetchItic: fresh } = await import("./itic");
+    const feed = await fresh();
+    expect(feed.meta.fallbackTier).toBe("unavailable");
+    expect(feed.meta.note).toMatch(/no events nationwide/);
+    vi.restoreAllMocks();
+  });
+
+  it("events elsewhere but none in NST is live, with a note saying so", async () => {
+    vi.resetModules();
+    const far = makeEvent({ latitude: "13.75", longitude: "100.5" }); // Bangkok
+    vi.spyOn(globalThis, "fetch").mockImplementation(() =>
+      Promise.resolve(new Response(JSON.stringify({ events: [far] }), { status: 200 })),
+    );
+    const { fetchItic: fresh } = await import("./itic");
+    const feed = await fresh();
+    expect(feed.meta.fallbackTier).toBe("live");
+    expect(feed.features).toHaveLength(0);
+    expect(feed.meta.note).toMatch(/no events inside Nakhon Si Thammarat/);
     vi.restoreAllMocks();
   });
 });

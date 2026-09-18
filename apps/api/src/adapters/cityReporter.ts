@@ -86,6 +86,9 @@ async function fetchCityReportsInner(): Promise<NormalizedFeed<IncidentFeature>>
     const fetchedAt = new Date().toISOString();
     const payload = await fetchJsonOrThrow<TraffyRaw[] | { results?: TraffyRaw[] }>(ENDPOINT);
     const raw = Array.isArray(payload) ? payload : payload?.results ?? [];
+    // Zero tickets NATIONWIDE means the upstream broke or changed shape, not
+    // that NST is quiet — throw so stale cache / unavailable answers.
+    if (raw.length === 0) throw new Error("upstream returned no tickets nationwide");
 
     const features: IncidentFeature[] = [];
 
@@ -126,23 +129,23 @@ async function fetchCityReportsInner(): Promise<NormalizedFeed<IncidentFeature>>
         source: "traffy-fondue",
         fetchedAt,
         ageMinutes: cacheAgeMinutes(fetchedAt),
-        // "live" whenever upstream returned data successfully, even if the
-        // NST bbox filter matched zero incidents today. "scenario" only
-        // means we hit the catch below (upstream threw); it does NOT mean
-        // "the network is quiet". Zero-event days are still "live" — the
-        // dashboard can render an empty list cleanly.
+        // Live whenever upstream answered with its nationwide feed — zero
+        // reports inside NST is a real, quiet reading, not a degraded one.
         fallbackTier: "live",
+        ...(features.length === 0 ? { note: "Upstream live · no reports inside Nakhon Si Thammarat right now" } : {}),
       },
     };
   });
 }
 
-// First-boot outage (throw + no stale to fall back on) → a calm scenario
-// feed, not a 500 through safeFeed.
+// First-boot outage (throw + no stale to fall back on) → an honest
+// unavailable feed, not a 500 through safeFeed.
 export async function fetchCityReports(): Promise<NormalizedFeed<IncidentFeature>> {
   try {
     return await fetchCityReportsInner();
-  } catch {
+  } catch (err) {
+    // A real outage with nothing cached: say so. "scenario" means modelled
+    // data, which an empty outage feed is not.
     const fetchedAt = new Date().toISOString();
     return {
       features: [],
@@ -150,7 +153,8 @@ export async function fetchCityReports(): Promise<NormalizedFeed<IncidentFeature
         source: "traffy-fondue",
         fetchedAt,
         ageMinutes: cacheAgeMinutes(fetchedAt),
-        fallbackTier: "scenario",
+        fallbackTier: "unavailable",
+        note: `Traffy Fondue citizen reports unreachable — ${(err as Error).message}. Retries automatically.`,
       },
     };
   }

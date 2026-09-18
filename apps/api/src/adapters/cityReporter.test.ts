@@ -78,8 +78,8 @@ describe("city reporter adapter (Traffy Fondue)", () => {
   });
 });
 
-describe("city reporter adapter — scenario fallback (isolated)", () => {
-  it("returns scenario tier and empty features when endpoint returns null", async () => {
+describe("city reporter adapter — outage fallback (isolated)", () => {
+  it("returns unavailable tier with a note and empty features when the endpoint fails", async () => {
     vi.resetModules();
     vi.spyOn(globalThis, "fetch").mockImplementation(() =>
       Promise.resolve(new Response(null, { status: 500 })),
@@ -88,7 +88,8 @@ describe("city reporter adapter — scenario fallback (isolated)", () => {
     const { fetchCityReports: fresh } = await import("./cityReporter");
     const feed = await fresh();
 
-    expect(feed.meta.fallbackTier).toBe("scenario");
+    expect(feed.meta.fallbackTier).toBe("unavailable");
+    expect(feed.meta.note).toMatch(/unreachable/);
     expect(feed.features).toHaveLength(0);
     vi.restoreAllMocks();
   });

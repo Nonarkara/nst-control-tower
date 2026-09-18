@@ -64,18 +64,37 @@ function stationType(raw: string | undefined): EwsStation["type"] {
   return "unknown";
 }
 
+/**
+ * DWR timestamps are Thai Buddhist-era strings, "19/09/69 01:00 น." (dd/mm/yy
+ * BE, Asia/Bangkok). Parse to ISO so the UI can show a real age and so a
+ * station that stopped reporting months ago isn't presented as current.
+ */
+export function parseDwrDate(raw: string | null | undefined): string | null {
+  const m = /^(\d{1,2})\/(\d{1,2})\/(\d{2,4})\s+(\d{1,2}):(\d{2})/.exec(String(raw ?? "").trim());
+  if (!m) return null;
+  const [, dd, mm, yy, hh, mi] = m;
+  let year = Number(yy);
+  if (year < 100) year += 2500; // "69" → 2569 BE
+  if (year > 2400) year -= 543; // BE → CE
+  const iso = `${year}-${mm!.padStart(2, "0")}-${dd!.padStart(2, "0")}T${hh!.padStart(2, "0")}:${mi}:00+07:00`;
+  return Number.isNaN(Date.parse(iso)) ? null : new Date(iso).toISOString();
+}
+
+/** A station whose last report is older than this is not current evidence. */
+export const EWS_STALE_AFTER_H = 6;
+
 function status(raw: number | string | null | undefined): EwsStation["status"] {
   // Upstream DWR status values observed in the live response:
   //   "0"  = NORMAL (no alert) — most populated state, ~1081 / 2275 stations
   //   "1"  = WATCH — ~20 stations
   //   "2"  = PREPARE — ~16 stations
   //   "3"  = CRITICAL — ~24 stations
-  //   "9"  = ?  ~1134 stations — null warn / warning_type / rain12h stays at 0
-  //          for many of them. Not a severity tier; treat as no alert rather
-  //          than risk mapping it to critical (which previously promoted half
-  //          the country's stations to severity 3 and pushed 159 NST villages
-  //          into the "move now" tier even though rain1h was 0–2 mm and
-  //          every gauge was below bank).
+  //   "9"  = reporting normally, no alert — ~1,129 stations; every one has a
+  //          current (2569) timestamp and ~83% show rain in the last 12 h
+  //          (checked 2026-09-19). It is NOT a severity: mapping it to
+  //          critical once put 159 NST villages into "move now" while every
+  //          gauge was below bank. Note "0" is the tier that hides dead
+  //          stations (timestamps back to 2556) — see `stale` below.
   // Be strict: only 1 / 2 / 3 carry severity. Everything else → 0.
   const s = Math.round(typeof raw === "string" ? parseFloat(raw) : (raw ?? 0));
   if (s === 3) return 3;
@@ -147,7 +166,11 @@ export async function fetchEwsStations(): Promise<NormalizedFeed<EwsStation>> {
         alertMin: num(s.alert_min),
         alertMax: num(s.alert_max),
         warn: s.warn ?? null,
-        observedAt: s.date ?? fetchedAt,
+        observedAt: parseDwrDate(s.date) ?? fetchedAt,
+        stale: (() => {
+          const t = Date.parse(parseDwrDate(s.date) ?? "");
+          return !Number.isFinite(t) || Date.now() - t > EWS_STALE_AFTER_H * 3_600_000;
+        })(),
       }))
       .filter((s) => s.id !== "" && s.lat !== 0 && s.lng !== 0);
 

@@ -3217,6 +3217,9 @@ export function ewsStationsLayer(stations: EwsStation[]) {
     radiusMinPixels: 3.5,
     radiusMaxPixels: 15,
     getFillColor: (e) => {
+      // A station that stopped reporting shows as "no data", not green —
+      // several NST stations last reported months ago.
+      if (e.stale) return statusRgba("unknown", 140);
       const c = EWS_STATUS_RGB[e.status] ?? EWS_STATUS_RGB[0];
       return [c[0], c[1], c[2], e.status >= 1 ? 235 : 150] as [number, number, number, number];
     },

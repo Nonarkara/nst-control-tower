@@ -178,3 +178,36 @@ describe("dwrEws adapter — happy path (isolated)", () => {
     vi.restoreAllMocks();
   });
 });
+
+describe("dwrEws — Thai BE timestamps and stale stations", () => {
+  it("parses DWR's dd/mm/yy BE string to ISO (Asia/Bangkok)", async () => {
+    const { parseDwrDate } = await import("./dwrEws.js");
+    expect(parseDwrDate("19/09/69 01:00 น.")).toBe("2026-09-18T18:00:00.000Z");
+    expect(parseDwrDate("27/11/68 09:45 น.")).toBe("2025-11-27T02:45:00.000Z");
+    expect(parseDwrDate("garbage")).toBeNull();
+    expect(parseDwrDate(null)).toBeNull();
+  });
+
+  it("flags a station that stopped reporting months ago as stale, a current one not", async () => {
+    vi.resetModules();
+    const now = new Date();
+    const pad = (n: number) => String(n).padStart(2, "0");
+    // Build "dd/mm/yy HH:MM น." in Bangkok time for "now".
+    const bkk = new Date(now.getTime() + 7 * 3_600_000);
+    const fresh = `${pad(bkk.getUTCDate())}/${pad(bkk.getUTCMonth() + 1)}/${String((bkk.getUTCFullYear() + 543) % 100).padStart(2, "0")} ${pad(bkk.getUTCHours())}:${pad(bkk.getUTCMinutes())} น.`;
+    const base = { stn_type: "RF", province: "นครศรีธรรมราช", status: "0", rain: "0.0", rain12h: "0.0", soil: "50" };
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify([
+        { ...base, stn: "OLD", name: "stopped", latitude: "8.4", longitude: "99.7", date: "27/11/68 09:45 น." },
+        { ...base, stn: "NEW", name: "current", latitude: "8.5", longitude: "99.8", date: fresh },
+      ]), { status: 200 }),
+    );
+    const { fetchEwsStations: fresh2 } = await import("./dwrEws.js");
+    const feed = await fresh2();
+    const byId = Object.fromEntries(feed.features.map((f) => [f.id, f]));
+    expect(byId.OLD!.stale).toBe(true);
+    expect(byId.OLD!.observedAt).toBe("2025-11-27T02:45:00.000Z");
+    expect(byId.NEW!.stale).toBe(false);
+    vi.restoreAllMocks();
+  });
+});
