@@ -122,12 +122,23 @@ export function decideRise(camId: string, lineY: number, confidence: number, now
  *  has no `data:`, so fetch(dataUrl) is blocked and every frame silently read
  *  as "unusable" — the whole watch never produced a single reading. Image
  *  loads follow img-src, which allows data:. */
-function loadImage(dataUrl: string): Promise<HTMLImageElement | null> {
+function loadImage(dataUrl: string, timeoutMs = 10_000): Promise<HTMLImageElement | null> {
   return new Promise((resolve) => {
+    let done = false;
+    const finish = (img: HTMLImageElement | null) => {
+      if (done) return;
+      done = true;
+      globalThis.clearTimeout(timer);
+      resolve(img);
+    };
     const img = new Image();
-    img.onload = () => resolve(img);
-    img.onerror = () => resolve(null);
+    img.onload = () => finish(img);
+    img.onerror = () => finish(null);
     img.src = dataUrl;
+    // A stuck decode must never wedge the sweep (the running flag would skip
+    // every later sweep). Data-URL images resolve in ms or never. globalThis,
+    // not window — the CSP regression tests stub window without timers.
+    const timer = globalThis.setTimeout(() => finish(null), timeoutMs);
   });
 }
 
