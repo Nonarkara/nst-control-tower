@@ -4,6 +4,8 @@ import {
   analyzeCandidate,
   pickGaugeCandidates,
   postRiseEvent,
+  recordSweep,
+  type AnalysisOutcome,
 } from "../lib/gaugeWatch";
 
 /**
@@ -33,14 +35,18 @@ export function useGaugeWatch(cameras: CctvCamera[], apiBase: string, enabled: b
       running = true;
       try {
         const cands = pickGaugeCandidates(cams);
+        const results: Array<{ outcome: AnalysisOutcome; posted: boolean }> = [];
         for (const c of cands) {
           if (cancelled) break;
-          const decision = await analyzeCandidate(c);
-          if (cancelled || !decision) continue;
-          if (decision.rising) {
-            await postRiseEvent(base, c.camera.id, decision.rise, decision.confidence);
+          const outcome = await analyzeCandidate(c);
+          if (cancelled) break;
+          const rising = outcome.status === "read" && outcome.decision.rising;
+          if (outcome.status === "read" && outcome.decision.rising) {
+            await postRiseEvent(base, c.camera.id, outcome.decision.rise, outcome.decision.confidence);
           }
+          results.push({ outcome, posted: rising });
         }
+        recordSweep(results);
       } finally {
         running = false;
       }

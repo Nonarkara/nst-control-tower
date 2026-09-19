@@ -76,10 +76,10 @@ export const SOURCE_CATALOG: SourceEntry[] = [
     label: "CV water-gauge watch (WL cameras)",
     vendor: "Browser CV over nstcctv stills",
     category: "imagery",
-    status: "live",
+    status: "research",
     apiPath: "/api/cctv/cv-events",
     pollSeconds: 300,
-    describe: "30 water-level CCTV read by a daylight pixel gauge-reader; rises post water-rising cv-events where HII telemetry doesn't reach. Experimental — no absolute metres, trend only.",
+    describe: "Experimental, not yet a signal. A daylight pixel reader over the water-level CCTV stills that the CCTV wall captures (26 of 30 cameras online; only about a third look at a canal, the rest watch streets). Audited 2026-09-19 on 11 real frames: 0 clear water lines, and dark asphalt can read as water. Events are held in Worker memory (not shared across servers). Do not use for decisions until it is calibrated per camera.",
   },
   {
     id: "tmd-radar",

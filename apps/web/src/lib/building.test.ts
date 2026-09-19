@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, test } from "vitest";
 import { classifyBuilding, buildingHeightMeters, finitePositive, hexToRgb, heightColor, polygonAreaM2, isGroundsCompound } from "./building";
 import type { BuildingProperties } from "./building";
 
@@ -491,5 +491,57 @@ describe("isGroundsCompound", () => {
 
   it("spares a huge anonymous footprint (warehouse district)", () => {
     expect(isGroundsCompound(b({ building: "yes" }), 12_000)).toBe(false);
+  });
+});
+
+// ── Audit regressions (real NST data, 2026-09-19) ───────────────────────────
+const bp = (o: { building: string; name: string }): BuildingProperties => ({
+  id: "t", name: o.name, nameEn: null, nameTh: null, building: o.building, levels: null, height: null, operator: null,
+});
+
+describe("isGroundsCompound — Thai names have no word boundaries", () => {
+  const BIG = 8_000;
+
+  test("the Provincial Hall is NOT temple grounds: จังหวัด (province) ends in วัด (temple)", () => {
+    // Real feature: ศาลากลางจังหวัดนครศรีธรรมราช, ~6.6 km² courtyard building. The first
+    // rule flattened it to 0.8 m because /วัด/ matched inside จังหวัด.
+    expect(isGroundsCompound(bp({ building: "yes", name: "ศาลากลางจังหวัดนครศรีธรรมราช" }), BIG)).toBe(false);
+    expect(isGroundsCompound(bp({ building: "yes", name: "สำนักงานจังหวัดนครศรีธรรมราช" }), BIG)).toBe(false);
+  });
+
+  test("a big school / hospital / mall keeps its height whatever its name says", () => {
+    expect(isGroundsCompound(bp({ building: "school", name: "โรงเรียนวัดท่าโพธิ์" }), BIG)).toBe(false);
+    expect(isGroundsCompound(bp({ building: "hospital", name: "โรงพยาบาลวัดพระ" }), BIG)).toBe(false);
+    expect(isGroundsCompound(bp({ building: "retail", name: "Central Nakhon Si" }), BIG)).toBe(false);
+  });
+
+  test("real temple grounds still flatten: by tag, and by name when tagged only yes", () => {
+    expect(isGroundsCompound(bp({ building: "temple", name: "วัดพระมหาธาตุ วรมหาวิหาร — กำแพงแก้ว" }), 180_000)).toBe(true);
+    expect(isGroundsCompound(bp({ building: "yes", name: "กำแพงแก้ว" }), BIG)).toBe(true);
+    expect(isGroundsCompound(bp({ building: "yes", name: "วัดท่าโพธิ์" }), BIG)).toBe(true);
+  });
+
+  test("classifyBuilding: a name ending in จังหวัด is not a temple (only real วัด is)", () => {
+    expect(classifyBuilding(bp({ building: "yes", name: "สำนักงานสาธารณสุขจังหวัด" }))).toBeNull();
+    expect(classifyBuilding(bp({ building: "yes", name: "วัดท่าโพธิ์" }))).toBe("temple");
+  });
+
+  test("a tambon name is not a wall: กำแพงเซา alone is an ordinary building", () => {
+    expect(isGroundsCompound(bp({ building: "yes", name: "อาคารกำแพงเซา" }), BIG)).toBe(false);
+  });
+
+  test("small footprints are never grounds", () => {
+    expect(isGroundsCompound(bp({ building: "temple", name: "วัดท่าโพธิ์" }), 900)).toBe(false);
+  });
+});
+
+describe("polygonAreaM2 — holes are not footprint", () => {
+  test("a courtyard is subtracted from the outer ring", () => {
+    const outer = [[100, 8], [100.001, 8], [100.001, 8.001], [100, 8.001], [100, 8]];
+    const hole = [[100.0002, 8.0002], [100.0008, 8.0002], [100.0008, 8.0008], [100.0002, 8.0008], [100.0002, 8.0002]];
+    const solid = polygonAreaM2({ type: "Polygon", coordinates: [outer] });
+    const ring = polygonAreaM2({ type: "Polygon", coordinates: [outer, hole] });
+    expect(solid).toBeGreaterThan(10_000); // ~110 m × 110 m
+    expect(ring / solid).toBeCloseTo(1 - 0.36, 1); // hole = 60% × 60% of the side
   });
 });

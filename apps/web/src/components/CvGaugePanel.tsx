@@ -11,11 +11,11 @@
  * to feed it).
  */
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { PanelHeader } from "./PanelHeader";
 import type { CctvCamera } from "../map/layers";
 import type { CvDetectionEvent, FallbackTier } from "@nst/shared";
-import { GAUGE_EVENT_CLASS } from "../lib/gaugeWatch";
+import { GAUGE_EVENT_CLASS, getSweepStats, subscribeSweepStats } from "../lib/gaugeWatch";
 
 interface Props {
   cameras: CctvCamera[];
@@ -44,6 +44,7 @@ function timeAgo(iso: string): string {
 export function CvGaugePanel({ cameras, apiBase, ageMinutes, fallbackTier }: Props) {
   const [events, setEvents] = useState<CvDetectionEvent[]>([]);
   const [showAll, setShowAll] = useState(false);
+  const sweep = useSyncExternalStore(subscribeSweepStats, getSweepStats, getSweepStats);
 
   const names = useMemo(() => {
     const m = new Map<string, string>();
@@ -89,13 +90,22 @@ export function CvGaugePanel({ cameras, apiBase, ageMinutes, fallbackTier }: Pro
       <p className="stat-line">
         <span className="stat-line__value num">{events.length}</span>
         <span className="stat-line__label">
-          rises watched from {wlCount} water cameras · daylight only
+          rises recorded · {wlCount} water cameras online · daylight only
         </span>
+      </p>
+      {/* What the watch actually did — never imply coverage it doesn't have. */}
+      <p className="note">
+        {sweep.at === 0
+          ? "Not running yet: it only reads stills the CCTV wall has captured (open CCTV mode in daylight)."
+          : `Last check ${timeAgo(new Date(sweep.at).toISOString())}: ${sweep.analysed} frame${sweep.analysed === 1 ? "" : "s"} read, ` +
+            `${sweep.confident} with a clear water line` +
+            `${sweep.unreadable + sweep.undecodable > 0 ? `, ${sweep.unreadable + sweep.undecodable} unreadable` : ""}. ` +
+            "Several water cameras watch streets, not canals; experimental, trend only."}
       </p>
       {events.length === 0 && (
         <p className="note">
-          No rises recorded yet. The watch reads stills the CCTV wall captures —
-          open CCTV mode in daylight to feed it.
+          No rises recorded. Events are held in server memory and can be missed
+          across servers; do not rely on this panel alone.
         </p>
       )}
 

@@ -89,27 +89,33 @@ const KNOWN_KINDS = new Set<string>([
  */
 export function polygonAreaM2(geom: { type: string; coordinates: unknown }): number {
   try {
-    const polys: unknown[][][] =
+    // Each polygon = [outer, ...holes]. Area = |outer| − Σ|holes| (a courtyard
+    // or atrium is not footprint).
+    const polys: number[][][][] =
       geom.type === "Polygon"
-        ? (geom.coordinates as unknown[][][])
+        ? [geom.coordinates as number[][][]]
         : geom.type === "MultiPolygon"
-          ? (geom.coordinates as unknown[][][][]).map((p) => p[0] as unknown[][])
+          ? (geom.coordinates as number[][][][])
           : [];
     if (polys.length === 0) return 0;
-    // Mean latitude of the first ring for the longitude scale.
-    const ring0 = polys[0]!;
+    const ring0 = polys[0]![0]!;
     let latSum = 0;
-    for (const pt of ring0) latSum += (pt as number[])[1]!;
+    for (const pt of ring0) latSum += pt[1]!;
     const cosLat = Math.cos((latSum / Math.max(1, ring0.length) * Math.PI) / 180);
-    let areaDeg2 = 0;
-    for (const ring of polys) {
+    const ringArea = (ring: number[][]): number => {
       let s = 0;
       for (let i = 0; i < ring.length - 1; i++) {
-        const a = ring[i] as number[];
-        const b = ring[i + 1] as number[];
+        const a = ring[i]!;
+        const b = ring[i + 1]!;
         s += a[0]! * b[1]! - b[0]! * a[1]!;
       }
-      areaDeg2 += Math.abs(s) / 2;
+      return Math.abs(s) / 2;
+    };
+    let areaDeg2 = 0;
+    for (const poly of polys) {
+      const [outer, ...holes] = poly;
+      if (!outer) continue;
+      areaDeg2 += Math.max(0, ringArea(outer) - holes.reduce((sum, h) => sum + ringArea(h), 0));
     }
     // degrees² → m² (111.32 km per degree longitude × cos(lat), 110.54 km latitude).
     return areaDeg2 * 111_320 * cosLat * 110_540;
@@ -120,6 +126,15 @@ export function polygonAreaM2(geom: { type: string; coordinates: unknown }): num
 
 /** Above this footprint a sacred-tagged polygon is grounds, not a building. */
 export const COMPOUND_AREA_M2 = 6_000;
+
+/**
+ * Name fallback for grounds tagged only building=yes. Thai has no word
+ * boundaries, and plain "วัด" (temple) is also the tail of "จังหวัด"
+ * (province): the first version of this rule flattened the Provincial Hall
+ * (ศาลากลางจังหวัด) to 0.8 m. So: "วัด" only when NOT preceded by "จังห", and
+ * "กำแพง" only in its wall-of-a-compound forms (it is also a tambon name).
+ */
+export const COMPOUND_NAME_RE = /กำแพงแก้ว|กำแพงวัด|(?<!จังห)วัด|compound|grounds|monastery/i;
 
 const COMPOUND_BUILDING_TAGS = new Set([
   "temple", "church", "cathedral", "chapel", "mosque", "religious", "shrine",
@@ -138,8 +153,11 @@ export function isGroundsCompound(props: BuildingProperties, areaM2: number): bo
   if (kind === "temple" || kind === "church" || kind === "mosque") return true;
   const b = (props.building ?? "").toLowerCase();
   if (COMPOUND_BUILDING_TAGS.has(b)) return true;
+  // Anything already classified as something specific (government, school,
+  // hospital, mall, industrial…) is a real building, whatever its name says.
+  if (kind) return false;
   const nm = `${props.name ?? ""} ${props.nameTh ?? ""} ${props.nameEn ?? ""}`;
-  return /กำแพง|วัด|compound|grounds|monastery/i.test(nm);
+  return COMPOUND_NAME_RE.test(nm);
 }
 
 /**
@@ -234,7 +252,11 @@ export function classifyBuilding(props: BuildingProperties): LandmarkKind {
   if (nm.includes("egat") || nm.includes("การไฟฟ้า")) return "power";
   if (nm.includes("hotel") || nm.includes("โรงแรม")) return "hotel";
   if (nm.includes("โรงพยาบาล") || nm.includes("hospital")) return "hospital";
-  if (nm.includes("วัด") || nm.includes("temple") || nm.includes("wat ")) return "temple";
+  // Thai schools are very often named after a temple ("โรงเรียนวัด…"): decide
+  // school BEFORE the temple-by-name fallback below.
+  if (b === "school" || nm.includes("โรงเรียน")) return "school";
+  // "วัด" also ends "จังหวัด" (province) — Thai has no word boundaries.
+  if (/(?<!จังห)วัด/.test(nm) || nm.includes("temple") || nm.includes("wat ")) return "temple";
   if (nm.includes("สถานีตำรวจ") || nm.includes("police")) return "police";
 
   const directHeight = finitePositive(props.height) ?? (finitePositive(props.levels) ? finitePositive(props.levels)! * 4.2 : 0);

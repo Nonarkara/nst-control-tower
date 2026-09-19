@@ -1,6 +1,6 @@
 import { describe, expect, test, vi, beforeEach } from "vitest";
 import type { CctvCamera } from "../map/layers";
-import { decideRise, isDaylightICT, pickGaugeCandidates, RISE_THRESHOLD } from "./gaugeWatch";
+import { analyzeCandidate, decideRise, framePixels, getSweepStats, isDaylightICT, pickGaugeCandidates, recordSweep, RISE_THRESHOLD } from "./gaugeWatch";
 import * as pool from "./cctvCapturePool";
 
 function cam(id: string, extra: Partial<CctvCamera> = {}): CctvCamera {
@@ -103,5 +103,87 @@ describe("pickGaugeCandidates", () => {
   test("stale frames and cooldown are respected", () => {
     vi.spyOn(pool, "getCachedFrame").mockReturnValue({ dataUrl: "x", capturedAt: NOON - 20 * 60_000 });
     expect(pickGaugeCandidates([cam("WL005")], NOON)).toEqual([]);
+  });
+});
+
+// ── framePixels: decode without fetch() ─────────────────────────────────────
+// The app's CSP has no `data:` in connect-src, so fetch(dataUrl) is BLOCKED in
+// the browser. The first version decoded stills that way and silently read
+// every frame as unusable — the watch never produced one reading. These
+// stubs make fetch() throw like the CSP does, so that regression can't return.
+describe("framePixels under the CSP", () => {
+  const W = 320, H = 180;
+  function stubBrowser(fill = 90) {
+    class FakeImage {
+      naturalWidth = W;
+      naturalHeight = H;
+      onload: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      set src(_v: string) { queueMicrotask(() => this.onload?.()); }
+    }
+    const canvas = {
+      width: 0, height: 0,
+      getContext: () => ({
+        drawImage: () => {},
+        getImageData: (_x: number, _y: number, w: number, h: number) => ({ data: new Uint8ClampedArray(w * h * 4).fill(fill), width: w, height: h }),
+      }),
+    };
+    vi.stubGlobal("Image", FakeImage);
+    vi.stubGlobal("document", { createElement: () => canvas });
+    vi.stubGlobal("fetch", vi.fn(() => Promise.reject(new TypeError("Refused to connect (CSP connect-src has no data:)"))));
+  }
+
+  test("decodes a data: URL through <img>, never through fetch", async () => {
+    stubBrowser();
+    const px = await framePixels("data:image/jpeg;base64,AAAA");
+    expect(px).not.toBeNull();
+    expect(px!.w).toBe(160);
+    expect(px!.h).toBe(90); // 16:9 preserved
+    expect(globalThis.fetch).not.toHaveBeenCalled();
+    vi.unstubAllGlobals();
+  });
+
+  test("an image that fails to load is undecodable, not a crash", async () => {
+    stubBrowser();
+    class BadImage { onload: (() => void) | null = null; onerror: (() => void) | null = null; naturalWidth = 0; naturalHeight = 0; set src(_v: string) { queueMicrotask(() => this.onerror?.()); } }
+    vi.stubGlobal("Image", BadImage);
+    const out = await analyzeCandidate({ camera: { id: "c1" } as CctvCamera, dataUrl: "data:image/jpeg;base64,AAAA", capturedAt: Date.now() });
+    expect(out.status).toBe("undecodable");
+    vi.unstubAllGlobals();
+  });
+
+  test("a blown-out / fog frame is 'unreadable' (reported, not hidden)", async () => {
+    stubBrowser(250);
+    const out = await analyzeCandidate({ camera: { id: "c2" } as CctvCamera, dataUrl: "data:image/jpeg;base64,AAAA", capturedAt: Date.now() });
+    expect(out.status).toBe("unreadable");
+    vi.unstubAllGlobals();
+  });
+
+  test("KNOWN LIMIT: flat dark-grey (asphalt-like) reads as 'water', but never confidently enough to post", async () => {
+    // Seen on real cameras (WL023, WL011 are streets): dark + low-saturation
+    // passes the water test. The edge-contrast gate caps confidence at 0.2, so
+    // no event can fire — this pins that the safety net holds until the
+    // detector can tell asphalt from water (needs per-camera calibration).
+    stubBrowser(90);
+    const out = await analyzeCandidate({ camera: { id: "c3" } as CctvCamera, dataUrl: "data:image/jpeg;base64,AAAA", capturedAt: Date.now() });
+    expect(out.status).toBe("read");
+    if (out.status === "read") {
+      expect(out.decision.confidence).toBeLessThan(0.5);
+      expect(out.decision.rising).toBe(false);
+    }
+    vi.unstubAllGlobals();
+  });
+});
+
+describe("sweep stats", () => {
+  test("record what the last sweep actually achieved, and accumulate posts", () => {
+    recordSweep([
+      { outcome: { status: "undecodable" }, posted: false },
+      { outcome: { status: "unreadable" }, posted: false },
+      { outcome: { status: "read", decision: { rising: true, rise: 0.06, confidence: 0.7 } }, posted: true },
+      { outcome: { status: "read", decision: { rising: false, rise: 0, confidence: 0.2 } }, posted: false },
+    ], 1_000);
+    const s = getSweepStats();
+    expect(s).toMatchObject({ at: 1_000, analysed: 4, undecodable: 1, unreadable: 1, confident: 1, posted: 1 });
   });
 });

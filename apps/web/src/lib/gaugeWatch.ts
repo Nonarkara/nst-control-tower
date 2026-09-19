@@ -118,38 +118,94 @@ export function decideRise(camId: string, lineY: number, confidence: number, now
   return { rising, rise, confidence };
 }
 
+/** Load a data: URL through an <img>. NOT fetch(): the CSP's connect-src (rightly)
+ *  has no `data:`, so fetch(dataUrl) is blocked and every frame silently read
+ *  as "unusable" — the whole watch never produced a single reading. Image
+ *  loads follow img-src, which allows data:. */
+function loadImage(dataUrl: string): Promise<HTMLImageElement | null> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => resolve(null);
+    img.src = dataUrl;
+  });
+}
+
 /** Decode a JPEG dataURL to downscaled pixels. Downscale to 160 px wide —
  *  the reader only needs rows, and small keeps the main thread quiet. */
 export async function framePixels(dataUrl: string): Promise<{ data: Uint8ClampedArray; w: number; h: number } | null> {
   try {
-    const blob = await (await fetch(dataUrl)).blob();
-    const bmp = await createImageBitmap(blob);
+    const img = await loadImage(dataUrl);
+    if (!img || img.naturalWidth < 8 || img.naturalHeight < 8) return null;
     const w = 160;
-    const h = Math.max(8, Math.round((bmp.height / Math.max(1, bmp.width)) * w));
+    const h = Math.max(8, Math.round((img.naturalHeight / img.naturalWidth) * w));
     const canvas = document.createElement("canvas");
     canvas.width = w;
     canvas.height = h;
     const ctx = canvas.getContext("2d", { willReadFrequently: true });
-    if (!ctx) {
-      bmp.close();
-      return null;
-    }
-    ctx.drawImage(bmp, 0, 0, w, h);
-    bmp.close();
-    const img = ctx.getImageData(0, 0, w, h);
-    return { data: img.data, w, h };
+    if (!ctx) return null;
+    ctx.drawImage(img, 0, 0, w, h);
+    const px = ctx.getImageData(0, 0, w, h);
+    return { data: px.data, w, h };
   } catch {
     return null;
   }
 }
 
-/** Analyse one candidate; returns the reading (or null when unusable). */
-export async function analyzeCandidate(c: GaugeCandidate, nowMs = Date.now()): Promise<RiseDecision | null> {
+export type AnalysisOutcome =
+  | { status: "undecodable" }
+  | { status: "unreadable" } // decoded, but no usable water line (night, fog, street scene, reflective water)
+  | { status: "read"; decision: RiseDecision };
+
+/** Analyse one candidate. The outcome says WHY when there is no reading, so the
+ *  panel can report real coverage instead of implying every camera is watched. */
+export async function analyzeCandidate(c: GaugeCandidate, nowMs = Date.now()): Promise<AnalysisOutcome> {
   const px = await framePixels(c.dataUrl);
-  if (!px) return null;
+  if (!px) return { status: "undecodable" };
   const reading = readWaterLevel(px.data, px.w, px.h);
-  if (!reading) return null;
-  return decideRise(c.camera.id, reading.lineY, reading.confidence, nowMs);
+  if (!reading) return { status: "unreadable" };
+  return { status: "read", decision: decideRise(c.camera.id, reading.lineY, reading.confidence, nowMs) };
+}
+
+// ── Sweep stats (what the watch actually managed to do) ─────────────────────
+export interface SweepStats {
+  /** Epoch ms of the last sweep that analysed at least one frame; 0 = never. */
+  at: number;
+  analysed: number;
+  undecodable: number;
+  unreadable: number;
+  /** Readings whose confidence cleared MIN_CONFIDENCE (the only ones that can post). */
+  confident: number;
+  /** Rises posted since the page loaded. */
+  posted: number;
+}
+
+let stats: SweepStats = { at: 0, analysed: 0, undecodable: 0, unreadable: 0, confident: 0, posted: 0 };
+let statsListeners: Array<() => void> = [];
+
+export function getSweepStats(): SweepStats {
+  return stats;
+}
+
+export function subscribeSweepStats(listener: () => void): () => void {
+  statsListeners.push(listener);
+  return () => {
+    statsListeners = statsListeners.filter((l) => l !== listener);
+  };
+}
+
+/** Fold one sweep's outcomes into the running totals (posted is cumulative, the rest are the LAST sweep). */
+export function recordSweep(outcomes: Array<{ outcome: AnalysisOutcome; posted: boolean }>, nowMs = Date.now()): void {
+  if (outcomes.length === 0) return;
+  stats = {
+    at: nowMs,
+    analysed: outcomes.length,
+    undecodable: outcomes.filter((o) => o.outcome.status === "undecodable").length,
+    unreadable: outcomes.filter((o) => o.outcome.status === "unreadable").length,
+    confident: outcomes.filter((o) => o.outcome.status === "read" && o.outcome.decision.confidence >= MIN_CONFIDENCE).length,
+    posted: stats.posted + outcomes.filter((o) => o.posted).length,
+  };
+  for (const l of statsListeners) l();
 }
 
 /** POST a water-rising event. Fire-and-forget — failures are silent by
