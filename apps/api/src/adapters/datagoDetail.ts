@@ -367,12 +367,43 @@ export async function datasetDetailHandler(c: Context): Promise<Response> {
   const id = c.req.query("id") ?? "";
   if (!id) return c.json({ error: "missing id" }, 400);
   const detail = await fetchDatasetDetail(id);
-  if (!detail) return c.json({ error: "not found" }, 404);
-  c.header("Cache-Control", "public, max-age=600"); // browser-side 10 min
+  if (detail) {
+    c.header("Cache-Control", "public, max-age=600");
+    return c.json({
+      ...detail,
+      _meta: { cacheAgeMinutes: cacheAgeMinutes(new Date().toISOString()) },
+    });
+  }
+  // Upstream unreachable (CKAN is currently returning HTTP 403 to the
+  // Worker User-Agent on package_show for these resource IDs). Return
+  // 200 with an explicit degraded marker so the in-dashboard preview
+  // modal can fall back to the LocalCatalogPanel entry's metadata
+  // (title / org / notes / tags / formats / resourceCount) + the
+  // catalog-page link instead of crashing with a 404. Re-fetched on
+  // next-cache expiry (6h) — once data.go.th un-blocks the Worker
+  // the per-resource panel restores without a redeploy.
   return c.json({
-    ...detail,
-    _meta: { cacheAgeMinutes: cacheAgeMinutes(new Date().toISOString()) },
-  });
+    id,
+    title: "",
+    notes: "",
+    organization: "",
+    dataSource: "",
+    maintainer: null,
+    licenseTitle: null,
+    geoCoverage: null,
+    releaseDate: null,
+    updateFrequency: null,
+    dataLanguage: [],
+    dataFormat: [],
+    catalogUrl: `https://data.go.th/dataset/${id}`,
+    resources: [],
+    resourceCount: 0,
+    _meta: {
+      cacheAgeMinutes: 0,
+      upstreamTier: "unavailable",
+      upstreamNote: "data.go.th CKAN package_show unreachable from this Worker (HTTP 403 — upstream fingerprinting). Per-resource file list unavailable; open the dataset on data.go.th via the link above until the upstream unblocks us.",
+    },
+  }, 200);
 }
 
 export async function previewHandler(c: Context): Promise<Response> {
