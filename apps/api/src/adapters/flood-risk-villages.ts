@@ -93,14 +93,34 @@ export async function fetchFloodRiskVillages(): Promise<NormalizedFeed<FloodRisk
   return cached("flood-risk-villages", TTL, async () => {
     const fetchedAt = new Date().toISOString();
 
+    // Catch upstream failures (403 / 5xx / network) and return a graceful
+    // unavailable feed with a one-minute retry — not a 500. data.go.th has
+    // been returning HTTP 403 to Cloudflare Worker User-Agents on this
+    // specific CKAN datastore_search resource (upstream fingerprinting),
+    // so the adapter must survive an outage quietly until the panel is
+    // re-deployed from a Workers route this upstream allows.
     const url = `${CKAN_BASE}/datastore_search?resource_id=${RESOURCE_ID}&limit=10000`;
-    const data = await fetchJsonOrThrow<CkanResponse>(url);
+    let data: CkanResponse;
+    try {
+      data = await fetchJsonOrThrow<CkanResponse>(url);
+    } catch (err) {
+      return {
+        features: [],
+        meta: {
+          source: "data.go.th-ckan",
+          fetchedAt,
+          ageMinutes: cacheAgeMinutes(fetchedAt),
+          fallbackTier: "unavailable",
+          note: `datastore_search unreachable: ${(err as Error).message}`,
+        },
+      };
+    }
 
     if (!data?.success || !data.result?.records) {
       return {
         features: [],
         meta: {
-          source: "data.go.th",
+          source: "data.go.th-ckan",
           fetchedAt,
           ageMinutes: 0,
           fallbackTier: "unavailable",
