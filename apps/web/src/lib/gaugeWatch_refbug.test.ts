@@ -138,3 +138,61 @@ describe("gaugeWatch — reference anchoring", () => {
     expect(b.rising).toBe(false);
   });
 });
+
+describe("alert hysteresis — a level is not an event", () => {
+  test("steady high water alerts ONCE, not on every sweep", () => {
+    __resetRefs();
+    decideRise("h1", 0.50, 0.8, 0, "water");
+    const alerts: number[] = [];
+    for (let i = 1; i <= 24; i++) {
+      // 2 hours of water sitting 10% above the dry reference.
+      if (decideRise("h1", 0.40, 0.8, i * 300_000, "water").shouldAlert) alerts.push(i);
+    }
+    expect(alerts).toEqual([1]);
+  });
+
+  test("still reports the level every sweep — the flood does not disappear", () => {
+    __resetRefs();
+    decideRise("h2", 0.50, 0.8, 0, "water");
+    decideRise("h2", 0.40, 0.8, 300_000, "water");
+    const later = decideRise("h2", 0.40, 0.8, 600_000, "water");
+    expect(later.rising).toBe(true);
+    expect(later.shouldAlert).toBe(false);
+  });
+
+  test("water climbing a further threshold alerts again", () => {
+    __resetRefs();
+    decideRise("h3", 0.50, 0.8, 0, "water");
+    expect(decideRise("h3", 0.45, 0.8, 300_000, "water").shouldAlert).toBe(true);  // +5%
+    expect(decideRise("h3", 0.44, 0.8, 600_000, "water").shouldAlert).toBe(false); // +6%, not a new step
+    expect(decideRise("h3", 0.41, 0.8, 900_000, "water").shouldAlert).toBe(true);  // +9% = one more threshold
+  });
+
+  test("a slow 1%-per-sweep flood still alerts, and keeps escalating", () => {
+    __resetRefs();
+    decideRise("h4", 0.50, 0.8, 0, "water");
+    const alerts: number[] = [];
+    for (let i = 1; i <= 20; i++) {
+      if (decideRise("h4", 0.50 - i * 0.01, 0.8, i * 300_000, "water").shouldAlert) alerts.push(i);
+    }
+    // First alert at the 4% crossing, then every further 4% of climb.
+    expect(alerts).toEqual([4, 8, 12, 16, 20]);
+  });
+
+  test("water receding re-arms: the NEXT flood alerts on its first crossing", () => {
+    __resetRefs();
+    decideRise("h5", 0.50, 0.8, 0, "water");
+    expect(decideRise("h5", 0.40, 0.8, 300_000, "water").shouldAlert).toBe(true);
+    expect(decideRise("h5", 0.50, 0.8, 600_000, "water").rising).toBe(false); // receded
+    expect(decideRise("h5", 0.40, 0.8, 900_000, "water").shouldAlert).toBe(true); // rose again
+  });
+
+  test("cameras re-arm independently", () => {
+    __resetRefs();
+    decideRise("a", 0.50, 0.8, 0, "water");
+    decideRise("b", 0.50, 0.8, 0, "water");
+    expect(decideRise("a", 0.40, 0.8, 300_000, "water").shouldAlert).toBe(true);
+    expect(decideRise("b", 0.40, 0.8, 300_000, "water").shouldAlert).toBe(true);
+    expect(decideRise("a", 0.40, 0.8, 600_000, "water").shouldAlert).toBe(false);
+  });
+});

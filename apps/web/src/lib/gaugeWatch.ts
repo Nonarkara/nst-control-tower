@@ -108,7 +108,14 @@ export function pickGaugeCandidates(
 }
 
 export interface RiseDecision {
+  /** STATE: the water is currently ≥ RISE_THRESHOLD above the dry reference.
+   *  Stays true for as long as the water stays up — it is a level, not an event. */
   rising: boolean;
+  /** EVENT: this reading is worth telling someone about. True on the first
+   *  crossing, and again on each further RISE_THRESHOLD of climb, but NOT on
+   *  every sweep of steady high water. Without this, a 12 h flood posts an
+   *  alert every 5 min per camera and the operator learns to ignore the panel. */
+  shouldAlert: boolean;
   /** How far the new water line is below the reference line (0 = at reference, >0 = rose). */
   rise: number;
   /** Confidence in this reading. */
@@ -145,9 +152,16 @@ export function reanchorRef(camId: string, lineY: number, nowMs = Date.now()): v
   writeRef(camId, lineY, nowMs, "");
 }
 
+/** Per-camera memory of the last rise we actually alerted on, so steady high
+ *  water does not re-alert every sweep. Cleared when the water drops back
+ *  below the threshold, so the NEXT flood alerts from scratch. Separate from
+ *  refMap on purpose: the dry reference must stay immutable. */
+const alertedRise: Record<string, number | undefined> = {};
+
 /** Test-only: forget every stored reference. */
 export function __resetRefs(): void {
   for (const k of Object.keys(refMap)) delete refMap[k];
+  for (const k of Object.keys(alertedRise)) delete alertedRise[k];
 }
 
 /** Float-safe threshold compare. `0.60 - 0.56` evaluates to
@@ -170,11 +184,20 @@ export function decideRise(camId: string, lineY: number, confidence: number, now
   if (!base) {
     // First reading for this camera: seed the immutable reference.
     writeRef(camId, lineY, nowMs, "");
-    return { rising: false, rise: 0, confidence, frameKind };
+    return { rising: false, shouldAlert: false, rise: 0, confidence, frameKind };
   }
   const rise = base.lineY - lineY; // positive = water rose (moved up the frame)
   const rising = riseExceedsThreshold(rise) && confidence >= MIN_CONFIDENCE;
-  return { rising, rise, confidence, frameKind };
+  if (!rising) {
+    // Back below the threshold — re-arm, so a later flood alerts on its first crossing.
+    delete alertedRise[camId];
+    return { rising, shouldAlert: false, rise, confidence, frameKind };
+  }
+  const last = alertedRise[camId];
+  // Alert on the first crossing, then only on each further threshold of climb.
+  const shouldAlert = last === undefined || riseExceedsThreshold(rise - last);
+  if (shouldAlert) alertedRise[camId] = rise;
+  return { rising, shouldAlert, rise, confidence, frameKind };
 }
 
 /** Load a data: URL through an <img>. NOT fetch(): the CSP's connect-src (rightly)

@@ -40,11 +40,13 @@ export function useGaugeWatch(cameras: CctvCamera[], apiBase: string, enabled: b
           if (cancelled) break;
           const outcome = await analyzeCandidate(c);
           if (cancelled) break;
-          const rising = outcome.status === "read" && outcome.decision.rising;
-          if (outcome.status === "read" && outcome.decision.rising) {
+          // Post on the EVENT (first crossing / further climb), not on the
+          // state — steady high water must not re-alert every 5 minutes.
+          const alert = outcome.status === "read" && outcome.decision.shouldAlert;
+          if (alert) {
             await postRiseEvent(base, c.camera.id, outcome.decision.rise, outcome.decision.confidence);
           }
-          results.push({ outcome, posted: rising });
+          results.push({ outcome, posted: alert });
         }
         recordSweep(results);
       } finally {

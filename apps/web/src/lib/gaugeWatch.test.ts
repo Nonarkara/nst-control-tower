@@ -198,8 +198,8 @@ describe("sweep stats", () => {
     recordSweep([
       { outcome: { status: "undecodable" }, posted: false },
       { outcome: { status: "unreadable", frameKind: "street" as const }, posted: false },
-      { outcome: { status: "read", decision: { rising: true, rise: 0.06, confidence: 0.7 } }, posted: true },
-      { outcome: { status: "read", decision: { rising: false, rise: 0, confidence: 0.2 } }, posted: false },
+      { outcome: { status: "read", decision: { rising: true, shouldAlert: true, rise: 0.06, confidence: 0.7 } }, posted: true },
+      { outcome: { status: "read", decision: { rising: false, shouldAlert: false, rise: 0, confidence: 0.2 } }, posted: false },
     ], 1_000);
     const s = getSweepStats();
     expect(s).toMatchObject({ at: 1_000, analysed: 4, undecodable: 1, unreadable: 1, confident: 1, posted: 1 });
