@@ -24,11 +24,14 @@ interface Props {
   coverage: EvacCoverage;
 }
 
+/** Reporting-station counts; null = that feed has not answered yet. */
 export interface EvacCoverage {
-  rivers: number;
-  rain: number;
-  warnings: number;
+  rivers: number | null;
+  rain: number | null;
+  warnings: number | null;
 }
+
+const count = (n: number | null): string => (n == null ? "…" : String(n));
 
 /** "Calm" only means "no evidence" — say what we can see, and say loudly when
  *  the rivers are dark, so nobody stands a village down on a blind list. */
@@ -37,7 +40,7 @@ function Coverage({ coverage }: { coverage: EvacCoverage }) {
   return (
     <>
       <p className="note num">
-        Watching now: {coverage.rivers} river gauges · {coverage.rain} rain gauges · {coverage.warnings} flash-flood warning stations
+        Watching now: {count(coverage.rivers)} river gauges · {count(coverage.rain)} rain gauges · {count(coverage.warnings)} flash-flood warning stations
       </p>
       {riversDark && (
         <p className="evac-blind" role="alert" style={{ ["--status" as string]: STATUS.warning.color }}>

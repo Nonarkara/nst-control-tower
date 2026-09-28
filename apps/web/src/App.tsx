@@ -1379,11 +1379,12 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
   }, []);
   const evacCoverage = useMemo(
     () => ({
-      rivers: waterGauges.data.length,
-      rain: waterRain.data.length,
-      warnings: ewsCurrent.filter((s) => !s.stale).length,
+      // null until the feed has answered — 0 must mean "offline", never "not loaded yet".
+      rivers: waterGauges.fallbackTier === "loading" ? null : waterGauges.data.length,
+      rain: waterRain.fallbackTier === "loading" ? null : waterRain.data.length,
+      warnings: ewsStations.fallbackTier === "loading" ? null : ewsCurrent.length,
     }),
-    [waterGauges.data, waterRain.data, ewsCurrent],
+    [waterGauges.fallbackTier, waterGauges.data, waterRain.fallbackTier, waterRain.data, ewsStations.fallbackTier, ewsCurrent],
   );
   const evacRows = useMemo<EvacRow[]>(
     () =>

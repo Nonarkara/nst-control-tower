@@ -212,3 +212,28 @@ test.describe("ChatBox — emergency escalation", () => {
     await expect(numbers.getByRole("link", { name: /1669/ })).toHaveAttribute("href", "tel:1669");
   });
 });
+
+test.describe("WHO TO MOVE FIRST — coverage honesty", () => {
+  const offline = JSON.stringify({
+    features: [],
+    meta: { source: "thaiwater-waterlevel", fetchedAt: new Date().toISOString(), ageMinutes: 0, fallbackTier: "unavailable", note: "test" },
+  });
+
+  test("no 'offline' alarm while the gauge feed is still loading", async ({ page }) => {
+    await page.route("**/api/water/gauges*", () => { /* hold: still loading */ });
+    await page.goto("/");
+    await expect(page.locator(".map-host")).toBeVisible({ timeout: 20_000 });
+    const panel = page.getByRole("region", { name: "Who to move first" });
+    await expect(panel.getByText(/Watching now: … river gauges/)).toBeVisible({ timeout: 30_000 });
+    await expect(panel.getByText(/River gauges are offline/)).toHaveCount(0);
+  });
+
+  test("gauge feed answers with zero stations → says the list is blind", async ({ page }) => {
+    await page.route("**/api/water/gauges*", (r) => r.fulfill({ status: 200, contentType: "application/json", body: offline }));
+    await page.goto("/");
+    await expect(page.locator(".map-host")).toBeVisible({ timeout: 20_000 });
+    const panel = page.getByRole("region", { name: "Who to move first" });
+    await expect(panel.getByText(/Watching now: 0 river gauges/)).toBeVisible({ timeout: 30_000 });
+    await expect(panel.getByRole("alert")).toContainText(/River gauges are offline/);
+  });
+});
