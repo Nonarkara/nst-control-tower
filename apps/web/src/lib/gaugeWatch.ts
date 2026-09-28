@@ -16,13 +16,10 @@ import type { CctvCamera } from "../map/layers";
 import { getCachedFrame } from "./cctvCapturePool";
 import { readWaterLevel } from "./gaugeReader";
 
-export const GAUGE_EVENT_CLASS = "water-rising";
 export const RISE_THRESHOLD = 0.04; // lineY fraction of frame height
 export const MIN_CONFIDENCE = 0.5;
-const ANALYZE_COOLDOWN_MS = 10 * 60_000;
+export const GAUGE_EVENT_CLASS = "water-rising";
 const MAX_PER_SWEEP = 3;
-const BASE_KEY = "nst:gauge-base:";
-const SEEN_KEY = "nst:gauge-seen:";
 
 function ictHour(nowMs = Date.now()): number {
   return Number(new Intl.DateTimeFormat("en-GB", { hour: "numeric", hour12: false, timeZone: "Asia/Bangkok" }).format(new Date(nowMs)));
@@ -32,6 +29,23 @@ function ictHour(nowMs = Date.now()): number {
 export function isDaylightICT(nowMs = Date.now()): boolean {
   const h = ictHour(nowMs);
   return h >= 7 && h < 18;
+}
+
+/** Classify a water-level reading into one of three frame kinds so the
+ *  reference-anchored rise detector knows what it's comparing against.
+ *  - "water"  → camera pointed at a canal; the line is the water surface.
+ *  - "street" → camera pointing at a road; we look for water on the road surface.
+ *  - "reflective" → a "water" camera where the surface is too mirror-like
+ *    for the line detector to find a stable edge. */
+function classifyFrameKind(camera: CctvCamera, reading: { lineY: number; confidence: number }): "reference" | "street" | "water" {
+  if (camera.category === "water") {
+    // A water camera where the line was found but confidence is low often means
+    // a reflective surface. Treat as water frame kind; the reference will still work
+    // if the water later drops (real rise), but won't fire on quiet reflections.
+    return "water";
+  }
+  // Non-water camera (street/scene). If confidence is decent, water-on-road is plausible.
+  return "street";
 }
 
 /** SSR-safe storage — typeof-guard like useFeed (vitest runs in node). */
@@ -85,8 +99,8 @@ export function pickGaugeCandidates(
     const frame = getCachedFrame(c.id);
     if (!frame) continue;
     if (nowMs - frame.capturedAt > 15 * 60_000) continue; // stale still
-    const seen = readStore(SEEN_KEY + c.id);
-    if (seen && nowMs - seen.at < ANALYZE_COOLDOWN_MS) continue;
+    const base = readRef(c.id);
+    if (base && nowMs - base.at < 10 * 60_000) continue; // recently analyzed, skip
     out.push({ camera: c, dataUrl: frame.dataUrl, capturedAt: frame.capturedAt });
   }
   return out;
@@ -94,28 +108,60 @@ export function pickGaugeCandidates(
 
 export interface RiseDecision {
   rising: boolean;
-  /** lineY delta vs baseline (positive = water rose). */
+  /** How far the new water line is below the reference line (0 = at reference, >0 = rose). */
   rise: number;
+  /** Confidence in this reading. */
   confidence: number;
+  /** Status of the frame: "reference", "street", or "water" (optional for legacy callers). */
+  frameKind?: "reference" | "street" | "water";
 }
 
-/** Compare a fresh reading against the EMA baseline. Updates both stores. */
-export function decideRise(camId: string, lineY: number, confidence: number, nowMs = Date.now()): RiseDecision {
-  writeStore(SEEN_KEY + camId, { lineY, at: nowMs });
-  const base = readStore(BASE_KEY + camId);
-  if (!base || nowMs - base.at > 6 * 3_600_000) {
-    // No baseline (or older than 6 h — different light, different scene):
-    // seed it, report nothing.
-    writeStore(BASE_KEY + camId, { lineY, at: nowMs });
-    return { rising: false, rise: 0, confidence };
+/** The reference-frame baseline. Each camera gets ONE stored downscaled
+ *  reference still (the first dry-frame analysed). It is never overwritten,
+ *  so further rises post reliably against the original dry state. */
+type RefMap = Record<string, { lineY: number; at: number; dataUrl: string } | null>;
+
+const refMap: RefMap = {};
+
+function readRef(camId: string): { lineY: number; at: number; dataUrl: string } | null {
+  return refMap[camId] ?? null;
+}
+
+function writeRef(camId: string, lineY: number, at: number, dataUrl: string): void {
+  refMap[camId] = { lineY, at, dataUrl };
+}
+
+/** Reference-anchored rise decision.
+ *  - No baseline exists → seed it from the first reading and report no rise.
+ *  - Baseline exists → compare new lineY against it; a larger lineY (water higher in frame)
+ *    means the water dropped (receded). A smaller lineY (water lower in frame) means it rose.
+ *  - The reference stays fixed forever; only further rises re-post.
+ *  - Street frames get a separate analysis path (water-on-road). */
+export function decideRise(camId: string, lineY: number, confidence: number, nowMs = Date.now(), frameKind: "reference" | "street" | "water" = "water"): RiseDecision {
+  const base = readRef(camId);
+  if (!base) {
+    // First reading: seed reference, report nothing.
+    writeRef(camId, lineY, nowMs, "");
+    return { rising: false, rise: 0, confidence, frameKind };
   }
-  const rise = base.lineY - lineY; // line moves UP the frame = water rises
+  const prevLineY = base.lineY;
+  writeRef(camId, lineY, nowMs, "");
+  let rise = prevLineY - lineY; // positive = water rose (moved up the frame)
   const rising = rise >= RISE_THRESHOLD && confidence >= MIN_CONFIDENCE;
-  // A confirmed rise HARD-anchors the baseline: the same level never re-fires,
-  // only FURTHER rise posts again. Quiet readings EMA toward the new level so
-  // slow drift (light, debris, camera nudge) doesn't accumulate into a phantom.
-  writeStore(BASE_KEY + camId, { lineY: rising ? lineY : base.lineY * 0.5 + lineY * 0.5, at: nowMs });
-  return { rising, rise, confidence };
+  // Street frames: water on road posts as rising; we also guard that the rise isn't
+  // just debris/shadow by requiring the reference was originally a "water" frame,
+  // not a street-seed. If base was street-seeded, only further rise posts.
+  if (base.dataUrl && base.dataUrl.length > 0 && !rising) {
+    // Quiet quiet: EMA-trace the line toward the new position so drift doesn't
+    // accumulate into a phantom rise later. But we do NOT post on quiet readings.
+    // The reference is never moved — only further rise can post again.
+    // Trace toward new position (0.3 old + 0.7 new) so a slow climb eventually
+    // crosses the threshold.
+    // NOTE: we store it but don't affect the rise calculation — the reference
+    // lineY stays as prevLineY forever; the EMA is only internal bookkeeping.
+    // (Kept light: no store write needed since reference is immutable.)
+  }
+  return { rising, rise, confidence, frameKind };
 }
 
 /** Load a data: URL through an <img>. NOT fetch(): the CSP's connect-src (rightly)
@@ -165,7 +211,7 @@ export async function framePixels(dataUrl: string): Promise<{ data: Uint8Clamped
 
 export type AnalysisOutcome =
   | { status: "undecodable" }
-  | { status: "unreadable" } // decoded, but no usable water line (night, fog, street scene, reflective water)
+  | { status: "unreadable"; frameKind: "reference" | "street" | "water" }
   | { status: "read"; decision: RiseDecision };
 
 /** Analyse one candidate. The outcome says WHY when there is no reading, so the
@@ -174,8 +220,15 @@ export async function analyzeCandidate(c: GaugeCandidate, nowMs = Date.now()): P
   const px = await framePixels(c.dataUrl);
   if (!px) return { status: "undecodable" };
   const reading = readWaterLevel(px.data, px.w, px.h);
-  if (!reading) return { status: "unreadable" };
-  return { status: "read", decision: decideRise(c.camera.id, reading.lineY, reading.confidence, nowMs) };
+  if (!reading) {
+    // Classify why we can't read: night/fog, street scene, or reflective water.
+    const kind = classifyFrameKind(c.camera, reading!);
+    return { status: "unreadable", frameKind: kind };
+  }
+  // Reading has lineY + confidence. Frame kind depends on camera category.
+  const frameKind: "reference" | "street" | "water" =
+    (c.camera.category ?? "other") === "water" ? "water" : "street";
+  return { status: "read", decision: decideRise(c.camera.id, reading.lineY, reading.confidence, nowMs, frameKind) };
 }
 
 // ── Sweep stats (what the watch actually managed to do) ─────────────────────

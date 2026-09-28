@@ -179,7 +179,7 @@ describe("sweep stats", () => {
   test("record what the last sweep actually achieved, and accumulate posts", () => {
     recordSweep([
       { outcome: { status: "undecodable" }, posted: false },
-      { outcome: { status: "unreadable" }, posted: false },
+      { outcome: { status: "unreadable", frameKind: "street" as const }, posted: false },
       { outcome: { status: "read", decision: { rising: true, rise: 0.06, confidence: 0.7 } }, posted: true },
       { outcome: { status: "read", decision: { rising: false, rise: 0, confidence: 0.2 } }, posted: false },
     ], 1_000);
