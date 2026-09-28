@@ -193,3 +193,22 @@ test.describe("ChatBox — open / close", () => {
     await expect(chat).toBeHidden({ timeout: 5_000 });
   });
 });
+
+test.describe("ChatBox — emergency escalation", () => {
+  test("a rescue-now message shows tap-to-call 1784 and 1669 before any reply", async ({ page }) => {
+    // Hold the model reply so the test proves the numbers do not wait on it.
+    await page.route("**/api/chat", () => { /* never fulfilled */ });
+    await page.goto("/");
+    await expect(page.locator(".map-host")).toBeVisible({ timeout: 20_000 });
+
+    await page.getByRole("button", { name: /Open concierge chat/i }).click();
+    const chat = page.getByRole("dialog", { name: /Ask anything about Nakhon Si Thammarat/i });
+    await chat.getByRole("textbox", { name: "Your message" }).fill("ยายติดเตียง น้ำเข้าบ้านแล้ว");
+    await chat.getByRole("textbox", { name: "Your message" }).press("Enter");
+
+    const numbers = chat.getByRole("group", { name: "Emergency numbers" });
+    await expect(numbers).toBeVisible({ timeout: 5_000 });
+    await expect(numbers.getByRole("link", { name: /1784/ })).toHaveAttribute("href", "tel:1784");
+    await expect(numbers.getByRole("link", { name: /1669/ })).toHaveAttribute("href", "tel:1669");
+  });
+});

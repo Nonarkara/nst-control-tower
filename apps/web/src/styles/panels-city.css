@@ -1016,3 +1016,26 @@ button.pred-strip:hover { background: var(--ground); border-color: var(--line); 
 .evac-row__action { font-size: var(--text-sm); color: var(--ink); }
 .evac-row__buttons { display: flex; flex-wrap: wrap; gap: var(--s-2); }
 .situation-headline__evac { font-size: var(--text-sm); color: var(--ink); }
+.evac-blind {
+  margin: 0;
+  padding: var(--s-2) var(--s-3);
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--status);
+  font-size: var(--text-sm);
+  color: var(--ink);
+}
+.evac-blind span[aria-hidden] { color: var(--status); }
+.hotlines { display: grid; gap: var(--s-1); margin-top: var(--s-2); }
+.hotlines .row-list { display: grid; gap: var(--s-1); }
+.hotlines__call { justify-content: flex-start; min-height: var(--hit); width: 100%; }
+
+/* Chat: hotlines shown under an emergency message, before any model reply. */
+.chat-emergency {
+  margin-top: var(--s-2);
+  padding: var(--s-2) var(--s-3);
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--bad);
+  font-size: var(--text-sm);
+  color: var(--ink);
+}
+.chat-emergency p { margin: 0; }

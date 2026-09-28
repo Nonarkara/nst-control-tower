@@ -13,6 +13,7 @@ import type { NormalizedFeed, WaterGauge, RainfallStation } from "@nst/shared";
 import { cacheAgeMinutes, cachedWithStale as cached } from "../lib/cache.js";
 import { recordGaugeSample } from "../lib/gaugeHistory.js";
 import { fetchJsonOrThrow } from "./common.js";
+import { RELAY_SOURCE_NOTE, SILENT_AFTER_H, bangkokIso, fetchRelay, mapRelayRain, mapRelayWater } from "./floodDashRelay.js";
 
 const BASE = "https://api-v3.thaiwater.net/api/v1/thaiwater30/public";
 const PROVINCE = "80"; // Nakhon Si Thammarat
@@ -158,20 +159,11 @@ export async function fetchWaterGauges(): Promise<NormalizedFeed<WaterGauge>> {
         `${BASE}/waterlevel?province_code=${PROVINCE}`
       );
     } catch {
-      return {
-        features: [],
-        meta: {
-          source: "thaiwater-waterlevel",
-          fetchedAt,
-          ageMinutes: 0,
-          fallbackTier: "unavailable",
-          note: "HII ThaiWater waterlevel API unreachable (api-v3.thaiwater.net — upstream/DNS). Resolves on public DNS; retries automatically.",
-        },
-      };
+      return gaugesViaRelay(fetchedAt);
     }
     const raw: TWWaterLevelEntry[] = resp?.data ?? [];
 
-    const features: WaterGauge[] = raw.map((entry) => {
+    const placed: WaterGauge[] = raw.map((entry) => {
       const s = entry.station;
       const levelNow = num(entry.waterlevel_msl);
       const levelOld = num(entry.waterlevel_msl_previous);
@@ -189,7 +181,7 @@ export async function fetchWaterGauges(): Promise<NormalizedFeed<WaterGauge>> {
         trend: trend(levelNow, levelOld),
         riverName: entry.river_name ?? "",
         amphoe: amphoeName(entry.geocode?.amphoe_name),
-        observedAt: entry.waterlevel_datetime ?? fetchedAt,
+        observedAt: bangkokIso(entry.waterlevel_datetime ?? null) ?? "",
         isKeyStation: s?.is_key_station ?? false,
         stationCode: s?.tele_station_oldcode ?? null,
         bankMsl: num(s?.min_bank),
@@ -199,6 +191,7 @@ export async function fetchWaterGauges(): Promise<NormalizedFeed<WaterGauge>> {
         qmaxCms: num(s?.qmax),
       };
     }).filter((g) => g.lat !== 0 && g.lng !== 0);
+    const { live: features, silent } = dropSilent(placed, Date.parse(fetchedAt));
 
     // Feed the rise-rate ring (keyed by station code when present — stable
     // across feed reloads, unlike the reading id).
@@ -220,7 +213,9 @@ export async function fetchWaterGauges(): Promise<NormalizedFeed<WaterGauge>> {
         fetchedAt,
         ageMinutes: cacheAgeMinutes(fetchedAt),
         fallbackTier: features.length > 0 ? "live" : "unavailable",
-        ...(features.length === 0 ? { note: "ThaiWater returned no stations for province 80" } : {}),
+        ...(features.length === 0
+          ? { note: `ThaiWater returned no reporting stations for province 80${silent ? ` (${silent} silent >${SILENT_AFTER_H} h)` : ""}` }
+          : silent ? { note: `${silent} station(s) silent >${SILENT_AFTER_H} h not shown — a dead gauge is not a calm river` } : {}),
       },
     };
   });
@@ -241,20 +236,11 @@ export async function fetchRainfall(): Promise<NormalizedFeed<RainfallStation>> 
         `${BASE}/rain_24h?province_code=${PROVINCE}`
       );
     } catch {
-      return {
-        features: [],
-        meta: {
-          source: "thaiwater-rain",
-          fetchedAt,
-          ageMinutes: 0,
-          fallbackTier: "unavailable",
-          note: "HII ThaiWater rain API unreachable (api-v3.thaiwater.net — upstream/DNS). Resolves on public DNS; retries automatically.",
-        },
-      };
+      return rainViaRelay(fetchedAt);
     }
     const raw: TWRainEntry[] = resp?.data ?? [];
 
-    const features: RainfallStation[] = raw
+    const placedRain: RainfallStation[] = raw
       .map((entry) => {
         const s = entry.station;
         return {
@@ -269,10 +255,11 @@ export async function fetchRainfall(): Promise<NormalizedFeed<RainfallStation>> 
           rain1h: num(entry.rain_1h),
           rain24h: num(entry.rain_24h),
           amphoe: amphoeName(entry.amphoe_name ?? entry.geocode?.amphoe_name),
-          observedAt: entry.rainfall_datetime ?? fetchedAt,
+          observedAt: bangkokIso(entry.rainfall_datetime ?? null) ?? "",
         };
       })
       .filter((r) => r.lat !== 0 && r.lng !== 0);
+    const { live: features, silent } = dropSilent(placedRain, Date.parse(fetchedAt));
 
     // Sort by highest 24h rain first
     features.sort((a, b) => (b.rain24h ?? 0) - (a.rain24h ?? 0));
@@ -284,8 +271,82 @@ export async function fetchRainfall(): Promise<NormalizedFeed<RainfallStation>> 
         fetchedAt,
         ageMinutes: cacheAgeMinutes(fetchedAt),
         fallbackTier: features.length > 0 ? "live" : "unavailable",
-        ...(features.length === 0 ? { note: "ThaiWater returned no rain stations for province 80" } : {}),
+        ...(features.length === 0
+          ? { note: `ThaiWater returned no reporting rain stations for province 80${silent ? ` (${silent} silent >${SILENT_AFTER_H} h)` : ""}` }
+          : silent ? { note: `${silent} rain station(s) silent >${SILENT_AFTER_H} h not shown` } : {}),
       },
     };
   });
+}
+// ---- sensor honesty + FloodDash relay ----
+
+/** Drop readings older than SILENT_AFTER_H. A gauge that stopped reporting
+ *  keeps publishing its last value; shown as current, a dead gauge reads as a
+ *  calm river and suppresses "move now" in the evacuation ranking. */
+export function dropSilent<T extends { observedAt: string }>(rows: T[], nowMs: number): { live: T[]; silent: number } {
+  const cutoff = nowMs - SILENT_AFTER_H * 3_600_000;
+  const live = rows.filter((r) => {
+    const t = Date.parse(r.observedAt);
+    return Number.isFinite(t) && t >= cutoff;
+  });
+  return { live, silent: rows.length - live.length };
+}
+
+async function gaugesViaRelay(fetchedAt: string): Promise<NormalizedFeed<WaterGauge>> {
+  try {
+    const relay = await fetchRelay();
+    const { gauges, silent } = mapRelayWater(relay.water);
+    for (const g of gauges) recordGaugeSample(g.stationCode ?? g.id, g.observedAt, g.levelMsl);
+    gauges.sort((a, b) => b.situationLevel - a.situationLevel || a.name.localeCompare(b.name));
+    return {
+      features: gauges,
+      meta: {
+        source: "thaiwater-waterlevel via flooddash",
+        fetchedAt,
+        ageMinutes: 0,
+        fallbackTier: gauges.length > 0 ? "live" : "unavailable",
+        note: `${RELAY_SOURCE_NOTE} · ${gauges.length} reporting · ${silent} silent >${SILENT_AFTER_H} h not shown`,
+      },
+    };
+  } catch {
+    return {
+      features: [],
+      meta: {
+        source: "thaiwater-waterlevel",
+        fetchedAt,
+        ageMinutes: 0,
+        fallbackTier: "unavailable",
+        note: "River gauges unavailable: HII ThaiWater is unreachable from Cloudflare and the FloodDash relay also failed. Retries automatically.",
+      },
+    };
+  }
+}
+
+async function rainViaRelay(fetchedAt: string): Promise<NormalizedFeed<RainfallStation>> {
+  try {
+    const relay = await fetchRelay();
+    const { stations, silent } = mapRelayRain(relay.rain);
+    stations.sort((a, b) => (b.rain24h ?? 0) - (a.rain24h ?? 0));
+    return {
+      features: stations,
+      meta: {
+        source: "thaiwater-rain via flooddash",
+        fetchedAt,
+        ageMinutes: 0,
+        fallbackTier: stations.length > 0 ? "live" : "unavailable",
+        note: `${RELAY_SOURCE_NOTE} · ${stations.length} reporting · ${silent} silent >${SILENT_AFTER_H} h not shown`,
+      },
+    };
+  } catch {
+    return {
+      features: [],
+      meta: {
+        source: "thaiwater-rain",
+        fetchedAt,
+        ageMinutes: 0,
+        fallbackTier: "unavailable",
+        note: "Rain gauges unavailable: HII ThaiWater is unreachable from Cloudflare and the FloodDash relay also failed. Retries automatically.",
+      },
+    };
+  }
 }

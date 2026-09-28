@@ -11,6 +11,7 @@ import type { CctvCamera } from "../map/layers";
 import type { StatusLevel } from "../lib/status";
 import { STATUS } from "../lib/status";
 import { PanelHeader } from "./PanelHeader";
+import { Hotlines } from "./Hotlines";
 
 interface Props {
   rows: EvacRow[];
@@ -19,6 +20,33 @@ interface Props {
   years: { population: string; disabled: string; elderly: string } | null;
   onFocus: (lng: number, lat: number) => void;
   onOpenCamera: (camera: CctvCamera) => void;
+  /** Stations actually reporting right now, per evidence type. */
+  coverage: EvacCoverage;
+}
+
+export interface EvacCoverage {
+  rivers: number;
+  rain: number;
+  warnings: number;
+}
+
+/** "Calm" only means "no evidence" — say what we can see, and say loudly when
+ *  the rivers are dark, so nobody stands a village down on a blind list. */
+function Coverage({ coverage }: { coverage: EvacCoverage }) {
+  const riversDark = coverage.rivers === 0;
+  return (
+    <>
+      <p className="note num">
+        Watching now: {coverage.rivers} river gauges · {coverage.rain} rain gauges · {coverage.warnings} flash-flood warning stations
+      </p>
+      {riversDark && (
+        <p className="evac-blind" role="alert" style={{ ["--status" as string]: STATUS.warning.color }}>
+          <span aria-hidden="true">{STATUS.warning.glyph}</span> River gauges are offline. A village with no signal here is
+          not known to be safe — we cannot see the rivers. Confirm with ปภ. 1784 before standing anyone down.
+        </p>
+      )}
+    </>
+  );
 }
 
 const TIER: Record<Exclude<EvacTier, "calm">, { level: StatusLevel; en: string; th: string }> = {
@@ -71,7 +99,7 @@ function Row({ row, onFocus, onOpenCamera }: { row: EvacRow; onFocus: Props["onF
   );
 }
 
-export function EvacuationPanel({ rows, summary, loading, years, onFocus, onOpenCamera }: Props) {
+export function EvacuationPanel({ rows, summary, loading, years, onFocus, onOpenCamera, coverage }: Props) {
   const listed = rows.filter((r) => r.tier !== "calm");
   const shown = listed.slice(0, LIST_LIMIT);
   return (
@@ -81,6 +109,7 @@ export function EvacuationPanel({ rows, summary, loading, years, onFocus, onOpen
         <p className="note">Loading the village flood-risk register…</p>
       ) : (
         <>
+          <Coverage coverage={coverage} />
           <p className="stat-line">
             <span className="stat-line__value num" style={summary.moveNow > 0 ? { color: STATUS.critical.color } : undefined}>
               {summary.moveNow}
@@ -92,7 +121,9 @@ export function EvacuationPanel({ rows, summary, loading, years, onFocus, onOpen
           </p>
           {shown.length === 0 ? (
             <p className="note">
-              No at-risk village has a live flood signal nearby, and none is in its flood season. {rows.length} villages on the register are checked every time the gauges update.
+              {coverage.rivers === 0
+                ? `No village shows a signal — but river gauges are offline, so this list cannot see river flooding. ${rows.length} villages on the register.`
+                : `No at-risk village has a live flood signal nearby, and none is in its flood season. ${rows.length} villages on the register are checked every time the gauges update.`}
             </p>
           ) : (
             <ol className="evac-list">
@@ -102,6 +133,7 @@ export function EvacuationPanel({ rows, summary, loading, years, onFocus, onOpen
             </ol>
           )}
           {listed.length > LIST_LIMIT && <p className="note">+{listed.length - LIST_LIMIT} more villages on the map (coloured dots).</p>}
+          <Hotlines />
         </>
       )}
       <p className="note">

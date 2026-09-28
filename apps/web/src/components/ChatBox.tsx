@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { safeUrl } from "../lib/safeUrl";
 import { Dialog } from "./Dialog";
 import { friendlyError } from "../lib/chat";
+import { isEmergencyMessage } from "../lib/hotlines";
+import { Hotlines } from "./Hotlines";
 
 interface ChatMessage {
   role: "user" | "model";
@@ -272,6 +274,14 @@ export function ChatBox({ apiBase }: Props) {
               <div className="chat-msg-body">
                 {m.role === "model" ? renderMarkdownLite(m.content) : <p>{m.content}</p>}
               </div>
+              {/* Someone may need rescue: numbers first, instantly — never
+                  behind a model reply that can be slow, wrong, or down. */}
+              {m.role === "user" && isEmergencyMessage(m.content) && (
+                <div className="chat-emergency" role="alert">
+                  <p><strong>If anyone is in danger now, call first:</strong> <span lang="th">ถ้ามีคนตกอยู่ในอันตราย โทรก่อน</span></p>
+                  <Hotlines />
+                </div>
+              )}
             </div>
           ))}
 

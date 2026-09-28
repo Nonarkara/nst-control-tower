@@ -1377,6 +1377,14 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
       .catch(() => { /* panel shows its loading/empty note; map layer stays empty */ });
     return () => ctrl.abort();
   }, []);
+  const evacCoverage = useMemo(
+    () => ({
+      rivers: waterGauges.data.length,
+      rain: waterRain.data.length,
+      warnings: ewsCurrent.filter((s) => !s.stale).length,
+    }),
+    [waterGauges.data, waterRain.data, ewsCurrent],
+  );
   const evacRows = useMemo<EvacRow[]>(
     () =>
       evacData
@@ -2403,6 +2411,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
             years={evacData?.years ?? null}
             onFocus={(lng, lat) => flyTo(lng, lat, 14.5)}
             onOpenCamera={(c) => { highlightCamera(c.id); setSelectedCctv(c); }}
+            coverage={evacCoverage}
           />
         </RailSection>
 
