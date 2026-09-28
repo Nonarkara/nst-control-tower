@@ -1,6 +1,6 @@
 import { describe, expect, test, vi, beforeEach } from "vitest";
 import type { CctvCamera } from "../map/layers";
-import { analyzeCandidate, decideRise, framePixels, getSweepStats, isDaylightICT, pickGaugeCandidates, recordSweep, RISE_THRESHOLD } from "./gaugeWatch";
+import { analyzeCandidate, decideRise, framePixels, getSweepStats, isDaylightICT, pickGaugeCandidates, recordSweep, reanchorRef, RISE_THRESHOLD } from "./gaugeWatch";
 import * as pool from "./cctvCapturePool";
 
 function cam(id: string, extra: Partial<CctvCamera> = {}): CctvCamera {
@@ -66,10 +66,28 @@ describe("decideRise", () => {
     expect(d.rise).toBeLessThan(0);
   });
 
-  test("a posted rise re-anchors — same level does not re-fire", () => {
+  test("the reference is immutable — holding a risen level keeps reporting the rise", () => {
+    // This test used to assert the OPPOSITE: that a posted rise re-anchors so
+    // the same level does not re-fire. That assertion encoded a real defect —
+    // re-anchoring on every reading meant a slow flood (1%/sweep) was measured
+    // as 1% every sweep and never crossed the 4% threshold. The reference is
+    // now immutable; re-anchoring is explicit (see reanchorRef).
     decideRise("WL005", 0.6, 0.9, NOON);
-    decideRise("WL005", 0.5, 0.9, NOON + 60_000); // fires, baseline → ~0.55
+    expect(decideRise("WL005", 0.5, 0.9, NOON + 60_000).rising).toBe(true);
+    // Still 0.1 above the ORIGINAL 0.6 reference, so it is still a real rise.
     const d2 = decideRise("WL005", 0.5, 0.9, NOON + 120_000);
+    expect(d2.rise).toBeCloseTo(0.1, 6);
+    expect(d2.rising).toBe(true);
+  });
+
+  test("an explicit re-anchor stops a stale rise from re-firing", () => {
+    // Re-fire suppression is an operator/season action, not a side effect of
+    // analysis. After re-anchoring at the risen level, the same frame is calm.
+    decideRise("WL005", 0.6, 0.9, NOON);
+    expect(decideRise("WL005", 0.5, 0.9, NOON + 60_000).rising).toBe(true);
+    reanchorRef("WL005", 0.5, NOON + 90_000); // "the canal settled at 0.5"
+    const d2 = decideRise("WL005", 0.5, 0.9, NOON + 120_000);
+    expect(d2.rise).toBeCloseTo(0, 6);
     expect(d2.rising).toBe(false);
   });
 });

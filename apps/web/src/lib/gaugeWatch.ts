@@ -8,7 +8,8 @@
  *
  * Per camera, at most one analysis per 10 min, max 3 per sweep, daylight
  * ICT only (night/IR frames read as water to a pixel test). A rise of ≥4% of
- * frame height vs the EMA baseline posts one `water-rising` event; the POST
+ * frame height vs the IMMUTABLE per-camera reference (the first dry frame
+ * ever analysed for that camera) posts one `water-rising` event; the POST
  * is fire-and-forget and can never break the UI.
  */
 
@@ -116,9 +117,15 @@ export interface RiseDecision {
   frameKind?: "reference" | "street" | "water";
 }
 
-/** The reference-frame baseline. Each camera gets ONE stored downscaled
- *  reference still (the first dry-frame analysed). It is never overwritten,
- *  so further rises post reliably against the original dry state. */
+/** The reference-frame baseline. Each camera gets ONE stored reference still
+ *  (the first dry frame analysed for that camera). It is IMMUTABLE for the
+ *  life of the page: every later reading is compared against this original
+ *  dry state, so a SLOW flood (1% per sweep for 20 sweeps = 20% total) still
+ *  accumulates past the threshold instead of being measured frame-to-frame
+ *  and never firing.
+ *
+ *  Re-anchoring is explicit, never implicit: `reanchorRef` is called only by
+ *  an operator action or a season rollover, never by the analysis loop. */
 type RefMap = Record<string, { lineY: number; at: number; dataUrl: string } | null>;
 
 const refMap: RefMap = {};
@@ -131,36 +138,42 @@ function writeRef(camId: string, lineY: number, at: number, dataUrl: string): vo
   refMap[camId] = { lineY, at, dataUrl };
 }
 
+/** Explicitly re-anchor a camera to a new dry baseline. NOT called by the
+ *  analysis loop — a quiet reading must never move the reference, or a slow
+ *  flood becomes invisible (the bug this replaced). */
+export function reanchorRef(camId: string, lineY: number, nowMs = Date.now()): void {
+  writeRef(camId, lineY, nowMs, "");
+}
+
+/** Test-only: forget every stored reference. */
+export function __resetRefs(): void {
+  for (const k of Object.keys(refMap)) delete refMap[k];
+}
+
+/** Float-safe threshold compare. `0.60 - 0.56` evaluates to
+ *  0.039999999999999925 in IEEE-754, which is < 0.04 — so a rise of EXACTLY
+ *  the documented 4% silently failed to fire. Compare with a small epsilon
+ *  instead of raw `>=` so the documented threshold is the real threshold. */
+const RISE_EPSILON = 1e-9;
+export function riseExceedsThreshold(rise: number, threshold = RISE_THRESHOLD): boolean {
+  return rise >= threshold - RISE_EPSILON;
+}
+
 /** Reference-anchored rise decision.
- *  - No baseline exists → seed it from the first reading and report no rise.
- *  - Baseline exists → compare new lineY against it; a larger lineY (water higher in frame)
- *    means the water dropped (receded). A smaller lineY (water lower in frame) means it rose.
- *  - The reference stays fixed forever; only further rises re-post.
- *  - Street frames get a separate analysis path (water-on-road). */
+ *  - No reference exists → seed it from the first reading, report no rise.
+ *  - Reference exists → compare new lineY against it. A SMALLER lineY (water
+ *    lower in the frame) means it rose. The reference is NEVER moved here.
+ *  - Street frames (non-`water` cameras) run the same detector; they post the
+ *    same `water-rising` class when the line rises past the threshold. */
 export function decideRise(camId: string, lineY: number, confidence: number, nowMs = Date.now(), frameKind: "reference" | "street" | "water" = "water"): RiseDecision {
   const base = readRef(camId);
   if (!base) {
-    // First reading: seed reference, report nothing.
+    // First reading for this camera: seed the immutable reference.
     writeRef(camId, lineY, nowMs, "");
     return { rising: false, rise: 0, confidence, frameKind };
   }
-  const prevLineY = base.lineY;
-  writeRef(camId, lineY, nowMs, "");
-  let rise = prevLineY - lineY; // positive = water rose (moved up the frame)
-  const rising = rise >= RISE_THRESHOLD && confidence >= MIN_CONFIDENCE;
-  // Street frames: water on road posts as rising; we also guard that the rise isn't
-  // just debris/shadow by requiring the reference was originally a "water" frame,
-  // not a street-seed. If base was street-seeded, only further rise posts.
-  if (base.dataUrl && base.dataUrl.length > 0 && !rising) {
-    // Quiet quiet: EMA-trace the line toward the new position so drift doesn't
-    // accumulate into a phantom rise later. But we do NOT post on quiet readings.
-    // The reference is never moved — only further rise can post again.
-    // Trace toward new position (0.3 old + 0.7 new) so a slow climb eventually
-    // crosses the threshold.
-    // NOTE: we store it but don't affect the rise calculation — the reference
-    // lineY stays as prevLineY forever; the EMA is only internal bookkeeping.
-    // (Kept light: no store write needed since reference is immutable.)
-  }
+  const rise = base.lineY - lineY; // positive = water rose (moved up the frame)
+  const rising = riseExceedsThreshold(rise) && confidence >= MIN_CONFIDENCE;
   return { rising, rise, confidence, frameKind };
 }
 
