@@ -1,5 +1,13 @@
 import { GeoJsonLayer, GridCellLayer, IconLayer, PathLayer, TextLayer } from "@deck.gl/layers";
 import { judgeGauge } from "../lib/levelWatch";
+import {
+  census,
+  estimateBuildingHeight,
+  legacyFloor,
+  type BuildingHeightResult,
+  type HeightCensus,
+  type HeightProps,
+} from "../lib/buildingHeights";
 import type { Layer } from "@deck.gl/core";
 import { HeatmapLayer } from "@deck.gl/aggregation-layers";
 import { ScatterplotLayer } from "@deck.gl/layers";
@@ -454,9 +462,20 @@ export const BUILDING_LEGEND: { label: string; color: [number, number, number] }
  *     hospital district — all visible in a single 3D view.
  * 3DS: ghosted for the substructure (utilities) cutaway view.
  */
+/**
+ * Provenance of the heights currently drawn, refreshed every time
+ * buildingsLayer() is built. Read it from BuildingLegend / the catalog to tell
+ * the user the truth: most of these numbers are MODELLED, and a 3D city that
+ * admits it is more credible than one that implies survey accuracy.
+ */
+export let heightCensus: HeightCensus = {
+  total: 0,
+  measured: 0,
+  bySource: { "osm-height": 0, "osm-levels": 0, typology: 0, "area-model": 0 },
+};
+
 export function buildingsLayer(
-  collection: FeatureCollection<Polygon | MultiPolygon, BuildingProperties>,
-  options: {
+  collection: FeatureCollection<Polygon | MultiPolygon, BuildingProperties>,  options: {
     extruded?: boolean;
     ghosted?: boolean;
     zoomBucket?: 0 | 1 | 2;
@@ -520,6 +539,31 @@ export function buildingsLayer(
     const compound = isGroundsCompound(f.properties, polygonAreaM2(f.geometry as { type: string; coordinates: unknown }));
     _kindCache.set(f, { kind, base: base as readonly [number, number, number], compound });
   }
+
+  // ── Height, resolved ONCE per layer (not per frame) ──────────────────────
+  // The old accessor read a hand-baked `_elevM` (10 m for everything, 28 m for
+  // temples) which made the whole city one flat plateau. estimateBuildingHeight()
+  // derives a defensible height from OSM typology + measured footprint area,
+  // and prefers a real `height` tag when one exists. See lib/buildingHeights.ts
+  // for the measured coverage numbers behind that decision (OSM carries a
+  // height on 0.2% of buildings here; no commercial dataset covers Thailand).
+  //
+  // Computed in the same pre-pass as the colour cache: 2,459 shoelace area
+  // calculations once, instead of one per feature per frame.
+  const _heightCache = new WeakMap<typeof filtered[number], number>();
+  const _heightResults: BuildingHeightResult[] = [];
+  for (const f of filtered) {
+    const p = f.properties as BuildingProperties & HeightProps;
+    const areaM2 = polygonAreaM2(f.geometry as { type: string; coordinates: unknown });
+    const res = estimateBuildingHeight(areaM2, p);
+    const floor = legacyFloor(p);
+    const metres = floor != null ? Math.max(res.metres, floor) : res.metres;
+    _heightCache.set(f, metres);
+    _heightResults.push(res);
+  }
+  heightCensus = census(_heightResults);
+
+  const buildingHeight = (f: typeof filtered[number]) => _heightCache.get(f) ?? 7;
 
   return new GeoJsonLayer({
     id: "municipality-buildings",
@@ -593,8 +637,7 @@ export function buildingsLayer(
     getElevation: ((f: Feature<Polygon | MultiPolygon, BuildingProperties>) => {
       // Grounds render flat — see the compound flag above.
       if (_kindCache.get(f as typeof filtered[number])?.compound) return 0.8;
-      const e = (f.properties as BuildingProperties & { _elevM?: number })._elevM;
-      return typeof e === "number" ? e : buildingHeightMeters(f.properties);
+      return buildingHeight(f);
     }) as unknown as number,
     opacity: ghosted ? 0.35 : 1,
     updateTriggers: {

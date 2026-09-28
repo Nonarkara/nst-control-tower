@@ -2,19 +2,29 @@
  * Mahatat3D — parametric 3D model of Wat Phra Mahathat Voramahavihan.
  *
  * The compound sits in NST Old Town at the canonical coordinates (99.9638°E,
- * 8.4367°N). The great chedi is the tallest structure in southern Thailand
- * (~78m) and the defining landmark of the city. This file approximates the
- * iconic Sri-Lankan-style bell stupa + surrounding monastic halls as a stack
- * of deck.gl primitive layers — no GLTF asset needed, so the model ships with
- * the JS bundle (no extra network round-trip).
+ * 8.4367°N). The great chedi is the defining landmark of the city and the
+ * subject of an active UNESCO World Heritage nomination.
+ *
+ * DIMENSIONS — taken from the nomination itself, not estimated. The OUV text
+ * gives "H. 28 wa, W. 14 wa; 1 wa = 2 metre", i.e. a chedi 56 m tall and 28 m
+ * wide, and states the 2:1 ratio is deliberate: 28 corporeality (อวหาร) to 14
+ * functions of consciousness (อนาคติ). The segment table below sums to exactly
+ * 56.0 m, so the model is dimensionally checkable against the nomination.
+ *
+ * The previous version of this file claimed "~78m" — that number came from a
+ * 48 m stack multiplied by the buildings layer's elevationScale of 1.65, so
+ * the model was displaying a monument 40% taller than it is. A heritage
+ * monument in a World Heritage nomination is the one object on this map
+ * where "close enough" is not acceptable, so the chedi now renders at
+ * elevationScale 1.0 and reads at true size against the city.
  *
  * Architectural form (bottom → top):
- *   - Square multi-tier plinth   (3 receding tiers, ~6m total)
- *   - Octagonal drum             (cylinder, 11m radius, 8m tall)
- *   - Bell-shaped anda           (3 stacked cylinders, 11→7m radius, 15m tall)
- *   - Harmika                    (square box, 8m × 8m × 3m)
- *   - Yasti (conical spire)      (4 stacked cylinders, 4→0.5m radius, 14m tall)
- *   - Finial                     (tiny cylinder, ~2m)
+ *   - Square multi-tier plinth   (3 receding tiers, 6 m total, 28 m square)
+ *   - Octagonal drum             (radius 14 m, 9.3 m tall)
+ *   - Bell-shaped anda           (3 stacked drums, 14→9.5 m radius, 17.5 m)
+ *   - Harmika                    (square box, 9.3 m × 9.3 m × 3.5 m)
+ *   - Yasti (conical spire)      (4 stacked drums, 4.7→0.8 m radius, 16.3 m)
+ *   - Finial                     (~3.5 m, gilded)
  *
  * Surrounding halls (all inside the cloister wall):
  *   - Ubosot (ordination hall)   — rectangle, 25m × 18m × 10m
@@ -103,32 +113,42 @@ const CHEDI_BASE_ELEV = 0; // sits on ground level inside the cloister
 
 const CHEDI_SEGMENTS: ChediSegment[] = [
   // 1. Square multi-tier plinth (3 receding tiers) — Sri Lankan-style base
-  { eastM: 0, northM: 0, widthM: 32, depthM: 32, heightM: 2,  baseM: 0,  rgb: STONE_LOW, sides: 4, shape: "square" },
-  { eastM: 0, northM: 0, widthM: 28, depthM: 28, heightM: 2,  baseM: 2,  rgb: STONE_MID, sides: 4, shape: "square" },
-  { eastM: 0, northM: 0, widthM: 24, depthM: 24, heightM: 2,  baseM: 4,  rgb: STONE_TOP, sides: 4, shape: "square" },
+  { eastM: 0, northM: 0, widthM: 28, depthM: 28, heightM: 2.2, baseM: 0,  rgb: STONE_LOW, sides: 4, shape: "square" },
+  { eastM: 0, northM: 0, widthM: 25, depthM: 25, heightM: 2.0, baseM: 2.2, rgb: STONE_MID, sides: 4, shape: "square" },
+  { eastM: 0, northM: 0, widthM: 22, depthM: 22, heightM: 1.8, baseM: 4.2, rgb: STONE_TOP, sides: 4, shape: "square" },
 
-  // 2. Octagonal drum — the cylinder that sits on the square plinth
-  { eastM: 0, northM: 0, widthM: 0, depthM: 0, radiusM: 11, heightM: 8,  baseM: 6,  rgb: STONE_MID, sides: 12, shape: "round" },
+  // 2. Octagonal drum — radius 14 m, so the bell stands 28 m across
+  { eastM: 0, northM: 0, widthM: 0, depthM: 0, radiusM: 14, heightM: 9.3, baseM: 6.0,  rgb: STONE_MID, sides: 12, shape: "round" },
 
-  // 3. Bell-shaped anda — 3 stacked cylinders of decreasing radius
-  //    (the iconic bell is a smooth curve; we approximate with 3 segments
-  //     so the silhouette reads as a tapered bell, not a stepped cone)
-  { eastM: 0, northM: 0, widthM: 0, depthM: 0, radiusM: 11,   heightM: 4,  baseM: 14, rgb: STONE_TOP, sides: 16, shape: "round" },
-  { eastM: 0, northM: 0, widthM: 0, depthM: 0, radiusM: 9.5,  heightM: 6,  baseM: 18, rgb: STONE_TOP, sides: 16, shape: "round" },
-  { eastM: 0, northM: 0, widthM: 0, depthM: 0, radiusM: 7.5,  heightM: 5,  baseM: 24, rgb: STONE_TOP, sides: 16, shape: "round" },
+  // 3. Bell-shaped anda — 3 stacked drums of decreasing radius, so the
+  //    silhouette reads as a tapered bell rather than a stepped cone
+  { eastM: 0, northM: 0, widthM: 0, depthM: 0, radiusM: 14,   heightM: 4.7, baseM: 15.3, rgb: STONE_TOP, sides: 16, shape: "round" },
+  { eastM: 0, northM: 0, widthM: 0, depthM: 0, radiusM: 12.1, heightM: 7.0, baseM: 20.0, rgb: STONE_TOP, sides: 16, shape: "round" },
+  { eastM: 0, northM: 0, widthM: 0, depthM: 0, radiusM: 9.5,  heightM: 5.8, baseM: 27.0, rgb: STONE_TOP, sides: 16, shape: "round" },
 
   // 4. Harmika — square box at the top of the bell (the "shoulders")
-  { eastM: 0, northM: 0, widthM: 8, depthM: 8, heightM: 3, baseM: 29, rgb: STONE_MID, sides: 4, shape: "square" },
+  { eastM: 0, northM: 0, widthM: 9.3, depthM: 9.3, heightM: 3.5, baseM: 32.8, rgb: STONE_MID, sides: 4, shape: "square" },
 
-  // 5. Yasti (conical spire) — 4 stacked cylinders tapering to the finial
-  { eastM: 0, northM: 0, widthM: 0, depthM: 0, radiusM: 4,    heightM: 3, baseM: 32, rgb: STONE_TOP, sides: 16, shape: "round" },
-  { eastM: 0, northM: 0, widthM: 0, depthM: 0, radiusM: 2.5,  heightM: 4, baseM: 35, rgb: STONE_TOP, sides: 16, shape: "round" },
-  { eastM: 0, northM: 0, widthM: 0, depthM: 0, radiusM: 1.5,  heightM: 4, baseM: 39, rgb: STONE_TOP, sides: 16, shape: "round" },
-  { eastM: 0, northM: 0, widthM: 0, depthM: 0, radiusM: 0.7,  heightM: 3, baseM: 43, rgb: GOLD_FINIAL, sides: 16, shape: "round" },
+  // 5. Yasti (conical spire) — tapering toward the finial
+  { eastM: 0, northM: 0, widthM: 0, depthM: 0, radiusM: 4.7, heightM: 3.5, baseM: 36.3, rgb: STONE_TOP, sides: 16, shape: "round" },
+  { eastM: 0, northM: 0, widthM: 0, depthM: 0, radiusM: 2.9, heightM: 4.6, baseM: 39.8, rgb: STONE_TOP, sides: 16, shape: "round" },
+  { eastM: 0, northM: 0, widthM: 0, depthM: 0, radiusM: 1.8, heightM: 4.6, baseM: 44.4, rgb: STONE_TOP, sides: 16, shape: "round" },
+  { eastM: 0, northM: 0, widthM: 0, depthM: 0, radiusM: 0.8, heightM: 3.5, baseM: 49.0, rgb: GOLD_FINIAL, sides: 16, shape: "round" },
 
-  // 6. Finial — tiny gilded sphere approximated as a tiny cylinder
-  { eastM: 0, northM: 0, widthM: 0, depthM: 0, radiusM: 0.5,  heightM: 2, baseM: 46, rgb: GOLD_FINIAL, sides: 8,  shape: "round" },
+  // 6. Finial — gilded, closing the model out at exactly 56.0 m
+  { eastM: 0, northM: 0, widthM: 0, depthM: 0, radiusM: 0.6, heightM: 3.5, baseM: 52.5, rgb: GOLD_FINIAL, sides: 8, shape: "round" },
 ];
+
+/** Total modelled height of the chedi, in metres. Derived from
+ *  CHEDI_SEGMENTS so the segment table and this constant cannot drift.
+ *  Equals 56.0 m — the nomination's "H. 28 wa" at 1 wa = 2 m. */
+export const CHEDI_HEIGHT_M = CHEDI_SEGMENTS.reduce((a, s) => a + s.heightM, 0);
+
+/** Widest modelled point, the plinth, in metres. The nomination gives
+ *  "W. 14 wa" = 28 m, and the nomination states the 2:1 H:W ratio is
+ *  deliberate (28 corporeality to 14 functions of consciousness). */
+export const CHEDI_WIDTH_M = 28;
+
 
 // ─── Surrounding halls (inside the cloister wall) ─────────────────────────
 
@@ -219,12 +239,18 @@ const SATELLITE_CHEDIS: SatelliteChedi[] = [
  * conditionally rendered without rebuilding the parent array.
  *
  * @param enabled — when false, returns []
- * @param elevationScale — same scale used by buildingsLayer so the chedi
- *   reads at the same scale as the surrounding buildings (1.65x in 3D)
+ * @param elevationScale — the buildings layer uses 1.65× so a low-rise
+ *   tropical city still reads as a skyline at map zoom. The chedi does NOT
+ *   take that scale. Its height is a documented figure from the UNESCO
+ *   nomination (56 m), so inflating it by 1.65 would put a World Heritage
+ *   monument 40% too tall — the one place on this map where matching the
+ *   buildings' stylisation would mean misstating a fact. It renders at 1.0
+ *   and reads at true size, which also makes the 2:1 chedi-to-plinth
+ *   proportion legible against the modelled city around it.
  */
 export function mahatat3DLayer(
   enabled: boolean,
-  elevationScale: number = 1.65,
+  elevationScale: number = 1,
 ): Layer[] {
   if (!enabled) return [];
 

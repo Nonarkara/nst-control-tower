@@ -240,13 +240,64 @@ a.term-wire-item { display: block; color: inherit; }
 .building-search-row[aria-selected="true"] { background: var(--ink); color: var(--paper); }
 .building-search-row[aria-selected="true"] .building-search-alt { color: var(--paper); }
 
-/* ── Heritage 3D demo (CyArk / Sketchfab embed) ──────────────────────── */
+/* ── Heritage 3D (UNESCO candidacy showcase) ───────────────────────────── */
+/* Two columns: the model is evidence, the nomination is the claim. On a
+   narrow viewport they stack — the facts matter more than the orbit, and a
+   reader on a phone should not have to scroll past a 3D canvas to learn
+   what the page is arguing. */
+.heritage-3d {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: var(--s-3, 12px);
+  align-items: start;
+}
+@media (max-width: 860px) {
+  .heritage-3d { grid-template-columns: 1fr; }
+}
+
+.heritage-3d-facts {
+  border: 1px solid var(--line, #e3e6ea);
+  padding: var(--s-2, 8px) var(--s-3, 12px) var(--s-3, 12px);
+  background: var(--paper, #fff);
+}
+.heritage-3d-facts__title {
+  margin: 0 0 var(--s-2, 8px);
+  font-size: var(--text-sm, 13px);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+.heritage-3d-facts__list { margin: 0; }
+.heritage-3d-facts__list > div {
+  padding: var(--s-1, 4px) 0;
+  border-top: 1px solid var(--line, #e3e6ea);
+}
+.heritage-3d-facts__list > div:first-child { border-top: 0; }
+.heritage-3d-facts__list dt {
+  font-size: var(--text-xs, 11px);
+  color: var(--ink-3, #5e6b7a);
+  margin-bottom: 2px;
+}
+.heritage-3d-facts__list dd {
+  margin: 0;
+  font-size: var(--text-sm, 13px);
+  line-height: 1.5;
+  color: var(--ink, #101418);
+  font-variant-numeric: tabular-nums;
+}
+.heritage-3d-facts__note {
+  margin: var(--s-2, 8px) 0 0;
+  padding-top: var(--s-2, 8px);
+  border-top: 1px solid var(--line, #e3e6ea);
+  font-size: var(--text-xs, 11px);
+  line-height: 1.5;
+  color: var(--ink-3, #5e6b7a);
+}
+
 .heritage-3d-frame {
   width: 100%;
-  height: calc(100vh - 280px);
-  min-height: 480px;
+  height: calc(100vh - 300px);
+  min-height: 420px;
   background: #0a0e14;
-  border-radius: var(--radius-md, 4px);
   overflow: hidden;
   position: relative;
 }
@@ -257,7 +308,7 @@ a.term-wire-item { display: block; color: inherit; }
   display: block;
 }
 .heritage-3d-credit {
-  margin: var(--s-3, 12px) 0 0;
+  margin: var(--s-2, 8px) 0 0;
   font-size: var(--text-xs, 11px);
   line-height: 1.55;
   color: var(--ink-3, #5e6b7a);
@@ -267,6 +318,7 @@ a.term-wire-item { display: block; color: inherit; }
   text-decoration: underline;
 }
 .heritage-3d-credit em { color: var(--ink-2, #6b7480); font-style: italic; }
+.heritage-3d-credit--src { margin-top: 4px; opacity: 0.8; }
 .heritage-3d-credit code {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 10.5px;
