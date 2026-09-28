@@ -7,8 +7,8 @@
  *
  * DIMENSIONS — taken from the nomination itself, not estimated. The OUV text
  * gives "H. 28 wa, W. 14 wa; 1 wa = 2 metre", i.e. a chedi 56 m tall and 28 m
- * wide, and states the 2:1 ratio is deliberate: 28 corporeality (อวหาร) to 14
- * functions of consciousness (อนาคติ). The segment table below sums to exactly
+ * wide, and states the 2:1 ratio is deliberate: 28 corporeality (รูป 28) to 14
+ * functions of consciousness (กิจของจิต 14). The segment table below sums to exactly
  * 56.0 m, so the model is dimensionally checkable against the nomination.
  *
  * The previous version of this file claimed "~78m" — that number came from a

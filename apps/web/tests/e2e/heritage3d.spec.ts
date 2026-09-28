@@ -33,7 +33,7 @@ test.describe("UNESCO heritage showcase", () => {
     await expect(dialog).toBeVisible({ timeout: DIALOG_TIMEOUT });
 
     // The dialog must name the monument under nomination, in Thai.
-    await expect(dialog.getByText(/พระบรมมาศเจดีย์/).first()).toBeVisible();
+    await expect(dialog.getByText(/พระบรมธาตุเจดีย์/).first()).toBeVisible();
 
     // The nomination context — this is the part that was missing entirely.
     await expect(dialog.getByText(/มรดกโลก|ยูเนสโก/).first()).toBeVisible();

@@ -69,3 +69,17 @@ describe("the map's chedi agrees with the panel's chedi", () => {
     expect(CHEDI_WIDTH_M).toBe(UNESCO.widthM);
   });
 });
+
+import { readFileSync } from "node:fs";
+import { EMBED_URL } from "./Heritage3DDemo";
+
+describe("the embed is allowed to load", () => {
+  // The heritage viewer shipped as a blank white box twice: index.html's CSP
+  // frame-src never listed sketchfab.com, so the browser blocked the iframe
+  // while every link/credit test stayed green.
+  it("index.html frame-src includes the Sketchfab embed origin", () => {
+    const html = readFileSync(new URL("../../index.html", import.meta.url), "utf8");
+    const frameSrc = html.match(/frame-src([^;]*);/)?.[1] ?? "";
+    expect(frameSrc.split(/\s+/)).toContain(new URL(EMBED_URL).origin);
+  });
+});

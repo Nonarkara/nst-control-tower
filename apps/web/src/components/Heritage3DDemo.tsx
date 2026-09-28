@@ -66,7 +66,7 @@ export const SKETCHFAB_LICENCE = "CC BY 4.0";
 
 /** Canonical viewer URL. No "none-" prefix — that was the bug. */
 export const SKETCHFAB_URL = `https://sketchfab.com/3d-models/${SKETCHFAB_UID}`;
-const EMBED_URL = `https://sketchfab.com/models/${SKETCHFAB_UID}/embed`;
+export const EMBED_URL = `https://sketchfab.com/models/${SKETCHFAB_UID}/embed`;
 const EMBED_PARAMS =
   "autostart=1&ui_theme=dark&ui_infos=0&ui_watermark_link=0&ui_watermark=0&ui_inspector=0&ui_help=0&ui_settings=0&ui_vr=0&ui_fullscreen=1&ui_annotations=1&ui_animations=0&transparent=1";
 
@@ -74,7 +74,7 @@ const EMBED_PARAMS =
 export const UNESCO = {
   templeTh: "วัดพระมหาธาตุวรมหาวิหาร",
   templeEn: "Wat Phra Mahathat Woramahawihan",
-  chediTh: "พระบรมมาศเจดีย์",
+  chediTh: "พระบรมธาตุเจดีย์",
   chediEn: "Phra Borommathat Chedi",
   heightM: 56,
   widthM: 28,
@@ -89,8 +89,8 @@ export const UNESCO = {
 } as const;
 
 const CRITERIA_TH: Record<string, string> = {
-  i: "ระบบความเชื่อทางศาสนา ผ่านรูปแบบและการผังสถาปัตยกรรม",
-  ii: "ความสมบูรณ์ของโครงสร้างเดิมสมัยศตวรรษที่ 13 ที่ยังคงอยู่ทั้งหมด",
+  i: "สะท้อนคติความเชื่อทางพุทธศาสนาผ่านการออกแบบสถาปัตยกรรม — เจดีย์เป็นงานชิ้นเอก",
+  ii: "โครงสร้างดั้งเดิมจากปลายคริสต์ศตวรรษที่ 13 ยังคงอยู่ และเป็นแบบอย่างการผสานประเพณีท้องถิ่นกับพุทธศาสนา",
   vi: "เจดีย์ระฆังองค์เก่าแก่ที่สุดในประเทศไทย ซึ่งบรรจุพระบรมสารีริกธาตุ",
 };
 
@@ -105,7 +105,7 @@ export function Heritage3DDemo({ open, onClose }: Props) {
       title={`${UNESCO.chediTh} (${UNESCO.chediEn})`}
       description={
         <>
-          วัดพระมหาธาตุวรมหาวิหาร จังหวัดนครศรีธรรมราช — อยู่ในรายการเรียกรอบการขึ้นทะเบียนเป็นมรดกโลกของยูเนสโก
+          วัดพระมหาธาตุวรมหาวิหาร จังหวัดนครศรีธรรมราช — อยู่ในบัญชีรายชื่อเบื้องต้น (Tentative List) ของมรดกโลก ยูเนสโก
           ตั้งแต่ปี {UNESCO.tentativeList} เกณฑ์ที่เสนอคือ ({UNESCO.criteria.join(") (")})
         </>
       }
@@ -140,20 +140,20 @@ export function Heritage3DDemo({ open, onClose }: Props) {
               <dt>สัดส่วนเจดีย์</dt>
               <dd>
                 สูง {UNESCO.heightM} ม. × กว้าง {UNESCO.widthM} ม. (28 วา × 14 วา, 1 วา = 2 ม.)
-                — อัตราส่วน 2:1 ตั้งใจ เพื่อสื่อว่า 28 อวหาร และ 14 อนาคติ
+                — อัตราส่วน 2:1 โดยเจตนา สื่อถึงรูป 28 และกิจของจิต 14 ตามพระอภิธรรม
               </dd>
             </div>
             <div>
               <dt>ความเอียง</dt>
               <dd>
-                {UNESCO.leanDeg}° {UNESCO.leanDirTh} — ฐานรากยังมั่นคง ตรวจสอบโดยกลุ่มวิศวกรรม
-                มหาวิทยาลัยธรรมศาสตร์
+                {UNESCO.leanDeg}° {UNESCO.leanDirTh} — ฐานรากยังมั่นคง วัดโดยคณะวิศวกรของ
+                รศ.นคร ภู่วโรดม
               </dd>
             </div>
             <div>
               <dt>เขตหลัก / เขตกันชน</dt>
               <dd>
-                {UNESCO.coreRai} ไร่ (เฉพาะในพระอุโบสถ) · เขตกันชนประมาณ {UNESCO.bufferRai.toLocaleString("th-TH")} ไร่
+                {UNESCO.coreRai} ไร่ (เฉพาะภายในเขตวัด) · เขตกันชนประมาณ {UNESCO.bufferRai.toLocaleString("th-TH")} ไร่
               </dd>
             </div>
             {UNESCO.criteria.map((c) => (
