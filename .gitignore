@@ -49,3 +49,7 @@ SIWW*/
 # checked-in index lives at apps/api/src/data/localDatasets.ts)
 apps/api/datasets/
 .venv-data/
+
+# Terrain DEM build scratch — resumable fetch state and staging file.
+apps/web/public/geo/nst/terrain-grid.partial.json
+apps/web/public/geo/nst/terrain-grid.next.json

@@ -1647,8 +1647,11 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
     // don't paint in this <DeckGL><Map> setup (verified: 0 tile requests), so
     // the proven deck.gl pattern (terrain/himawari) is used for every raster.
     if (enabledLayers.has("satellite-terrain")) out.push(openTopoTerrainLayer(0.6) as Layer);
-    // 3D topographic relief (Khao Luang) — extruded elevation grid.
-    if (enabledLayers.has("terrain-3d") && terrainGrid) out.push(terrain3dLayer(terrainGrid, 6) as Layer);
+    // 3D topographic relief (Khao Luang) — extruded elevation grid, at TRUE
+    // scale so the ground the city stands on is the same ground the buildings
+    // are extruded from. See the note block on terrain3dLayer: at 6× the 5 m
+    // coastal plain lifted to 30 m and swallowed the median 13 m building.
+    if (enabledLayers.has("terrain-3d") && terrainGrid) out.push(terrain3dLayer(terrainGrid) as Layer);
     if (enabledLayers.has("satellite-himawari")) out.push(himawariInfraredLayer(0.55) as Layer);
     if (enabledLayers.has("satellite-esri")) out.push(esriSatelliteLayer(1) as Layer);
     // AirDash air-quality field (WAQI raster, token proxied through the API).

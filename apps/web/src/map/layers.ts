@@ -1,6 +1,11 @@
 import { GeoJsonLayer, GridCellLayer, IconLayer, PathLayer, TextLayer } from "@deck.gl/layers";
 import { judgeGauge } from "../lib/levelWatch";
 import {
+  resampleTerrain,
+  type ResampledCell,
+  type ResampledSurface,
+} from "../lib/terrainSurface";
+import {
   census,
   estimateBuildingHeight,
   legacyFloor,
@@ -479,14 +484,19 @@ export function buildingsLayer(
     extruded?: boolean;
     ghosted?: boolean;
     zoomBucket?: 0 | 1 | 2;
-    /** When extruded, enable Phong lighting (slower but more "showcase"). */
+    /** Phong lighting on extruded buildings. On by default — see below. */
     material?: "flat" | "phong";
   } = {},
 ) {
   const extruded = options.extruded ?? false;
   const ghosted  = options.ghosted  ?? false;
   const zoomBucket = options.zoomBucket ?? 2;
-  const materialKind = options.material ?? "flat";
+  // Phong is the DEFAULT, not an opt-in. It was added as an option and then
+  // never requested by any caller, which left every 3D building with
+  // `material: false` — no lighting at all. An extruded box with no light has
+  // identical top, north and south faces, so 2,459 buildings rendered as flat
+  // cardboard cut-outs: the "featureless cubes" the 3D view was showing.
+  const materialKind = options.material ?? "phong";
   const lineA = ghosted ? 110 : 220;
 
   // ── LOD: drop the ordinary buildings at province scale (default zoom 8.4) ──
@@ -572,17 +582,24 @@ export function buildingsLayer(
     // geometry); skipping normalization saves a full pass over 20k+ features
     // every time the layer instance is created.
     _normalize: false,
-    // Stroke is a full second draw pass over 20k+ polygons. In extruded (3D) mode
-    // the lighting already provides depth cues, so we skip the edge pass entirely.
-    // In flat 2D mode we keep it — edges are the only way to distinguish footprints.
-    stroked: !extruded,
+    // Stroke: in flat 2D the edges are the only way to distinguish footprints.
+    // In extruded 3D the source is 2,459 polygons (not the 20k+ this comment
+    // used to cite), so the second draw pass is cheap, and without it adjacent
+    // blocks in the old town fuse into one continuous mass — the other half of
+    // why 3D read as blank blocks. Width stays hairline (0.7 px min).
+    stroked: true,
     filled: true,
     pickable,
     autoHighlight: false,
     extruded,
     elevationScale: extruded && !ghosted ? 1.65 : 1,
+    // Matte Phong. The specular was [255,245,220] at shininess 24 — a warm
+    // cream gloss, which is the wrong register for this palette and tinted
+    // every lit face beige. Neutral and dim: the form comes from the
+    // ambient/diffuse ratio (0.52 : 0.66 ≈ 2.2:1 between a lit and an unlit
+    // face), not from a highlight.
     material: extruded && !ghosted && materialKind === "phong"
-      ? { ambient: 0.72, diffuse: 0.82, shininess: 24, specularColor: [255, 245, 220] }
+      ? { ambient: 0.52, diffuse: 0.66, shininess: 6, specularColor: [56, 56, 56] }
       : false,
     getFillColor: ((f: Feature<Polygon | MultiPolygon, BuildingProperties>) => {
       const cached = _kindCache.get(f as typeof filtered[number]);
@@ -1569,8 +1586,34 @@ export function googleTilesLayer(tileUrlTemplate: string, opacity = 1, id = "goo
 // deck.gl's TerrainLayer does not composite in this DeckGL-as-camera / MapLibre-
 // basemap setup (renders nothing), but deck's extruded layers do — the 3D
 // buildings prove it — so terrain is a GridCellLayer of real ground-elevation
-// samples (scripts/build-nst-terrain-grid.mjs, Open-Meteo ~90 m DEM). Coloured
-// by height: coastal green → foothill olive → montane brown → peak grey.
+// samples (scripts/build-nst-terrain-grid.mjs, Open-Meteo ~90 m DEM).
+//
+// Four things this layer must get right, each of which was a live defect:
+//
+//  1. SCALE. Terrain and buildings share one world coordinate space. The city
+//     sits on a 5 m sample; at the old 6× exaggeration that cell's floor was
+//     lifted to 30 m while the median building reaches only 13 m (8 m × 1.65),
+//     so the plain floated above the city and buildings poked out of a slab
+//     looking like detached cubes. Default is now 1× — real elevation, real
+//     occlusion. Pass >1 only if you accept detaching the city from its ground.
+//
+//  2. SEA. 29.7% of the province rectangle is the Gulf. A 0 m cell extrudes to
+//     nothing but is still drawn as a filled tile, so every sea cell was a flat
+//     opaque rectangle lying over the ocean and the coastal plain — the hard
+//     dark-edged slab that buried the basemap. Sea cells are now dropped at
+//     construction, not painted.
+//
+//  3. ANCHORING. GridCellLayer builds a ColumnLayer with `radius: cellSize/2`,
+//     so a cell is CENTRED on getPosition. The old code subtracted half a cell
+//     on both axes ("anchors a cell and extends +cellSize" — not how it works),
+//     shifting the entire massif ~1.4 km south and ~1.1 km west of the city.
+//
+//  4. RESOLUTION. Samples are ~700 m (was ~2.9 km, coarser than the 12 km city).
+//
+// Colour is a light hypsometric ramp with luminance rising monotonically, so
+// relief reads in greyscale and on both themes; alpha rises with elevation so
+// the coastal plain — where the city, streets and waterways live — recedes and
+// the massif carries the visual weight.
 export interface TerrainCell {
   x: number;
   y: number;
@@ -1581,59 +1624,90 @@ export interface TerrainCell {
 export interface TerrainGrid {
   cellLng: number;
   cellLat: number;
+  /** Metric cell size, emitted by the builder. Falls back to the lat spacing. */
+  cellM?: number;
+  rows?: number;
+  cols?: number;
+  lngMin?: number;
+  latMin?: number;
   cells: TerrainCell[];
 }
 
+/**
+ * Display cell size for the relief. 700 m is roughly two city blocks: fine
+ * enough that the surface reads as a landscape rather than a plateau, coarse
+ * enough that the extruded grid stays cheap (~25k instances).
+ */
+const TERRAIN_RENDER_CELL_M = 700;
+
+/** One interpolated surface per source grid, computed once. */
+const _terrainSurfaceCache = new WeakMap<TerrainGrid, ResampledSurface>();
+
 const M_PER_DEG = 110_800;
 
-function terrainColor(elevM: number): [number, number, number] {
-  // Dark green (sea level) → olive → tan → pale grey (peaks); every stop is
-  // lighter than the one below so relief reads in greyscale. Khao Luang ≈ 1,835 m.
-  const stops: Array<[number, [number, number, number]]> = [
-    [0, [40, 72, 52]],
-    [150, [70, 100, 60]],
-    [450, [110, 120, 70]],
-    [900, [145, 130, 95]],
-    [1400, [175, 165, 145]],
-    [1900, [215, 212, 208]],
-  ];
-  if (elevM <= stops[0][0]) return stops[0][1];
-  for (let i = 1; i < stops.length; i++) {
-    if (elevM <= stops[i][0]) {
-      const [lo, loC] = stops[i - 1];
-      const [hi, hiC] = stops[i];
+/** Elevations at which the hypsometric ramp and the alpha ramp are sampled. */
+const TERRAIN_STOPS: Array<[number, [number, number, number], number]> = [
+  [2, [138, 156, 132], 0],
+  [15, [148, 162, 130], 130],
+  [60, [164, 168, 128], 175],
+  [250, [186, 174, 126], 205],
+  [600, [198, 172, 132], 225],
+  [1100, [208, 196, 180], 240],
+  [1500, [226, 224, 221], 240],
+];
+
+/** [r, g, b, a] for an elevation, interpolating between TERRAIN_STOPS. */
+export function terrainRGBA(elevM: number): [number, number, number, number] {
+  if (elevM <= TERRAIN_STOPS[0][0]) return [...TERRAIN_STOPS[0][1], TERRAIN_STOPS[0][2]];
+  for (let i = 1; i < TERRAIN_STOPS.length; i++) {
+    const [lo, loC, loA] = TERRAIN_STOPS[i - 1];
+    const [hi, hiC, hiA] = TERRAIN_STOPS[i];
+    if (elevM <= hi) {
       const t = (elevM - lo) / (hi - lo);
       return [
         Math.round(loC[0] + (hiC[0] - loC[0]) * t),
         Math.round(loC[1] + (hiC[1] - loC[1]) * t),
         Math.round(loC[2] + (hiC[2] - loC[2]) * t),
+        Math.round(loA + (hiA - loA) * t),
       ];
     }
   }
-  return stops[stops.length - 1][1];
+  const top = TERRAIN_STOPS[TERRAIN_STOPS.length - 1];
+  return [...top[1], top[2]];
 }
 
-export function terrain3dLayer(grid: TerrainGrid, exaggeration = 6) {
-  // Square-ish cell size from the (larger) lat spacing → cells overlap slightly
-  // rather than gap, so the relief reads as a continuous surface. Exaggeration
-  // is generous: at province scale a literal 1× lifts only ~2 % of the view
-  // width, invisible under pitch — ~6× makes Khao Luang legibly rise.
-  const cellSize = grid.cellLat * M_PER_DEG;
-  return new GridCellLayer<TerrainCell>({
+/** Cells at or below sea level carry no relief to draw. */
+export const SEA_LEVEL_M = 2;
+
+export function terrain3dLayer(grid: TerrainGrid, exaggeration = 1) {
+  // Sample resolution and display resolution are different things; see
+  // lib/terrainSurface.ts. One surface per source grid, interpolated once —
+  // terrain3dLayer() is rebuilt on every layer-array recompute, and Catmull-Rom
+  // over the whole grid is not something to redo at 60 fps.
+  let surface = _terrainSurfaceCache.get(grid);
+  if (!surface) {
+    surface = resampleTerrain(grid, TERRAIN_RENDER_CELL_M, SEA_LEVEL_M);
+    _terrainSurfaceCache.set(grid, surface);
+  }
+
+  // Dropped once, at construction — a 0 m cell is a filled tile, and filling
+  // 820 of them is what turned the Gulf into a slab.
+  const land = surface.cells.filter((c) => c.elevM > SEA_LEVEL_M);
+
+  return new GridCellLayer<ResampledCell>({
     id: "terrain-3d",
-    data: grid.cells,
-    cellSize,
-    // GridCellLayer anchors a cell at its position and extends +cellSize; offset
-    // the sample-centre by half a cell so the cell centres on its sample.
-    getPosition: (c) => [c.lng - grid.cellLng / 2, c.lat - grid.cellLat / 2],
-    getElevation: (c) => Math.max(0, c.elevM),
+    data: land,
+    cellSize: surface.cellM,
+    // Cells are centre-anchored (see note 3) — the samples already store the
+    // centre, so pass them through untouched.
+    getPosition: (c) => [c.lng, c.lat],
+    getElevation: (c) => c.elevM,
     elevationScale: exaggeration,
     extruded: true,
-    getFillColor: (c) => {
-      const [r, g, b] = terrainColor(c.elevM);
-      return [r, g, b, 235];
-    },
-    material: { ambient: 0.5, diffuse: 0.6, shininess: 4, specularColor: [30, 30, 30] },
+    getFillColor: (c) => terrainRGBA(c.elevM),
+    // Matte relief: high ambient so slopes facing away from the key light stay
+    // readable, low specular so a fine cell doesn't sparkle.
+    material: { ambient: 0.62, diffuse: 0.5, shininess: 2, specularColor: [12, 12, 12] },
     pickable: false,
   });
 }
