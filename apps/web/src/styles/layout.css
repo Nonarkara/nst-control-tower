@@ -2170,6 +2170,28 @@ input:focus-visible,
   color: var(--ink-2);
   white-space: nowrap;
 }
+/* Height provenance — the honesty line. Deliberately inside the legend rather
+   than in a panel: the 3D city is only as credible as the claim under it, and
+   this is the one place a viewer is already looking at "what am I seeing". */
+.building-legend-heights {
+  margin: 8px 0 0;
+  padding-top: 8px;
+  border-top: 1px solid var(--line-2);
+  font-size: 0.62rem;
+  line-height: 1.45;
+  letter-spacing: 0.01em;
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+}
+.building-legend-heights__note {
+  display: block;
+  margin-top: 3px;
+  font-size: 0.58rem;
+  line-height: 1.5;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--ink-3);
+}
 
 /* ── DeckGL tooltip — match panel aesthetic ── */
 .picker-tooltip {

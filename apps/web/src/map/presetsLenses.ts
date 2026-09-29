@@ -209,6 +209,7 @@ export const LENSES: Lens[] = [
     // on at once, nothing stood out and the city centre was a label pile.
     layers: [
       "municipality-boundary-line",
+      "terrain-3d",
       "waterways",
       "water-gauges",
       // Villages to move first (only drawn when a live signal lists them).
@@ -221,6 +222,7 @@ export const LENSES: Lens[] = [
     describe: "Flood — the real rivers and canals with arrows showing which way the water moves, and every sensor on them: water gauges, GISTDA level posts, water-level cameras and dams. Past flood footprints, rain and risk maps are opt-in layers.",
     layers: [
       "municipality-boundary-line",
+      "terrain-3d", // Khao Luang relief — the watershed that decides which areas flood
       "waterways",
       // Direction: chevrons + moving dots along the real OSM channels
       // (trunk rivers only at overview zoom — lib/thaDee.ts).
@@ -293,6 +295,7 @@ export const LENSES: Lens[] = [
     describe: "Safety — flood-risk zones, surveyed flood marks, citizen reports (Traffy), iTIC, CCTV, waterways for drainage, hospitals + fire + police, MODIS flood detection.",
     layers: [
       "municipality-boundary-line",
+      "terrain-3d",
       "municipality-buildings",
       "civic-points",
       "waterways",
@@ -344,7 +347,7 @@ export const SATELLITE_BASE_LAYERS: LayerId[] = [
   "satellite-night",
   "satellite-himawari",
   "satellite-terrain",
-  "terrain-3d",
+      "terrain-3d",
 ];
 
 /** Full-area data overlays that colour the whole map. Pick at most one. */

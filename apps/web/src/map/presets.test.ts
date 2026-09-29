@@ -167,9 +167,27 @@ describe("LENSES", () => {
     expect(ops).toBeDefined();
     expect(ops!.layers).toContain("waterways");
     expect(ops!.layers).toContain("water-gauges");
-    expect(ops!.layers.length).toBeLessThanOrEqual(4);
+    // Budget raised 4 → 5, and only for terrain-3d.
+    //
+    // The ban list below is the real guard, and it is unchanged: every layer
+    // on it is EVENT data — a heatmap, incident markers, news pins, label
+    // stacks — competing for the same attention as the gauges. `terrain-3d`
+    // is static basemap geometry and is on the opposite side of that line: the
+    // whole flood risk surface of Nakhon Si Thammarat is Khao Luang draining
+    // onto a plain, so the relief makes "is the water OK?" MORE answerable,
+    // not less. It was in no lens at all, which is why the map read flat.
+    expect(ops!.layers.length).toBeLessThanOrEqual(5);
     for (const noisy of ["traffic-heatmap", "watershed-nodes", "water-pictures", "news-pins", "city-pois", "district-boundaries"] as const) {
       expect(ops!.layers, `OPS must not default ${noisy}`).not.toContain(noisy);
+    }
+  });
+
+  it("the 3D relief is on wherever the terrain answers the question", () => {
+    // Static basemap, unlike the event layers OPS must stay free of. A lens
+    // that is about elevation, flood or safety but has no relief shows a flat
+    // map and quietly answers nothing.
+    for (const id of ["operations", "flood", "safety"] as const) {
+      expect(LENSES.find((l) => l.id === id)!.layers, `${id} needs terrain-3d`).toContain("terrain-3d");
     }
   });
 

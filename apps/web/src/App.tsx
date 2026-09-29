@@ -150,6 +150,7 @@ import {
 import { useTile3DLayer } from "./map/Tile3DLayer";
 import { useGoogleTileSession } from "./hooks/useGoogleTileSession";
 import { googleTileTemplate } from "./lib/googleTiles";
+import { mahatat3DLayer, CHEDI_HEIGHT_M, CHEDI_WIDTH_M } from "./lib/mahatat3d";
 import { ALL_LAYERS, LENSES, layerCanEnable, enforceLayerExclusivity, exclusiveGroupOf, type LayerId, type LensId, type MapViewState } from "./map/presets";
 
 import { TopBar } from "./components/TopBar";
@@ -1682,7 +1683,16 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
     // ubosot/wihan/prang/ho-trai/satellite-chedi cluster. Toggleable via the
     // `mahatat-3d` layer id so it ships ON by default but an operator can
     // turn it off if the bell silhouette competes with a current scenario.
-    out.push(...(mahatat3DLayer(enabledLayers.has("mahatat-3d"), is3D ? 1.65 : 1) as Layer[]));
+    // The parametric model is dimensioned to the UNESCO nomination itself:
+    // CHEDI_HEIGHT_M is 56.0 m (28 wa at 1 wa = 2 m) against a 28 m plinth.
+    //
+    // It therefore renders at 1.0x, NOT the buildings layer's 1.65x. This call
+    // used to pass `is3D ? 1.65 : 1`, which drew a World Heritage monument 40%
+    // too tall — 79 m instead of 56 m — and made the 2:1 proportion, the one
+    // number the nomination actually argues from, unreadable. Stylising this
+    // object to match the surrounding city would mean misstating a documented
+    // fact, so it stands at true size.
+    out.push(...(mahatat3DLayer(enabledLayers.has("mahatat-3d"), 1) as Layer[]));
     // Photorealistic 3D Tiles (Google) — textured glTF mesh streamed by deck.gl
     if (tile3d.layer) out.push(tile3d.layer as Layer);
     if (enabledLayers.has("road-network") && roads)
