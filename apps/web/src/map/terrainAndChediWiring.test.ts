@@ -107,3 +107,30 @@ describe("the model's dimensions still match the nomination", () => {
     expect(CHEDI_HEIGHT_M / CHEDI_WIDTH_M).toBeCloseTo(2, 2);
   });
 });
+
+describe("the height-provenance label is on a component that RENDERS", () => {
+  // The honesty line about modelled building heights was first written into
+  // BuildingLegend.tsx, which is no longer mounted anywhere on main — nothing
+  // imports or renders it. The line was well written, the CSS shipped, and the
+  // label was invisible. A caveat that looks delivered but never renders is
+  // worse than no caveat, so this asserts the component is actually in the
+  // render tree, not merely that the file exists.
+  it("MapLegend (the mounted legend) carries the provenance block", () => {
+    const ML = readFileSync(new URL("../components/MapLegend.tsx", import.meta.url), "utf8");
+    expect(ML).toMatch(/height-provenance/);
+    expect(ML).toMatch(/3D heights:/);
+  });
+
+  it("MapLegend is the legend App.tsx actually renders", () => {
+    expect(APP).toMatch(/import\s*\{[^}]*\bMapLegend\b[^}]*\}\s*from\s*"\.\/components\/MapLegend"/);
+    expect(APP).toMatch(/<MapLegend\b/);
+  });
+
+  it("the orphan BuildingLegend carries no unrendered honesty claims", () => {
+    // If someone edits BuildingLegend.tsx and believes it is live, these
+    // assertions are how they find out they are not.
+    const BL = readFileSync(new URL("../components/BuildingLegend.tsx", import.meta.url), "utf8");
+    expect(BL, "BuildingLegend is not mounted — do not put user-facing claims here")
+      .not.toMatch(/height-provenance|3D HEIGHTS/);
+  });
+});

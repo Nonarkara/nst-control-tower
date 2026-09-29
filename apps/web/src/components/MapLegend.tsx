@@ -7,7 +7,7 @@
  */
 
 import type { LayerId } from "../map/presets";
-import { BUILDING_LEGEND, CCTV_CATEGORY_RGB, MAP_CAT } from "../map/layers";
+import { BUILDING_LEGEND, CCTV_CATEGORY_RGB, MAP_CAT, heightCensus } from "../map/layers";
 
 type Mark = "dot" | "ring" | "line" | "arrow" | "fill";
 
@@ -84,6 +84,32 @@ export function MapLegend({ enabled }: { enabled: ReadonlySet<LayerId> }) {
               </li>
             ))}
           </ul>
+          {/* Height provenance. The 3D city is drawn with MODELLED heights:
+              OSM carries a real `height` on 0.21% of buildings in Nakhon Si
+              Thammarat and no commercial dataset covers Thailand at all
+              (measured — see lib/buildingHeights.ts). Without this line the
+              extruded city reads as surveyed, which is the one impression it
+              must not give. `heightCensus` is refreshed by buildingsLayer() on
+              every layer build, so these counts describe what is on screen.
+
+              It lives here, in the legend the map actually renders, rather than
+              in BuildingLegend.tsx — that component is no longer mounted
+              anywhere, and a well-written honesty label on an orphaned
+              component is worse than none, because it looks delivered. */}
+          {heightCensus.total > 0 ? (
+            <p className="map-legend__heights" data-testid="height-provenance">
+              <strong>
+                3D heights: {heightCensus.measured} measured ·{" "}
+                {heightCensus.total - heightCensus.measured} modelled
+              </strong>
+              <span>
+                OpenStreetMap carries a real height on{" "}
+                {((heightCensus.measured / heightCensus.total) * 100).toFixed(2)}% of NST
+                buildings and no open dataset covers Thailand. The rest is estimated from
+                building type and footprint area — about ±1 storey for shophouses.
+              </span>
+            </p>
+          ) : null}
         </details>
       )}
     </details>

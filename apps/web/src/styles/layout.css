@@ -2170,28 +2170,6 @@ input:focus-visible,
   color: var(--ink-2);
   white-space: nowrap;
 }
-/* Height provenance — the honesty line. Deliberately inside the legend rather
-   than in a panel: the 3D city is only as credible as the claim under it, and
-   this is the one place a viewer is already looking at "what am I seeing". */
-.building-legend-heights {
-  margin: 8px 0 0;
-  padding-top: 8px;
-  border-top: 1px solid var(--line-2);
-  font-size: 0.62rem;
-  line-height: 1.45;
-  letter-spacing: 0.01em;
-  color: var(--ink-2);
-  font-variant-numeric: tabular-nums;
-}
-.building-legend-heights__note {
-  display: block;
-  margin-top: 3px;
-  font-size: 0.58rem;
-  line-height: 1.5;
-  letter-spacing: 0;
-  text-transform: none;
-  color: var(--ink-3);
-}
 
 /* ── DeckGL tooltip — match panel aesthetic ── */
 .picker-tooltip {
@@ -5122,3 +5100,30 @@ input:focus-visible,
 .map-legend__mark--line::before { content: ""; position: absolute; left: 0; right: 0; top: 4px; height: 2px; background: currentColor; }
 .map-legend__mark--arrow::before { content: "›"; position: absolute; inset: -5px 0 0 3px; font-size: 14px; font-weight: 700; line-height: 1; color: currentColor; }
 .map-legend__mark--fill::before { content: ""; position: absolute; inset: 0; background: currentColor; opacity: 0.55; border: 1px solid currentColor; }
+
+/* ── Height provenance (MapLegend) ──────────────────────────────────────
+   The honesty line under the building-type key. The 3D city is drawn with
+   modelled heights — OSM carries a real `height` on 0.21% of NST buildings
+   and no open dataset covers Thailand — so without this the extruded city
+   reads as surveyed. Deliberately small and quiet: it is a caveat, not a
+   headline. */
+.map-legend__heights {
+  margin: 8px 0 0;
+  padding-top: 8px;
+  border-top: 1px solid var(--line-2);
+  font-size: 0.62rem;
+  line-height: 1.5;
+  color: var(--ink-2);
+}
+.map-legend__heights strong {
+  display: block;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.map-legend__heights span {
+  display: block;
+  margin-top: 3px;
+  font-size: 0.58rem;
+  color: var(--ink-3);
+}
