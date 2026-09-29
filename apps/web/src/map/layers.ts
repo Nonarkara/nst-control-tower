@@ -593,13 +593,21 @@ export function buildingsLayer(
     autoHighlight: false,
     extruded,
     elevationScale: extruded && !ghosted ? 1.65 : 1,
-    // Matte Phong. The specular was [255,245,220] at shininess 24 — a warm
-    // cream gloss, which is the wrong register for this palette and tinted
-    // every lit face beige. Neutral and dim: the form comes from the
-    // ambient/diffuse ratio (0.52 : 0.66 ≈ 2.2:1 between a lit and an unlit
-    // face), not from a highlight.
+    // Matte Phong. Two constraints, both learned from looking at the render:
+    //
+    //  - ambient + diffuse must not exceed 1. At 0.52 + 0.66 a face pointed at
+    //    the key light came out 18% BRIGHTER than the colour it was given, so
+    //    large flat roofs blew out to near-white and read as a slab rather
+    //    than a building. Capping the sum at 1.0 means lighting can only ever
+    //    darken a face relative to its authored colour, never lighten it.
+    //  - the RATIO is what gives form, and it is now the only thing carrying
+    //    shape: a lit face reads 0.96 and an unlit one 0.52, a 1.85:1 contrast
+    //    between the top of a box and its shaded side.
+    //
+    // The specular was [255,245,220] at shininess 24 — a warm cream gloss,
+    //    wrong for this palette and enough to tint every lit face beige.
     material: extruded && !ghosted && materialKind === "phong"
-      ? { ambient: 0.52, diffuse: 0.66, shininess: 6, specularColor: [56, 56, 56] }
+      ? { ambient: 0.52, diffuse: 0.44, shininess: 4, specularColor: [32, 32, 32] }
       : false,
     getFillColor: ((f: Feature<Polygon | MultiPolygon, BuildingProperties>) => {
       const cached = _kindCache.get(f as typeof filtered[number]);

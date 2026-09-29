@@ -293,13 +293,31 @@ a.term-wire-item { display: block; color: inherit; }
   color: var(--ink-3, #5e6b7a);
 }
 
+/* Two viewers side by side. They are NOT interchangeable — one is the NST
+   chedi, one is Ayutthaya — so the caption sits under its own frame and the
+   provenance badge is repeated on each, rather than one shared credit line
+   that a reader has to connect back to the right canvas. */
+.heritage-3d-views {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s-2, 8px);
+}
+@media (max-width: 720px) {
+  .heritage-3d-views { grid-template-columns: 1fr; }
+}
+
+.heritage-3d-view { margin: 0; }
+
 .heritage-3d-frame {
   width: 100%;
-  height: calc(100vh - 300px);
-  min-height: 420px;
+  height: calc(100vh - 430px);
+  min-height: 300px;
   background: #0a0e14;
   overflow: hidden;
   position: relative;
+}
+@media (max-width: 720px) {
+  .heritage-3d-frame { height: 46vh; min-height: 240px; }
 }
 .heritage-3d-frame iframe {
   width: 100%;
@@ -307,6 +325,43 @@ a.term-wire-item { display: block; color: inherit; }
   border: 0;
   display: block;
 }
+
+.heritage-3d-view__cap {
+  padding: var(--s-2, 8px) 0 0;
+}
+.heritage-3d-view__cap strong {
+  display: block;
+  font-size: var(--text-sm, 13px);
+  font-weight: 600;
+  line-height: 1.4;
+}
+/* Provenance badge. `is-nst` uses the accent, `is-other` the alert colour —
+   the one place in this panel where a second colour earns its keep, because
+   "this is a different temple" is a correctness warning, not decoration. */
+.heritage-3d-view__badge {
+  display: inline-block;
+  margin: var(--s-1, 4px) 0 0;
+  padding: 1px 6px;
+  font-size: var(--text-xs, 11px);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  border: 1px solid currentColor;
+}
+.heritage-3d-view__badge.is-nst { color: var(--good, #1a7f52); }
+.heritage-3d-view__badge.is-other { color: var(--warn, #a8620a); }
+.heritage-3d-view__meta {
+  margin: var(--s-1, 4px) 0 0;
+  font-size: var(--text-xs, 11px);
+  color: var(--ink-2, #6b7480);
+}
+.heritage-3d-view__meta a { color: var(--acc, #1f6feb); }
+.heritage-3d-view__note {
+  margin: 2px 0 0;
+  font-size: var(--text-xs, 11px);
+  line-height: 1.5;
+  color: var(--ink-3, #5e6b7a);
+}
+
 .heritage-3d-credit {
   margin: var(--s-2, 8px) 0 0;
   font-size: var(--text-xs, 11px);

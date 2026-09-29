@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 import { stubHiiSurvey } from "./floodSmokeHelpers";
 
 test.setTimeout(90_000);
@@ -6,93 +6,86 @@ test.setTimeout(90_000);
 /**
  * The heritage panel's interactive contract.
  *
- * The previous implementation shipped three defects that no test caught: it
- * credited CyArk/Agisoft/CC BY-NC-SA for a model the Sketchfab API attributes
- * to Phantasma Labs under CC BY 4.0; every outbound link carried a stray
- * "none-" prefix and 404'd; and it framed Ayutthaya photogrammetry as evidence
- * for the Nakhon Si Thammarat World Heritage candidacy. This suite pins the
- * fixes at the UI level, because the unit tests only cover the constants.
+ * This panel has been confidently wrong three times, and none of the failures
+ * broke a test: it credited CyArk/Agisoft/CC BY-NC-SA for a model Sketchfab
+ * attributes to someone else; every outbound link carried a stray "none-"
+ * prefix and 404'd while the embed still worked; and it framed Ayutthaya
+ * photogrammetry as evidence for the Nakhon Si Thammarat World Heritage
+ * candidacy.
+ *
+ * The third failure is the one that is easiest to reintroduce, because the
+ * second Ayutthaya model is TITLED "Wat Phra Mahathat Woramahawihan, Nakhon
+ * Si Thammarat" and TAGGED worldheritage. Only its description and its render
+ * say Ayutthaya. So the UI test asserts the badge a reader actually sees, not
+ * the constant behind it.
  */
 test.describe("UNESCO heritage showcase", () => {
-  // Every test here waits this long for the dialog, not just the first. The
-  // cause is cold cost — Vite's first compile of the map plus the lazy() chunk
-  // for Heritage3DDemo behind <Suspense fallback={null}> — but which test pays
-  // it varies run to run, so a per-test budget just moved the flakiness around.
-  // 25s failed 3 of 4 on one run and passed 3 of 4 on the next. One honest
-  // budget; CI's retries: 2 absorbs genuine regressions.
+  // Every test waits this long for the dialog, not just the first: the cost is
+  // cold — Vite's first compile of the map plus the lazy() chunk for
+  // Heritage3DDemo behind <Suspense fallback={null}> — and which test pays it
+  // varies run to run, so a per-test budget only moved the flakiness around.
   const DIALOG_TIMEOUT = 60_000;
 
-  test("the 3D heritage button opens the nomination, not a bare model", async ({ page }) => {
+  const openDialog = async (page: Page) => {
     await stubHiiSurvey(page);
     await page.goto("/");
     await expect(page.locator(".map-host")).toBeVisible({ timeout: 20_000 });
-
     await page.getByRole("button", { name: /heritage 3D demo/i }).click();
-
     const dialog = page.getByRole("dialog");
     await expect(dialog).toBeVisible({ timeout: DIALOG_TIMEOUT });
+    return dialog;
+  };
 
-    // The dialog must name the monument under nomination, in Thai.
+  test("the 3D heritage button opens the nomination, not a bare model", async ({ page }) => {
+    const dialog = await openDialog(page);
     await expect(dialog.getByText(/พระบรมธาตุเจดีย์/).first()).toBeVisible();
-
-    // The nomination context — this is the part that was missing entirely.
     await expect(dialog.getByText(/มรดกโลก|ยูเนสโก/).first()).toBeVisible();
     await expect(dialog.getByText(/1\.45/).first()).toBeVisible();
   });
 
-  test("the external link is well-formed — no 'none-' placeholder", async ({ page }) => {
-    await stubHiiSurvey(page);
-    await page.goto("/");
-    await expect(page.locator(".map-host")).toBeVisible({ timeout: 20_000 });
-
-    await page.getByRole("button", { name: /heritage 3D demo/i }).click();
-    const dialog = page.getByRole("dialog");
-    // The panel is lazy()-loaded behind <Suspense fallback={null}>, so the first
-    // test in a cold run pays for the chunk fetch on top of the map boot.
-    // 10s was not enough there; 25s matches the rest of this suite's waits.
-    await expect(dialog).toBeVisible({ timeout: DIALOG_TIMEOUT });
-
-    // Match the aria-label, not the visible text: the button reads
-    // "Open the Wat Mahathat model by Phantasma Labs on Sketchfab in a new tab",
-    // so a /Open on Sketchfab/ name filter finds nothing even though the link
-    // is right there. The href is what this test is actually asserting.
-    const link = dialog.getByRole("link", { name: /Phantasma Labs on Sketchfab/i });
-    await expect(link).toHaveAttribute("href", /^https:\/\/sketchfab\.com\/3d-models\/[0-9a-f]{32}$/);
+  test("both Sketchfab viewers are present and each is captioned", async ({ page }) => {
+    const dialog = await openDialog(page);
+    const views = dialog.locator(".heritage-3d-view");
+    await expect(views).toHaveCount(2);
+    await expect(dialog.locator(".heritage-3d-frame iframe")).toHaveCount(2);
+    // Each caption names its own author — a single shared credit line cannot
+    // tell the reader which canvas is which.
+    await expect(dialog.getByText("armszx")).toBeVisible();
+    await expect(dialog.getByText("PeterGlenn")).toBeVisible();
   });
 
-  test("the credit names the real author and the real licence", async ({ page }) => {
-    await stubHiiSurvey(page);
-    await page.goto("/");
-    await expect(page.locator(".map-host")).toBeVisible({ timeout: 20_000 });
+  test("the Ayutthaya model is badged as NOT the Nakhon Si Thammarat temple", async ({ page }) => {
+    // The category error, in the form it actually takes now: a model titled
+    // "Wat Phra Mahathat ... Nakhon Si Thammarat" that is Ayutthaya. A reader
+    // must be able to tell which canvas is which without opening Sketchfab.
+    const dialog = await openDialog(page);
+    await expect(dialog.getByText("นครศรีธรรมราช").first()).toBeVisible();
+    await expect(dialog.getByText(/อยุธยา\s*—\s*ไม่ใช่\s*NST/)).toBeVisible();
+  });
 
-    await page.getByRole("button", { name: /heritage 3D demo/i }).click();
-    const dialog = page.getByRole("dialog");
-    // The panel is lazy()-loaded behind <Suspense fallback={null}>, so the first
-    // test in a cold run pays for the chunk fetch on top of the map boot.
-    // 10s was not enough there; 25s matches the rest of this suite's waits.
-    await expect(dialog).toBeVisible({ timeout: DIALOG_TIMEOUT });
+  test("the links carry the model's own slug, not a bare uid or a placeholder", async ({ page }) => {
+    const dialog = await openDialog(page);
+    // One of the two is NOT addressable by uid alone — its path carries a
+    // "pratat-" prefix. A link built as /3d-models/<uid> 404s for it, exactly
+    // as the old "none-" links did.
+    const links = dialog.locator('.heritage-3d-view__meta a[href*="sketchfab.com/3d-models/"]');
+    await expect(links).toHaveCount(2);
+    const hrefs = await links.evaluateAll((els) => els.map((e) => (e as HTMLAnchorElement).href));
+    for (const href of hrefs) {
+      expect(href).not.toMatch(/none-/);
+      expect(href).toMatch(/^https:\/\/sketchfab\.com\/3d-models\/[0-9a-f]{32}$/);
+    }
+    expect(hrefs.some((h) => h.includes("pratat-"))).toBe(true);
+  });
 
-    await expect(dialog.getByText("Phantasma Labs")).toBeVisible();
-    await expect(dialog.getByText("CC BY 4.0")).toBeVisible();
-    // The wrongly-attributed names must not reappear.
+  test("no licence is claimed, and the wrongly-attributed names stay gone", async ({ page }) => {
+    const dialog = await openDialog(page);
+    // Both models return an empty `license` object from the Sketchfab API, so
+    // asserting a Creative Commons grant would be asserting something the
+    // authors never made.
+    await expect(dialog.getByText(/ไม่ได้ระบุสัญญาอนุญาต/)).toBeVisible();
+    await expect(dialog.getByText(/CC BY/)).toHaveCount(0);
     await expect(dialog.getByText(/CyArk/)).toHaveCount(0);
     await expect(dialog.getByText(/Agisoft/)).toHaveCount(0);
-  });
-
-  test("it says the model is Ayutthaya, not the NST temple", async ({ page }) => {
-    // The category error the old version made: Ayutthaya photogrammetry
-    // presented as the NST nomination's evidence. A viewer must be told.
-    await stubHiiSurvey(page);
-    await page.goto("/");
-    await expect(page.locator(".map-host")).toBeVisible({ timeout: 20_000 });
-
-    await page.getByRole("button", { name: /heritage 3D demo/i }).click();
-    const dialog = page.getByRole("dialog");
-    // The panel is lazy()-loaded behind <Suspense fallback={null}>, so the first
-    // test in a cold run pays for the chunk fetch on top of the map boot.
-    // 10s was not enough there; 25s matches the rest of this suite's waits.
-    await expect(dialog).toBeVisible({ timeout: DIALOG_TIMEOUT });
-
-    await expect(dialog.getByText(/อยุธยา/).first()).toBeVisible();
   });
 });

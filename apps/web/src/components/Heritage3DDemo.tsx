@@ -9,48 +9,45 @@
  * 28-wa × 14-wa proportion is deliberate, not incidental. All of that context
  * comes from the Nation's 2019 report on the candidacy, cited below.
  *
- * SIC — what we took, and what we changed. Sketchfab hosts a model of
- * "Wat Mahathat" (uid 991ff575…) by Phantasma Labs under CC BY 4.0, which is
- * the same primitive a predecessor implementation embedded. Three corrections
- * and two improvements, both verified against the Sketchfab API on 2026-09-28:
+ * WHY THERE ARE TWO VIEWERS. Neither model Sketchfab hosts is a survey of
+ * this monument, and they are not the same kind of object:
  *
- *   1. ATTRIBUTION WAS WRONG. The previous version credited "CyArk, processed
- *      in Agisoft, CC BY-NC-SA". The Sketchfab API says the author is Phantasma
- *      Labs and the licence is Creative Commons Attribution 4.0 — a materially
- *      MORE permissive licence than the one we were claiming. We now credit
- *      the true author and the true licence. Overstating a restriction is
- *      just as wrong as understating one, and it was making our own civic
- *      work look non-commercial when it is not.
- *   2. THE URLS WERE MALFORMED. Every outbound link was built as
- *      `sketchfab.com/3d-models/none-<uid>`, a stray "none-" from a search
- *      that returned a null author. The embed itself used a different path
- *      and happened to work, so the visible demo looked fine while every
- *      "Open on Sketchfab" and credit link went to a 404.
- *   3. IT WAS THE WRONG TEMPLE. Both this model and the one a reader is most
- *      likely to find for "Wat Phra Mahathat" are the AYUTTHAYA temple in
- *      the Ayutthaya Historical Park, ~700 km north. The UNESCO candidacy
- *      being showcased is the NAKHON SI THAMMARAT one. Showing Ayutthaya
- *      photogrammetry as the evidence for an NST candidacy is a category
- *      error, so the distinction is now stated before the viewer scrolls,
- *      not buried in a credit line at the bottom.
- *   4. IMPROVED: the dialog is no longer a bare iframe. It now carries the
- *      candidacy itself — the criteria, the 28:14 proportion and its meaning,
- *      the 1.45° lean, the 46-rai core zone — because the model is evidence
- *      for a claim, and a claim without its reasoning is a screensaver.
- *   5. IMPROVED: the parametric NST chedi on the map (lib/mahatat3d.ts) is
- *      corrected to the UNESCO-survey dimensions. It previously claimed ~78 m;
- *      the nomination gives H 28 wa × W 14 wa at 1 wa = 2 m, i.e. 56 m × 28 m.
+ *   1. THE NAKHON SI THAMMARAT CHEDI — by armszx. A CG model of the NST
+ *      chedi: bell body, stepped square base, tall spire, which is the right
+ *      building in the right province. The author describes it as practice
+ *      work ("จะฝึกฝนเรื่อยๆครับ"). It is a stylised reconstruction, NOT
+ *      photogrammetry and NOT a measured survey, and it is labelled as such —
+ *      it is an illustration of the form, not evidence of the dimensions.
+ *   2. THE AYUTTHAYA COMPLEX — by PeterGlenn. This one is titled "Wat Phra
+ *      Mahathat Woramahawihan, Nakhon Si Thammarat" and tagged
+ *      `worldheritage`, but its own description says outright that it is the
+ *      AYUTTHAYA temple in the Ayutthaya Historical Park, and the model is a
+ *      photogrammetry scan of that complex — the Buddha head in the bodhi
+ *      roots, the ring of small stupas, all of it Ayutthaya. It is shown as a
+ *      demonstration of what monument-grade photogrammetry looks like, which
+ *      is the only honest use of it here.
  *
- * ON PHOTOGRAMMETRY (the "could we just scan it" question). Yes — that is
- * exactly what the Nation article describes the team doing, with drones, and
- * what the very model we embed was made with. But we cannot run it: this
- * needs a licensed drone survey over a protected religious site, plus
- * photogrammetry software, plus the temple's consent. It is also the one
- * thing we must not fake — a synthetic scan presented as documentation of a
- * monument in an active World Heritage nomination would be worse than no
- * model. The honest path is a measured survey, requested from the Fine Arts
- * Department, who already hold the engineering data. Until then the landmark
- * is a clearly-labelled parametric model, not a pretend scan.
+ * The category error this panel previously committed — presenting Ayutthaya
+ * photogrammetry as the evidence for the Nakhon Si Thammarat candidacy — is
+ * the reason the distinction is now in the model list itself rather than in a
+ * credit line at the bottom of a scroller.
+ *
+ * ON LICENCE. Both models return an EMPTY `license` object from the Sketchfab
+ * API (verified 2026-09-29). Sketchfab requires an author to pick a licence at
+ * upload; an empty object means none is on record, so we state that plainly
+ * instead of asserting a Creative Commons grant that was never made. Embedding
+ * goes through Sketchfab's own embed player, which is the path their terms
+ * contemplate. A previous version of this file claimed "CC BY 4.0" for a
+ * different model — that one did carry a licence; these two do not.
+ *
+ * ON PHOTOGRAMMETRY (the "could we just scan it" question). A real survey of
+ * this chedi is what the nomination team did with drones, per the Nation
+ * article. We cannot: it needs a licensed drone survey over a protected
+ * religious site, the temple's consent, and photogrammetry software. It is
+ * also the one thing we must not fake. The honest path is to request the
+ * measured survey from the Fine Arts Department, who already hold the
+ * engineering data. Until then the map model is a clearly-labelled parametric
+ * build from the nomination's own figures.
  */
 import { Dialog } from "./Dialog";
 
@@ -59,16 +56,67 @@ interface Props {
   onClose: () => void;
 }
 
-/** Sketchfab uid for "Wat Mahathat" by Phantasma Labs (CC BY 4.0). */
-export const SKETCHFAB_UID = "991ff575867e4b3699e2019adf86b589";
-export const SKETCHFAB_AUTHOR = "Phantasma Labs";
-export const SKETCHFAB_LICENCE = "CC BY 4.0";
+export interface SketchfabModel {
+  uid: string;
+  /** Path segment on sketchfab.com, which is NOT the bare uid. */
+  slug: string;
+  titleTh: string;
+  titleEn: string;
+  author: string;
+  authorUrl: string;
+  /** What the model actually IS — the thing a viewer must not be misled about. */
+  isNst: boolean;
+  kindTh: string;
+  noteTh: string;
+}
 
-/** Canonical viewer URL. No "none-" prefix — that was the bug. */
-export const SKETCHFAB_URL = `https://sketchfab.com/3d-models/${SKETCHFAB_UID}`;
-export const EMBED_URL = `https://sketchfab.com/models/${SKETCHFAB_UID}/embed`;
+/**
+ * Verified against the live Sketchfab API on 2026-09-29. Both `license`
+ * objects came back empty, so no licence is asserted for either.
+ */
+export const SKETCHFAB_MODELS: readonly SketchfabModel[] = [
+  {
+    uid: "67d8526c53b144bd8304060919b3186e",
+    slug: "pratat-67d8526c53b144bd8304060919b3186e",
+    titleTh: "พระบรมธาตุเจดีย์ วัดพระมหาธาตุวรมหาวิหาร (แบบจำลอง)",
+    titleEn: "Phra Borommathat Chedi — reconstruction model",
+    author: "armszx",
+    authorUrl: "https://sketchfab.com/armszx",
+    isNst: true,
+    kindTh: "แบบจำลอง 3 มิติ (CG)",
+    noteTh:
+      "เป็นเจดีย์ของนครศรีธรรมราชจริงตามรูปร่าง แต่เป็นงานจำลองเชิงกราฟิก " +
+      "ไม่ใช่ภาพสแกนและไม่ใช่ผลการวัดจริง ผู้ทำระบุว่าเป็นงานฝึกฝนมือ",
+  },
+  {
+    uid: "1baec87da8aa45c4ba029f927feafc7b",
+    slug: "1baec87da8aa45c4ba029f927feafc7b",
+    titleTh: "วัดมหาธาตุ อยุธยา (พระพุทธหัวในรากพระโพธิ์)",
+    titleEn: "Wat Phra Mahathat, Ayutthaya — photogrammetry",
+    author: "PeterGlenn",
+    authorUrl: "https://sketchfab.com/PeterGlenn",
+    isNst: false,
+    kindTh: "โมเดล photogrammetry",
+    noteTh:
+      "ชื่อโมเดลระบุนครศรีธรรมราช แต่คำอธิบายของผู้ทำระบุว่าเป็น " +
+      "วัดมหาธาตุในอุทยานประวัติศาสตร์อยุธยา (~700 กม. เหนือ NST) " +
+      "เราแสดงไว้เพื่อเป็นตัวอย่างคุณภาพของ photogrammetry ระดับโบราณสถาน " +
+      "ไม่ใช่หลักฐานของการเสนอครั้งนี้",
+  },
+] as const;
+
+/** The model the panel leads with: the one that is actually this monument. */
+export const PRIMARY_MODEL = SKETCHFAB_MODELS[0];
+
+export const sketchfabUrl = (m: SketchfabModel) => `https://sketchfab.com/3d-models/${m.slug}`;
+export const sketchfabEmbedUrl = (m: SketchfabModel) => `https://sketchfab.com/models/${m.uid}/embed`;
+
 const EMBED_PARAMS =
   "autostart=1&ui_theme=dark&ui_infos=0&ui_watermark_link=0&ui_watermark=0&ui_inspector=0&ui_help=0&ui_settings=0&ui_vr=0&ui_fullscreen=1&ui_annotations=1&ui_animations=0&transparent=1";
+
+/** Sketchfab's API returns an empty licence object for both of these models. */
+export const SKETCHFAB_LICENCE_NOTE =
+  "ไม่ได้ระบุสัญญาอนุญาตบน Sketchfab (API คืนค่า license ว่างเปล่า) เราจึงไม่อ้างสัญญาอนุญาตใด ๆ";
 
 /** The nomination's own figures, so the panel and the map agree. */
 export const UNESCO = {
@@ -109,28 +157,40 @@ export function Heritage3DDemo({ open, onClose }: Props) {
           ตั้งแต่ปี {UNESCO.tentativeList} เกณฑ์ที่เสนอคือ ({UNESCO.criteria.join(") (")})
         </>
       }
-      actions={
-        <a
-          className="btn topbar-heritage-3d__external"
-          href={SKETCHFAB_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label={`Open the Wat Mahathat model by ${SKETCHFAB_AUTHOR} on Sketchfab in a new tab`}
-        >
-          Open on Sketchfab ↗
-        </a>
-      }
     >
       <div className="heritage-3d">
-        <div className="heritage-3d-frame">
-          <iframe
-            title="Wat Mahathat photogrammetry by Phantasma Labs — Sketchfab embed"
-            src={`${EMBED_URL}?${EMBED_PARAMS}`}
-            allow="autoplay; fullscreen; xr-spatial-tracking; gyroscope; accelerometer"
-            allowFullScreen
-            loading="lazy"
-            referrerPolicy="no-referrer-when-downgrade"
-          />
+        <div className="heritage-3d-views">
+          {SKETCHFAB_MODELS.map((m) => (
+            <figure key={m.uid} className="heritage-3d-view">
+              <div className="heritage-3d-frame">
+                <iframe
+                  title={`${m.titleEn} by ${m.author} — Sketchfab embed`}
+                  src={`${sketchfabEmbedUrl(m)}?${EMBED_PARAMS}`}
+                  allow="autoplay; fullscreen; xr-spatial-tracking; gyroscope; accelerometer"
+                  allowFullScreen
+                  loading="lazy"
+                  referrerPolicy="no-referrer-when-downgrade"
+                />
+              </div>
+              <figcaption className="heritage-3d-view__cap">
+                <strong>{m.titleTh}</strong>
+                <span className={`heritage-3d-view__badge${m.isNst ? " is-nst" : " is-other"}`}>
+                  {m.isNst ? "นครศรีธรรมราช" : "อยุธยา — ไม่ใช่ NST"}
+                </span>
+                <p className="heritage-3d-view__meta">
+                  {m.kindTh} · โดย{" "}
+                  <a href={m.authorUrl} target="_blank" rel="noopener noreferrer">
+                    {m.author}
+                  </a>{" "}
+                  ·{" "}
+                  <a href={sketchfabUrl(m)} target="_blank" rel="noopener noreferrer">
+                    Sketchfab ↗
+                  </a>
+                </p>
+                <p className="heritage-3d-view__note">{m.noteTh}</p>
+              </figcaption>
+            </figure>
+          ))}
         </div>
 
         <aside className="heritage-3d-facts" aria-label="UNESCO nomination facts">
@@ -153,7 +213,8 @@ export function Heritage3DDemo({ open, onClose }: Props) {
             <div>
               <dt>เขตหลัก / เขตกันชน</dt>
               <dd>
-                {UNESCO.coreRai} ไร่ (เฉพาะภายในเขตวัด) · เขตกันชนประมาณ {UNESCO.bufferRai.toLocaleString("th-TH")} ไร่
+                {UNESCO.coreRai} ไร่ (เฉพาะภายในเขตวัด) · เขตกันชนประมาณ{" "}
+                {UNESCO.bufferRai.toLocaleString("th-TH")} ไร่
               </dd>
             </div>
             {UNESCO.criteria.map((c) => (
@@ -165,28 +226,17 @@ export function Heritage3DDemo({ open, onClose }: Props) {
           </dl>
           <p className="heritage-3d-facts__note">
             แบบจำลองเชิงพารามิเตอร์ของเจดีย์บนแผนที่ NST วัดจากค่าตามเอกสาร UNESCO
-            ไม่ใช่ภาพสแกน 3 มิติ
+            ไม่ใช่ภาพสแกน 3 มิติ — โมเดลทั้งสองข้างบนเป็นงานของผู้ใช้ Sketchfab
+            ไม่ใช่ผลการวัดของ NST
           </p>
         </aside>
       </div>
 
       <p className="heritage-3d-credit">
-        <strong>โมเดลที่แสดง: วัดมหาธาตุ อยุธยา</strong> โดย {SKETCHFAB_AUTHOR} —{" "}
-        <a href={SKETCHFAB_URL} target="_blank" rel="noopener noreferrer">Sketchfab</a>,{" "}
-        <a
-          href="https://creativecommons.org/licenses/by/4.0/"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          {SKETCHFAB_LICENCE}
+        สัญญาอนุญาต: {SKETCHFAB_LICENCE_NOTE} —{" "}
+        <a href="https://sketchfab.com/terms" target="_blank" rel="noopener noreferrer">
+          sketchfab.com/terms
         </a>
-        <br />
-        <em>
-          โมเดลนี้เป็นวัดมหาธาตุในอุทยานประวัติศาสตร์อยุธยา (~700 กม. เหนือ NST)
-          <strong>ไม่ใช่</strong> วัดพระมหาธาตุวรมหาวิหารที่กำลังเสนอขึ้นทะเบียน
-          เราแสดงไว้เพราะเป็นหลักฐานว่า photogrammetry ระดับนี้ทำได้จริง
-          ไม่ใช่ภาพหลักฐานของการเสนอครั้งนี้
-        </em>
       </p>
       <p className="heritage-3d-credit heritage-3d-credit--src">
         แหล่งข้อมูลบริบท: The Nation, “Wat Phra Mahathat Woramahawihan: Pretender to the
