@@ -97,14 +97,16 @@ describe("the links actually resolve", () => {
     // The earlier version emitted ".../3d-models/none-<uid>", a stray "none-"
     // from a null search result, and every credit link 404'd while the embed
     // worked. One of these two models is also NOT addressable by uid alone:
-    // its path carries a "pratat-" prefix.
-    expect(sketchfabUrl(PRIMARY_MODEL)).toBe(
+    // its path carries a "pratat-" prefix. Asserted exactly, because a shape
+    // that tolerates a slug prefix also tolerates "none-".
+    expect(SKETCHFAB_MODELS.map(sketchfabUrl).sort()).toEqual([
+      "https://sketchfab.com/3d-models/1baec87da8aa45c4ba029f927feafc7b",
       "https://sketchfab.com/3d-models/pratat-67d8526c53b144bd8304060919b3186e",
-    );
+    ]);
     for (const m of SKETCHFAB_MODELS) {
       expect(sketchfabUrl(m)).not.toMatch(/none-/);
-      expect(sketchfabUrl(m)).toContain(m.uid);
       expect(m.uid).toMatch(/^[0-9a-f]{32}$/);
+      expect(m.slug).toMatch(/^[0-9a-z-]*[0-9a-f]{32}$/);
     }
   });
 

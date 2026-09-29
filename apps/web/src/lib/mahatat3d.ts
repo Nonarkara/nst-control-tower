@@ -33,8 +33,14 @@
  *   - Ho trai (scripture hall)   — rectangle, 10m × 8m × 6m
  *   - 8 satellite chedis         — small stupas around the main chedi
  *
- * The cloister wall itself comes from buildings.geojson (the hand-authored
- * `hand/mahatat-cloister` polygon, extruded to 12m).
+ * The cloister wall used to be claimed here as coming from buildings.geojson —
+ * a hand-authored `hand/mahatat-cloister` polygon extruded to 12 m. That
+ * polygon has been REMOVED: it was a five-point axis-aligned rectangle
+ * 452 m × 401 m, i.e. a bounding box drawn around the temple rather than a
+ * traced wall, and it rendered as an 18-hectare plate lying across the streets
+ * of the old town. The surrounding halls above are modelled here, not mapped;
+ * the 156 real traced temple footprints in buildings.geojson carry the real
+ * ones. See lib/buildingFootprints.test.ts, which pins both facts.
  */
 
 import { ColumnLayer } from "@deck.gl/layers";

@@ -67,15 +67,16 @@ test.describe("UNESCO heritage showcase", () => {
     const dialog = await openDialog(page);
     // One of the two is NOT addressable by uid alone — its path carries a
     // "pratat-" prefix. A link built as /3d-models/<uid> 404s for it, exactly
-    // as the old "none-" links did.
+    // as the old "none-" links did. Asserted against the two real URLs rather
+    // than a shape, because a shape that accepts a slug also happily accepts
+    // "none-<uid>" — the exact bug this panel already shipped once.
     const links = dialog.locator('.heritage-3d-view__meta a[href*="sketchfab.com/3d-models/"]');
     await expect(links).toHaveCount(2);
-    const hrefs = await links.evaluateAll((els) => els.map((e) => (e as HTMLAnchorElement).href));
-    for (const href of hrefs) {
-      expect(href).not.toMatch(/none-/);
-      expect(href).toMatch(/^https:\/\/sketchfab\.com\/3d-models\/[0-9a-f]{32}$/);
-    }
-    expect(hrefs.some((h) => h.includes("pratat-"))).toBe(true);
+    const hrefs = (await links.evaluateAll((els) => els.map((e) => (e as HTMLAnchorElement).href))).sort();
+    expect(hrefs).toEqual([
+      "https://sketchfab.com/3d-models/1baec87da8aa45c4ba029f927feafc7b",
+      "https://sketchfab.com/3d-models/pratat-67d8526c53b144bd8304060919b3186e",
+    ]);
   });
 
   test("no licence is claimed, and the wrongly-attributed names stay gone", async ({ page }) => {
