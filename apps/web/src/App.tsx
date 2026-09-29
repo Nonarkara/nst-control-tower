@@ -150,7 +150,6 @@ import {
 import { useTile3DLayer } from "./map/Tile3DLayer";
 import { useGoogleTileSession } from "./hooks/useGoogleTileSession";
 import { googleTileTemplate } from "./lib/googleTiles";
-import { mahatat3DLayer, CHEDI_HEIGHT_M, CHEDI_WIDTH_M } from "./lib/mahatat3d";
 import { ALL_LAYERS, LENSES, layerCanEnable, enforceLayerExclusivity, exclusiveGroupOf, type LayerId, type LensId, type MapViewState } from "./map/presets";
 
 import { TopBar } from "./components/TopBar";

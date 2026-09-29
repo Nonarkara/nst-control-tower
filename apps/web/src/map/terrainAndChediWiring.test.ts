@@ -91,8 +91,19 @@ describe("the great chedi is wired, not just written", () => {
 describe("the model's dimensions still match the nomination", () => {
   // Guards against someone editing the segment table and the published figure
   // together, or neither. 28 wa x 2 m tall, 14 wa x 2 m wide.
-  it("App.tsx carries the constants for surface display, not magic numbers", () => {
-    expect(APP).toMatch(/CHEDI_HEIGHT_M/);
-    expect(APP).toMatch(/CHEDI_WIDTH_M/);
+  //
+  // Asserted against the model itself, not against App.tsx: the call site
+  // passes a scale, not dimensions, and an earlier draft of this test
+  // "verified" the constants by grepping App.tsx for their names — which
+  // passes for an import that has nothing to do with what is drawn.
+  it("the chedi is 56.0 m tall — 28 wa at 1 wa = 2 m", async () => {
+    const { CHEDI_HEIGHT_M } = await import("../lib/mahatat3d");
+    expect(CHEDI_HEIGHT_M).toBeCloseTo(56, 1);
+  });
+
+  it("the chedi is 28 m across — 14 wa at 1 wa = 2 m, the deliberate 2:1", async () => {
+    const { CHEDI_WIDTH_M, CHEDI_HEIGHT_M } = await import("../lib/mahatat3d");
+    expect(CHEDI_WIDTH_M).toBe(28);
+    expect(CHEDI_HEIGHT_M / CHEDI_WIDTH_M).toBeCloseTo(2, 2);
   });
 });
