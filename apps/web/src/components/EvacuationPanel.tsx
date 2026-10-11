@@ -6,6 +6,7 @@
  */
 
 import type { EvacRow, EvacSummary, EvacTier } from "../lib/evacPriority";
+import type { FallbackTier } from "@nst/shared";
 import { villageLabel } from "../lib/evacPriority";
 import type { CctvCamera } from "../map/layers";
 import type { StatusLevel } from "../lib/status";
@@ -22,6 +23,13 @@ interface Props {
   onOpenCamera: (camera: CctvCamera) => void;
   /** Stations actually reporting right now, per evidence type. */
   coverage: EvacCoverage;
+  /**
+   * Age of the gauge telemetry this ranking is built from. This panel decides
+   * who gets moved first, so it must show how old its own evidence is — the two
+   * sibling rail panels (SensorInsights, LevelWatch) already do.
+   */
+  ageMinutes?: number | null;
+  fallbackTier?: FallbackTier;
 }
 
 /** Reporting-station counts; null = that feed has not answered yet. */
@@ -102,12 +110,17 @@ function Row({ row, onFocus, onOpenCamera }: { row: EvacRow; onFocus: Props["onF
   );
 }
 
-export function EvacuationPanel({ rows, summary, loading, years, onFocus, onOpenCamera, coverage }: Props) {
+export function EvacuationPanel({ rows, summary, loading, years, onFocus, onOpenCamera, coverage, ageMinutes, fallbackTier }: Props) {
   const listed = rows.filter((r) => r.tier !== "calm");
   const shown = listed.slice(0, LIST_LIMIT);
   return (
     <section className="panel" aria-label="Who to move first">
-      <PanelHeader title="WHO TO MOVE FIRST · ใครต้องย้ายก่อน" source="data.go.th·thaiwater·ews" />
+      <PanelHeader
+        title="WHO TO MOVE FIRST · ใครต้องย้ายก่อน"
+        ageMinutes={ageMinutes}
+        fallbackTier={fallbackTier}
+        source="data.go.th·thaiwater·ews"
+      />
       {loading ? (
         <p className="note">Loading the village flood-risk register…</p>
       ) : (

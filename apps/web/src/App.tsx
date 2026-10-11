@@ -2425,6 +2425,8 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
             onFocus={(lng, lat) => flyTo(lng, lat, 14.5)}
             onOpenCamera={(c) => { highlightCamera(c.id); setSelectedCctv(c); }}
             coverage={evacCoverage}
+            ageMinutes={waterGauges.ageMinutes}
+            fallbackTier={waterGauges.fallbackTier === "loading" ? undefined : waterGauges.fallbackTier}
           />
         </RailSection>
 
