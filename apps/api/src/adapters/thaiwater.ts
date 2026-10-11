@@ -146,8 +146,7 @@ function trend(curr: number | null, prev: number | null): WaterGauge["trend"] {
 
 // ---- fetchWaterGauges ----
 
-export async function fetchWaterGauges(): Promise<NormalizedFeed<WaterGauge>> {
-  return cached("thaiwater-gauges", TTL_GAUGES, async () => {
+const computeWaterGauges = async (): Promise<NormalizedFeed<WaterGauge>> => {
     const fetchedAt = new Date().toISOString();
 
     // fetchJsonOrThrow throws on non-OK / network / DNS failure. On a cold start
@@ -218,13 +217,32 @@ export async function fetchWaterGauges(): Promise<NormalizedFeed<WaterGauge>> {
           : silent ? { note: `${silent} station(s) silent >${SILENT_AFTER_H} h not shown — a dead gauge is not a calm river` } : {}),
       },
     };
-  });
+};
+
+/**
+ * River gauges — the dashboard's primary flood evidence.
+ *
+ * A relay outage THROWS (see gaugesViaRelay) rather than resolving an empty
+ * feed, because `cachedWithStale` only falls back to the previous snapshot when
+ * compute REJECTS. A resolved `{features: []}` is cached as a fresh success and
+ * overwrites the last good snapshot — so a routine restart of the relay, or
+ * ten minutes of a laptop being asleep, would blank the river picture in the
+ * one week it matters most. Same rule as wrfRain and gistdaWater.
+ *
+ * This catch therefore only runs on a cold start with nothing to serve, where
+ * an explicit "unavailable" is the honest answer.
+ */
+export async function fetchWaterGauges(): Promise<NormalizedFeed<WaterGauge>> {
+  try {
+    return await cached("thaiwater-gauges", TTL_GAUGES, computeWaterGauges);
+  } catch {
+    return relayDown<WaterGauge>("River gauges", "thaiwater-waterlevel");
+  }
 }
 
 // ---- fetchRainfall ----
 
-export async function fetchRainfall(): Promise<NormalizedFeed<RainfallStation>> {
-  return cached("thaiwater-rain", TTL_RAIN, async () => {
+const computeRainfall = async (): Promise<NormalizedFeed<RainfallStation>> => {
     const fetchedAt = new Date().toISOString();
 
     // fetchJsonOrThrow throws on non-OK / network / DNS failure. On a cold start
@@ -276,8 +294,17 @@ export async function fetchRainfall(): Promise<NormalizedFeed<RainfallStation>> 
           : silent ? { note: `${silent} rain station(s) silent >${SILENT_AFTER_H} h not shown` } : {}),
       },
     };
-  });
+};
+
+/** Rain gauges. Same outage rule as the river gauges, for the same reason. */
+export async function fetchRainfall(): Promise<NormalizedFeed<RainfallStation>> {
+  try {
+    return await cached("thaiwater-rain", TTL_RAIN, computeRainfall);
+  } catch {
+    return relayDown<RainfallStation>("Rain gauges", "thaiwater-rain");
+  }
 }
+
 // ---- sensor honesty + FloodDash relay ----
 
 /** Drop readings older than SILENT_AFTER_H. A gauge that stopped reporting
@@ -290,6 +317,23 @@ export function dropSilent<T extends { observedAt: string }>(rows: T[], nowMs: n
     return Number.isFinite(t) && t >= cutoff;
   });
   return { live, silent: rows.length - live.length };
+}
+
+/**
+ * Cold start with no snapshot to fall back on. Name the failure precisely —
+ * never an empty list that reads as "nothing is happening".
+ */
+function relayDown<T>(kind: string, source: string): NormalizedFeed<T> {
+  return {
+    features: [],
+    meta: {
+      source,
+      fetchedAt: new Date().toISOString(),
+      ageMinutes: 0,
+      fallbackTier: "unavailable",
+      note: `${kind} unavailable: HII ThaiWater is unreachable from Cloudflare and the FloodDash relay also failed. Retries automatically.`,
+    },
+  };
 }
 
 async function gaugesViaRelay(fetchedAt: string): Promise<NormalizedFeed<WaterGauge>> {
@@ -308,17 +352,10 @@ async function gaugesViaRelay(fetchedAt: string): Promise<NormalizedFeed<WaterGa
         note: `${RELAY_SOURCE_NOTE} · ${gauges.length} reporting · ${silent} silent >${SILENT_AFTER_H} h not shown`,
       },
     };
-  } catch {
-    return {
-      features: [],
-      meta: {
-        source: "thaiwater-waterlevel",
-        fetchedAt,
-        ageMinutes: 0,
-        fallbackTier: "unavailable",
-        note: "River gauges unavailable: HII ThaiWater is unreachable from Cloudflare and the FloodDash relay also failed. Retries automatically.",
-      },
-    };
+  } catch (err) {
+    // Reject, never resolve `{features: []}` — see fetchWaterGauges. This is
+    // the whole flood picture; do not blank it because a laptop rebooted.
+    throw new Error(`FloodDash relay unreachable: ${String(err)}`);
   }
 }
 
@@ -337,16 +374,8 @@ async function rainViaRelay(fetchedAt: string): Promise<NormalizedFeed<RainfallS
         note: `${RELAY_SOURCE_NOTE} · ${stations.length} reporting · ${silent} silent >${SILENT_AFTER_H} h not shown`,
       },
     };
-  } catch {
-    return {
-      features: [],
-      meta: {
-        source: "thaiwater-rain",
-        fetchedAt,
-        ageMinutes: 0,
-        fallbackTier: "unavailable",
-        note: "Rain gauges unavailable: HII ThaiWater is unreachable from Cloudflare and the FloodDash relay also failed. Retries automatically.",
-      },
-    };
+  } catch (err) {
+    // Reject, never resolve `{features: []}` — see fetchWaterGauges.
+    throw new Error(`FloodDash relay unreachable: ${String(err)}`);
   }
 }
