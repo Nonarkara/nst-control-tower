@@ -62,7 +62,13 @@ function latestDischarge(p: OpenMeteoFlood | null): { value: number | null; at: 
   return { value: null, at: null };
 }
 
-/** Peak forecast discharge over the window — used to flag a rising trend. */
+/**
+ * Peak forecast discharge over the window (m³/s).
+ *
+ * This existed and was never called: the adapter computed the current discharge
+ * and the status, then discarded the model's own 7-day peak, so the map could
+ * never say the river was about to get worse. It is on the wire now.
+ */
 function peakDischarge(p: OpenMeteoFlood | null): number | null {
   const arr = p?.daily?.river_discharge_max ?? p?.daily?.river_discharge ?? [];
   let peak: number | null = null;
@@ -122,6 +128,16 @@ async function fetchFloodGaugesInner(): Promise<NormalizedFeed<FloodGauge>> {
         status: gaugeStatus(r.value),
         observedAt: r.at ?? fetchedAt,
         source: `open-meteo-flood:discharge=${Math.round(r.value)}cms`,
+        // The flow rate itself and the model's 7-day peak. Both were computed by
+        // peakDischarge()/latestDischarge() and then dropped on the floor, so
+        // the panel could only ever show a level-less "FLOOD" with no idea
+        // whether the river was rising or falling. In a flood week the peak IS
+        // the number that matters.
+        dischargeCms: r.value,
+        // `?? undefined` rather than null: an optional field's absent state is
+        // "not modelled at all", which is different from a modelled zero.
+        forecastPeakCms: peakDischarge(river) ?? undefined,
+        modelled: true,
       });
     }
 
@@ -137,6 +153,9 @@ async function fetchFloodGaugesInner(): Promise<NormalizedFeed<FloodGauge>> {
         status: gaugeStatus(d.value),
         observedAt: d.at ?? fetchedAt,
         source: `open-meteo-flood:discharge=${Math.round(d.value)}cms`,
+        dischargeCms: d.value,
+        forecastPeakCms: peakDischarge(basin) ?? undefined,
+        modelled: true,
       });
     }
 

@@ -276,6 +276,20 @@ export interface FloodGauge {
   status: "normal" | "watch" | "warning" | "flood" | "unknown";
   observedAt: string;
   source: string;
+  /**
+   * Current modelled river DISCHARGE in m³/s (cubic metres per second).
+   * Present only on the GloFAS fallback feed — it is a flow rate, NOT a water
+   * level, and it is a daily model value rather than a telemetry reading.
+   */
+  dischargeCms?: number;
+  /**
+   * Highest discharge the model forecasts over the next 7 days, same units.
+   * The single most useful number in a flood week: the river is usually about to
+   * get worse, and a reader looking only at the current value will not know it.
+   */
+  forecastPeakCms?: number;
+  /** True when this record is a model proxy rather than a real station. */
+  modelled?: boolean;
 }
 
 /** Dam / reservoir status (Bang Lang Dam sits upstream of Yala city). */

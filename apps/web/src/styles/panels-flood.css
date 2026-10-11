@@ -19,6 +19,18 @@
   line-height: 1.3;
 }
 .flood-meta { margin: 0; font-size: var(--text-xs); color: var(--ink-3); line-height: 1.45; }
+/*
+ * The disclaimer under the GloFAS fallback gauge. This branch only renders when
+ * real telemetry is offline, so the reader is already in the worst case; the
+ * line has to survive being skipped. Uses the warn status token rather than a
+ * decorative colour, because "this number is not a measurement" is a warning,
+ * not a caption.
+ */
+.flood-meta--warn {
+  margin-top: 2px;
+  color: var(--warn);
+  font-weight: 600;
+}
 .flood-value { margin: 0; font-size: var(--text-md); font-weight: var(--weight-medium); color: var(--ink); line-height: 1.3; }
 .flood-value--lg { font-size: var(--text-lg); font-weight: var(--weight-bold); }
 .flood-empty { margin: 0; font-size: var(--text-sm); color: var(--ink-3); }

@@ -145,9 +145,37 @@ export function FloodBrief({ gauges, waterGauges = [], dam, precip, floodRiskFea
           ) : worstGauge ? (
             <>
               <dd className="flood-value">
-                <StatusValue level={GAUGE_STATUS[worstGauge.status]}>{worstGauge.status.toUpperCase()}</StatusValue>
+                <StatusValue level={GAUGE_STATUS[worstGauge.status]}>
+                  {worstGauge.status === "unknown" ? "NO MODEL DATA" : `${worstGauge.status.toUpperCase()} (MODEL)`}
+                </StatusValue>
               </dd>
-              <dd className="flood-meta">{worstGauge.name} · {fmt(worstGauge.levelM, 2, " m")}</dd>
+              {/*
+                This is the FALLBACK branch — it renders when the real ThaiWater
+                telemetry is unavailable, which is exactly when a resident most
+                needs to know what the number is and is not.
+
+                `gauges` is the GloFAS fallback: two model points carrying a
+                daily river DISCHARGE (m³/s), not a water level. It used to print
+                `fmt(levelM, 2, " m")` — a metre unit against a level that is
+                always null, next to a red unqualified "FLOOD". That reads as a
+                measured river height to anyone who does not open the API. It is
+                a modelled flow rate, and it now says so, in the unit it is
+                actually in, with the forecast beside it.
+              */}
+              <dd className="flood-meta">
+                {worstGauge.name} · modelled discharge{" "}
+                {worstGauge.forecastPeakCms != null ? (
+                  <>
+                    now {Math.round(worstGauge.dischargeCms ?? 0)} m³/s, forecast peak{" "}
+                    <strong>{Math.round(worstGauge.forecastPeakCms)} m³/s</strong> in 7 days
+                  </>
+                ) : (
+                  <>— discharge unavailable</>
+                )}
+              </dd>
+              <dd className="flood-meta flood-meta--warn">
+                Not a measured water level. Real gauge telemetry is offline.
+              </dd>
             </>
           ) : (
             <dd className="flood-empty">no gauge feed</dd>
