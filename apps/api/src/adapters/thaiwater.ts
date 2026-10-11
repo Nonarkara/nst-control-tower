@@ -220,6 +220,19 @@ const computeWaterGauges = async (): Promise<NormalizedFeed<WaterGauge>> => {
 };
 
 /**
+ * `meta.ageMinutes` is stamped when a feed is FETCHED. When the cache serves a
+ * stale snapshot through an outage it returns that snapshot verbatim, so the age
+ * would freeze — a three-hour-old river reading rendered as a green "0m" in the
+ * exact colour that means "trust this". Recompute at read time, always: the one
+ * number that must never lie is how old the number is.
+ */
+function trueAge<T>(feed: NormalizedFeed<T>): NormalizedFeed<T> {
+  const age = cacheAgeMinutes(feed.meta.fetchedAt);
+  if (age === feed.meta.ageMinutes) return feed;
+  return { ...feed, meta: { ...feed.meta, ageMinutes: age } };
+}
+
+/**
  * River gauges — the dashboard's primary flood evidence.
  *
  * A relay outage THROWS (see gaugesViaRelay) rather than resolving an empty
@@ -234,7 +247,12 @@ const computeWaterGauges = async (): Promise<NormalizedFeed<WaterGauge>> => {
  */
 export async function fetchWaterGauges(): Promise<NormalizedFeed<WaterGauge>> {
   try {
-    return await cached("thaiwater-gauges", TTL_GAUGES, computeWaterGauges);
+    // staleTtl = TTL_GAUGES, not the 24 h default: `cachedWithStale` re-stamps a
+    // stale entry with exactly this value, so the default would pin a single
+    // snapshot for a whole day and never notice the relay coming back. Ten
+    // minutes is how often this feed would have refreshed anyway.
+    const feed = await cached("thaiwater-gauges", TTL_GAUGES, computeWaterGauges, TTL_GAUGES);
+    return trueAge(feed);
   } catch {
     return relayDown<WaterGauge>("River gauges", "thaiwater-waterlevel");
   }
@@ -299,7 +317,8 @@ const computeRainfall = async (): Promise<NormalizedFeed<RainfallStation>> => {
 /** Rain gauges. Same outage rule as the river gauges, for the same reason. */
 export async function fetchRainfall(): Promise<NormalizedFeed<RainfallStation>> {
   try {
-    return await cached("thaiwater-rain", TTL_RAIN, computeRainfall);
+    const feed = await cached("thaiwater-rain", TTL_RAIN, computeRainfall, TTL_RAIN);
+    return trueAge(feed);
   } catch {
     return relayDown<RainfallStation>("Rain gauges", "thaiwater-rain");
   }

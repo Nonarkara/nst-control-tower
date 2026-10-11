@@ -185,3 +185,71 @@ describe("the relay goes down", () => {
     expect(feed.meta.fallbackTier).toBe("live");
   });
 });
+describe("a snapshot served through an outage must not lie about its age", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it("keeps counting, instead of rendering a three-hour-old reading as 0m", async () => {
+    vi.resetModules();
+    let relayDown = false;
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+      if (String(url).includes("thaiwater.net")) throw new Error("connect timeout");
+      if (relayDown) throw new Error("ECONNREFUSED");
+      return new Response(relayPayload(), { status: 200, headers: { "content-type": "application/json" } });
+    }));
+
+    const { fetchWaterGauges } = await import("./thaiwater");
+    const { setCache } = await import("../lib/cache");
+
+    const good = await fetchWaterGauges();
+    expect(good.features).toHaveLength(2);
+
+    // Same snapshot, fetched three hours ago. ageMinutes is deliberately left at
+    // the 0 it carried when it was fresh — which is exactly what the cache
+    // hands back verbatim, and what the green "0m" freshness chip would show.
+    relayDown = true;
+    setCache("thaiwater-gauges", {
+      ...good,
+      meta: {
+        ...good.meta,
+        fetchedAt: new Date(Date.now() - 180 * 60_000).toISOString(),
+        ageMinutes: 0,
+      },
+    }, -1);
+
+    const out = await fetchWaterGauges();
+    expect(out.features).toHaveLength(2);
+    // 120 min is the "stale" threshold: past it the chip must go red, not green.
+    expect(out.meta.ageMinutes).toBeGreaterThanOrEqual(180);
+    expect(out.meta.ageMinutes).toBeLessThanOrEqual(181);
+  });
+
+  it("does not pin the snapshot for 24 h — the relay must be retried on cadence", async () => {
+    vi.resetModules();
+    let relayDown = false;
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+      if (String(url).includes("thaiwater.net")) throw new Error("connect timeout");
+      if (relayDown) throw new Error("ECONNREFUSED");
+      return new Response(relayPayload(), { status: 200, headers: { "content-type": "application/json" } });
+    }));
+
+    const { fetchWaterGauges } = await import("./thaiwater");
+    const { setCache, snapshotCache } = await import("../lib/cache");
+
+    const good = await fetchWaterGauges();
+    relayDown = true;
+    setCache("thaiwater-gauges", good, -1);
+    await fetchWaterGauges();
+
+    // cachedWithStale re-stamps a stale entry with exactly staleTtlSeconds.
+    // The 24 h default would freeze one snapshot for a whole day and never
+    // notice the relay recovering.
+    const entry = snapshotCache()["thaiwater-gauges"];
+    expect(entry).toBeDefined();
+    const remainingMs = entry!.expiresAt - Date.now();
+    expect(remainingMs).toBeGreaterThan(0);
+    expect(remainingMs).toBeLessThanOrEqual(10 * 60_000 + 5_000); // the 10-min TTL
+  });
+});
