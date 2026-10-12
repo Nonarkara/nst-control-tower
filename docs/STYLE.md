@@ -25,9 +25,9 @@ line+fill icons, arrows, and big Thai labels. (Earlier mascot/cartoon directions
   followed by a bold label and a small muted subtitle.
 - **One idea per element.** Fewer, larger, well-aligned pieces beat clutter.
 
-### Palette — the **YALA** palette (earthy: green · gold · brown)
+### Palette — earth (green · gold · brown)
 
-Source palette: forest green `#4A773C` · Yala gold `#F1BE48` · dark brown `#4E3629` ·
+Source palette: forest green `#4A773C` · gold `#F1BE48` · dark brown `#4E3629` ·
 light gray `#D9D9D6` · black. Below are the working tokens (with legible text variants and
 soft chip tints) derived from it.
 
@@ -41,7 +41,7 @@ soft chip tints) derived from it.
 | bg | `#FAF8F1` | — | page background |
 | darkscreen | `#241B11` | — | map screen / promise pill (warm near-black) |
 | **green** (primary) | `#4A773C` | `#E3EDDA` | data / live / primary |
-| **gold** (signature) | `#D6A12A` text · `#F1BE48` fills | `#FBEFCB` | Yala accent / highlight / title underline |
+| **gold** (signature) | `#D6A12A` text · `#F1BE48` fills | `#FBEFCB` | accent / highlight / title underline |
 | **brown** | `#6E4A33` | `#EBE2D9` | info / people |
 | moss | `#7E8A3A` | `#EDF0DC` | success / decision |
 | terracotta | `#B14A2B` | `#F3E0D7` | problem / alert |

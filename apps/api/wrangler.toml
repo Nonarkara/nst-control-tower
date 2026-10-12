@@ -2,7 +2,9 @@ name = "nst-control-tower-api"
 main = "src/index.ts"
 compatibility_date = "2025-11-01"
 compatibility_flags = ["nodejs_compat"]
-account_id = "74ad6bf8dfaaccf82de6f0847f7d2d54"
+# Do not commit a Cloudflare account id. `wrangler deploy` reads
+# CLOUDFLARE_ACCOUNT_ID from the environment. The deploy workflow passes the
+# GitHub Actions variable of the same name.
 workers_dev = true
 
 [observability]

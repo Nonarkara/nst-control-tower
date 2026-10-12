@@ -1,6 +1,6 @@
 // Node runtime entry — runs the same Hono app on plain Node so we can reach
-// Thai government endpoints that workerd local TLS rejects. Production: this
-// Mac runs 24/7 behind a Cloudflare Tunnel at chonburi-api.nonarkara.org.
+// Thai government endpoints that workerd local TLS rejects. Bind address is
+// HOST (default 127.0.0.1). Provider keys come from the environment or .env.
 //
 // Reliability layers:
 //   1. Persistent disk cache (var/cache.json) — restarts boot warm.
@@ -105,7 +105,7 @@ await flushMemoryToDb()
 if (process.env.MQTT_BROKER_URL) {
   startMqttBridge({
     brokerUrl: process.env.MQTT_BROKER_URL,
-    clientId: `chonburi-api-${Date.now()}`,
+    clientId: `nst-api-${Date.now()}`,
     username: process.env.MQTT_USERNAME,
     password: process.env.MQTT_PASSWORD,
     topics: process.env.MQTT_TOPICS?.split(",") ?? ["fahfon/+/data", "sensors/+/data"],

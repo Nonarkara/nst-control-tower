@@ -2,7 +2,7 @@ import type { ConciergeAnswer, SearchResult } from "@nst/shared";
 import { retrieve } from "./search.js";
 
 /**
- * AI concierge — retrieval-augmented answering over the Yala knowledge corpus.
+ * AI concierge — retrieval-augmented answering over the knowledge corpus.
  * Retrieves the most relevant indicators / sources / lessons / glossary terms,
  * then (if GEMINI_API_KEY is set) asks Gemini to synthesize a grounded,
  * cited answer. Without a key it degrades to a retrieval-only summary, so it is
@@ -13,7 +13,7 @@ const GEMINI_MODEL = "gemini-2.5-flash";
 const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 
 const SYSTEM = [
-  "You are the Yala Knowledge Concierge for the Yala City Municipality (เทศบาลนครยะลา) dashboard, Thailand's Deep South.",
+  "You are the knowledge concierge for this municipal dashboard.",
   "Answer ONLY from the provided context snippets. Cite figures with their source. Be concise, factual and neutral.",
   "For Deep South security topics, use aggregate framing and neutral language — never sensationalize.",
   "If the context does not contain the answer, say so and suggest which dashboard lens or atlas module to open.",
@@ -27,11 +27,11 @@ function buildContext(citations: SearchResult[]): string {
 
 function retrievalOnlyAnswer(question: string, citations: SearchResult[]): string {
   if (citations.length === 0) {
-    return `I couldn't find anything in the Yala knowledge base for "${question}". Try the Data Atlas (◷ ATLAS) or a broader term — e.g. "poverty", "flood", "education", "Bang Lang Dam".`;
+    return `I couldn't find anything in the knowledge base for "${question}". Try the Data Atlas or a broader term — for example "flood", "education", or "budget".`;
   }
   const top = citations.slice(0, 4);
   const lines = top.map((c) => `• ${c.title}${c.snippet ? ` — ${c.snippet}` : ""}`).join("\n");
-  return `Here's what the Yala knowledge base has on "${question}":\n${lines}\n\nOpen the linked atlas module or lens for the full picture. (Set GEMINI_API_KEY for a synthesized answer.)`;
+  return `Here's what the knowledge base has on "${question}":\n${lines}\n\nOpen the linked atlas module or lens for the full picture. (Set GEMINI_API_KEY for a synthesized answer.)`;
 }
 
 async function synthesize(question: string, citations: SearchResult[], apiKey: string): Promise<string | null> {

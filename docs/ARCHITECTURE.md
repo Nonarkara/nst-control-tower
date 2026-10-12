@@ -169,6 +169,5 @@ building GeoJSON on restart.
   suites; `@nst/web test:e2e` runs Playwright smoke tests. CI runs type-check + unit + E2E
   on every PR; deploy only runs after Test passes.
 
-See [`CLAUDE.md`](../CLAUDE.md) for the full coding conventions (PanelHeader, design
-tokens, freshness classes, file-size limits) and [`docs/DATA-SOURCES.md`](DATA-SOURCES.md)
-for the complete, categorised source catalog.
+Coding conventions for this repository are in [`CONTRIBUTING.md`](../CONTRIBUTING.md).
+[`docs/DATA-SOURCES.md`](DATA-SOURCES.md) is the categorised source catalog.

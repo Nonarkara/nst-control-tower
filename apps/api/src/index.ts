@@ -481,7 +481,7 @@ app.get("/api/air/waqi/:z/:x/:y", async (c) => {
   }
 });
 
-// ── NST Data Atlas — static outcome-data layer from the Municipal Data Bible ──
+// ── Data atlas — static outcome indicators ──
 app.get("/api/atlas", (c) => {
   const snap = buildAtlasSnapshot();
   setMetaHeaders(c, snap);
@@ -494,7 +494,7 @@ app.get("/api/atlas/:module", (c) => {
   return c.json(m);
 });
 
-// ── Yala Knowledge Platform — search / academy / archive / insights / concierge ──
+// ── Knowledge platform — search / academy / archive / insights / concierge ──
 app.get("/api/search", (c) => {
   const q = c.req.query("q") ?? "";
   const limit = Number(c.req.query("limit") ?? 30);

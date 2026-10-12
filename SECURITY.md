@@ -14,7 +14,9 @@
 - แผง “ใครต้องย้ายก่อน” ไม่เปิดชื่อและที่อยู่ของผู้อยู่อาศัย ข้อความท้ายแผงบอกว่าชื่ออยู่ที่สถานีอนามัยกับ อสม.
 - เบอร์ใน `apps/web/src/lib/hotlines.ts` ใส่ได้เมื่อตรวจกับหน้าหน่วยงานแล้ว เบอร์ผิดในหน้าน้ำท่วมเป็นบั๊กที่รอรุ่นถัดไปไม่ได้
 
-การดีพลอยใช้ `CLOUDFLARE_API_TOKEN` จากซีเคร็ตของ GitHub Actions โทเคนนั้นไม่ควรอยู่ในกิตหรือในล็อก
+การดีพลอยใช้ `CLOUDFLARE_API_TOKEN` จากซีเคร็ตของ GitHub Actions โทเคนนั้นไม่ควรอยู่ในกิตหรือในล็อก รหัสบัญชี Cloudflare ก็ไม่ควรอยู่ในกิต ให้ตั้งเป็นตัวแปร `CLOUDFLARE_ACCOUNT_ID`
+
+เอกสารวิจัยของเทศบาลอื่น พาธเครื่องผู้ดูแล และแถวสำรวจครัวเรือนระดับบุคคลไม่เข้ากิต สำเนาที่เคยอยู่บนหัวกิ่งนี้ถูกแทนที่ด้วยตัวยึด ประวัติกิตเก่ายังมีของเดิม
 
 ### English
 
@@ -30,4 +32,6 @@ What the code already bounds, and how far that bound goes:
 - The “who to move first” panel does not publish residents’ names or addresses. The footer says those stay with the health station and the village health volunteers.
 - A number enters `apps/web/src/lib/hotlines.ts` only after a check against the agency’s own page. A wrong number on a flood screen cannot wait for a later release.
 
-Deploy uses `CLOUDFLARE_API_TOKEN` from GitHub Actions secrets. That token does not belong in git or in a log.
+Deploy uses `CLOUDFLARE_API_TOKEN` from GitHub Actions secrets. That token does not belong in git or in a log. The Cloudflare account id does not belong in git either. Set it as the `CLOUDFLARE_ACCOUNT_ID` variable.
+
+Another municipality's research, an operator's home-directory paths, and person-level household survey rows do not belong in git. The copies that were on the tip of this branch are placeholders now. Older commits still contain the originals.

@@ -6,30 +6,32 @@
     <string>org.nonarkara.nst-api</string>
 
     <key>WorkingDirectory</key>
-    <string>/Users/axiom/Projects/dashboards/NST/apps/api</string>
+    <string>__NST_ROOT__/apps/api</string>
 
     <!-- Run through a login shell (bash -l) so the daemon inherits the full user
-         environment the pnpm shim needs; the wrapper cds + caffeinates + execs
-         pnpm start:node. (Bare launchd env silently breaks the pnpm shim.) -->
+         environment the pnpm shim needs. Replace __NST_ROOT__ with the checkout
+         and __PNPM_BIN_DIR__ with the directory that contains pnpm. Do not commit
+         a real home directory. -->
     <key>ProgramArguments</key>
     <array>
         <string>/bin/bash</string>
         <string>-l</string>
-        <string>/Users/axiom/Projects/dashboards/NST/infra/run-nst-api.sh</string>
+        <string>__NST_ROOT__/infra/run-nst-api.sh</string>
     </array>
 
     <key>EnvironmentVariables</key>
     <dict>
         <key>PATH</key>
-        <string>/opt/homebrew/bin:/usr/bin:/bin:/Users/axiom/Library/pnpm:/Users/axiom/.local/bin</string>
+        <string>/opt/homebrew/bin:/usr/bin:/bin:__PNPM_BIN_DIR__</string>
+        <key>NST_ROOT</key>
+        <string>__NST_ROOT__</string>
         <key>HOST</key>
         <string>127.0.0.1</string>
         <key>PORT</key>
         <string>8794</string>
         <key>ENVIRONMENT</key>
         <string>production</string>
-        <!-- GEMINI_API_KEY / ACLED_API_KEY can be injected into the live plist at
-             ~/Library/LaunchAgents/org.nonarkara.nst-api.plist (not committed). -->
+        <!-- Provider keys belong in the untracked LaunchAgents copy, not here. -->
     </dict>
 
     <key>RunAtLoad</key>
@@ -47,9 +49,9 @@
     <integer>10</integer>
 
     <key>StandardOutPath</key>
-    <string>/Users/axiom/Projects/dashboards/NST/var/api.out.log</string>
+    <string>__NST_ROOT__/var/api.out.log</string>
     <key>StandardErrorPath</key>
-    <string>/Users/axiom/Projects/dashboards/NST/var/api.err.log</string>
+    <string>__NST_ROOT__/var/api.err.log</string>
 
     <key>ProcessType</key>
     <string>Background</string>

@@ -9,7 +9,7 @@ import { resolveApiBase } from "./apiBase";
 describe("resolveApiBase", () => {
   it("returns empty string (relative URLs) when called with no argument in dev", () => {
     // In the test environment, import.meta.env.DEV is false (it's vitest, not vite dev).
-    // Empty string → falls through to CHONBURI_API_BASE.
+    // Empty string → falls through to the NST production API base.
     const result = resolveApiBase(undefined);
     // Either empty string (dev mode) or the production URL — both are valid.
     expect(typeof result).toBe("string");
@@ -30,16 +30,16 @@ describe("resolveApiBase", () => {
     expect(result).toBe("https://my-api.example.com");
   });
 
-  it("returns something other than the legacy URL when a legacy chula URL is provided", () => {
-    // In Vitest, import.meta.env.DEV is true → legacy URLs fall back to ""
-    // (relative URL mode for dev). In production, they'd redirect to CHONBURI_API_BASE.
-    const legacyUrl = "https://chula-api.nonarkara.org";
+  it("returns something other than the legacy URL when a sibling operator URL is provided", () => {
+    // In Vitest, import.meta.env.DEV is true → sibling hosts fall back to ""
+    // (relative URL mode for dev). In production, they'd redirect to the NST API.
+    const legacyUrl = "https://other-api.nonarkara.org";
     const result = resolveApiBase(legacyUrl);
     expect(result).not.toBe(legacyUrl);
   });
 
-  it("does not pass through http legacy chula URL as-is", () => {
-    const legacyUrl = "http://chula-api.nonarkara.org";
+  it("does not pass through an http sibling operator URL as-is", () => {
+    const legacyUrl = "http://other-api.nonarkara.org";
     const result = resolveApiBase(legacyUrl);
     expect(result).not.toBe(legacyUrl);
   });

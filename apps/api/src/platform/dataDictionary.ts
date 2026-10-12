@@ -2,7 +2,7 @@ import type { DataDictionaryEntry } from "@nst/shared";
 
 /**
  * Data Dictionary — plain-language reference for every indicator surfaced in
- * the Yala Knowledge Platform's Data Atlas.
+ * the knowledge platform's Data Atlas.
  *
  * One entry per indicator across the nine atlas modules (demographics, fiscal,
  * outcomes, education, health, climate, economy, security, governance). Each
@@ -109,7 +109,7 @@ export const DATA_DICTIONARY: DataDictionaryEntry[] = [
       "Budget-plan total (฿1,198,705,500) taken from the Yala Dashboard Budget Breakdown; the revenue side of the same plan is ฿1,190.53M.",
     goodDirection: "neutral",
     source:
-      "Yala Municipal Data Bible · Dim01 (Dashboard Baseline) — yaladashboard.com Budget Breakdown",
+      "yaladashboard.com budget publication",
     caveats:
       "Planned (budgeted) figure, not audited actual spend. City municipality only.",
   },
@@ -123,7 +123,7 @@ export const DATA_DICTIONARY: DataDictionaryEntry[] = [
       "Revenue-side total (฿1,190.53M) from the Yala Dashboard / KPI-Corner ranking, up ฿115.67M from ฿1,074.86M in FY2022.",
     goodDirection: "up",
     source:
-      "Yala Municipal Data Bible · Dim10 (Governance/Fiscal) — yaladashboard.com / Finance Bureau",
+      "yaladashboard.com finance publication",
     caveats:
       "Only FY2022 and FY2025 endpoints are reported, so any trend between them is not measured.",
   },
@@ -137,7 +137,7 @@ export const DATA_DICTIONARY: DataDictionaryEntry[] = [
       "Finance Bureau actual collection (฿57.13M) compared against the ฿55.50M estimate, via the Yala Dashboard Tax Detail.",
     goodDirection: "up",
     source:
-      "Yala Municipal Data Bible · Dim01 (Dashboard Baseline) — yaladashboard.com Budget Breakdown",
+      "yaladashboard.com budget publication",
     caveats:
       "Local own-source tax only — a small slice of total revenue, most of which comes from central transfers.",
   },
@@ -151,7 +151,7 @@ export const DATA_DICTIONARY: DataDictionaryEntry[] = [
       "Qualitative share (general + specific subsidies estimated at 60–80% of revenue), typical for Thai city municipalities.",
     goodDirection: "neutral",
     source:
-      "Yala Municipal Data Bible · Dim10 (Governance/Fiscal) — yaladashboard.com / Finance Bureau",
+      "yaladashboard.com finance publication",
     caveats:
       "Stored as a range string ('60–80% of revenue'), not a precise figure; an estimate, not an audited number.",
   },
@@ -638,9 +638,9 @@ export const DATA_DICTIONARY: DataDictionaryEntry[] = [
     howMeasured:
       "Deep South Watch cumulative incident tally, Jan 2004 – Apr 2024 (22,495+), across all four Deep South provinces.",
     goodDirection: "down",
-    source: "Deep South Watch (DSW), via Data Bible — Dim05 (Jul 2025)",
+    source: "Deep South Watch (DSW) aggregate publication",
     caveats:
-      "AGGREGATE-ONLY: a four-province Deep-South cumulative count, never individual incidents, coordinates, victims, or religious breakdowns (per the Data Bible's Do-No-Harm framing). Stored as an open-ended string ('22,495+').",
+      "Aggregate only: a four-province cumulative count. Do not publish individual incidents, coordinates, or victims. Stored as an open-ended string ('22,495+').",
   },
   {
     indicatorId: "dsw-deaths-total",
@@ -651,7 +651,7 @@ export const DATA_DICTIONARY: DataDictionaryEntry[] = [
     howMeasured:
       "Deep South Watch cumulative death count, Jan 2004 – Apr 2024 (7,594), across all four provinces.",
     goodDirection: "down",
-    source: "Deep South Watch (DSW), via Data Bible — Dim05 (Jul 2025)",
+    source: "Deep South Watch (DSW) aggregate publication",
     caveats:
       "AGGREGATE-ONLY, four-province cumulative figure — not Yala-specific. Violence has significantly decreased since 2013.",
   },
@@ -664,7 +664,7 @@ export const DATA_DICTIONARY: DataDictionaryEntry[] = [
     howMeasured:
       "Deep South Watch cumulative injury count, Jan 2004 – Apr 2024 (14,122), across all four provinces.",
     goodDirection: "down",
-    source: "Deep South Watch (DSW), via Data Bible — Dim05 (Jul 2025)",
+    source: "Deep South Watch (DSW) aggregate publication",
     caveats:
       "AGGREGATE-ONLY, four-province cumulative figure — not Yala-specific. Violence has significantly decreased since 2013.",
   },
@@ -677,7 +677,7 @@ export const DATA_DICTIONARY: DataDictionaryEntry[] = [
     howMeasured:
       "Provincial share of Deep-South incidents (Yala 28%, alongside Narathiwat 36% and Pattani 33%).",
     goodDirection: "down",
-    source: "Deep South Watch (DSW), via Data Bible — Dim05 (Jul 2025)",
+    source: "Deep South Watch (DSW) aggregate publication",
     caveats:
       "A between-province share, NOT a Yala-internal breakdown; the SEC map lens shades districts only, never point incidents. Aggregate framing only.",
   },
@@ -782,7 +782,7 @@ export const DATA_DICTIONARY: DataDictionaryEntry[] = [
       "Average problem-resolution time (1 day 4 hours in 2024, down from 9 days 7 hours = 83% reduction) reported in the DGA Big Data award submission.",
     goodDirection: "down",
     source:
-      "DGA Award submission 'Big Data for Service Quality' (Bedrock Analytics case study, 2024)",
+      "DGA award submission, 2024",
     caveats:
       "Stored as a duration string ('1d 4h'). Self-reported in an award submission, so treat the before/after improvement with appropriate caution.",
   },

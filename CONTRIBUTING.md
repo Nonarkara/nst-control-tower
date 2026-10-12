@@ -30,7 +30,7 @@ CI ใน `.github/workflows/test.yml` รันตรวจชนิดแล�
 
 เอกสารที่อ้างตัวเลขต้องชี้ไฟล์ที่ตัวเลขอยู่ ตารางอัตราดึงใน README ใช้ TTL ของอะแดปเตอร์ ไม่ใช้ `pollSeconds` ที่คลาดกัน
 
-รายละเอียดแนวเขียนอยู่ใน [`CLAUDE.md`](CLAUDE.md)
+รายละเอียดแนวเขียนที่เหลืออยู่ในไฟล์นี้และ [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
 
 ### English
 
@@ -62,4 +62,4 @@ Contracts to keep:
 
 A doc that states a number points at the file the number came from. The README refresh table uses adapter TTLs, because `pollSeconds` has drifted on a few rows.
 
-Writing conventions are in [`CLAUDE.md`](CLAUDE.md).
+Writing conventions that remain are in this file and [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).

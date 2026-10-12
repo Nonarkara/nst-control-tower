@@ -1,6 +1,6 @@
 #!/usr/bin/env tsx
 /**
- * Build 3D Tiles from Chonburi building GeoJSON.
+ * Build 3D Tiles from the NST building GeoJSON.
  *
  * Converts OSM building footprints into OGC 3D Tiles 1.0 (tileset.json + b3dm).
  * Buildings are extruded using the `levels` property (fallback: 1 level = 3.5m).
@@ -20,7 +20,7 @@ import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-const INPUT = resolve(__dirname, "../../../../apps/web/public/geo/chonburi-buildings.geojson");
+const INPUT = resolve(__dirname, "../../../../apps/web/public/geo/nst/buildings.geojson");
 const OUTPUT_DIR = resolve(__dirname, "../../../../apps/web/public/geo/3d-tiles");
 const TILESET_JSON = resolve(OUTPUT_DIR, "tileset.json");
 
@@ -163,7 +163,7 @@ function buildCombinedGlb(buildings: Building[], tileCenter: [number, number, nu
   }
 
   const gltf = {
-    asset: { version: "2.0", generator: "chonburi-3dtiles" },
+    asset: { version: "2.0", generator: "nst-3dtiles" },
     scene: 0,
     scenes: [{ nodes: [0] }],
     nodes: [{ mesh: 0 }],
@@ -280,7 +280,7 @@ function main() {
   console.log(`[build3DTiles] Wrote ${tilePath} (${b3dm.byteLength} bytes)`);
 
   const tileset = {
-    asset: { version: "1.0", generator: "chonburi-3dtiles" },
+    asset: { version: "1.0", generator: "nst-3dtiles" },
     geometricError: 2000,
     root: {
       refine: "REPLACE" as const,
