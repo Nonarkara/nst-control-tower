@@ -3,7 +3,7 @@
 > English, for developers. Every source is pulled by an adapter and returned as a
 > `NormalizedFeed<T>` with a freshness tier — see [`ARCHITECTURE.md`](ARCHITECTURE.md).
 
-The in-app **SOURCES** catalog is the live source of truth (68 entries: 27 live / 10 ready / 18 planned / 13 research). This page is the developer-facing overview.
+The in-app **SOURCES** catalog is the live source of truth (`packages/shared/src/sources.ts`: 77 entries — 33 live, 10 ready, 17 planned, 17 research). Refresh intervals in that file’s `pollSeconds` have drifted from a few adapter caches; the README table uses the adapter TTL, which is what actually gates a refetch. This page is the developer-facing overview.
 
 The canonical source list lives in `packages/shared/src/sources.ts` (`SOURCE_CATALOG`). The SOURCES modal in the dashboard reads from this catalog and cross-references live adapter health from `/api/health/detailed`.
 
