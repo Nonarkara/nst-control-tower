@@ -87,13 +87,17 @@ function isSilent(ageMin: number | null): boolean {
   return ageMin == null || ageMin > SILENT_AFTER_H * 60;
 }
 
+/**
+ * HII situation level, verbatim. NULL when HII reports none — this used to
+ * default to 3 ("normal"), inventing an official calm reading. The twin helper
+ * in thaiwater.ts had the same defect on the direct path — and the two disagreed
+ * on an out-of-range 0: 3 ("normal") here became 1 ("critical drought") there.
+ * Out of HII's 1-5 scale is not a level, so it is null.
+ */
 function situation(raw: number | null | undefined): WaterGauge["situationLevel"] {
-  const s = Math.round(raw ?? 3);
-  if (s >= 5) return 5;
-  if (s >= 4) return 4;
-  if (s <= 1) return 1;
-  if (s === 2) return 2;
-  return 3;
+  if (raw == null || !Number.isFinite(raw)) return null;
+  const s = Math.round(raw);
+  return s >= 1 && s <= 5 ? (s as 1 | 2 | 3 | 4 | 5) : null;
 }
 
 function trendFrom(riseMh: number | null | undefined): WaterGauge["trend"] {

@@ -127,13 +127,26 @@ export function signedDiffFromBank(
   return null;
 }
 
+/**
+ * HII situation level, verbatim.
+ *
+ * NULL when HII reports no level. This used to default to 3 — HII's own word
+ * for "this channel is normal" — so a station with no official reading was
+ * rendered as an officially calm river. That is not a rounding detail: this is
+ * HII's warning of record, and 1 of 23 NST stations
+ * (โรงเรียนวัดโคกโพธิ์สถิตย์, Lan Saka) omits it. A missing official reading is not
+ * a reading.
+ *
+ * Out-of-range numbers are null too. HII's scale is 1-5; a 0 is not a level
+ * it defines, so clamping it to 1 ("critical drought") or to 3 ("normal") both
+ * invent a reading. The two adapters used to disagree here — this one sent 0
+ * to 3, floodDashRelay sent it to 1 — so the same transmission could read calm
+ * on the direct path and drought on the relay.
+ */
 function situation(raw: number | null | undefined): WaterGauge["situationLevel"] {
-  const s = Math.round(raw ?? 3);
-  if (s >= 5) return 5;
-  if (s >= 4) return 4;
-  if (s >= 2) return 2;
-  if (s >= 1) return 1;
-  return 3;
+  if (raw == null || !Number.isFinite(raw)) return null;
+  const s = Math.round(raw);
+  return s >= 1 && s <= 5 ? (s as 1 | 2 | 3 | 4 | 5) : null;
 }
 
 function trend(curr: number | null, prev: number | null): WaterGauge["trend"] {
@@ -200,7 +213,9 @@ const computeWaterGauges = async (): Promise<NormalizedFeed<WaterGauge>> => {
 
     // Sort: highest situation_level first, then key stations, then by name
     features.sort((a, b) => {
-      if (b.situationLevel !== a.situationLevel) return b.situationLevel - a.situationLevel;
+      // `?? 0` keeps an unclassified station below every classified one, so it
+      // can never top the list by default.
+      if (b.situationLevel !== a.situationLevel) return (b.situationLevel ?? 0) - (a.situationLevel ?? 0);
       if (a.isKeyStation !== b.isKeyStation) return a.isKeyStation ? -1 : 1;
       return a.name.localeCompare(b.name);
     });
@@ -360,7 +375,7 @@ async function gaugesViaRelay(fetchedAt: string): Promise<NormalizedFeed<WaterGa
     const relay = await fetchRelay();
     const { gauges, silent } = mapRelayWater(relay.water);
     for (const g of gauges) recordGaugeSample(g.stationCode ?? g.id, g.observedAt, g.levelMsl);
-    gauges.sort((a, b) => b.situationLevel - a.situationLevel || a.name.localeCompare(b.name));
+    gauges.sort((a, b) => (b.situationLevel ?? 0) - (a.situationLevel ?? 0) || a.name.localeCompare(b.name));
     return {
       features: gauges,
       meta: {

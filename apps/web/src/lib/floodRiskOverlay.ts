@@ -29,14 +29,14 @@ export interface WaterwayFeatureProps {
   widthPx: number;
   /** Optional debug: nearest gauge id, for tooltips. */
   nearestGaugeId?: string;
-  /** Optional debug: nearest gauge situation level (1-5). */
-  nearestSituation?: number;
+  /** Optional debug: nearest gauge situation level (1-5); null = HII reported none. */
+  nearestSituation?: number | null;
 }
 
 /** HII situation level → risk band. 5 overbank = critical (red), 4 high =
  *  warning (orange), 3 normal / 2 low / 1 drought = normal (green).
  *  Watch (yellow) is reserved for "rising fast" — separate pass. */
-function situationToRisk(sit: number | undefined): WaterwayRiskStatus {
+function situationToRisk(sit: number | null | undefined): WaterwayRiskStatus {
   if (sit == null || !Number.isFinite(sit)) return "unknown";
   if (sit >= 5) return "critical";
   if (sit >= 4) return "warning";
@@ -115,7 +115,9 @@ export function colorizeWaterways(
     features: collection.features.map((f) => {
       const first = f.geometry.coordinates[0] ?? [0, 0];
       const gauge = nearestGauge(first[0], first[1], gauges);
-      const riskStatus: WaterwayRiskStatus = gauge ? situationToRisk(gauge.situationLevel) : "unknown";
+      // situationToRisk maps a null level to "unknown" already — an unclassified
+      // channel must not colour the waterway "normal".
+      const riskStatus: WaterwayRiskStatus = situationToRisk(gauge?.situationLevel);
       const waterway = String(f.properties?.waterway ?? "stream").toLowerCase();
       const base = waterway === "river" ? RIVER_BASE_WIDTH_PX : CANAL_BASE_WIDTH_PX;
       const widthPx = base[riskStatus];

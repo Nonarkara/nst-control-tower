@@ -251,7 +251,7 @@ export function summarizeZone(
   // Gauges in this zone (amphoe + name refinement).
   const zoneGauges = gauges.filter((g) => inAmphoe(g.amphoe, zone) && matchesName(g.name, zone));
   // Worst gauge by situation level.
-  const worstGauge = [...zoneGauges].sort((a, b) => b.situationLevel - a.situationLevel)[0] ?? null;
+  const worstGauge = [...zoneGauges].sort((a, b) => (b.situationLevel ?? 0) - (a.situationLevel ?? 0))[0] ?? null;
   const situation = worstGauge?.situationLevel ?? 0;
 
   // Rainfall is matched by amphoe only (rain stations lack the canal naming).

@@ -58,7 +58,15 @@ const STATUS_VAR: Record<Status, string> = {
   unknown: "var(--ink-3)",     // muted  — no data
 };
 
-function situationToStatus(sit: number): Status {
+/**
+ * HII situation level → Status.
+ *
+ * `null` (HII reported no level) falls through every branch to "unknown", the
+ * muted no-data treatment — deliberately, since the `sit === 3 → "normal"` branch
+ * below is HII's own word for "this channel is fine" and must never be reached by
+ * a reading that does not exist. The Khiri Wong slot depends on this.
+ */
+function situationToStatus(sit: number | null): Status {
   if (sit === 5) return "overbank";
   if (sit === 4) return "high";
   if (sit === 3) return "normal";

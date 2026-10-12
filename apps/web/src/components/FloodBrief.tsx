@@ -94,7 +94,9 @@ export function FloodBrief({ gauges, waterGauges = [], dam, precip, floodRiskFea
 
   const worstThaiWater = useMemo(() => {
     if (!waterGauges.length) return null;
-    return [...waterGauges].sort((a, b) => b.situationLevel - a.situationLevel)[0];
+    // `?? 0` ranks a station with no official level below every real one, so it
+    // can never become "worst" by default.
+    return [...waterGauges].sort((a, b) => (b.situationLevel ?? 0) - (a.situationLevel ?? 0))[0];
   }, [waterGauges]);
 
   // Split city-municipality exposure from the province-wide basin total. Summing
@@ -114,7 +116,10 @@ export function FloodBrief({ gauges, waterGauges = [], dam, precip, floodRiskFea
     };
   }, [floodRiskFeatures]);
 
-  const sit = worstThaiWater ? SIT_LABEL[worstThaiWater.situationLevel] : null;
+  // null when HII reported no situation level for ANY station — that is not
+  // "normal", it is unclassified, and must not borrow the label for 3.
+  const sit =
+    worstThaiWater?.situationLevel != null ? SIT_LABEL[worstThaiWater.situationLevel] : null;
 
   return (
     <section className="panel" aria-label="Flood brief">
@@ -186,7 +191,7 @@ export function FloodBrief({ gauges, waterGauges = [], dam, precip, floodRiskFea
           <dd className="flood-value num">{useThaiWater ? waterGauges.length : gauges.length || "—"}</dd>
           <dd className="flood-meta">
             {useThaiWater
-              ? `${waterGauges.filter((g) => g.situationLevel >= 4).length} above warning`
+              ? `${waterGauges.filter((g) => (g.situationLevel ?? 0) >= 4).length} above warning`
               : `${gauges.filter((g) => g.status === "warning" || g.status === "flood").length} above warning`}
           </dd>
         </div>

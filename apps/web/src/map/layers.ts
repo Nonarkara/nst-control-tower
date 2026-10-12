@@ -3159,7 +3159,7 @@ export function waterLevelHeatmapLayer(gauges: WaterGauge[]) {
       if (g.fullnessPct != null && Number.isFinite(g.fullnessPct)) {
         return Math.min(1, Math.max(0.05, g.fullnessPct / 120));
       }
-      return Math.min(1, Math.max(0.08, g.situationLevel / 5));
+      return Math.min(1, Math.max(0.08, (g.situationLevel ?? 0) / 5));
     },
     radiusPixels: 52,
     intensity: 1.35,
@@ -3187,7 +3187,7 @@ export function waterLevelDensityFallbackLayer(gauges: WaterGauge[]) {
       const w =
         g.fullnessPct != null
           ? Math.min(1, Math.max(0.05, g.fullnessPct / 120))
-          : Math.min(1, Math.max(0.08, g.situationLevel / 5));
+          : Math.min(1, Math.max(0.08, (g.situationLevel ?? 0) / 5));
       return 40 + w * 160;
     },
     radiusMinPixels: 4,
@@ -3196,7 +3196,7 @@ export function waterLevelDensityFallbackLayer(gauges: WaterGauge[]) {
       const w =
         g.fullnessPct != null
           ? Math.min(1, Math.max(0.05, g.fullnessPct / 120))
-          : Math.min(1, Math.max(0.08, g.situationLevel / 5));
+          : Math.min(1, Math.max(0.08, (g.situationLevel ?? 0) / 5));
       if (w >= 0.85) return statusRgba("critical", 170);
       if (w >= 0.65) return statusRgba("warning", 150);
       if (w >= 0.4) return statusRgba("watch", 130);

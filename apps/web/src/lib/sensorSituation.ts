@@ -49,7 +49,7 @@ export interface FlowStep {
   nameEn: string;
   levelM: number | null;
   freeboardM: number | null;
-  situationLevel: number;
+  situationLevel: number | null;
   trend: WaterGauge["trend"] | "unknown";
   lat: number;
   lng: number;
@@ -63,8 +63,26 @@ const THA_DEE_FLOW: Array<{ match: RegExp; name: string; nameEn: string }> = [
 ];
 
 export function waterBand(g: WaterGauge): SituationBand {
-  if (g.situationLevel >= 5) return "critical";
-  if (g.situationLevel >= 4) return "elevated";
+  const sit = g.situationLevel;
+  if (sit != null && sit >= 5) return "critical";
+  if (sit != null && sit >= 4) return "elevated";
+
+  // No official level (HII omitted it — 1 of 23 NST stations on 2026-10-12).
+  // Falling through to "calm" would paint an unclassified channel as a dry one,
+  // which is the fabrication this whole path exists to remove. Judge from what
+  // is actually measured instead: channel fullness, then freeboard, then trend.
+  // Thresholds are the ones already used for fullness elsewhere in this file.
+  if (sit == null) {
+    const full = g.fullnessPct;
+    if (full != null && Number.isFinite(full)) {
+      if (full >= 100) return "critical";
+      if (full >= 85) return "elevated";
+      if (full >= 70) return "watch";
+    }
+    if (g.diffFromBank != null && g.diffFromBank >= 0) return "critical";
+    if (g.trend === "rising") return "watch";
+  }
+
   if (g.trend === "rising" && (g.fullnessPct ?? 0) >= 70) return "watch";
   return "calm";
 }
@@ -84,7 +102,7 @@ export function summarizeWater(gauges: WaterGauge[]): WaterSituationSummary {
     };
   }
 
-  const overbank = gauges.filter((g) => g.situationLevel >= 5).length;
+  const overbank = gauges.filter((g) => (g.situationLevel ?? 0) >= 5).length;
   const high = gauges.filter((g) => g.situationLevel === 4).length;
   const rising = gauges.filter((g) => g.trend === "rising").length;
   const falling = gauges.filter((g) => g.trend === "falling").length;
@@ -105,8 +123,8 @@ export function summarizeWater(gauges: WaterGauge[]): WaterSituationSummary {
     }
     if (
       !worst ||
-      g.situationLevel > worst.situationLevel ||
-      (g.situationLevel === worst.situationLevel && (g.fullnessPct ?? 0) > (worst.fullnessPct ?? 0))
+      (g.situationLevel ?? 0) > (worst.situationLevel ?? 0) ||
+      ((g.situationLevel ?? 0) === (worst.situationLevel ?? 0) && (g.fullnessPct ?? 0) > (worst.fullnessPct ?? 0))
     ) {
       worst = g;
     }
@@ -231,7 +249,7 @@ export function waterHeatWeight(g: WaterGauge): number {
   if (g.fullnessPct != null && Number.isFinite(g.fullnessPct)) {
     return Math.min(1, Math.max(0.05, g.fullnessPct / 120));
   }
-  return Math.min(1, Math.max(0.08, g.situationLevel / 5));
+  return Math.min(1, Math.max(0.08, (g.situationLevel ?? 0) / 5));
 }
 
 /** Heatmap weight 0–1 from PM2.5 / AQI. */

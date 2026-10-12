@@ -73,12 +73,17 @@ export function parseFeedTime(observedAt: string): number | null {
 
 function overbankInsights(gauges: WaterGauge[]): SensorInsight[] {
   return gauges
-    .filter((g) => g.situationLevel >= 4 || (g.fullnessPct ?? 0) >= FULLNESS_WARN)
+    .filter((g) => (g.situationLevel ?? 0) >= 4 || (g.fullnessPct ?? 0) >= FULLNESS_WARN)
     .sort((a, b) => (b.fullnessPct ?? 0) - (a.fullnessPct ?? 0))
     .slice(0, MAX_PER_TYPE)
     .map((g) => {
-      const critical = g.situationLevel >= 5 || (g.fullnessPct ?? 0) >= 100;
-      const pct = g.fullnessPct != null ? `${Math.round(g.fullnessPct)}% ของตลิ่ง` : `ระดับสถานการณ์ ${g.situationLevel}`;
+      const critical = (g.situationLevel ?? 0) >= 5 || (g.fullnessPct ?? 0) >= 100;
+      const pct =
+        g.fullnessPct != null
+          ? `${Math.round(g.fullnessPct)}% ของตลิ่ง`
+          : g.situationLevel != null
+            ? `ระดับสถานการณ์ ${g.situationLevel}`
+            : "ไม่มีระดับสถานการณ์จาก HII"; // never print "ระดับสถานการณ์ null"
       const freeboard =
         g.bankMsl != null && g.levelMsl != null
           ? ` · เหลือ ${fmt(Math.max(0, g.bankMsl - g.levelMsl), 2)} ม. ถึงตลิ่ง`
@@ -201,8 +206,8 @@ function compoundInsights(
     byAmphoe.set(amphoe, cur);
   };
   for (const g of gauges) {
-    if (g.situationLevel >= 4) add(g.amphoe, `น้ำสูง (${g.name})`, g.lat, g.lng);
-    if (g.trend === "rising" && g.situationLevel >= 3) add(g.amphoe, "ระดับกำลังขึ้น", g.lat, g.lng);
+    if ((g.situationLevel ?? 0) >= 4) add(g.amphoe, `น้ำสูง (${g.name})`, g.lat, g.lng);
+    if (g.trend === "rising" && (g.situationLevel ?? 0) >= 3) add(g.amphoe, "ระดับกำลังขึ้น", g.lat, g.lng);
   }
   for (const r of rain) {
     if ((r.rain1h ?? 0) >= RAIN_FLASH_1H) add(r.amphoe, `ฝน 1 ชม. ${fmt(r.rain1h ?? 0)} มม.`, r.lat, r.lng);

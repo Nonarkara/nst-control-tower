@@ -323,8 +323,16 @@ export interface WaterGauge {
   criticalMsl: number | null;
   /** Metres above bank (positive = overbank/flooding) or below bank (negative = freeboard). */
   diffFromBank: number | null;
-  /** 1=critical drought · 2=low · 3=normal · 4=high · 5=overbank/flood */
-  situationLevel: 1 | 2 | 3 | 4 | 5;
+  /**
+   * 1=critical drought · 2=low · 3=normal · 4=high · 5=overbank/flood
+   *
+   * NULL when HII reports no situation level. This is NOT rare: 1 of 23 NST
+   * stations (โรงเรียนวัดโคกโพธิ์สถิตย์, Lan Saka) returned no value on
+   * 2026-10-12. It used to default to 3 = "normal", which is HII's official
+   * word for "this channel is fine" — inventing it could show a bank-full
+   * river as calm. A missing official reading is not a reading.
+   */
+  situationLevel: 1 | 2 | 3 | 4 | 5 | null;
   trend: "rising" | "falling" | "stable";
   riverName: string;
   amphoe: string;
@@ -447,7 +455,8 @@ export interface BasinGaugeSnapshot {
   fullnessPct: number | null;
   dischargeCms: number | null;
   qmaxCms: number | null;
-  situationLevel: 1 | 2 | 3 | 4 | 5;
+  /** Null when HII reports no situation level — see WaterGauge.situationLevel. */
+  situationLevel: 1 | 2 | 3 | 4 | 5 | null;
   /** Observed rise rate (m/h) from recent samples; null until history warms up. */
   riseMPerH: number | null;
   /** freeboard ÷ rise (h); null if not rising or unknown. */

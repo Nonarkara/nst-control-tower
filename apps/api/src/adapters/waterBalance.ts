@@ -529,7 +529,9 @@ function buildBasinLedger(cfg: BasinConfig, inputs: LedgerInputs): BasinWaterBal
     .map((g) => g.etaOvertopH)
     .filter((v): v is number => v != null);
   const worstEta = etas.length > 0 ? Math.min(...etas) : null;
-  const worstSituation = Math.max(3, ...gaugeSnapshots.map((g) => g.situationLevel));
+  // The 3 floor is deliberate (never worse than normal). An unclassified station
+  // contributes 0, not 3, so it cannot masquerade as an official reading here.
+  const worstSituation = Math.max(3, ...gaugeSnapshots.map((g) => g.situationLevel ?? 0));
 
   // City-only ponding suggestion from the 24 h high-estimate overflow.
   let suggestedScenarioM: number | null = null;

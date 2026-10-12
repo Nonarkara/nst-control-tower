@@ -49,6 +49,17 @@ const SIT_LABEL: Record<number, string> = {
   1: "DROUGHT",
 };
 
+/**
+ * HII situation level → label.
+ *
+ * A station with NO official level gets STATUS.unknown ("No data"), never the
+ * label for 3. `3` is HII's own word for "this channel is fine" — borrowing it
+ * for a missing reading is how a bank-full river gets painted calm.
+ */
+function sitLabel(level: number | null | undefined): string {
+  return level == null ? STATUS.unknown.en : (SIT_LABEL[level] ?? STATUS.unknown.en);
+}
+
 const TREND_ARROW: Record<WaterGauge["trend"], string> = {
   rising: "↑",
   falling: "↓",
@@ -104,7 +115,7 @@ function GaugeRow({ g }: { g: WaterGauge }) {
         </span>
         <span className="water-figures">
           {g.levelMsl != null && <span className="flood-meta num">{g.levelMsl.toFixed(2)} m</span>}
-          <StatusWord level={level}>{SIT_LABEL[g.situationLevel] ?? STATUS.unknown.en}</StatusWord>
+          <StatusWord level={level}>{sitLabel(g.situationLevel)}</StatusWord>
         </span>
       </div>
       {warningPct != null && <Bar pct={warningPct} level={level} />}
@@ -131,11 +142,15 @@ function GaugesSection({ gauges }: { gauges: WaterGauge[] }) {
     );
   }
 
-  const atRisk = gauges.filter((g) => g.situationLevel >= 4);
-  const normal = gauges.filter((g) => g.situationLevel < 4);
+  const atRisk = gauges.filter((g) => (g.situationLevel ?? 0) >= 4);
+  // A station with no official level is neither at-risk nor "OK" — listing it
+  // under normal would count an unclassified channel as a dry one.
+  const unclassified = gauges.filter((g) => g.situationLevel == null);
+  const normal = gauges.filter((g) => g.situationLevel != null && g.situationLevel < 4);
   const displayNormal = showAll ? normal : normal.slice(0, GAUGE_PREVIEW);
 
-  const worstSit = Math.max(...gauges.map((g) => g.situationLevel));
+  // Math.max() of an empty array is -Infinity; the 0 seed covers that too.
+  const worstSit = Math.max(0, ...gauges.map((g) => g.situationLevel ?? 0));
   const worstLevel = situationStatus(worstSit);
   const boxLevel: StatusLevel = worstSit >= 5 ? "critical" : "warning";
 
@@ -171,6 +186,15 @@ function GaugesSection({ gauges }: { gauges: WaterGauge[] }) {
         <button type="button" className="btn btn--quiet flood-more" aria-expanded={showAll} onClick={() => setShowAll(!showAll)}>
           {showAll ? "Show fewer stations" : `Show ${normal.length - GAUGE_PREVIEW} more stations`}
         </button>
+      )}
+
+      {unclassified.length > 0 && (
+        <p className="note" style={{ ["--status" as string]: STATUS.warning.color }}>
+          <span aria-hidden="true">{STATUS.warning.glyph}</span> {unclassified.length} station
+          {unclassified.length > 1 ? "s" : ""} reported no HII situation level · ไม่ได้รายงานระดับสถานการณ์
+          จาก HII — not counted as normal above. Their water level and freeboard are still measured:{" "}
+          {unclassified.map((g) => g.name).join(", ")}.
+        </p>
       )}
 
       <p className="flood-footnote">SOURCE · HII ThaiWater · api-v3.thaiwater.net · province 80</p>
@@ -358,9 +382,9 @@ export function WaterPanel({
   }
 
   const worstSit = waterGauges.length > 0
-    ? Math.max(...waterGauges.map((g) => g.situationLevel))
+    ? Math.max(0, ...waterGauges.map((g) => g.situationLevel ?? 0))
     : null;
-  const atRiskCount = waterGauges.filter((g) => g.situationLevel >= 4).length;
+  const atRiskCount = waterGauges.filter((g) => (g.situationLevel ?? 0) >= 4).length;
 
   const TABS: { id: Tab; label: React.ReactNode; badge?: number | null }[] = [
     { id: "gauges",     label: "Gauges",                           badge: waterGauges.length || null },

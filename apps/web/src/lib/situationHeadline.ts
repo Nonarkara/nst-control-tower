@@ -107,7 +107,7 @@ export function buildSituationHeadline(opts: {
 
   // 1. Already over the bank.
   const over = gauges
-    .filter((g) => g.situationLevel >= 5 || (g.bankMsl != null && g.bankMsl !== 0 && g.diffFromBank != null && g.diffFromBank >= 0))
+    .filter((g) => (g.situationLevel ?? 0) >= 5 || (g.bankMsl != null && g.bankMsl !== 0 && g.diffFromBank != null && g.diffFromBank >= 0))
     .sort((a, b) => (b.diffFromBank ?? 0) - (a.diffFromBank ?? 0))[0];
   if (over) {
     const above = over.diffFromBank != null && over.diffFromBank > 0 ? ` by ${over.diffFromBank.toFixed(2)} m` : "";

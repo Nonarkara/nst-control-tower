@@ -130,8 +130,8 @@ export function computePosture(
 ): Posture {
   const drivers: string[] = [];
 
-  const worstSit = gauges.reduce((m, g) => Math.max(m, g.situationLevel), 0);
-  const overbankCount = gauges.filter((g) => g.situationLevel >= 5).length;
+  const worstSit = gauges.reduce((m, g) => Math.max(m, g.situationLevel ?? 0), 0);
+  const overbankCount = gauges.filter((g) => (g.situationLevel ?? 0) >= 5).length;
   const risingCount = gauges.filter((g) => g.trend === "rising").length;
 
   // Upland (headwater) stations lead the city: the composite escalator is driven
