@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import type { Context } from "hono";
 import {
   upsertTwinObject,
   getTwinObject,
@@ -17,7 +18,41 @@ import {
   type TwinRelationPredicate,
 } from "../lib/twinStore.js";
 
-const twinApp = new Hono();
+const twinApp = new Hono<{ Bindings: { TWIN_WRITE_TOKEN?: string } }>();
+
+function configuredWriteToken(c: Context<{ Bindings: { TWIN_WRITE_TOKEN?: string } }>): string | undefined {
+  const fromBinding = c.env?.TWIN_WRITE_TOKEN?.trim();
+  if (fromBinding) return fromBinding;
+  if (typeof process !== "undefined" && process.env.TWIN_WRITE_TOKEN?.trim()) {
+    return process.env.TWIN_WRITE_TOKEN.trim();
+  }
+  return undefined;
+}
+
+/** Constant-time compare. A length mismatch still returns false without a token oracle beyond equality. */
+function tokenMatches(presented: string, expected: string): boolean {
+  const a = new TextEncoder().encode(presented);
+  const b = new TextEncoder().encode(expected);
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a[i]! ^ b[i]!;
+  return diff === 0;
+}
+
+/**
+ * Twin mutations change the series the dashboard presents as the city forecast.
+ * Reads stay public. Writes fail closed unless TWIN_WRITE_TOKEN is set and the
+ * caller sends `Authorization: Bearer <token>`.
+ */
+function rejectUnauthenticatedWrite(c: Context<{ Bindings: { TWIN_WRITE_TOKEN?: string } }>): Response | null {
+  const expected = configuredWriteToken(c);
+  const header = c.req.header("authorization") ?? "";
+  const presented = header.startsWith("Bearer ") ? header.slice("Bearer ".length).trim() : "";
+  if (!expected || !presented || !tokenMatches(presented, expected)) {
+    return c.json({ error: "Twin writes require Authorization: Bearer TWIN_WRITE_TOKEN" }, 401);
+  }
+  return null;
+}
 
 // ---- Objects ----
 
@@ -43,6 +78,8 @@ twinApp.get("/objects/:id", async (c) => {
 });
 
 twinApp.post("/objects", async (c) => {
+  const denied = rejectUnauthenticatedWrite(c);
+  if (denied) return denied;
   const body = (await c.req.json().catch(() => ({}))) as Partial<TwinObject>;
   if (!body.id || !body.kind || !body.name) {
     return c.json({ error: "Required: id, kind, name" }, 400);
@@ -71,6 +108,8 @@ twinApp.post("/objects", async (c) => {
 });
 
 twinApp.delete("/objects/:id", async (c) => {
+  const denied = rejectUnauthenticatedWrite(c);
+  if (denied) return denied;
   const ok = await deleteTwinObject(c.req.param("id"));
   if (!ok) return c.json({ error: "Not found" }, 404);
   return c.json({ ok: true });
@@ -89,6 +128,8 @@ twinApp.get("/relations", async (c) => {
 });
 
 twinApp.post("/relations", async (c) => {
+  const denied = rejectUnauthenticatedWrite(c);
+  if (denied) return denied;
   const body = (await c.req.json().catch(() => ({}))) as {
     subjectId: string;
     predicate: TwinRelationPredicate;
@@ -141,6 +182,8 @@ twinApp.get("/state/latest", async (c) => {
 });
 
 twinApp.post("/state", async (c) => {
+  const denied = rejectUnauthenticatedWrite(c);
+  if (denied) return denied;
   const body = (await c.req.json().catch(() => ({}))) as {
     objectId: string;
     metric: string;
