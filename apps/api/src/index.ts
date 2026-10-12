@@ -92,6 +92,8 @@ type Bindings = {
   GEOAPIFY_API_KEY?: string;
   AIRLABS_API_KEY?: string;
   GOOGLE_MAPS_API_KEY?: string;
+  /** Shared secret for POST/DELETE /api/twin/*. Unset means those writes stay closed. */
+  TWIN_WRITE_TOKEN?: string;
 };
 
 const app = new Hono<{ Bindings: Bindings }>();

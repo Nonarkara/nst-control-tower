@@ -34,11 +34,17 @@ vi.mock("../lib/twinStore.js", () => ({
   twinSnapshot:       vi.fn().mockResolvedValue({ objects: 0, relations: 0, statePoints: 0 }),
 }));
 
-async function req(method: string, path: string, body?: unknown) {
-  const init: RequestInit = { method };
+const WRITE_TOKEN = "twin-test-token";
+process.env.TWIN_WRITE_TOKEN = WRITE_TOKEN;
+
+async function req(method: string, path: string, body?: unknown, opts?: { auth?: boolean }) {
+  const headers: Record<string, string> = {};
+  const authed = opts?.auth ?? (method === "POST" || method === "DELETE");
+  if (authed) headers.Authorization = `Bearer ${WRITE_TOKEN}`;
+  const init: RequestInit = { method, headers };
   if (body !== undefined) {
     init.body = JSON.stringify(body);
-    init.headers = { "Content-Type": "application/json" };
+    headers["Content-Type"] = "application/json";
   }
   return twinApp.request(path, init);
 }
@@ -281,6 +287,34 @@ describe("GET /state/latest", () => {
 });
 
 describe("POST /state", () => {
+  it("returns 401 when the writer token is missing", async () => {
+    const res = await req("POST", "/state", {
+      objectId: "city",
+      metric: "precipitation.forecast",
+      value: 80,
+      source: "dummy",
+    }, { auth: false });
+    expect(res.status).toBe(401);
+    const { writeTwinState } = await import("../lib/twinStore.js") as unknown as {
+      writeTwinState: ReturnType<typeof vi.fn>;
+    };
+    expect(writeTwinState).not.toHaveBeenCalled();
+  });
+
+  it("returns 401 when the writer token does not match", async () => {
+    const res = await twinApp.request("/state", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: "Bearer wrong-token" },
+      body: JSON.stringify({
+        objectId: "city",
+        metric: "precipitation.forecast",
+        value: 80,
+        source: "dummy",
+      }),
+    });
+    expect(res.status).toBe(401);
+  });
+
   it("returns 400 when required fields are missing", async () => {
     const res = await req("POST", "/state", { objectId: "city" }); // missing metric, value, source
     expect(res.status).toBe(400);
