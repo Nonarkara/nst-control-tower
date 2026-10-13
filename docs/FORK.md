@@ -102,6 +102,7 @@ HII situation levels keep the rule from [`c8c785e`](https://github.com/Nonarkara
 - API: Worker ชื่อ `nst-control-tower-api` จาก `apps/api/wrangler.toml` เวิร์กโฟลว์เดียวกันดีพลอยแล้วเช็ค `/api/health` ว่า `version` ตรงกับคอมมิต
 - เบราว์เซอร์เรียก API ที่ `https://nst-control-tower-api.drnon.workers.dev` เว้นแต่จะตั้ง `VITE_API_BASE_URL` ตอนบิลด์ (`apps/web/src/lib/apiBase.ts`)
 - `wrangler.toml` ไม่มีทริกเกอร์ cron Worker ทำงานเมื่อมีคนขอ ไม่ได้ปลุกตัวเองเป็นรอบ
+- อย่าใส่ Cloudflare account id ใน `wrangler.toml` ตอนดีพลอยให้ตั้งตัวแปร Actions `CLOUDFLARE_ACCOUNT_ID`
 - บล็อก KV ถูกคอมเมนต์ไว้ แคชคือ `Map` ในหน่วยความจำ เพดาน 200 คีย์ (`apps/api/src/lib/cache.ts`)
 
 เบรกที่อยู่ในโค้ด อย่าถอดตอนแตกกิ่ง
@@ -133,6 +134,7 @@ What production runs today:
 - API: the Worker `nst-control-tower-api` in `apps/api/wrangler.toml`. The same workflow deploys it and checks that `/api/health` reports the commit as `version`.
 - The browser calls `https://nst-control-tower-api.drnon.workers.dev` unless `VITE_API_BASE_URL` was set at build time (`apps/web/src/lib/apiBase.ts`).
 - `wrangler.toml` has no cron trigger. The Worker runs when someone asks. It does not wake itself on a timer.
+- Do not commit a Cloudflare account id in `wrangler.toml`. Set the Actions variable `CLOUDFLARE_ACCOUNT_ID` before deploy.
 - The KV block is commented out. The cache is an in-memory `Map` capped at 200 keys (`apps/api/src/lib/cache.ts`).
 
 Brakes already in the code. Leave them in a fork.

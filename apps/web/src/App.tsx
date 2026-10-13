@@ -384,9 +384,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
   const { theme, toggle: toggleTheme } = useTheme();
   const mapStyle = useMemo(() => basemapStyle(theme), [theme]);
   const { health: systemHealth, error: systemHealthError } = useSystemHealth(60_000);
-  // Municipal boundary — real Mueang Chon Buri District perimeter (OSM relation
-  // 18997107). Replaces the forked chula-campus.geojson, which held Chulalongkorn
-  // University (Bangkok) geometry and was invisible in the Chonburi viewport.
+  // Municipal boundary for Nakhon Si Thammarat, from /geo/nst/boundary.geojson.
   const campus = useGeoJson<CampusZoneCollection>("/geo/nst/boundary.geojson");
   const buildings = useGeoJson<FeatureCollection<Polygon | MultiPolygon, BuildingProperties>>(
     "/geo/nst/buildings.geojson",
@@ -401,11 +399,6 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
       .catch(() => {});
     return () => { alive = false; };
   }, []);
-  // surrounding-buildings, bangkok-districts, flood-prone-areas removed —
-  // all three files contain Chula/Bangkok coordinates and are invisible in
-  // the Chonburi viewport. Use chonburi-flood-risk.geojson for flood zones.
-  // Forked Chula campus layers (cu-lands, cu-shuttle-*, chula-gates, cu-electricity/
-  // water/drainage/wifi) archived under public/geo/_archive — see ARCHIVE.md.
   const roads = useGeoJson<FeatureCollection<LineString, RoadProps>>("/geo/nst/roads.geojson");
   const transitStations = useGeoJson<FeatureCollection<Point, StationProps>>("/geo/nst/transit-stations.geojson");
   // (transit-lines is lazy — see the lens-gated load below)

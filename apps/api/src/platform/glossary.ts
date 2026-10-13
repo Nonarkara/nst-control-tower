@@ -1,13 +1,11 @@
 import type { GlossaryTerm } from "@nst/shared";
 
 /**
- * Glossary for the Yala Knowledge Platform.
+ * Glossary for the knowledge platform.
  *
- * Plain-language definitions for the terms, acronyms, place names and data
- * systems that recur across the dashboard, the atlas, the academy lessons and
- * the source catalog. Facts are drawn from the Yala Municipal Data Bible
- * (dim01–dim12, 2025–2026) and kept consistent with the academy lessons and
- * the data dictionary.
+ * Plain-language definitions for terms that recur across the dashboard.
+ * Do not add unpublished client notes, private contacts, or internal
+ * research-pack citations.
  *
  * Conventions
  * - `termTh`   — the Thai rendering, where one is in common use.

@@ -1,7 +1,7 @@
 import type { SourceMeta } from "./types";
 
 /**
- * Yala Knowledge Platform — the layer that complements the dashboard with
+ * Knowledge platform — the layer that complements the dashboard with
  * data search, an archive/time-machine, an education academy, an AI concierge
  * (retrieval-augmented), and a self-learning insights loop.
  *

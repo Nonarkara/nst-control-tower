@@ -2961,9 +2961,9 @@ function polygonCentroid(geom: Polygon | MultiPolygon): [number, number] {
 }
 
 // ── Deep South conflict — AGGREGATE choropleth (never individual incidents) ──
-// Ethical-display rule from the Yala Data Bible: province/district shading only,
-// neutral framing, monthly aggregate. Shares = % of all Deep South conflict
-// incidents since 2004 (Deep South Watch lineage).
+// Province and district shading only, neutral framing, monthly aggregate.
+// Shares are the percent of Deep South conflict incidents since 2004
+// (Deep South Watch lineage). Do not plot individual incidents.
 const CONFLICT_SHARE: Record<string, number> = {
   Narathiwat: 36,
   Pattani: 33,
