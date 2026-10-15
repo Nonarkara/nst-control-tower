@@ -21,7 +21,7 @@ export default defineConfig({
   reporter: process.env.CI ? "github" : "list",
 
   use: {
-    baseURL: "http://localhost:5179",
+    baseURL: process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:5187",
     headless: true,
     viewport: { width: 1440, height: 900 },
     trace: "retain-on-failure",
@@ -33,10 +33,10 @@ export default defineConfig({
     { name: "chromium", use: { ...devices["Desktop Chrome"] } },
   ],
 
-  webServer: {
-    command: "pnpm dev --port 5179 --strictPort",
-    url: "http://localhost:5179",
-    reuseExistingServer: !process.env.CI,
+  webServer: process.env.PLAYWRIGHT_BASE_URL ? undefined : {
+    command: process.env.PLAYWRIGHT_PREVIEW ? "pnpm preview --port 5187 --strictPort" : "pnpm dev --port 5187 --strictPort",
+    url: "http://localhost:5187",
+    reuseExistingServer: false,
     // CI cold-cache + first Vite compile of the map + lazy chunks can take
     // 60–120s on a fresh runner; 180s gives the boot room without hiding a
     // real hang.

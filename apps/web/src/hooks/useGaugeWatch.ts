@@ -3,7 +3,7 @@ import type { CctvCamera } from "../map/layers";
 import {
   analyzeCandidate,
   pickGaugeCandidates,
-  postRiseEvent,
+  recordLocalRiseEvent,
   recordSweep,
   type AnalysisOutcome,
 } from "../lib/gaugeWatch";
@@ -13,16 +13,16 @@ import {
  *
  * Every SWEEP_MS (when `enabled`, i.e. a water lens is on screen) it asks
  * pickGaugeCandidates for WL cameras with fresh pooled stills, analyses up
- * to 3, and POSTs `water-rising` events on significant climbs. Everything is
+ * to 3, and records local `water-rising` previews on significant climbs. Everything is
  * bounded and silent: no upstream requests of its own, no UI breakage, no
  * work at night.
  */
 
 const SWEEP_MS = 5 * 60_000;
 
-export function useGaugeWatch(cameras: CctvCamera[], apiBase: string, enabled: boolean): void {
-  const argsRef = useRef({ cameras, apiBase, enabled });
-  argsRef.current = { cameras, apiBase, enabled };
+export function useGaugeWatch(cameras: CctvCamera[], _apiBase: string, enabled: boolean): void {
+  const argsRef = useRef({ cameras, enabled });
+  argsRef.current = { cameras, enabled };
 
   useEffect(() => {
     let cancelled = false;
@@ -30,23 +30,23 @@ export function useGaugeWatch(cameras: CctvCamera[], apiBase: string, enabled: b
 
     const sweep = async () => {
       if (cancelled || running) return;
-      const { cameras: cams, apiBase: base, enabled: on } = argsRef.current;
+      const { cameras: cams, enabled: on } = argsRef.current;
       if (!on || cams.length === 0) return;
       running = true;
       try {
         const cands = pickGaugeCandidates(cams);
-        const results: Array<{ outcome: AnalysisOutcome; posted: boolean }> = [];
+        const results: Array<{ outcome: AnalysisOutcome; previewed: boolean }> = [];
         for (const c of cands) {
           if (cancelled) break;
           const outcome = await analyzeCandidate(c);
           if (cancelled) break;
-          // Post on the EVENT (first crossing / further climb), not on the
+          // Preview on the EVENT (first crossing / further climb), not on the
           // state — steady high water must not re-alert every 5 minutes.
           const alert = outcome.status === "read" && outcome.decision.shouldAlert;
           if (alert) {
-            await postRiseEvent(base, c.camera.id, outcome.decision.rise, outcome.decision.confidence);
+            recordLocalRiseEvent(c.camera.id, outcome.decision.confidence);
           }
-          results.push({ outcome, posted: alert });
+          results.push({ outcome, previewed: alert });
         }
         recordSweep(results);
       } finally {

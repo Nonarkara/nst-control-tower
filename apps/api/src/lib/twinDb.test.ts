@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { parsePositiveInt, parseBool, dbUrlMeta, shouldUseSsl } from "./twinDb.js";
+import { parsePositiveInt, parseBool, dbUrlMeta, shouldUseSsl, verifiedDatabaseUrl } from "./twinDb.js";
 
 /**
  * twinDb.ts utility-function contract tests.
@@ -192,5 +192,25 @@ describe("shouldUseSsl", () => {
   it("returns false for sslmode=allow in URL (no env override)", () => {
     const url = "postgresql://user:pass@host:5432/db?sslmode=allow";
     expect(shouldUseSsl(url)).toBe(false);
+  });
+});
+
+
+describe("verified database TLS", () => {
+  afterEach(() => { vi.unstubAllEnvs(); });
+  it("upgrades require to verify-full without discarding a private CA", () => {
+    vi.stubEnv("DATABASE_SSL", "true");
+    const url = new URL(verifiedDatabaseUrl("postgres://user:pass@db.example/db?sslmode=require&sslrootcert=/tmp/root.crt"));
+    expect(url.searchParams.get("sslmode")).toBe("verify-full");
+    expect(url.searchParams.get("sslrootcert")).toBe("/tmp/root.crt");
+  });
+  it("supports an operator-supplied root certificate", () => {
+    vi.stubEnv("DATABASE_SSL", "true");
+    vi.stubEnv("DATABASE_SSL_CA_FILE", "/private/server-ca.crt");
+    expect(new URL(verifiedDatabaseUrl("postgres://user:pass@db.example/db")).searchParams.get("sslrootcert")).toBe("/private/server-ca.crt");
+  });
+  it("respects explicit local non-TLS configuration", () => {
+    vi.stubEnv("DATABASE_SSL", "false");
+    expect(new URL(verifiedDatabaseUrl("postgres://user:pass@localhost/db")).searchParams.get("sslmode")).toBe("disable");
   });
 });

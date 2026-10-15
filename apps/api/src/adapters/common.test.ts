@@ -196,3 +196,28 @@ describe("fetchTextOrNull", () => {
     expect(capturedHeaders?.get("accept")).toBeNull();
   });
 });
+
+it("times out when upstream sends headers but stalls the response body", async () => {
+  vi.useFakeTimers();
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: () => new Promise(() => {}) }));
+  try {
+    const promise = fetchJsonOrThrow("https://upstream.example/stalled-body");
+    const check = expect(promise).rejects.toThrow(/timed out/);
+    await vi.advanceTimersByTimeAsync(25_001);
+    await check;
+  } finally {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  }
+});
+
+it("supports a shorter source-specific failover deadline", async () => {
+  vi.useFakeTimers();
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: () => new Promise(() => {}) }));
+  try {
+    const promise = fetchJsonOrThrow("https://upstream.example/slow", undefined, 8_000);
+    const check = expect(promise).rejects.toThrow(/8000ms/);
+    await vi.advanceTimersByTimeAsync(8_001);
+    await check;
+  } finally { vi.useRealTimers(); vi.unstubAllGlobals(); }
+});

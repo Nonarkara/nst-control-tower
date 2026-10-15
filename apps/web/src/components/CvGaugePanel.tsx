@@ -2,9 +2,9 @@
  * CvGaugePanel — what the water cameras see.
  *
  * The 30 WL cameras stare at canals with wooden staff gauges but no telemetry.
- * The browser gauge watch (gaugeWatch.ts) reads pooled stills and posts
+ * The browser gauge watch (gaugeWatch.ts) reads pooled stills and previews
  * `water-rising` cv-events when the line climbs. This panel lists the recent
- * ones — the fastest signal the city has where sensors don't exist.
+ * ones, distinguishing local previews from authenticated pipeline detections.
  *
  * Honest by construction: experimental badge, daylight-only note, and the
  * watch only analyses frames the CCTV wall already captured (open CCTV mode
@@ -15,7 +15,7 @@ import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { PanelHeader } from "./PanelHeader";
 import type { CctvCamera } from "../map/layers";
 import type { CvDetectionEvent, FallbackTier } from "@nst/shared";
-import { GAUGE_EVENT_CLASS, getSweepStats, subscribeSweepStats } from "../lib/gaugeWatch";
+import { GAUGE_EVENT_CLASS, getSweepStats, getLocalRiseEvents, subscribeSweepStats } from "../lib/gaugeWatch";
 
 interface Props {
   cameras: CctvCamera[];
@@ -42,7 +42,7 @@ function timeAgo(iso: string): string {
 }
 
 export function CvGaugePanel({ cameras, apiBase, ageMinutes, fallbackTier }: Props) {
-  const [events, setEvents] = useState<CvDetectionEvent[]>([]);
+  const [sharedEvents, setEvents] = useState<CvDetectionEvent[]>([]);
   const [showAll, setShowAll] = useState(false);
   const sweep = useSyncExternalStore(subscribeSweepStats, getSweepStats, getSweepStats);
 
@@ -76,6 +76,7 @@ export function CvGaugePanel({ cameras, apiBase, ageMinutes, fallbackTier }: Pro
     return () => { cancelled = true; window.clearInterval(id); };
   }, [apiBase]);
 
+  const events = [...getLocalRiseEvents(), ...sharedEvents].sort((a, b) => Date.parse(b.timestamp) - Date.parse(a.timestamp));
   const rows = showAll ? events : events.slice(0, PREVIEW);
 
   return (
@@ -104,7 +105,7 @@ export function CvGaugePanel({ cameras, apiBase, ageMinutes, fallbackTier }: Pro
       </p>
       {events.length === 0 && (
         <p className="note">
-          No rises recorded. Events are held in server memory and can be missed
+          No rises recorded. Browser previews stay on this device. Shared detections require an authenticated pipeline and can be missed
           across servers; do not rely on this panel alone.
         </p>
       )}
@@ -120,7 +121,7 @@ export function CvGaugePanel({ cameras, apiBase, ageMinutes, fallbackTier }: Pro
                     {names.get(e.cameraId) ?? e.cameraId}
                   </span>
                   <span className="row-btn__meta">
-                    rising · {timeAgo(e.timestamp)}
+                    {e.model === "browser-preview" ? "local preview" : "pipeline detection"} · {timeAgo(e.timestamp)}
                   </span>
                 </span>
               </li>

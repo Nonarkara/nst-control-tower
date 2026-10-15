@@ -34,10 +34,10 @@ function gauge(partial: Partial<WaterGauge> & Pick<WaterGauge, "id" | "name">): 
 }
 
 describe("summarizeWater", () => {
-  it("returns calm empty summary for no gauges", () => {
+  it("returns unknown for no gauges", () => {
     const s = summarizeWater([]);
     expect(s.stationCount).toBe(0);
-    expect(s.band).toBe("calm");
+    expect(s.band).toBe("unknown");
     expect(s.worst).toBeNull();
   });
 
@@ -141,4 +141,21 @@ describe("bandStatus / situationLevelStatus", () => {
     expect(situationLevelStatus(4)).toBe("warning");
     expect(situationLevelStatus(2)).toBe("normal");
   });
+});
+
+
+it("does not turn missing rainfall or air readings into calm conditions", () => {
+  expect(summarizeRain([]).band).toBe("unknown");
+  expect(summarizeRain([{ id: "empty", name: "Empty", lat: 8, lng: 99, rain1h: null, rain24h: null, amphoe: "", observedAt: "" }]).band).toBe("unknown");
+  expect(summarizeAir([]).band).toBe("unknown");
+});
+
+it("preserves measured danger when the official gauge classification is missing", () => {
+  const s = summarizeWater([gauge({ id: "inferred", name: "Measured", situationLevel: null, fullnessPct: 105 })]);
+  expect(s.band).toBe("critical");
+  expect(s.overbank).toBe(1);
+});
+
+it("keeps unclassified gauges with no usable measurements unknown", () => {
+  expect(summarizeWater([gauge({ id: "empty", name: "Empty", situationLevel: null, fullnessPct: null, diffFromBank: null })]).band).toBe("unknown");
 });

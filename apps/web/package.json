@@ -14,20 +14,23 @@
     "deploy": "wrangler pages deploy dist --project-name nst-control-tower"
   },
   "dependencies": {
-    "@deck.gl/aggregation-layers": "^9.2.11",
-    "@deck.gl/core": "^9.2.11",
-    "@deck.gl/geo-layers": "^9.2.11",
-    "@deck.gl/layers": "^9.2.11",
-    "@deck.gl/mapbox": "^9.2.11",
-    "@deck.gl/react": "^9.2.11",
+    "@deck.gl/aggregation-layers": "^9.4.0",
+    "@deck.gl/core": "^9.4.0",
+    "@deck.gl/extensions": "^9.4.0",
+    "@deck.gl/geo-layers": "^9.4.0",
+    "@deck.gl/layers": "^9.4.0",
+    "@deck.gl/mapbox": "^9.4.0",
+    "@deck.gl/mesh-layers": "^9.4.0",
+    "@deck.gl/react": "^9.4.0",
+    "@deck.gl/widgets": "^9.4.0",
     "@fontsource/ibm-plex-sans-thai": "^5.2.8",
     "@fontsource/inter": "^5.2.8",
-    "@loaders.gl/3d-tiles": "^4.4.2",
+    "@loaders.gl/3d-tiles": "^4.5.4",
     "@nst/shared": "workspace:*",
-    "maplibre-gl": "^5.7.0",
+    "maplibre-gl": "^6.14.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "react-map-gl": "^8.0.4"
+    "react-map-gl": "^8.1.3"
   },
   "devDependencies": {
     "@playwright/test": "^1.60.0",

@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixtures";
 
 /**
  * /data — open-data workbench smoke. Asserts structure and behaviour only;

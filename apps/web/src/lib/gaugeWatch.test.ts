@@ -67,7 +67,7 @@ describe("decideRise", () => {
   });
 
   test("the reference is immutable — holding a risen level keeps reporting the rise", () => {
-    // This test used to assert the OPPOSITE: that a posted rise re-anchors so
+    // This test used to assert the OPPOSITE: that a previewed rise re-anchors so
     // the same level does not re-fire. That assertion encoded a real defect —
     // re-anchoring on every reading meant a slow flood (1%/sweep) was measured
     // as 1% every sweep and never crossed the 4% threshold. The reference is
@@ -196,12 +196,22 @@ describe("framePixels under the CSP", () => {
 describe("sweep stats", () => {
   test("record what the last sweep actually achieved, and accumulate posts", () => {
     recordSweep([
-      { outcome: { status: "undecodable" }, posted: false },
-      { outcome: { status: "unreadable", frameKind: "street" as const }, posted: false },
-      { outcome: { status: "read", decision: { rising: true, shouldAlert: true, rise: 0.06, confidence: 0.7 } }, posted: true },
-      { outcome: { status: "read", decision: { rising: false, shouldAlert: false, rise: 0, confidence: 0.2 } }, posted: false },
+      { outcome: { status: "undecodable" }, previewed: false },
+      { outcome: { status: "unreadable", frameKind: "street" as const }, previewed: false },
+      { outcome: { status: "read", decision: { rising: true, shouldAlert: true, rise: 0.06, confidence: 0.7 } }, previewed: true },
+      { outcome: { status: "read", decision: { rising: false, shouldAlert: false, rise: 0, confidence: 0.2 } }, previewed: false },
     ], 1_000);
     const s = getSweepStats();
-    expect(s).toMatchObject({ at: 1_000, analysed: 4, undecodable: 1, unreadable: 1, confident: 1, posted: 1 });
+    expect(s).toMatchObject({ at: 1_000, analysed: 4, undecodable: 1, unreadable: 1, confident: 1, previewed: 1 });
   });
+});
+test("keeps browser rise previews local instead of publishing a shared signal", async () => {
+  const { recordLocalRiseEvent, getLocalRiseEvents } = await import("./gaugeWatch");
+  const fetchSpy = vi.spyOn(globalThis, "fetch");
+  try {
+    for (let i = 0; i < 101; i++) recordLocalRiseEvent(`local-${i}`, 0.8);
+    expect(getLocalRiseEvents()).toHaveLength(100);
+    expect(getLocalRiseEvents()[0]).toMatchObject({ cameraId: "local-100", model: "browser-preview" });
+    expect(fetchSpy).not.toHaveBeenCalled();
+  } finally { fetchSpy.mockRestore(); }
 });

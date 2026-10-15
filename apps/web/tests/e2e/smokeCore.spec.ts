@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixtures";
 import { selectLens, stubHiiSurvey } from "./floodSmokeHelpers";
 
 /**
@@ -31,6 +31,8 @@ test.describe("Dashboard boot", () => {
     await expect(page.locator(".map-host")).toBeVisible({ timeout: 20_000 });
     // Give async chunks + map a beat to finish
     await page.waitForTimeout(2_000);
+    await expect(page.locator(".map-host")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Dashboard encountered an error" })).toHaveCount(0);
     expect(errors, errors.join("\n")).toEqual([]);
   });
 });
@@ -39,19 +41,6 @@ test.describe("Lens switching", () => {
   test("INT and FLOOD lens buttons toggle aria-pressed", async ({ page }) => {
     await page.goto("/");
     await expect(page.locator(".map-host")).toBeVisible({ timeout: 20_000 });
-
-    // Pre-existing environment gap (confirmed on main before any of today's
-    // changes, unrelated to this diff): the E2E job never starts a local API
-    // server, so /api/health always fails and the "API HOST UNREACHABLE"
-    // system-banner mounts. Its mount/retry cycle reflows the shell enough
-    // that the .lens row's bounding box never stabilizes, so Playwright's
-    // click-stability wait exhausts the full timeout. Skip only under that
-    // specific condition — a real backend (dev, or CI once it gets one)
-    // never hits this, and the lens-switching contract itself is unaffected.
-    const unreachable = page.locator(".system-banner.banner-down");
-    if (await unreachable.isVisible().catch(() => false)) {
-      test.skip(true, "API unreachable in this environment — see comment above");
-    }
 
     // Lens buttons are named by their visible label (EXEC / OPS / MOB / FLOOD / etc.);
     // the long description is aria-describedby. Match by exact text inside .lens container.

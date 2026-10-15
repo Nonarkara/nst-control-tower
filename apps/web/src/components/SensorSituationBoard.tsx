@@ -109,14 +109,16 @@ export function SensorSituationBoard({
         ? "elevated"
         : water.band === "watch" || rain.band === "watch" || air.band === "watch"
           ? "watch"
-          : "calm";
+          : water.band === "unknown" || rain.band === "unknown" || air.band === "unknown"
+            ? "unknown"
+            : "calm";
 
   return (
     <section className="panel" aria-label="Sensor situation">
       <PanelHeader
         title="SENSOR SITUATION"
         ageMinutes={ageMinutes}
-        fallbackTier={fallbackTier}
+        fallbackTier={overall === "unknown" ? "unavailable" : fallbackTier}
         source="flooddash·airdash"
         actions={
           <span aria-label={`Overall ${bandLabel(overall)}`}>
@@ -124,6 +126,10 @@ export function SensorSituationBoard({
           </span>
         }
       />
+
+      {(water.band === "unknown" || rain.band === "unknown" || air.band === "unknown") && (
+        <p className="note" role="status">ข้อมูลเซนเซอร์ไม่ครบ · Some feeds have no usable readings; conditions are unknown.</p>
+      )}
 
       {/* Water — FloodDash */}
       <section className="pc-section" aria-label="Water situation">

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { cached, cachedWithStale, setCache, cacheAgeMinutes, snapshotCache } from "./cache";
+import { cached, cachedWithStale, setCache, cacheAgeMinutes, snapshotCache, withCacheLifetime } from "./cache";
 
 function nextKey(prefix: string): string {
   return `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
@@ -250,4 +250,58 @@ describe("cache: hang safety (compute() that never settles)", () => {
     const result = await cachedWithStale(key, 60, compute, 86400, true);
     expect(result).toEqual({ value: "stale-but-good" });
   });
+});
+
+describe("cache: recovery after hung upstreams", () => {
+  it("all concurrent callers time out and a late result cannot overwrite recovery", async () => {
+    vi.useFakeTimers();
+    try {
+      const key = nextKey("hung-dedup");
+      let finish!: (value: string) => void;
+      const first = cached(key, 60, () => new Promise<string>((resolve) => { finish = resolve; }));
+      const second = cached(key, 60, async () => "should be deduplicated");
+      const check = expect(Promise.allSettled([first, second])).resolves.toMatchObject([
+        { status: "rejected" }, { status: "rejected" },
+      ]);
+      await vi.advanceTimersByTimeAsync(60_001);
+      await check;
+      expect(await cached(key, 60, async () => "recovered")).toBe("recovered");
+      finish("late stale result");
+      await vi.advanceTimersByTimeAsync(1);
+      expect(await cached(key, 60, async () => "unexpected")).toBe("recovered");
+    } finally { vi.useRealTimers(); }
+  });
+
+  it("retries a failed foreground refresh within a minute instead of a day", async () => {
+    const key = nextKey("foreground-retry");
+    setCache(key, "last good", -1);
+    expect(await cachedWithStale(key, 3600, async () => { throw new Error("down"); })).toBe("last good");
+    expect(snapshotCache()[key].expiresAt - Date.now()).toBeLessThanOrEqual(60_000);
+  });
+
+  it("a hung background refresh times out so the next refresh can recover", async () => {
+    vi.useFakeTimers();
+    try {
+      const key = nextKey("background-hang-retry");
+      setCache(key, "last good", -1);
+      expect(await cachedWithStale(key, 60, () => new Promise<never>(() => {}), 86400, true)).toBe("last good");
+      await vi.advanceTimersByTimeAsync(120_001);
+      await cachedWithStale(key, 60, async () => "recovered", 86400, true);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(await cachedWithStale(key, 60, async () => "unexpected")).toBe("recovered");
+    } finally { vi.useRealTimers(); }
+  });
+});
+
+
+it("registers background refreshes with the initiating Worker lifetime", async () => {
+  const key = nextKey("worker-lifetime");
+  setCache(key, "stale", -1);
+  const background: Promise<unknown>[] = [];
+  const result = await withCacheLifetime((promise) => background.push(promise), () =>
+    cachedWithStale(key, 60, async () => "fresh", 86400, true));
+  expect(result).toBe("stale");
+  expect(background).toHaveLength(1);
+  await Promise.all(background);
+  expect(await cachedWithStale(key, 60, async () => "unexpected")).toBe("fresh");
 });

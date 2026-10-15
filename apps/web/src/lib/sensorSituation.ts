@@ -10,7 +10,7 @@
 import type { AirQualityPoint, RainfallStation, WaterGauge } from "@nst/shared";
 import type { StatusLevel } from "./status";
 
-export type SituationBand = "calm" | "watch" | "elevated" | "critical";
+export type SituationBand = "calm" | "watch" | "elevated" | "critical" | "unknown";
 
 export interface WaterSituationSummary {
   stationCount: number;
@@ -81,6 +81,7 @@ export function waterBand(g: WaterGauge): SituationBand {
     }
     if (g.diffFromBank != null && g.diffFromBank >= 0) return "critical";
     if (g.trend === "rising") return "watch";
+    if (!Number.isFinite(full) && !Number.isFinite(g.diffFromBank)) return "unknown";
   }
 
   if (g.trend === "rising" && (g.fullnessPct ?? 0) >= 70) return "watch";
@@ -97,12 +98,12 @@ export function summarizeWater(gauges: WaterGauge[]): WaterSituationSummary {
       falling: 0,
       maxFullnessPct: null,
       worst: null,
-      band: "calm",
+      band: "unknown",
       meanFreeboardM: null,
     };
   }
 
-  const overbank = gauges.filter((g) => (g.situationLevel ?? 0) >= 5).length;
+  const overbank = gauges.filter((g) => waterBand(g) === "critical").length;
   const high = gauges.filter((g) => g.situationLevel === 4).length;
   const rising = gauges.filter((g) => g.trend === "rising").length;
   const falling = gauges.filter((g) => g.trend === "falling").length;
@@ -130,10 +131,11 @@ export function summarizeWater(gauges: WaterGauge[]): WaterSituationSummary {
     }
   }
 
-  let band: SituationBand = "calm";
+  const bands = gauges.map(waterBand);
+  let band: SituationBand = bands.includes("unknown") ? "unknown" : "calm";
   if (overbank > 0) band = "critical";
-  else if (high >= 2) band = "elevated";
-  else if (high === 1 || rising >= Math.ceil(gauges.length * 0.35)) band = "watch";
+  else if (high >= 2 || gauges.some((g) => g.situationLevel == null && waterBand(g) === "elevated")) band = "elevated";
+  else if (high === 1 || bands.includes("watch") || rising >= Math.ceil(gauges.length * 0.35)) band = "watch";
 
   return {
     stationCount: gauges.length,
@@ -149,7 +151,7 @@ export function summarizeWater(gauges: WaterGauge[]): WaterSituationSummary {
 }
 
 export function summarizeAir(stations: AirQualityPoint[]): AirSituationSummary {
-  const withPm = stations.filter((s) => s.pm25 != null || s.aqi != null);
+  const withPm = stations.filter((s) => Number.isFinite(s.pm25) || Number.isFinite(s.aqi));
   if (withPm.length === 0) {
     return {
       stationCount: stations.length,
@@ -157,7 +159,7 @@ export function summarizeAir(stations: AirQualityPoint[]): AirSituationSummary {
       maxPm25: null,
       maxAqi: null,
       worst: null,
-      band: "calm",
+      band: "unknown",
       unhealthyShare: 0,
     };
   }
@@ -204,7 +206,7 @@ export function summarizeAir(stations: AirQualityPoint[]): AirSituationSummary {
 
 export function summarizeRain(stations: RainfallStation[]): RainSituationSummary {
   if (stations.length === 0) {
-    return { stationCount: 0, heavy: 0, veryHeavy: 0, maxRain24h: null, band: "calm" };
+    return { stationCount: 0, heavy: 0, veryHeavy: 0, maxRain24h: null, band: "unknown" };
   }
   let maxRain24h: number | null = null;
   let heavy = 0;
@@ -215,7 +217,7 @@ export function summarizeRain(stations: RainfallStation[]): RainSituationSummary
     if (mm >= 90) veryHeavy++;
     else if (mm >= 35) heavy++;
   }
-  let band: SituationBand = "calm";
+  let band: SituationBand = maxRain24h == null ? "unknown" : "calm";
   if (veryHeavy > 0) band = "critical";
   else if (heavy >= 3) band = "elevated";
   else if (heavy >= 1) band = "watch";
@@ -265,6 +267,8 @@ export function airHeatWeight(s: AirQualityPoint): number {
 
 export function bandLabel(band: SituationBand): string {
   switch (band) {
+    case "unknown":
+      return "UNKNOWN";
     case "critical":
       return "CRITICAL";
     case "elevated":
@@ -278,6 +282,7 @@ export function bandLabel(band: SituationBand): string {
 
 /** Situation band → shared status level (colour + glyph come from lib/status). */
 export function bandStatus(band: SituationBand): StatusLevel {
+  if (band === "unknown") return "unknown";
   if (band === "critical") return "critical";
   if (band === "elevated") return "warning";
   if (band === "watch") return "watch";

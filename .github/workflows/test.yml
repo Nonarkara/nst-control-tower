@@ -34,6 +34,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Audit production dependencies
+        run: pnpm audit --prod --audit-level high
+
       - name: Typecheck (shared)
         run: pnpm --filter @nst/shared typecheck
 
@@ -77,10 +80,14 @@ jobs:
       - name: Install Playwright browser
         run: pnpm --filter @nst/web exec playwright install --with-deps chromium
 
+      - name: Build production web app
+        run: pnpm --filter @nst/web build
+
       - name: Run E2E smoke tests
         run: pnpm --filter @nst/web test:e2e
         env:
           CI: "1"
+          PLAYWRIGHT_PREVIEW: "1"
 
       - name: Upload Playwright report on failure
         if: failure()

@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixtures";
 import { ensureSectionOpen, selectLens, stubHiiSurvey } from "./floodSmokeHelpers";
 
 test.setTimeout(90_000);
@@ -101,6 +101,10 @@ test.describe("SENSOR SITUATION — FloodDash + AirDash board", () => {
     await selectLens(page, "FLOOD");
 
     await expect(page.getByText(/^SENSOR SITUATION$/).first()).toBeVisible({ timeout: 15_000 });
+    const situation = page.getByRole("region", { name: "Sensor situation", exact: true });
+    await expect(situation.getByLabel("Overall UNKNOWN")).toBeVisible();
+    await expect(situation.getByText(/Some feeds have no usable readings/)).toBeVisible();
+    await expect(situation.getByText("CALM", { exact: true })).toHaveCount(0);
     await expect(page.getByText(/Powered by/i).first()).toBeVisible();
     await expect(page.getByText(/FloodDash/i).first()).toBeVisible();
     await expect(page.getByText(/AirDash/i).first()).toBeVisible();

@@ -17,4 +17,4 @@ enabled = true
 # id = "<fill-after-create>"
 
 [vars]
-ENVIRONMENT = "dev"
+ENVIRONMENT = "production"

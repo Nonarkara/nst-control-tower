@@ -168,7 +168,7 @@ const computeWaterGauges = async (): Promise<NormalizedFeed<WaterGauge>> => {
     let resp: TWResponse<TWWaterLevelEntry[]> | null = null;
     try {
       resp = await fetchJsonOrThrow<TWResponse<TWWaterLevelEntry[]>>(
-        `${BASE}/waterlevel?province_code=${PROVINCE}`
+        `${BASE}/waterlevel?province_code=${PROVINCE}`, undefined, 8_000
       );
     } catch {
       return gaugesViaRelay(fetchedAt);
@@ -284,7 +284,7 @@ const computeRainfall = async (): Promise<NormalizedFeed<RainfallStation>> => {
     let resp: TWResponse<TWRainEntry[]> | null = null;
     try {
       resp = await fetchJsonOrThrow<TWResponse<TWRainEntry[]>>(
-        `${BASE}/rain_24h?province_code=${PROVINCE}`
+        `${BASE}/rain_24h?province_code=${PROVINCE}`, undefined, 8_000
       );
     } catch {
       return rainViaRelay(fetchedAt);

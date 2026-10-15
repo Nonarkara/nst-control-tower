@@ -1,3 +1,12 @@
+import { AsyncLocalStorage } from "node:async_hooks";
+
+const refreshLifetime = new AsyncLocalStorage<(promise: Promise<unknown>) => void>();
+
+/** Keep each background refresh attached to the Worker request that started it. */
+export function withCacheLifetime<T>(waitUntil: (promise: Promise<unknown>) => void, work: () => T): T {
+  return refreshLifetime.run(waitUntil, work);
+}
+
 // Per-isolate in-memory cache with TTL + promise dedup.
 // In Cloudflare Workers, this lives for the lifetime of the isolate (minutes
 // to hours per region). On cold start it's empty — adapters refetch.
@@ -125,7 +134,7 @@ export async function cached<T>(
   const inflight = pending.get(key);
   if (inflight) return inflight as Promise<T>;
 
-  const promise = compute()
+  const promise = raceAgainstHang(Promise.resolve().then(compute), key)
     .then((result) => {
       setCache(key, result, effectiveTtl(result, ttlSeconds));
       pending.delete(key);
@@ -137,7 +146,7 @@ export async function cached<T>(
     });
 
   pending.set(key, promise);
-  return raceAgainstHang(promise, key);
+  return promise;
 }
 
 export function cacheAgeMinutes(fetchedAt: string): number {
@@ -173,9 +182,9 @@ export async function cachedWithStale<T>(
 
   if (entry && serveStaleWhileRevalidate && !pending.has(key)) {
     // Kick the refresh (deduplicated via `pending`) but answer NOW.
-    const refresh = compute()
+    const refresh = raceAgainstHang(Promise.resolve().then(compute), key)
       .then((fresh) => {
-        setCache(key, fresh, ttlSeconds);
+        setCache(key, fresh, effectiveTtl(fresh, ttlSeconds));
         pending.delete(key);
         return fresh;
       })
@@ -190,6 +199,7 @@ export async function cachedWithStale<T>(
         return entry.data as T;
       });
     pending.set(key, refresh as Promise<unknown>);
+    refreshLifetime.getStore()?.(refresh);
     return entry.data as T;
   }
   if (entry && serveStaleWhileRevalidate) return entry.data as T; // refresh already in flight
@@ -205,7 +215,7 @@ export async function cachedWithStale<T>(
   }
 
   const staleEntry = entry; // capture before async gap
-  const promise = compute()
+  const promise = raceAgainstHang(Promise.resolve().then(compute), key)
     .then((fresh) => {
       setCache(key, fresh, effectiveTtl(fresh, ttlSeconds));
       pending.delete(key);
@@ -215,14 +225,14 @@ export async function cachedWithStale<T>(
       pending.delete(key);
       if (staleEntry) {
         // Reinstate stale entry briefly so subsequent reads don't re-fail
-        setCache(key, staleEntry.data, staleTtlSeconds);
+        setCache(key, staleEntry.data, Math.min(staleTtlSeconds, STALE_REFRESH_RETRY_COOLDOWN_MS / 1000));
         return staleEntry.data as T;
       }
       throw err;
     });
 
   pending.set(key, promise as Promise<unknown>);
-  return raceAgainstHang(promise, key);
+  return promise;
 }
 
 /**

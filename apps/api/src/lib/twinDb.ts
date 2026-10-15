@@ -81,6 +81,18 @@ export function shouldUseSsl(raw: string): boolean {
   return meta.isSupabase;
 }
 
+/** Keep pg connection-string SSL options from overriding certificate verification. */
+export function verifiedDatabaseUrl(raw: string): string {
+  const url = new URL(raw);
+  if (shouldUseSsl(raw)) {
+    url.searchParams.set("sslmode", "verify-full");
+    if (process.env.DATABASE_SSL_CA_FILE) url.searchParams.set("sslrootcert", process.env.DATABASE_SSL_CA_FILE);
+  } else {
+    url.searchParams.set("sslmode", "disable");
+  }
+  return url.toString();
+}
+
 function getPool(): import("pg").Pool | null {
   if (pool) return pool;
   const url = databaseUrl();
@@ -90,11 +102,11 @@ function getPool(): import("pg").Pool | null {
   const meta = dbUrlMeta(url);
   const defaultMax = meta.isSupabase ? 3 : 10;
   pool = new pg.Pool({
-    connectionString: url,
+    connectionString: verifiedDatabaseUrl(url),
     max: parsePositiveInt(process.env.DATABASE_POOL_MAX, defaultMax),
     idleTimeoutMillis: 30_000,
     connectionTimeoutMillis: 5_000,
-    ssl: shouldUseSsl(url) ? { rejectUnauthorized: false } : undefined,
+    ssl: shouldUseSsl(url) ? { rejectUnauthorized: true } : undefined,
   });
   pool.on("error", (err) => {
     console.error("[twinDb] unexpected pool error", err);

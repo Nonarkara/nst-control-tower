@@ -3,7 +3,7 @@ import DeckGL from "@deck.gl/react";
 import type { Layer, ControllerProps } from "@deck.gl/core";
 import { FlyToInterpolator, LinearInterpolator } from "@deck.gl/core";
 import { Map as MapLibreMap } from "react-map-gl/maplibre";
-import maplibregl from "maplibre-gl";
+import * as maplibregl from "maplibre-gl";
 import type { Feature, FeatureCollection, LineString, Point, Polygon, MultiPolygon } from "geojson";
 import { CHONBURI } from "@nst/shared";
 import type {

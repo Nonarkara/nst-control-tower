@@ -1,4 +1,6 @@
 import { Hono } from "hono";
+import { bearerAuth } from "hono/bearer-auth";
+import { bodyLimit } from "hono/body-limit";
 import { cors } from "hono/cors";
 import { fetchCityReports } from "./adapters/cityReporter.js";
 import { fetchItic } from "./adapters/itic.js";
@@ -45,7 +47,7 @@ import { fetchFlights } from "./adapters/flights.js";
 import { fetchDatagoPoints, fetchDatagoDatasets, fetchReservoirs, fetchDisasterStats, fetchFahfon, fetchProvincialKPIs } from "./adapters/datago.js";
 import { datasetDetailHandler, previewHandler } from "./adapters/datagoDetail.js";
 import { fetchLocalCatalog } from "./adapters/localCatalog.js";
-import { cacheAgeMinutes } from "./lib/cache.js";
+import { cacheAgeMinutes, withCacheLifetime } from "./lib/cache.js";
 import { fetchGistdaLevelPosts, fetchGistdaFloodStations, fetchGistdaFloodExtent } from "./adapters/gistdaWater.js";
 import { fetchTourismVisitors } from "./adapters/tourism-visitors.js";
 import { fetchFacebookPosts } from "./adapters/facebook.js";
@@ -94,6 +96,7 @@ type Bindings = {
   GOOGLE_MAPS_API_KEY?: string;
   /** Shared secret for POST/DELETE /api/twin/*. Unset means those writes stay closed. */
   TWIN_WRITE_TOKEN?: string;
+  CV_WRITE_TOKEN?: string;
 };
 
 const app = new Hono<{ Bindings: Bindings }>();
@@ -115,11 +118,20 @@ app.use(
       if (/^https:\/\/(?:[a-z0-9-]+\.)?nst-control-tower\.pages\.dev$/.test(origin)) return origin;
       return "";
     },
-    allowMethods: ["GET", "POST", "OPTIONS"],
-    allowHeaders: ["Content-Type"],
+    allowMethods: ["GET", "POST", "DELETE", "OPTIONS"],
+    allowHeaders: ["Content-Type", "Authorization"],
+    exposeHeaders: ["x-source", "x-age-minutes", "x-fallback-tier"],
     maxAge: 86400,
   }),
 );
+
+app.use("/api/*", async (c, next) => {
+  let ctx: ExecutionContext | undefined;
+  try { ctx = c.executionCtx as ExecutionContext; } catch { /* Node and in-process tests have no Worker context. */ }
+  return ctx ? withCacheLifetime((promise) => ctx!.waitUntil(promise), next) : next();
+});
+
+app.use("/api/*", bodyLimit({ maxSize: 256 * 1024 }));
 
 app.get("/", (c) =>
   c.json({
@@ -657,10 +669,10 @@ app.get("/api/isochrone", async (c) => {
   const minutes = parseInt(c.req.query("minutes") ?? "15", 10);
   const mode = (c.req.query("mode") ?? "walk") as Parameters<typeof fetchIsochrone>[3];
 
-  if (!Number.isFinite(lng) || !Number.isFinite(lat)) {
+  if (!isValidLatLng(lat, lng)) {
     return c.json({ error: "lng and lat must be finite numbers" }, 400);
   }
-  if (minutes < 1 || minutes > 120) {
+  if (!Number.isInteger(minutes) || minutes < 1 || minutes > 120) {
     return c.json({ error: "minutes must be between 1 and 120" }, 400);
   }
   const validModes = new Set(["walk", "bicycle", "drive", "approximated_transit"]);
@@ -673,7 +685,11 @@ app.get("/api/isochrone", async (c) => {
 });
 
 // ── CCTV computer-vision events ───────────────────────────────────────────────
-app.post("/api/cctv/cv-events", async (c) => {
+app.post("/api/cctv/cv-events", async (c, next) => {
+  const token = c.env.CV_WRITE_TOKEN?.trim();
+  if (!token) return c.json({ error: "CV event ingestion is not configured" }, 503);
+  return bearerAuth<{ Bindings: Bindings }>({ token })(c, next);
+}, async (c) => {
   let body: unknown;
   try {
     body = await c.req.json();
@@ -681,6 +697,7 @@ app.post("/api/cctv/cv-events", async (c) => {
     return c.json({ error: "Invalid JSON" }, 400);
   }
   const messages = Array.isArray(body) ? body : [body];
+  if (messages.length > 100) return c.json({ error: "At most 100 events per batch" }, 400);
   let accepted = 0;
   const errors: string[] = [];
   for (const raw of messages) {

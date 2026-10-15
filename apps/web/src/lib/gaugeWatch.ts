@@ -276,11 +276,11 @@ export interface SweepStats {
   unreadable: number;
   /** Readings whose confidence cleared MIN_CONFIDENCE (the only ones that can post). */
   confident: number;
-  /** Rises posted since the page loaded. */
-  posted: number;
+  /** Local rises previewed since the page loaded. */
+  previewed: number;
 }
 
-let stats: SweepStats = { at: 0, analysed: 0, undecodable: 0, unreadable: 0, confident: 0, posted: 0 };
+let stats: SweepStats = { at: 0, analysed: 0, undecodable: 0, unreadable: 0, confident: 0, previewed: 0 };
 let statsListeners: Array<() => void> = [];
 
 export function getSweepStats(): SweepStats {
@@ -294,8 +294,8 @@ export function subscribeSweepStats(listener: () => void): () => void {
   };
 }
 
-/** Fold one sweep's outcomes into the running totals (posted is cumulative, the rest are the LAST sweep). */
-export function recordSweep(outcomes: Array<{ outcome: AnalysisOutcome; posted: boolean }>, nowMs = Date.now()): void {
+/** Fold one sweep's outcomes into the running totals (previewed is cumulative, the rest are the LAST sweep). */
+export function recordSweep(outcomes: Array<{ outcome: AnalysisOutcome; previewed: boolean }>, nowMs = Date.now()): void {
   if (outcomes.length === 0) return;
   stats = {
     at: nowMs,
@@ -303,27 +303,25 @@ export function recordSweep(outcomes: Array<{ outcome: AnalysisOutcome; posted: 
     undecodable: outcomes.filter((o) => o.outcome.status === "undecodable").length,
     unreadable: outcomes.filter((o) => o.outcome.status === "unreadable").length,
     confident: outcomes.filter((o) => o.outcome.status === "read" && o.outcome.decision.confidence >= MIN_CONFIDENCE).length,
-    posted: stats.posted + outcomes.filter((o) => o.posted).length,
+    previewed: stats.previewed + outcomes.filter((o) => o.previewed).length,
   };
   for (const l of statsListeners) l();
 }
 
-/** POST a water-rising event. Fire-and-forget — failures are silent by
- *  design (a dead API must never break the map). */
-export async function postRiseEvent(apiBase: string, camId: string, rise: number, confidence: number): Promise<void> {
-  try {
-    await fetch(`${apiBase}/api/cctv/cv-events`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        cameraId: camId,
-        timestamp: new Date().toISOString(),
-        detections: [{ class: GAUGE_EVENT_CLASS, confidence: Math.min(0.99, 0.5 + rise * 4) }],
-        counts: { [GAUGE_EVENT_CLASS]: 1 },
-        model: "gauge-watch/v1 (browser CV, experimental)",
-      }),
-    });
-  } catch {
-    /* silent — the next sweep retries */
-  }
+/** Browser analysis is a local preview, never a trusted shared camera signal. */
+const localRiseEvents: import("@nst/shared").CvDetectionEvent[] = [];
+
+export function getLocalRiseEvents(): readonly import("@nst/shared").CvDetectionEvent[] {
+  return localRiseEvents;
+}
+
+export function recordLocalRiseEvent(camId: string, confidence: number): void {
+  localRiseEvents.unshift({
+    cameraId: camId,
+    timestamp: new Date().toISOString(),
+    detections: [{ class: GAUGE_EVENT_CLASS, confidence }],
+    counts: { [GAUGE_EVENT_CLASS]: 1 },
+    model: "browser-preview",
+  });
+  localRiseEvents.length = Math.min(localRiseEvents.length, 100);
 }

@@ -9,13 +9,29 @@ function mergeHeaders(base: Record<string, string>, init?: RequestInit): Headers
   return h;
 }
 
-async function fetchWithTimeout(url: string, init?: RequestInit, timeoutMs: number = DEFAULT_TIMEOUT_MS): Promise<Response> {
+async function fetchWithTimeout<T>(
+  url: string,
+  init: RequestInit,
+  read: (response: Response) => Promise<T>,
+  timeoutMs = DEFAULT_TIMEOUT_MS,
+): Promise<T> {
   const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), timeoutMs);
+  let timer: ReturnType<typeof setTimeout>;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      ctrl.abort();
+      reject(new Error(`Upstream timed out after ${timeoutMs}ms`));
+    }, timeoutMs);
+  });
   try {
-    return await fetch(url, { ...init, signal: ctrl.signal });
+    // The deadline includes body consumption. Headers arriving alone must not
+    // clear it: an upstream can send headers then stall its JSON indefinitely.
+    return await Promise.race([
+      Promise.resolve().then(() => fetch(url, { ...init, signal: ctrl.signal })).then(read),
+      timeout,
+    ]);
   } finally {
-    clearTimeout(t);
+    clearTimeout(timer!);
   }
 }
 
@@ -43,15 +59,16 @@ function redactUrl(url: string): string {
 
 export async function fetchJsonOrNull<T>(url: string, init?: RequestInit): Promise<T | null> {
   try {
-    const res = await fetchWithTimeout(url, {
+    return await fetchWithTimeout(url, {
       ...init,
       headers: mergeHeaders(getDefaultHeaders(), init),
+    }, async (res) => {
+      if (!res.ok) {
+        console.warn(`fetchJsonOrNull non-OK ${res.status} ${redactUrl(url)}`);
+        return null;
+      }
+      return await res.json() as T;
     });
-    if (!res.ok) {
-      console.warn(`fetchJsonOrNull non-OK ${res.status} ${redactUrl(url)}`);
-      return null;
-    }
-    return (await res.json()) as T;
   } catch (err) {
     console.warn(`fetchJsonOrNull error ${redactUrl(url)}`, (err as Error).message);
     return null;
@@ -62,12 +79,10 @@ export async function fetchTextOrNull(url: string, init?: RequestInit, timeoutMs
   try {
     const h: Record<string, string> = {};
     if (typeof navigator === "undefined") h["user-agent"] = USER_AGENT;
-    const res = await fetchWithTimeout(url, {
+    return await fetchWithTimeout(url, {
       ...init,
       headers: mergeHeaders(h, init),
-    }, timeoutMs);
-    if (!res.ok) return null;
-    return await res.text();
+    }, async (res) => res.ok ? await res.text() : null, timeoutMs);
   } catch {
     return null;
   }
@@ -78,21 +93,24 @@ class UpstreamHttpError extends Error {}
 // Despite the name, this used to swallow every failure and resolve null — which meant
 // cachedWithStale's stale-if-error fallback (lib/cache.ts) never engaged for any adapter
 // relying on it. It must actually reject so a rejected compute() triggers that fallback.
-export async function fetchJsonOrThrow<T>(url: string, init?: RequestInit): Promise<T> {
+export async function fetchJsonOrThrow<T>(url: string, init?: RequestInit, timeoutMs = DEFAULT_TIMEOUT_MS): Promise<T> {
   let attempt = 0;
   while (attempt < 3) {
     try {
-      const res = await fetchWithTimeout(url, {
+      const result = await fetchWithTimeout<{ ok: true; data: T } | { ok: false }>(url, {
         ...init,
         headers: mergeHeaders(getDefaultHeaders(), init),
-      });
-      if (res.ok) return (await res.json()) as T;
-      if (res.status === 429) {
+      }, async (res) => {
+        if (res.ok) return { ok: true, data: await res.json() as T };
+        if (res.status === 429) return { ok: false };
+        throw new UpstreamHttpError(`fetchJsonOrThrow non-OK ${res.status} ${redactUrl(url)}`);
+      }, timeoutMs);
+      if (result.ok) return result.data;
+      if (!result.ok) {
         attempt++;
         await new Promise(r => setTimeout(r, 1000 * Math.pow(2, attempt)));
         continue;
       }
-      throw new UpstreamHttpError(`fetchJsonOrThrow non-OK ${res.status} ${redactUrl(url)}`);
     } catch (err) {
       if (err instanceof UpstreamHttpError) throw err;
       throw new Error(`fetchJsonOrThrow error ${redactUrl(url)}: ${(err as Error).message}`);

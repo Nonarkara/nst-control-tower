@@ -41,26 +41,32 @@ export function validateCvEvent(raw: unknown): CvDetectionEvent {
   }
   const m = raw as Record<string, unknown>;
 
-  if (typeof m.cameraId !== "string" || !m.cameraId.trim()) {
+  if (typeof m.cameraId !== "string" || !m.cameraId.trim() || m.cameraId.length > 128) {
     throw new CvValidationError("cameraId is required (string)");
   }
   if (typeof m.timestamp !== "string" || Number.isNaN(Date.parse(m.timestamp))) {
     throw new CvValidationError("timestamp must be an ISO-8601 string");
   }
-  if (!Array.isArray(m.detections)) {
+  if (!Array.isArray(m.detections) || m.detections.length > 100) {
     throw new CvValidationError("detections must be an array");
   }
 
-  // Build counts from detections if not provided
-  const counts: Record<string, number> = {};
-  if (m.counts && typeof m.counts === "object" && !Array.isArray(m.counts)) {
-    Object.assign(counts, m.counts);
-  } else {
-    for (const d of m.detections as Record<string, unknown>[]) {
-      if (typeof d.class === "string") {
-        counts[d.class] = (counts[d.class] ?? 0) + 1;
-      }
+  for (const d of m.detections) {
+    if (!d || typeof d !== "object" || typeof d.class !== "string" || !d.class.trim() || d.class.length > 64 ||
+        typeof d.confidence !== "number" || !Number.isFinite(d.confidence) || d.confidence < 0 || d.confidence > 1) {
+      throw new CvValidationError("detections require a class and confidence within 0..1");
     }
+  }
+  const counts: Record<string, number> = Object.create(null);
+  if (m.counts && typeof m.counts === "object" && !Array.isArray(m.counts)) {
+    for (const [key, value] of Object.entries(m.counts)) {
+      if (key.length > 64 || typeof value !== "number" || !Number.isSafeInteger(value) || value < 0) {
+        throw new CvValidationError("counts must be non-negative integers");
+      }
+      counts[key] = value;
+    }
+  } else {
+    for (const d of m.detections) counts[d.class] = (counts[d.class] ?? 0) + 1;
   }
 
   // bbox values are frame-normalised — anything outside 0..1 is a CV-pipeline
@@ -90,7 +96,10 @@ export function validateCvEvent(raw: unknown): CvDetectionEvent {
 // ─── Write ───────────────────────────────────────────────────────────────────
 
 export function recordCvEvent(event: CvDetectionEvent): void {
-  if (ring.length >= MAX_EVENTS) ring.shift(); // evict oldest
+  if (ring.length >= MAX_EVENTS) {
+    const oldest = ring.shift()!;
+    if (latestByCamera.get(oldest.cameraId) === oldest) latestByCamera.delete(oldest.cameraId);
+  }
   ring.push(event);
   latestByCamera.set(event.cameraId, event);
 }
@@ -117,7 +126,7 @@ export function listCvEvents(opts: CvQueryOptions = {}): CvDetectionEvent[] {
   for (let i = ring.length - 1; i >= 0 && results.length < limit; i--) {
     const e = ring[i];
     if (opts.cameraId && e.cameraId !== opts.cameraId) continue;
-    if (sinceMs && Date.parse(e.timestamp) < sinceMs) break; // ring is oldest→newest
+    if (sinceMs && Date.parse(e.timestamp) < sinceMs) continue; // arrival order need not match observation time
     if (opts.cls && !e.detections.some((d) => d.class === opts.cls)) continue;
     results.push(e);
   }

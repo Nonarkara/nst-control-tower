@@ -19,5 +19,11 @@
   "devDependencies": {
     "@vitest/coverage-v8": "^4.1.7",
     "vitest": "^4.1.7"
+  },
+  "pnpm": {
+    "overrides": {
+      "fflate@>=0.7.0 <0.7.5": "0.7.5",
+      "@loaders.gl/textures>texture-compressor": "-"
+    }
   }
 }

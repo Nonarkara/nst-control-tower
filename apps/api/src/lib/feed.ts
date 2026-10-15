@@ -1,3 +1,4 @@
+import { cacheAgeMinutes } from "./cache.js";
 import type { NormalizedFeed } from "@nst/shared";
 import { recordAdapterSuccess, recordAdapterError } from "./health.js";
 
@@ -30,7 +31,8 @@ export async function safeFeed<T>(
   adapterName?: string,
 ): Promise<Response> {
   try {
-    const feed = await fetcher();
+    const result = await fetcher();
+    const feed = { ...result, meta: { ...result.meta, ageMinutes: Math.max(result.meta.ageMinutes, cacheAgeMinutes(result.meta.fetchedAt)) } };
     setMetaHeaders(c, feed);
     if (adapterName) {
       // Treat "unavailable" fallback tier as a health error so the SOURCES catalog

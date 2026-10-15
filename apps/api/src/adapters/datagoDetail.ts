@@ -275,6 +275,28 @@ function sniffFormat(ct: string, url: string, hint: string): string {
   return "?";
 }
 
+class BlockedPreviewRedirect extends Error {}
+
+async function fetchAllowedPreview(url: string, signal: AbortSignal): Promise<Response> {
+  let current = new URL(url);
+  for (let hop = 0; hop <= 5; hop++) {
+    if (current.protocol !== "https:" || !isAllowedHost(current.hostname)) {
+      throw new BlockedPreviewRedirect("Redirect target is outside the HTTPS government-data allowlist");
+    }
+    const response = await fetch(current.toString(), {
+      signal,
+      headers: { "User-Agent": "nst-control-tower-preview/1.0", Accept: "text/csv, text/plain, application/json, */*" },
+      redirect: "manual",
+    });
+    if (![301, 302, 303, 307, 308].includes(response.status)) return response;
+    const location = response.headers.get("location");
+    await response.body?.cancel();
+    if (!location) throw new Error("Redirect has no Location header");
+    current = new URL(location, current);
+  }
+  throw new Error("Too many preview redirects");
+}
+
 export async function fetchPreview(rawUrl: string, formatHint?: string): Promise<DatagoPreviewResult> {
   let u: URL;
   try {
@@ -291,70 +313,70 @@ export async function fetchPreview(rawUrl: string, formatHint?: string): Promise
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
-  let resp: Response;
+  const deadline = new Promise<never>((_, reject) => {
+    controller.signal.addEventListener("abort", () => reject(new Error("Preview timed out")), { once: true });
+  });
   try {
-    resp = await fetch(rawUrl, {
-      signal: controller.signal,
-      headers: {
-        "User-Agent": "nst-control-tower-preview/1.0",
-        "Accept": "text/csv, text/plain, application/json, */*",
-      },
-      redirect: "follow",
-    });
-  } catch (e) {
-    clearTimeout(timer);
-    return { url: rawUrl, format: formatHint ?? "?", status: "fetch_failed", byteSize: null, contentType: null, error: (e as Error).message };
-  }
-  clearTimeout(timer);
+    let resp: Response;
+    try {
+      resp = await Promise.race([fetchAllowedPreview(rawUrl, controller.signal), deadline]);
+    } catch (e) {
+      return { url: rawUrl, format: formatHint ?? "?", status: e instanceof BlockedPreviewRedirect ? "blocked_host" : "fetch_failed", byteSize: null, contentType: null, error: (e as Error).message };
+    }
 
-  if (!resp.ok) {
-    return { url: rawUrl, format: formatHint ?? "?", status: "fetch_failed", byteSize: null, contentType: resp.headers.get("content-type"), error: `HTTP ${resp.status}` };
-  }
+    if (!resp.ok) {
+      return { url: rawUrl, format: formatHint ?? "?", status: "fetch_failed", byteSize: null, contentType: resp.headers.get("content-type"), error: `HTTP ${resp.status}` };
+    }
 
-  const ct = resp.headers.get("content-type") ?? "";
-  const declaredSize = Number(resp.headers.get("content-length") ?? "0") || 0;
-  if (declaredSize > 0 && declaredSize > MAX_BYTES * 4) {
-    return { url: rawUrl, format: formatHint ?? "?", status: "too_large", byteSize: declaredSize, contentType: ct, error: `declared ${declaredSize} bytes` };
-  }
+    const ct = resp.headers.get("content-type") ?? "";
+    const declaredSize = Number(resp.headers.get("content-length") ?? "0") || 0;
+    if (declaredSize > 0 && declaredSize > MAX_BYTES * 4) {
+      return { url: rawUrl, format: formatHint ?? "?", status: "too_large", byteSize: declaredSize, contentType: ct, error: `declared ${declaredSize} bytes` };
+    }
 
-  const reader = resp.body?.getReader();
-  let received = 0;
-  const parts: Uint8Array[] = [];
-  if (reader) {
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      if (value) {
-        received += value.byteLength;
-        if (received > MAX_BYTES) {
-          try { await reader.cancel(); } catch { /* ignore */ }
-          return { url: rawUrl, format: formatHint ?? "?", status: "too_large", byteSize: received, contentType: ct, error: `exceeded ${MAX_BYTES}B` };
+    const reader = resp.body?.getReader();
+    let received = 0;
+    const parts: Uint8Array[] = [];
+    if (reader) {
+      while (true) {
+        const { done, value } = await Promise.race([reader.read(), deadline]);
+        if (done) break;
+        if (value) {
+          received += value.byteLength;
+          if (received > MAX_BYTES) {
+            try { await reader.cancel(); } catch { /* ignore */ }
+            return { url: rawUrl, format: formatHint ?? "?", status: "too_large", byteSize: received, contentType: ct, error: `exceeded ${MAX_BYTES}B` };
+          }
+          parts.push(value);
         }
-        parts.push(value);
       }
     }
-  }
-  // Concatenate parts into a single Uint8Array, then decode.
-  const total = parts.reduce((s, p) => s + p.byteLength, 0);
-  const merged = new Uint8Array(total);
-  let offset = 0;
-  for (const p of parts) {
-    merged.set(p, offset);
-    offset += p.byteLength;
-  }
-  const buf = new TextDecoder("utf-8", { fatal: false, ignoreBOM: true }).decode(merged);
+    // Concatenate parts into a single Uint8Array, then decode.
+    const total = parts.reduce((s, p) => s + p.byteLength, 0);
+    const merged = new Uint8Array(total);
+    let offset = 0;
+    for (const p of parts) {
+      merged.set(p, offset);
+      offset += p.byteLength;
+    }
+    const buf = new TextDecoder("utf-8", { fatal: false, ignoreBOM: true }).decode(merged);
 
-  const format = sniffFormat(ct, rawUrl, formatHint ?? "");
-  try {
-    if (format === "CSV") {
-      return { url: rawUrl, format, status: "ok", byteSize: received, contentType: ct, preview: parseCsv(buf) };
+    const format = sniffFormat(ct, rawUrl, formatHint ?? "");
+    try {
+      if (format === "CSV") {
+        return { url: rawUrl, format, status: "ok", byteSize: received, contentType: ct, preview: parseCsv(buf) };
+      }
+      if (format === "JSON") {
+        return { url: rawUrl, format, status: "ok", byteSize: received, contentType: ct, preview: parseJson(buf) };
+      }
+      return { url: rawUrl, format, status: "unsupported_format", byteSize: received, contentType: ct, error: `format ${format} not previewable` };
+    } catch (e) {
+      return { url: rawUrl, format, status: "parse_failed", byteSize: received, contentType: ct, error: (e as Error).message };
     }
-    if (format === "JSON") {
-      return { url: rawUrl, format, status: "ok", byteSize: received, contentType: ct, preview: parseJson(buf) };
-    }
-    return { url: rawUrl, format, status: "unsupported_format", byteSize: received, contentType: ct, error: `format ${format} not previewable` };
   } catch (e) {
-    return { url: rawUrl, format, status: "parse_failed", byteSize: received, contentType: ct, error: (e as Error).message };
+    return { url: rawUrl, format: formatHint ?? "?", status: "fetch_failed", byteSize: null, contentType: null, error: (e as Error).message };
+  } finally {
+    clearTimeout(timer);
   }
 }
 

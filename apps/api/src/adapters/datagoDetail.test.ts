@@ -233,3 +233,31 @@ describe("fetchDatasetDetail", () => {
     expect(r?.resources[1].size).toBeNull();
   });
 });
+
+describe("preview redirect boundaries", () => {
+  it.each(["https://127.0.0.1/private", "https://untrusted.example/data.csv", "http://data.go.th/data.csv"])("blocks redirect before contacting %s", async (target) => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 302, headers: { Location: target } }));
+    vi.stubGlobal("fetch", fetchMock);
+    const result = await fetchPreview("https://data.go.th/redirect", "CSV");
+    expect(result.status).toBe("blocked_host");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+  it("follows an allowlisted relative redirect", async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(null, { status: 302, headers: { Location: "/resource.csv" } }))
+      .mockResolvedValueOnce(new Response("name,value\ncity,1", { headers: { "Content-Type": "text/csv" } }));
+    vi.stubGlobal("fetch", fetchMock);
+    expect((await fetchPreview("https://data.go.th/redirect", "CSV")).status).toBe("ok");
+    expect(fetchMock.mock.calls[1][0]).toBe("https://data.go.th/resource.csv");
+  });
+});
+
+it("bounds preview body consumption even after headers arrive", async () => {
+  vi.useFakeTimers();
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(new ReadableStream({ start() {} }), { headers: { "Content-Type": "text/csv" } })));
+  try {
+    const result = fetchPreview("https://data.go.th/stalled.csv", "CSV");
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect((await result).status).toBe("fetch_failed");
+  } finally { vi.useRealTimers(); vi.unstubAllGlobals(); }
+});

@@ -14,12 +14,12 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@hono/node-server": "^1.19.17",
     "@nst/shared": "workspace:*",
-    "@hono/node-server": "^1.13.7",
     "google-trends-api": "^4.9.2",
-    "hono": "^4.6.10",
+    "hono": "^4.13.13",
     "pg": "^8.21.0",
-    "ws": "^8.20.1"
+    "ws": "^8.22.0"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20251101.0",
