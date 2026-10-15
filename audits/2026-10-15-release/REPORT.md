@@ -34,7 +34,7 @@ TLS against a private database needs its real server CA. No database schema or e
 - A read-only `SELECT 1` against the configured database passed with verified TLS.
 - Isolated local Workers runtime: 21 live water gauges and 145 live rainfall stations returned HTTP 200 in under one second.
 
-- Final production dependency audit: zero vulnerabilities across 226 production dependencies.
+- Final production dependency audit: zero vulnerabilities across 225 production dependencies.
 - All 1,785 unit tests passed after dependency alignment; complete typecheck and API/web production builds passed.
 - The workbench entry now loads a 199 kB shell and its own page chunk instead of the 3.05 MB map application chunk. The map renderer's required WebAssembly compilation is permitted with the narrow `wasm-unsafe-eval` CSP directive.
 - Browser runs now reserve port 5187 and never reuse an existing server. A previous run hit a sibling city's port 5179; that run was discarded. Production-preview tests caught the WebAssembly policy issue before publication.
@@ -45,4 +45,4 @@ A private comparison confirmed that the previously published AirLabs credential 
 
 ## Release gate
 
-The Test workflow runs all 33 browser scenarios against the production build, including flood scenarios, Thai/English switching, source catalog controls, mobile layout, data workbench, camera directory, and the operations board. Deployment is gated on that successful workflow and verifies both the actual HTML entry bundle and the API commit. The map renderer, React map wrapper and deck.gl peers are tested together; the wrapper was upgraded after production-preview tests caught its old private-transform access.
+The Test workflow runs all 33 browser scenarios against a production-mode build (the existing read-only camera probe is enabled with `VITE_E2E=1` for the zoom regression; deployment does not set that flag), including flood scenarios, Thai/English switching, source catalog controls, mobile layout, data workbench, camera directory, and the operations board. Deployment is gated on that successful workflow and verifies both the actual HTML entry bundle and the API commit. The map renderer, React map wrapper and deck.gl peers are tested together; the wrapper was upgraded after production-preview tests caught its old private-transform access.

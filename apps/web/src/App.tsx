@@ -521,8 +521,8 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
     viewStateRef.current = next;
     // Dev/E2E-only: expose the commanded camera so a Playwright regression test
     // can assert repeated flights (zoom buttons, re-centering) actually advance.
-    // Dead-code-eliminated from the production build (import.meta.env.DEV=false).
-    if (import.meta.env.DEV) (window as unknown as { __mapCam?: typeof next }).__mapCam = next;
+    // Enabled in production-mode browser tests only with VITE_E2E=1; deployment leaves it unset.
+    if (import.meta.env.DEV || import.meta.env.VITE_E2E === "1") (window as unknown as { __mapCam?: typeof next }).__mapCam = next;
     cmdSeqRef.current += 1;
     const duration = patch.transitionDuration ?? 0;
     setInitialViewState({

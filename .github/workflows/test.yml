@@ -82,6 +82,8 @@ jobs:
 
       - name: Build production web app
         run: pnpm --filter @nst/web build
+        env:
+          VITE_E2E: "1"
 
       - name: Run E2E smoke tests
         run: pnpm --filter @nst/web test:e2e
