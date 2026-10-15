@@ -43,6 +43,10 @@ TLS against a private database needs its real server CA. No database schema or e
 
 A private comparison confirmed that the previously published AirLabs credential from commit `c8c785e` still matches the effective local configuration. Its bytes are omitted here. The public Worker has no AirLabs secret and flights remain unavailable there. Revoke/rotate that credential at AirLabs and replace any local deployments that use it. Removing a credential from the current Git tree does not revoke it; this release does not rewrite public Git history or claim provider-side rotation.
 
+## Final local browser validation
+
+The full production-mode browser run passed 31 of 33 cases. After correcting the empty forecast fixture and enabling the existing test-only camera probe, targeted reruns passed the forecast/flood lens switch, repeated zoom commands, and the new UNKNOWN sensor-coverage assertions. All 33 unique cases were validated. Shared geometry fixtures and reduced-motion mode keep headless checks bounded; CI runs the entire suite on the release commit.
+
 ## Release gate
 
 The Test workflow runs all 33 browser scenarios against a production-mode build (the existing read-only camera probe is enabled with `VITE_E2E=1` for the zoom regression; deployment does not set that flag), including flood scenarios, Thai/English switching, source catalog controls, mobile layout, data workbench, camera directory, and the operations board. Deployment is gated on that successful workflow and verifies both the actual HTML entry bundle and the API commit. The map renderer, React map wrapper and deck.gl peers are tested together; the wrapper was upgraded after production-preview tests caught its old private-transform access.

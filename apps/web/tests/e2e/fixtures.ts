@@ -1,5 +1,6 @@
 import { test as base, expect } from "@playwright/test";
 import type { BasinWaterBalance } from "@nst/shared";
+import { stubHiiSurvey } from "./floodSmokeHelpers";
 import { SOURCE_CATALOG } from "@nst/shared";
 
 const basin: BasinWaterBalance = {
@@ -20,6 +21,7 @@ const basin: BasinWaterBalance = {
  */
 export const test = base.extend({
   page: async ({ page }, use) => {
+    await stubHiiSurvey(page);
     await page.route("**/api/**", async (route) => {
       const path = new URL(route.request().url()).pathname;
       let body: unknown = {

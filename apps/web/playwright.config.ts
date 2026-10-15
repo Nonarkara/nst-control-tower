@@ -23,6 +23,7 @@ export default defineConfig({
   use: {
     baseURL: process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:5187",
     headless: true,
+    reducedMotion: "reduce",
     viewport: { width: 1440, height: 900 },
     trace: "retain-on-failure",
     video: "off",               // keeps test-results/ small; traces provide all debug info

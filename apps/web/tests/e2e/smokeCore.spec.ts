@@ -48,10 +48,10 @@ test.describe("Lens switching", () => {
     const intButton = lensPalette.locator("button", { hasText: /^Forecast$/i });
     const floodButton = lensPalette.locator("button", { hasText: /^Flood$/i });
 
-    await intButton.click();
+    await selectLens(page, "Forecast");
     await expect(intButton).toHaveAttribute("aria-pressed", "true");
 
-    await floodButton.click();
+    await selectLens(page, "Flood");
     await expect(floodButton).toHaveAttribute("aria-pressed", "true");
     await expect(intButton).toHaveAttribute("aria-pressed", "false");
   });
