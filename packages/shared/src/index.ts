@@ -5,3 +5,4 @@ export * from "./southernThailand";
 export * from "./sources";
 export * from "./atlas";
 export * from "./platform";
+export { isNstNewsText } from "./news.js";

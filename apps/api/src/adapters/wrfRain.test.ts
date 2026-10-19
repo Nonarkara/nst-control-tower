@@ -81,7 +81,7 @@ describe("windowStats", () => {
   it("returns zeros for a box with no cells", () => {
     const w = parseAscWindow(syntheticAsc(() => 5))!;
     const empty = windowStats(w, { lngMin: 0, lngMax: 1, latMin: 0, latMax: 1 });
-    expect(empty).toEqual({ meanMm: 0, maxMm: 0 });
+    expect(empty).toEqual({ meanMm: 0, maxMm: 0, validCells: 0 });
   });
 });
 

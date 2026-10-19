@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { mapRelayWater, type RelayWater } from "./floodDashRelay";
 
 /**
@@ -19,6 +19,9 @@ import { mapRelayWater, type RelayWater } from "./floodDashRelay";
  * comment "Direction unknown: do NOT assume above-bank". This is the identical
  * mistake one field over.
  */
+
+beforeEach(() => { vi.useFakeTimers({ toFake: ["Date"] }); vi.setSystemTime(new Date("2026-10-12T02:05:00Z")); });
+afterEach(() => vi.useRealTimers());
 
 function water(over: Partial<RelayWater> = {}): RelayWater {
   return {

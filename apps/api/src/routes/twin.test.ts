@@ -369,3 +369,25 @@ describe("GET /snapshot", () => {
     expect(typeof json.relations).toBe("number");
   });
 });
+
+describe("prediction run integrity", () => {
+  it("expires old generations even when their prediction targets are in the future", async () => {
+    const store = await import("../lib/twinStore.js");
+    const now = Date.now();
+    vi.mocked(store.getTwinState).mockResolvedValue([{ time: new Date(now + 3_600_000).toISOString(), objectId: "city", metric: "aqi.forecast", value: 200, source: "test", properties: { generated_at: new Date(now - 3 * 3_600_000).toISOString() } }]);
+    try {
+      const json = await (await req("GET", "/predictions")).json() as { forecasts: { generatedAt: string | null; horizon: unknown[] }[] };
+      expect(json.forecasts.every((f) => f.generatedAt === null && f.horizon.length === 0)).toBe(true);
+    } finally { vi.mocked(store.getTwinState).mockResolvedValue([]); }
+  });
+  it("returns the nearest targets in chronological order from one latest run", async () => {
+    const store = await import("../lib/twinStore.js");
+    const now = Date.now();
+    const point = (hour: number, generatedAgo: number, value: number) => ({ time: new Date(now + hour * 3_600_000).toISOString(), objectId: "city", metric: "aqi.forecast", value, source: "test", properties: { generated_at: new Date(now - generatedAgo * 60_000).toISOString() } });
+    vi.mocked(store.getTwinState).mockResolvedValue([point(3, 10, 30), point(2, 60, 999), point(1, 10, 10), point(2, 10, 20), point(2, 10, 20)]);
+    try {
+      const json = await (await req("GET", "/predictions?horizon=2")).json() as { forecasts: { horizon: { p50: number }[] }[] };
+      expect(json.forecasts[0].horizon.map((p) => p.p50)).toEqual([10, 20]);
+    } finally { vi.mocked(store.getTwinState).mockResolvedValue([]); }
+  });
+});

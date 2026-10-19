@@ -187,3 +187,20 @@ describe("health: getSystemStatus + isCircuitOpen", () => {
     expect(isCircuitOpen(name)).toBe(false);
   });
 });
+
+describe("health data coverage honesty", () => {
+  it("reports unknown before any adapter has been observed", async () => {
+    const { vi } = await import("vitest");
+    vi.resetModules();
+    const fresh = await import("./health");
+    expect(fresh.getSystemStatus().status).toBe("unknown");
+    fresh.recordAdapterError("never-worked", "upstream unavailable");
+    expect(fresh.getAdapterHealth("never-worked").status).toBe("degraded");
+    expect(fresh.getSystemStatus().status).not.toBe("healthy");
+  });
+  it("does not mark a successful response containing stale data healthy", () => {
+    const name = nextName("stale-success");
+    recordAdapterSuccess(name, 120);
+    expect(getAdapterHealth(name).status).toBe("degraded");
+  });
+});

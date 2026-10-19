@@ -126,7 +126,7 @@ function nthLineEnd(text: string, n: number): number {
 export function windowStats(
   w: DayWindow,
   box: { lngMin: number; lngMax: number; latMin: number; latMax: number },
-): { meanMm: number; maxMm: number } {
+): { meanMm: number; maxMm: number; validCells: number } {
   let sum = 0;
   let max = 0;
   let n = 0;
@@ -137,14 +137,14 @@ export function windowStats(
       const lng = w.lngMin + (c + 0.5) * w.cellDeg;
       if (lng < box.lngMin || lng > box.lngMax) continue;
       const v = w.valuesMm[r * w.ncols + c];
-      if (v < 0) continue;
+      if (!Number.isFinite(v) || v < 0) continue;
       sum += v;
       if (v > max) max = v;
       n++;
     }
   }
-  if (n === 0) return { meanMm: 0, maxMm: 0 };
-  return { meanMm: Math.round((sum / n) * 10) / 10, maxMm: Math.round(max * 10) / 10 };
+  if (n === 0) return { meanMm: 0, maxMm: 0, validCells: 0 };
+  return { meanMm: Math.round((sum / n) * 10) / 10, maxMm: Math.round(max * 10) / 10, validCells: n };
 }
 
 interface WrfRun {

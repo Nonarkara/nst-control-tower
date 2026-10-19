@@ -200,3 +200,37 @@ describe("gaugeHistory", () => {
     expect(riseRatePerHour("g", t)).toBeCloseTo(0.6);
   });
 });
+
+// Missing observations are unknown quantities, not zero-rain evidence.
+describe("basin ledger input coverage", () => {
+  const city = BASINS.find((b) => b.basinId === "city_tha_dee")!;
+  test("missing rainfall and forecast never produce a reassuring stress band", async () => {
+    const { buildBasinLedger } = await import("./waterBalance.js");
+    const ledger = buildBasinLedger(city, { gauges: [], rain: [], reservoirs: [], ews: [], wrf: null, tideFactor: null });
+    expect(ledger.horizons.every((h) => h.band === "unknown" && h.stressLo === null && h.stressHi === null)).toBe(true);
+    expect(ledger.wetness).toBe("unknown");
+    expect(ledger.suggestedScenarioM).toBeNull();
+    expect(ledger.verdictEn).toContain("inputs incomplete");
+  });
+  test("measured official danger remains visible even when the model lacks inputs", async () => {
+    const { buildBasinLedger } = await import("./waterBalance.js");
+    const ledger = buildBasinLedger(city, { gauges: [{ id: "danger", stationCode: "X.203", situationLevel: 5, observedAt: new Date().toISOString(), levelMsl: 10, bankMsl: 9, trend: "rising", amphoe: "เมืองนครศรีธรรมราช" } as import("@nst/shared").WaterGauge], rain: [], reservoirs: [], ews: [], wrf: null, tideFactor: null });
+    expect(ledger.horizons[0].band).toBe("unknown");
+    expect(ledger.verdictEn).toContain("exceeds drainage capacity");
+  });
+});
+
+describe("forecast grid coverage", () => {
+  test("zero measured rain can be assessed, while NODATA or missing days cannot", async () => {
+    const { buildBasinLedger } = await import("./waterBalance.js");
+    const city = BASINS.find((b) => b.basinId === "city_tha_dee")!;
+    const grid = { lngMin: 99.7, latMax: 8.5, cellDeg: 0.1, nrows: 1, ncols: 1, valuesMm: [0] };
+    const inputs = { gauges: [], rain: [{ amphoe: "ลานสกา", rain24h: 0 }], reservoirs: [], ews: [], wrf: { runId: "test", fetchedAt: new Date().toISOString(), days: [grid, grid, grid] }, tideFactor: 0.75 };
+    expect(buildBasinLedger(city, inputs).horizons.every((h) => h.band === "ok")).toBe(true);
+    expect(buildBasinLedger(city, { ...inputs, tideFactor: null }).horizons[0].band).toBe("unknown");
+    const missing = buildBasinLedger(city, { ...inputs, wrf: { ...inputs.wrf, days: [grid, null, grid] } });
+    expect(missing.horizons.map((h) => h.band)).toEqual(["ok", "unknown", "unknown"]);
+    const nodata = { ...grid, valuesMm: [-1] };
+    expect(buildBasinLedger(city, { ...inputs, wrf: { ...inputs.wrf, days: [nodata, nodata, nodata] } }).horizons[0].band).toBe("unknown");
+  });
+});

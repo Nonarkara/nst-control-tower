@@ -1,3 +1,4 @@
+import { isNstNewsText } from "@nst/shared";
 import type { IntelligenceItem, NormalizedFeed } from "@nst/shared";
 import { cacheAgeMinutes, cachedWithStale as cached } from "../lib/cache.js";
 import { fetchTextOrNull } from "./common.js";
@@ -169,6 +170,7 @@ const KNOWN_PLACES: KnownPlace[] = [
 ];
 
 function extractLocation(text: string): { lat: number; lng: number; placeName: string } | null {
+  if (!isNstNewsText(text)) return null;
   const lower = text.toLowerCase();
   for (const place of KNOWN_PLACES) {
     for (const alias of place.aliases) {

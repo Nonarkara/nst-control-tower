@@ -348,7 +348,7 @@ export function dropSilent<T extends { observedAt: string }>(rows: T[], nowMs: n
   const cutoff = nowMs - SILENT_AFTER_H * 3_600_000;
   const live = rows.filter((r) => {
     const t = Date.parse(r.observedAt);
-    return Number.isFinite(t) && t >= cutoff;
+    return Number.isFinite(t) && t >= cutoff && t <= nowMs + 5 * 60_000;
   });
   return { live, silent: rows.length - live.length };
 }

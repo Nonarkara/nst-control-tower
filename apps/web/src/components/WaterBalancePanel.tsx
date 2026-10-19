@@ -22,7 +22,7 @@ const BAND_LABEL: Record<BasinStressBand, { th: string; en: string }> = {
   ok: { th: "รับได้", en: "ABSORBS" },
   tight: { th: "ใกล้เต็ม", en: "TIGHT" },
   overflow: { th: "เกินความจุ", en: "OVERFLOW" },
-  unknown: { th: "ไม่ทราบความจุ", en: "NO CAPACITY DATA" },
+  unknown: { th: "ข้อมูลไม่ครบ", en: "INCOMPLETE INPUTS" },
 };
 
 export function fmtVolume(m3: number): string {
@@ -34,7 +34,7 @@ export function fmtVolume(m3: number): string {
 function StressBar({ b }: { b: BasinWaterBalance }) {
   const h = b.horizons[0];
   const cap = (h.conveyanceM3 ?? 0) + h.reservoirHeadroomM3;
-  if (cap <= 0) return null;
+  if (cap <= 0 || h.band === "unknown") return null;
   // Inflow bar scaled against total absorption capacity (=100 %).
   const loPct = Math.min(140, (h.inflowM3Lo / cap) * 100);
   const hiPct = Math.min(140, (h.inflowM3Hi / cap) * 100);
@@ -112,7 +112,7 @@ export function WaterBalancePanel({ basins, ageMinutes, fallbackTier, note, onOp
               <p className="flood-meta">
                 {h.stressLo != null && h.stressHi != null
                   ? `${h.stressLo.toFixed(2)}–${h.stressHi.toFixed(2)}× capacity`
-                  : "capacity unpublished — live banks only"}
+                  : "inputs incomplete — read live bank levels"}
                 {b.chokeStationCode && b.chokeUtilizationPct != null && (
                   <> · choke {b.chokeStationCode} {b.chokeUtilizationPct}%</>
                 )}

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, afterEach } from "vitest";
+import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
 import { bangkokIso, mapRelayRain, mapRelayWater, nearestAmphoe, SILENT_AFTER_H, type RelayWater } from "./floodDashRelay";
 import { dropSilent, fetchWaterGauges, fetchRainfall } from "./thaiwater";
 
@@ -7,6 +7,9 @@ import { dropSilent, fetchWaterGauges, fetchRainfall } from "./thaiwater";
  * Cloudflare's egress (2026-09-28: zero gauges on the Worker while five NST
  * stations were at situation level 4).
  */
+
+beforeEach(() => { vi.useFakeTimers({ toFake: ["Date"] }); vi.setSystemTime(new Date("2026-09-28T10:01:00Z")); });
+afterEach(() => vi.useRealTimers());
 
 function water(over: Partial<RelayWater> = {}): RelayWater {
   return {
@@ -31,6 +34,7 @@ describe("bangkokIso", () => {
   });
   it("garbage → null, not a fake 'now'", () => {
     expect(bangkokIso("not a date")).toBeNull();
+    expect(bangkokIso("invalidZ")).toBeNull();
     expect(bangkokIso(null)).toBeNull();
   });
 });
@@ -128,5 +132,17 @@ describe("fallback wiring: ThaiWater down → FloodDash relay", () => {
     const rain = await fetchRainfall();
     expect(rain.meta.source).toContain("flooddash");
     expect(rain.features[0]!.rain24h).toBe(40);
+  });
+});
+
+
+describe("relay observation clock", () => {
+  it("drops frozen relay observations even when cached age_min still says fresh", () => {
+    const stale = water({ age_min: 1, obs_time: "2026-09-28T01:00:00Z" });
+    expect(mapRelayWater([stale]).silent).toBe(1);
+    expect(mapRelayRain([{ ...stale, rain_24h: 0 }]).silent).toBe(1);
+  });
+  it("rejects future and malformed timestamps without killing healthy stations", () => {
+    expect(mapRelayWater([water({ obs_time: "invalidZ" }), water({ obs_time: "2026-09-29T01:00:00Z" }), water()]).gauges).toHaveLength(1);
   });
 });

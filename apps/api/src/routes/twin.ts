@@ -216,26 +216,41 @@ const FORECAST_METRICS = [
 ] as const;
 
 twinApp.get("/predictions", async (c) => {
-  // Only return forecasts generated in the last 2 hours (stale = Python service down)
-  const since = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
-  const horizon = Math.min(parseInt(c.req.query("horizon") ?? "24", 10) || 24, 48);
+  const now = Date.now();
+  const generatedSince = now - 2 * 60 * 60 * 1000;
+  const requested = Number(c.req.query("horizon") ?? 24);
+  const horizon = Number.isInteger(requested) ? Math.max(1, Math.min(requested, 48)) : 24;
 
   const forecasts = await Promise.all(
     FORECAST_METRICS.map(async (fm) => {
       const items = await getTwinState({
         objectId: "city",
         metric: fm.key,
-        since,
-        limit: horizon,
+        since: new Date(now).toISOString(),
+        until: new Date(now + 48 * 60 * 60 * 1000).toISOString(),
+        limit: 5000,
       });
-      const props0 = items[0]?.properties as Record<string, unknown> | null;
+      // `time` is the prediction target, not when the model ran. Future targets
+      // from a dead producer must expire, and overlapping runs must not mix.
+      const current = items.filter((pt) => {
+        const generated = Date.parse(String(pt.properties?.generated_at ?? ""));
+        const target = new Date(pt.time).getTime();
+        return Number.isFinite(pt.value) && Number.isFinite(generated)
+          && generated >= generatedSince && generated <= now + 5 * 60_000
+          && target >= now && target <= now + 48 * 60 * 60 * 1000;
+      });
+      const latest = Math.max(...current.map((pt) => Date.parse(String(pt.properties?.generated_at))));
+      const points = current.filter((pt) => Date.parse(String(pt.properties?.generated_at)) === latest)
+        .sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime())
+        .filter((pt, i, all) => i === 0 || new Date(pt.time).getTime() !== new Date(all[i - 1].time).getTime())
+        .slice(0, horizon);
       return {
         metric: fm.key,
         label:  fm.label,
         unit:   fm.unit,
         alertThreshold: fm.alertThreshold,
-        generatedAt: props0?.generated_at ?? null,
-        horizon: items.map((pt) => {
+        generatedAt: points.length ? new Date(latest).toISOString() : null,
+        horizon: points.map((pt) => {
           const p = pt.properties as Record<string, number> | null;
           return { time: pt.time, p50: pt.value, p10: p?.p10 ?? null, p90: p?.p90 ?? null };
         }),

@@ -299,8 +299,8 @@ function verdictFor(
   }
   if (band === "unknown") {
     return {
-      th: "ประเมินอัตราส่วนไม่ได้ (ไม่มีข้อมูลความจุทางออก) — ดูระดับตลิ่งจริงประกอบ",
-      en: "Stress ratio unavailable (outlet capacity unpublished) — read live bank levels instead",
+      th: "ประเมินอัตราส่วนไม่ได้ (ข้อมูลน้ำฝน น้ำทะเล หรือความจุทางออกไม่ครบ) — ดูระดับตลิ่งจริงประกอบ",
+      en: "Stress ratio unavailable (rain, tide or outlet inputs incomplete) — read live bank levels instead",
     };
   }
   return {
@@ -391,7 +391,7 @@ interface LedgerInputs {
   tideFactor: number | null;
 }
 
-function buildBasinLedger(cfg: BasinConfig, inputs: LedgerInputs): BasinWaterBalance {
+export function buildBasinLedger(cfg: BasinConfig, inputs: LedgerInputs): BasinWaterBalance {
   const assumptions: string[] = [
     `catchment ${cfg.areaKm2} km² — ${cfg.areaProvenance}`,
     "bathtub-style first-order balance: no routing, no drainage-network dynamics",
@@ -429,15 +429,16 @@ function buildBasinLedger(cfg: BasinConfig, inputs: LedgerInputs): BasinWaterBal
   const rain24 = inputs.rain
     .filter((r) => matchesAmphoe(r.amphoe, cfg.amphoeKeys))
     .map((r) => r.rain24h)
-    .filter((v): v is number => v != null);
+    .filter((v): v is number => v != null && Number.isFinite(v) && v >= 0);
   const rainObservedMm = mean(rain24) ?? 0;
-  if (rain24.length === 0) assumptions.push("no rain telemetry matched this basin — observed rain counted as 0");
+  if (rain24.length === 0) assumptions.push("no rain telemetry matched this basin — observed rain subtotal is incomplete; stress unavailable");
 
   const wrfDays = [1, 2, 3].map((d) => {
     const w = inputs.wrf?.days[d - 1];
-    return w ? windowStats(w, cfg.wrfBox).meanMm : null;
+    const stats = w ? windowStats(w, cfg.wrfBox) : null;
+    return stats && stats.validCells > 0 ? stats.meanMm : null;
   });
-  if (inputs.wrf == null) assumptions.push("WRF-ROMS forecast unavailable — forecast rain counted as 0");
+  if (inputs.wrf == null) assumptions.push("WRF-ROMS forecast unavailable — forecast subtotal is incomplete; stress unavailable");
 
   // ── Wetness → runoff C ──
   const soil = mean(
@@ -447,7 +448,7 @@ function buildBasinLedger(cfg: BasinConfig, inputs: LedgerInputs): BasinWaterBal
       .filter((v): v is number => v != null),
   );
   let wetness = wetnessFromSoil(soil);
-  if (wetness === "unknown") {
+  if (wetness === "unknown" && rain24.length > 0) {
     wetness = wetnessFromRain24h(rainObservedMm);
     assumptions.push("no soil telemetry — ground wetness inferred from 24 h rain");
   }
@@ -463,7 +464,7 @@ function buildBasinLedger(cfg: BasinConfig, inputs: LedgerInputs): BasinWaterBal
   const qmax = choke?.qmaxCms ?? cfg.chokeQmaxFallback;
   const tideFactor = cfg.tidal ? inputs.tideFactor : null;
   if (cfg.tidal && inputs.tideFactor == null) {
-    assumptions.push("tide data unavailable — drainage not derated for high tide");
+    assumptions.push("tide data unavailable — conveyance is an ungated upper bound; stress unavailable");
   } else if (cfg.tidal && tideFactor != null) {
     assumptions.push(`tide gating ×${tideFactor} (share of next 24 h below median sea level)`);
   }
@@ -504,8 +505,12 @@ function buildBasinLedger(cfg: BasinConfig, inputs: LedgerInputs): BasinWaterBal
     const conveyance =
       qmax != null ? qmax * (tideFactor ?? 1) * h * 3600 : null;
     const denom = conveyance != null ? conveyance + knownHeadroomM3 : null;
-    const stressLo = denom != null && denom > 0 ? Math.round((inflowLo / denom) * 100) / 100 : null;
-    const stressHi = denom != null && denom > 0 ? Math.round((inflowHi / denom) * 100) / 100 : null;
+    const completeInputs = rain24.length > 0
+      && wrfDays.slice(0, daysIn).every((v) => v != null && Number.isFinite(v) && v >= 0)
+      && (!cfg.tidal || tideFactor != null);
+    if (!completeInputs) assumptions.push(`${h} h stress unavailable — missing basin rain, forecast coverage or tide`);
+    const stressLo = completeInputs && denom != null && denom > 0 ? Math.round((inflowLo / denom) * 100) / 100 : null;
+    const stressHi = completeInputs && denom != null && denom > 0 ? Math.round((inflowHi / denom) * 100) / 100 : null;
     return {
       horizonH: h,
       rainObservedMm: Math.round(rainObservedMm * 10) / 10,
@@ -537,7 +542,7 @@ function buildBasinLedger(cfg: BasinConfig, inputs: LedgerInputs): BasinWaterBal
   let suggestedScenarioM: number | null = null;
   if (cfg.basinId === "city_tha_dee") {
     const h24 = horizons[0];
-    if (h24.conveyanceM3 != null) {
+    if (h24.conveyanceM3 != null && h24.band !== "unknown") {
       const overflow = h24.inflowM3Hi - (h24.conveyanceM3 + h24.reservoirHeadroomM3);
       if (overflow > 0) {
         const depth = overflow / (CITY_SINK_KM2 * 1e6);

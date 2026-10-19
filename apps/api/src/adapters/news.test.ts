@@ -617,3 +617,18 @@ describe("news adapter — parseDate fallback (isolated)", () => {
     vi.restoreAllMocks();
   });
 });
+
+describe("news location evidence", () => {
+  it("does not geolocate international airports or city halls to NST", async () => {
+    vi.resetModules();
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(makeRss([
+      { title: "Afghanistan airport road opens near city hall", link: "https://example.com/wakhan" },
+    ]), { status: 200 }));
+    try {
+      const { fetchNews: fresh } = await import("./news");
+      const result = await fresh();
+      expect(result.features).toHaveLength(1);
+      expect(result.features[0]).toMatchObject({ lat: null, lng: null, placeName: null });
+    } finally { vi.restoreAllMocks(); }
+  });
+});

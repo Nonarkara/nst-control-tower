@@ -40,7 +40,7 @@ export function getAdapterHealth(name: string): AdapterHealth {
 
 export function recordAdapterSuccess(name: string, ageMinutes?: number) {
   const h = getAdapterHealth(name);
-  h.status = "healthy";
+  h.status = ageMinutes != null && ageMinutes > STALE_MINUTES ? "degraded" : "healthy";
   h.lastSuccessAt = new Date().toISOString();
   h.consecutiveFailures = 0;
   h.totalCalls++;
@@ -63,7 +63,7 @@ export function recordAdapterError(name: string, message: string) {
   } else {
     // If previously healthy but stale, keep degraded
     const stale = h.ageMinutes !== null && h.ageMinutes > STALE_MINUTES;
-    h.status = stale ? "degraded" : h.status === "down" ? "degraded" : "healthy";
+    h.status = !h.lastSuccessAt || stale || h.status === "degraded" || h.status === "down" ? "degraded" : "healthy";
   }
   HEALTH.set(name, h);
 }
@@ -90,8 +90,8 @@ export function getSystemStatus(): { status: AdapterStatus; healthy: number; deg
   const down = all.filter((a) => a.status === "down").length;
   const total = all.length;
 
-  let status: AdapterStatus = "healthy";
-  if (down > 0) status = "degraded";
+  let status: AdapterStatus = total === 0 ? "unknown" : "healthy";
+  if (down > 0 || degraded > 0) status = "degraded";
   if (down > total * 0.3 || degraded + down > total * 0.5) status = "down";
 
   return { status, healthy, degraded, down, total };

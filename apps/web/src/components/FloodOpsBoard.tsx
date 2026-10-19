@@ -20,7 +20,7 @@ const BAND_TH: Record<BasinStressBand, string> = {
   ok: "รับได้",
   tight: "ใกล้เต็มความจุ",
   overflow: "เกินความจุ",
-  unknown: "ไม่ทราบความจุทางออก",
+  unknown: "ข้อมูลไม่ครบ",
 };
 
 /** Channel fullness % → status (≥ 85 critical, ≥ 60 warning). */
@@ -72,8 +72,8 @@ function BasinCard({
       <dl className="ops-ledger">
         <div>
           <dt className="ops-ledger-label">น้ำเข้า 24 ชม. <span lang="en">(IN)</span></dt>
-          <dd className="num"><b>{fmtVolume(h24.inflowM3Lo)} – {fmtVolume(h24.inflowM3Hi)}</b></dd>
-          <dd className="ops-ledger-label">ฝนตกแล้ว {h24.rainObservedMm} มม. + คาดการณ์ {h24.rainForecastMm} มม.</dd>
+          <dd className="num"><b>{h24.band === "unknown" ? "ข้อมูลไม่ครบ / Incomplete inputs" : `${fmtVolume(h24.inflowM3Lo)} – ${fmtVolume(h24.inflowM3Hi)}`}</b></dd>
+          {h24.band !== "unknown" && <dd className="ops-ledger-label">ฝนตกแล้ว {h24.rainObservedMm} มม. + คาดการณ์ {h24.rainForecastMm} มม.</dd>}
         </div>
         <div>
           <dt className="ops-ledger-label">ระบาย+เก็บได้ <span lang="en">(OUT+STORE)</span></dt>

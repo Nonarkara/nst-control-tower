@@ -1,3 +1,4 @@
+import { isNstNewsText } from "@nst/shared";
 import type { IntelligenceItem } from "@nst/shared";
 import { safeUrl } from "../lib/safeUrl";
 import { PanelHeader } from './PanelHeader';
@@ -18,12 +19,9 @@ const ACTION_TAG: Record<string, { label: string; glyph: string; do: string; cri
   PU: { label: "Public health",    glyph: "✚", do: "visit / congratulate staff" },
 };
 
-// A story is "local" when it names the city, the province or one of its
-// districts — or when the geocoder pinned it to a known NST place.
-const LOCAL_RE = /นครศรีธรรมราช|นครศรีฯ|นครฯ|nakhon\s*si\s*thammarat|ปากพนัง|pak\s*phanang|ทุ่งสง|thung\s*song|ลานสกา|lan\s*saka|คีรีวง|khiri\s*wong|ท่าศาลา|tha\s*sala|สิชล|sichon|ขนอม|khanom|ร่อนพิบูลย์|ชะอวด|cha\s*uat|หัวไทร|hua\s*sai/i;
-
+// Coordinates alone may come from legacy ambiguous geocoding or browser cache.
 export function isLocalStory(it: Pick<IntelligenceItem, "title" | "summary" | "lat">): boolean {
-  return it.lat != null || LOCAL_RE.test(`${it.title} ${it.summary ?? ""}`);
+  return isNstNewsText(`${it.title} ${it.summary ?? ""}`);
 }
 
 const ACTIONABLE_LIMIT = 8;
@@ -55,7 +53,7 @@ export function NewsDesk({ items, loading, ageMinutes, onRefresh }: Props) {
   const actionable = rest.filter((it) => it.tags && it.tags.length > 0).slice(0, ACTIONABLE_LIMIT);
   const others = rest.filter((it) => !it.tags || it.tags.length === 0).slice(0, OTHER_LIMIT);
   const visible = [...local, ...actionable, ...others].slice(0, VISIBLE_LIMIT);
-  const title = local.length > 0 ? `NEWS · ${local.length} ABOUT NAKHON SI THAMMARAT` : "NEWS · THAILAND";
+  const title = local.length > 0 ? `NEWS · ${local.length} ABOUT NAKHON SI THAMMARAT` : "NEWS · NATIONAL & WORLD";
 
   return (
     <section className="panel" aria-label="News" aria-busy={loading}>

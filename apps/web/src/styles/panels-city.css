@@ -993,9 +993,9 @@ button.pred-strip:hover { background: var(--ground); border-color: var(--line); 
 
 /* Lens names are words now ("Environment", not "ENV"): as many columns as
    fit whole words, left-aligned so the disc never collides with the text. */
-.lens { grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr)); }
+.lens { grid-template-columns: repeat(auto-fill, minmax(min(100%, 10rem), 1fr)); }
 .lens button { justify-content: flex-start; min-width: 0; padding-inline: var(--s-2); line-height: 1.2; }
-.lens__label { min-width: 0; text-align: left; overflow-wrap: anywhere; }
+.lens__label { min-width: 0; text-align: left; overflow-wrap: normal; }
 .sit-bar__scale { font-size: var(--text-xs); color: var(--ink-3); }
 
 /* ── Who to move first ── */
@@ -1039,3 +1039,8 @@ button.pred-strip:hover { background: var(--ground); border-color: var(--line); 
   color: var(--ink);
 }
 .chat-emergency p { margin: 0; }
+
+/* The tablet map is too narrow for action buttons and centered search on one row. */
+@media (min-width: 769px) and (max-width: 1200px) {
+  .building-search { top: calc(var(--s-3) + 3rem); width: min(420px, calc(100% - 2 * var(--s-3))); }
+}

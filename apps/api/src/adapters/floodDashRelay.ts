@@ -63,7 +63,10 @@ export interface RelayResponse {
 /** FloodDash obs_time is Asia/Bangkok wall time without an offset ("2026-09-28T16:40"). */
 export function bangkokIso(obs: string | null): string | null {
   if (!obs) return null;
-  if (/[zZ]|[+-]\d\d:?\d\d$/.test(obs)) return new Date(obs).toISOString();
+  if (/[zZ]|[+-]\d\d:?\d\d$/.test(obs)) {
+    const explicit = new Date(obs);
+    return Number.isFinite(explicit.getTime()) ? explicit.toISOString() : null;
+  }
   const withSeconds = /T\d\d:\d\d$/.test(obs) ? `${obs}:00` : obs;
   const d = new Date(`${withSeconds.replace(" ", "T")}+07:00`);
   return Number.isNaN(d.getTime()) ? null : d.toISOString();
@@ -83,8 +86,13 @@ export function nearestAmphoe(lat: number, lng: number): string {
   return best;
 }
 
-function isSilent(ageMin: number | null): boolean {
-  return ageMin == null || ageMin > SILENT_AFTER_H * 60;
+function isSilent(ageMin: number | null, observedAt: string | null): boolean {
+  const actualAge = observedAt ? (Date.now() - Date.parse(observedAt)) / 60_000 : NaN;
+  // A cached relay envelope can carry an old age_min forever. The actual
+  // observation timestamp remains authoritative, with five minutes of clock skew.
+  return ageMin == null || !Number.isFinite(ageMin) || ageMin < -5
+    || ageMin > SILENT_AFTER_H * 60 || !Number.isFinite(actualAge)
+    || actualAge < -5 || actualAge > SILENT_AFTER_H * 60;
 }
 
 /**
@@ -113,7 +121,7 @@ export function mapRelayWater(rows: RelayWater[]): { gauges: WaterGauge[]; silen
   for (const r of rows) {
     if (r.lat == null || r.lng == null) continue;
     const observedAt = bangkokIso(r.obs_time);
-    if (isSilent(r.age_min) || !observedAt) {
+    if (isSilent(r.age_min, observedAt) || !observedAt) {
       silent++;
       continue;
     }
@@ -152,7 +160,7 @@ export function mapRelayRain(rows: RelayRain[]): { stations: RainfallStation[]; 
   for (const r of rows) {
     if (r.lat == null || r.lng == null) continue;
     const observedAt = bangkokIso(r.obs_time);
-    if (isSilent(r.age_min) || !observedAt) {
+    if (isSilent(r.age_min, observedAt) || !observedAt) {
       silent++;
       continue;
     }
@@ -171,7 +179,7 @@ export function mapRelayRain(rows: RelayRain[]): { stations: RainfallStation[]; 
 }
 
 export async function fetchRelay(): Promise<RelayResponse> {
-  const body = await fetchJsonOrThrow<RelayResponse>(RELAY_URL);
+  const body = await fetchJsonOrThrow<RelayResponse>(RELAY_URL, undefined, 10_000);
   if (!Array.isArray(body?.water) || !Array.isArray(body?.rain)) {
     throw new Error("FloodDash relay returned an unexpected shape");
   }

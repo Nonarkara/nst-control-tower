@@ -155,7 +155,7 @@ function buildLayout(p: {
     labelTh: "เมืองนครศรีธรรมราช",
     sub: "Tha Dee at city",
     status: cityStatus,
-    reading: cityBasin
+    reading: cityBasin && cityBasin.horizons[0]?.band !== "unknown"
       ? `${(cityBasin.horizons[0]?.inflowM3Lo ?? 0) >= 1e6
           ? `${((cityBasin.horizons[0]!.inflowM3Lo) / 1e6).toFixed(1)}M`
           : `${Math.round((cityBasin.horizons[0]?.inflowM3Lo ?? 0) / 1000)}k`
