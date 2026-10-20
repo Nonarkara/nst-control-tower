@@ -18,7 +18,7 @@ interface PanelHeaderProps {
 /**
  * PanelHeader — standard section header for all dashboard panels.
  *
- * Shows the panel title (eyebrow style) on the left, and on the right:
+ * Shows the panel title first, followed by grouped metadata:
  * - source tag (if provided)
  * - tier warning badge (if not live)
  * - data-age freshness chip (color-coded: green < 5m, yellow < 2h, red > 2h)
@@ -34,31 +34,33 @@ export function PanelHeader({ title, ageMinutes, fallbackTier, source, actions }
     <div className="panel-hdr">
       <span className="eyebrow mono">{title}</span>
 
-      {source && (
-        <span className="panel-source-tag mono" title={`Data source: ${source}`}>
-          {source.toUpperCase()}
-        </span>
-      )}
+      <div className="panel-hdr__meta">
+        {source && (
+          <span className="panel-source-tag mono" title={`Data source: ${source}`}>
+            {source.toUpperCase()}
+          </span>
+        )}
 
-      {tl && (
-        <span
-          className={`panel-tier-warn mono${tier === 'unavailable' ? ' panel-tier-warn--crit' : ''}`}
-          title={`Data quality: ${tier} — not live`}
-        >
-          {tl}
-        </span>
-      )}
+        {tl && tier !== 'unavailable' && (
+          <span
+            className="panel-tier-warn mono"
+            title={`Data quality: ${tier} — not live`}
+          >
+            {tl}
+          </span>
+        )}
 
-      {(ageMinutes != null || tier === 'unavailable') && (
-        <span
-          className={`data-age mono ${ageClass(ageMinutes, tier)}`}
-          title={`Last updated: ${fmtAge(ageMinutes)} ago · tier: ${tier}`}
-        >
-          {tier === 'unavailable' ? 'OFFLINE' : fmtAge(ageMinutes)}
-        </span>
-      )}
+        {(ageMinutes != null || tier === 'unavailable') && (
+          <span
+            className={`data-age mono ${ageClass(ageMinutes, tier)}`}
+            title={`Last updated: ${fmtAge(ageMinutes)} ago · tier: ${tier}`}
+          >
+            {tier === 'unavailable' ? 'OFFLINE' : fmtAge(ageMinutes)}
+          </span>
+        )}
 
-      {actions}
+      </div>
+      {actions && <div className="panel-hdr__actions">{actions}</div>}
     </div>
   );
 }

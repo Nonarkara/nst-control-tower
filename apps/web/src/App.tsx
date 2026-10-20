@@ -2281,13 +2281,6 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
             full-screen map. Reflowed into readable blocks by CSS. ── */}
         {isMobile && (
           <div className="mobile-brief-top">
-            <MemoWorldStrip
-              hostAqi={aqiTrend.data[0]?.current.aqi ?? null}
-              hostPm25={aqiTrend.data[0]?.current.pm25 ?? null}
-              hostWeather={hostWeather}
-              hostPulse={hostPulse}
-              precipNowcast={precip.data[0] ?? null}
-            />
             <div className="mobile-brief-feeds" aria-label="Live data feed health">
               {feedHealth.map((f) => (
                 <span
@@ -2300,11 +2293,21 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
                 </span>
               ))}
             </div>
-            <div className="mobile-brief-actions">
+            <nav className="mobile-brief-actions" aria-label="Brief tools">
               <button className="mono flood-guide-toggle" onClick={() => setFloodGuideOpen(true)}>≋ FLOOD</button>
               <button className="mono" onClick={() => setCatalogOpen(true)}>SOURCES · {ALL_LAYERS.length}</button>
               <button className="mono" onClick={() => setAtlasOpen(true)}>◷ ATLAS</button>
-            </div>
+            </nav>
+            <details className="mobile-brief-context">
+              <summary>Weather &amp; city context</summary>
+              <MemoWorldStrip
+                hostAqi={aqiTrend.data[0]?.current.aqi ?? null}
+                hostPm25={aqiTrend.data[0]?.current.pm25 ?? null}
+                hostWeather={hostWeather}
+                hostPulse={hostPulse}
+                precipNowcast={precip.data[0] ?? null}
+              />
+            </details>
           </div>
         )}
         {!isMobile && (

@@ -16,13 +16,18 @@ test("tablet landmark search remains clear of map action buttons", async ({ page
   expect(overlaps).toEqual([]);
 });
 
-test("the Environment lens label fits a single line", async ({ page }) => {
+test("lens selection stays compact and leaves layer controls reachable", async ({ page }) => {
+  await page.setViewportSize({ width: 1024, height: 900 });
   await page.goto("/");
-  const label = page.locator(".lens__label").filter({ hasText: /^Environment$/i });
-  await expect(label).toBeVisible({ timeout: 20_000 });
-  const metrics = await label.evaluate((element) => {
-    const style = getComputedStyle(element);
-    return { height: element.getBoundingClientRect().height, lineHeight: parseFloat(style.lineHeight) };
+  const selector = page.getByRole("combobox", { name: "Lens", exact: true });
+  await selector.selectOption({ label: "Environment" });
+  await expect(selector).toHaveValue("environment");
+  const bounds = await selector.evaluate(el => {
+    const r = el.getBoundingClientRect();
+    const host = el.closest(".right-layers")!.getBoundingClientRect();
+    const layers = Array.from(el.closest(".col")!.querySelectorAll("h2")).find(x => x.textContent === "Layers")!.getBoundingClientRect();
+    return { height: r.height, bottom: layers.bottom, hostBottom: host.bottom };
   });
-  expect(metrics.height).toBeLessThanOrEqual(metrics.lineHeight + 1);
+  expect(bounds.height).toBeLessThan(60);
+  expect(bounds.bottom).toBeLessThanOrEqual(bounds.hostBottom);
 });

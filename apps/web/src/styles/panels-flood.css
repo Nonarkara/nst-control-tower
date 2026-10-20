@@ -203,7 +203,7 @@
 
 /* ── 5. FloodRiskPanel ───────────────────────────────────────────────── */
 
-.flood-risk-chips { margin: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--s-2); }
+.flood-risk-chips { margin: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s-2); }
 .flood-risk-chip { display: flex; flex-direction: column; gap: var(--s-1); padding: var(--s-2); border: 1px solid var(--line); border-top-width: 3px; min-width: 0; }
 .flood-risk-chip dd { margin: 0; }
 .flood-risk-chip__count { font-size: var(--text-lg); font-weight: var(--weight-bold); line-height: 1.1; color: var(--ink); }
@@ -307,8 +307,8 @@
 /* ── 9. WaterBalancePanel ────────────────────────────────────────────── */
 
 .wb-row { display: flex; flex-direction: column; gap: var(--s-1); padding: var(--s-2) 0; border-bottom: 1px solid var(--line); }
-.water-bal-head { display: flex; align-items: baseline; gap: var(--s-2); min-width: 0; }
-.water-bal-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--text-sm); font-weight: var(--weight-bold); color: var(--ink); }
+.water-bal-head { display: flex; flex-direction: column; align-items: flex-start; gap: var(--s-2); min-width: 0; }
+.water-bal-name { flex: 1; min-width: 0; white-space: normal; overflow-wrap: anywhere; font-size: var(--text-sm); font-weight: var(--weight-bold); color: var(--ink); }
 .water-bal-band { flex: none; font-size: var(--text-xs); }
 .water-bal-bar { position: relative; height: var(--s-2); background: var(--ground); overflow: hidden; }
 .water-bal-bar__in { position: absolute; top: 0; bottom: 0; left: 0; opacity: 0.35; }

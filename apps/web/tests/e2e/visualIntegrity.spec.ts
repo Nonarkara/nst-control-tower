@@ -13,6 +13,14 @@ for (const width of [1440, 1024, 390]) {
     await page.goto("/");
     if (width < 900) await page.getByRole("tab", { name: /^BRIEF/ }).click();
     const situation = page.getByRole("region", { name: "Sensor situation", exact: true });
+    const header = situation.locator(".panel-hdr").first();
+    const headerGeometry = await header.evaluate(el => {
+      const title = el.querySelector(":scope > .eyebrow")!.getBoundingClientRect();
+      const meta = el.querySelector(".panel-hdr__meta")!.getBoundingClientRect();
+      return { titleBottom: title.bottom, metaTop: meta.top, width: el.clientWidth, content: el.scrollWidth };
+    });
+    expect(headerGeometry.metaTop).toBeGreaterThanOrEqual(headerGeometry.titleBottom);
+    expect(headerGeometry.content).toBeLessThanOrEqual(headerGeometry.width);
     const water = situation.locator(".reference-gauge").filter({ hasText: "Fullest channel" });
     await expect(water).toContainText("4.4 percentage points below Bank", { timeout: 15_000 });
     await expect(water.locator('[data-threshold="100"]')).toBeVisible();
@@ -31,6 +39,16 @@ for (const width of [1440, 1024, 390]) {
     const rain = situation.locator(".reference-gauge").filter({ hasText: "Most rain in 24 h" });
     await expect(rain).toContainText("Very heavy: reached; 14.1 mm above");
     if (width < 900) {
+      const context = page.locator(".mobile-brief-context");
+      await expect(context).not.toHaveAttribute("open", "");
+      await expect(context.locator(".world-strip")).not.toBeVisible();
+      const tools = page.getByRole("navigation", { name: "Brief tools" });
+      const actionTops = await tools.getByRole("button").evaluateAll(items => items.map(el => Math.round(el.getBoundingClientRect().top)));
+      expect(new Set(actionTops).size).toBe(1);
+      expect(await tools.evaluate(el => el.getBoundingClientRect().height)).toBeLessThan(70);
+      await context.locator("summary").click();
+      await expect(context.locator(".world-strip")).toBeVisible();
+      await context.locator("summary").click();
       const row = page.locator(".mobile-brief-feeds");
       const bounds = await row.locator(".feed-chip").evaluateAll(items => items.map(x => x.getBoundingClientRect().top));
       expect(new Set(bounds.map(Math.round)).size).toBe(1);
@@ -39,9 +57,10 @@ for (const width of [1440, 1024, 390]) {
     }
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     if (process.env.SPATIAL_SCREENSHOTS) {
-      const dir = resolve("../../var/spatial-integrity-2026-10-20"); mkdirSync(dir, { recursive: true });
+      const dir = resolve("../../var/spatial-integrity-2026-10-21"); mkdirSync(dir, { recursive: true });
       if (width < 900) await page.locator(".mobile-brief-feeds").screenshot({ path: `${dir}/feeds-${width}.png` });
       await situation.screenshot({ path: `${dir}/gauges-${width}.png` });
+      await page.locator(".left-bar").evaluate(el => { el.scrollTop = 0; });
       await page.screenshot({ path: `${dir}/page-${width}.png` });
     }
     if (width === 1440) {

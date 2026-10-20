@@ -34,11 +34,10 @@ export async function ensureSectionOpen(
 /** Switch lens by its visible label (Executive / Operations / Flood / Satellite …).
  *  Case-insensitive: the labels are title-case in the DOM, uppercased by CSS. */
 export async function selectLens(page: Page, label: string) {
-  const button = page.locator(".lens").locator("button", { hasText: new RegExp(`^${label}$`, "i") });
-  // Lens buttons sit in the top bar — same WebGL starvation can stall pointer
-  // clicks after a prior FLOOD visit in the same worker; DOM click is fine.
-  await button.evaluate((el) => (el as HTMLButtonElement).click());
-  await expect(button).toHaveAttribute("aria-pressed", "true", { timeout: 30_000 });
+  const selector = page.getByRole("combobox", { name: "Lens", exact: true });
+  const option = selector.getByRole("option", { name: new RegExp(`^${label}$`, "i") });
+  await selector.selectOption(await option.getAttribute("value") as string);
+  await expect(selector.locator("option:checked")).toHaveText(new RegExp(`^${label}$`, "i"), { timeout: 30_000 });
   // Lens switches remount the rail. Wait for at least one section header so
   // ensureSectionOpen isn't racing the unmount of the previous lens.
   await expect(page.locator(".sidebar-section__hdr").first()).toBeVisible({ timeout: 15_000 });

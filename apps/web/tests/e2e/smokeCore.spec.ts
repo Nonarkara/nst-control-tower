@@ -38,22 +38,14 @@ test.describe("Dashboard boot", () => {
 });
 
 test.describe("Lens switching", () => {
-  test("INT and FLOOD lens buttons toggle aria-pressed", async ({ page }) => {
+  test("Forecast and Flood lens selection updates the map view", async ({ page }) => {
     await page.goto("/");
     await expect(page.locator(".map-host")).toBeVisible({ timeout: 20_000 });
-
-    // Lens buttons are named by their visible label (EXEC / OPS / MOB / FLOOD / etc.);
-    // the long description is aria-describedby. Match by exact text inside .lens container.
-    const lensPalette = page.locator(".lens");
-    const intButton = lensPalette.locator("button", { hasText: /^Forecast$/i });
-    const floodButton = lensPalette.locator("button", { hasText: /^Flood$/i });
-
+    const selector = page.getByRole("combobox", { name: "Lens", exact: true });
     await selectLens(page, "Forecast");
-    await expect(intButton).toHaveAttribute("aria-pressed", "true");
-
+    await expect(selector).toHaveValue("intelligence");
     await selectLens(page, "Flood");
-    await expect(floodButton).toHaveAttribute("aria-pressed", "true");
-    await expect(intButton).toHaveAttribute("aria-pressed", "false");
+    await expect(selector).toHaveValue("flood");
   });
 });
 
@@ -121,11 +113,8 @@ test.describe("EXEC lens — executive briefing header", () => {
     await page.goto("/");
     await expect(page.locator(".map-host")).toBeVisible({ timeout: 20_000 });
 
-    // ExecutiveBriefing IS gated by lens === "executive". Lens buttons are named by their
-    // visible label; hasText keeps the match exact against the text content.
-    const execButton = page.locator(".lens").locator("button", { hasText: /^Executive$/i });
-    await execButton.click();
-    await expect(execButton).toHaveAttribute("aria-pressed", "true");
+    await selectLens(page, "Executive");
+    await expect(page.getByRole("combobox", { name: "Lens", exact: true })).toHaveValue("executive");
 
     // ExecutiveBriefing renders "EXECUTIVE BRIEF" as its PanelHeader title
     await expect(page.getByText(/EXECUTIVE BRIEF/i).first()).toBeVisible({ timeout: 15_000 });

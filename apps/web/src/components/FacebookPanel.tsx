@@ -11,6 +11,7 @@
  * data is shown above the iframe (richer formatting, action-tagged).
  */
 
+import { useState } from "react";
 import { PanelHeader } from "./PanelHeader";
 import type { FallbackTier } from "@nst/shared";
 import { ago } from "../lib/time";
@@ -47,6 +48,7 @@ function engagement(p: FbPost): string {
 }
 
 export function FacebookPanel({ posts, loading, ageMinutes, fallbackTier }: Props) {
+  const [timelineOpen, setTimelineOpen] = useState(false);
   const embedSrc = `https://www.facebook.com/plugins/page.php?` +
     `href=${encodeURIComponent(PAGE_URL)}` +
     `&tabs=timeline&width=320&height=${EMBED_HEIGHT}&locale=th_TH` +
@@ -86,26 +88,21 @@ export function FacebookPanel({ posts, loading, ageMinutes, fallbackTier }: Prop
         </ul>
       )}
 
-      {/* Meta's free page-plugin iframe — always works, no token needed.
-          Width sized to column minus a 12 px right gutter so it never
-          bleeds past the right edge of the news rail. Wrapper clips any
-          overflow so the iframe never pushes into adjacent layout zones. */}
-      <div className="fb-embed">
-        <iframe
-          className="fb-embed__frame"
-          src={embedSrc}
-          height={EMBED_HEIGHT}
-          title="Nakhon Si Thammarat City Facebook page timeline"
-          allow="encrypted-media"
-          loading="lazy"
-        />
-      </div>
-
+      <details className="fb-timeline" onToggle={event => setTimelineOpen(event.currentTarget.open)}>
+        <summary>View official Facebook timeline</summary>
+        {timelineOpen && <div className="fb-embed">
+          <iframe
+            className="fb-embed__frame"
+            src={embedSrc}
+            height={EMBED_HEIGHT}
+            title="Nakhon Si Thammarat City Facebook page timeline"
+            allow="encrypted-media"
+            loading="lazy"
+          />
+        </div>}
+      </details>
       {posts.length === 0 && !loading && (
-        <p className="pc-meta">
-          Live timeline above via Meta page plugin. For server-side tagged posts,
-          set <code>FACEBOOK_PAGE_TOKEN</code> in the API env.
-        </p>
+        <p className="pc-meta">Posts unavailable here. Open the official page or expand its timeline.</p>
       )}
     </section>
   );

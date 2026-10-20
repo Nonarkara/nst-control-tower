@@ -110,13 +110,23 @@ kbd {
 
 .panel-hdr {
   display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--s-1);
+  padding: 0 0 var(--s-2);
+  margin-bottom: 0;
+  border-bottom: 1px solid var(--line);
+}
+.panel-hdr > .eyebrow { flex: none; color: var(--ink); }
+.panel-hdr__meta, .panel-hdr__actions {
+  display: flex;
   flex-wrap: wrap;
   align-items: baseline;
   gap: var(--s-1) var(--s-2);
-  padding: 0 0 var(--s-2);
-  border-bottom: 1px solid var(--line);
+  min-width: 0;
 }
-.panel-hdr > .eyebrow { flex: 1 1 auto; color: var(--ink); }
+.panel-hdr__meta:empty { display: none; }
+.panel-hdr__meta .panel-source-tag { white-space: normal; overflow-wrap: anywhere; }
 .panel-source-tag {
   font-size: var(--text-xs);
   letter-spacing: 0;
@@ -567,3 +577,7 @@ button[aria-pressed="true"] .rt-disc {
   color: var(--ink) !important;
   border-color: var(--paper);
 }
+
+.fb-timeline > summary { cursor: pointer; min-height: 44px; padding: var(--s-2) 0; box-sizing: border-box; font-size: var(--text-sm); }
+
+.lens-select { display: block; width: 100%; min-width: 0; min-height: 44px; margin-top: var(--s-2); padding: var(--s-2); font: inherit; font-size: var(--text-sm); color: var(--ink); background: var(--panel); border: 1px solid var(--line); }

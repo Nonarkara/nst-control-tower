@@ -33,26 +33,6 @@ interface Props {
 
 const GROUP_ORDER: LayerGroup[] = ["municipality", "maritime", "mobility", "incidents", "open-data", "environment", "imagery"];
 
-// Route-disc identity for each lens — the NYCTA trunk-line method (RAMS-x-NYCTA
-// §3.1): group the 9 lenses into ≤5 families by user mental model (strategic /
-// operational / hazard / environmental / reference), one hue per family, one
-// glyph per lens. The glyph is a stable address — never reassign once shipped.
-const LENS_DISC: Record<LensId, { family: "ink" | "blue" | "red" | "green" | "purple"; glyph: string }> = {
-  executive:     { family: "ink",    glyph: "E" },
-  operations:    { family: "blue",   glyph: "O" },
-  mobility:      { family: "blue",   glyph: "M" },
-  flood:         { family: "red",    glyph: "F" },
-  safety:        { family: "red",    glyph: "S" },
-  environment:   { family: "green",  glyph: "N" },
-  earth:         { family: "green",  glyph: "A" },
-  vibes:         { family: "purple", glyph: "V" },
-  intelligence:  { family: "purple", glyph: "I" },
-  // Legacy no-op lens ids — never rendered (absent from LENSES), kept only
-  // for compile safety. Entries exist solely to satisfy Record exhaustiveness.
-  security:      { family: "ink",    glyph: "X" },
-  poverty:       { family: "ink",    glyph: "X" },
-};
-
 // Short, plain-language hint shown under a group header so an operator understands
 // what the (often similar-looking) layers are for and how they interact — Rams:
 // make it understandable. Only the satellite-heavy groups need one.
@@ -90,33 +70,12 @@ export function LayerPalette({ lens, onLensChange, enabled, onToggleLayer, count
   return (
     <div className="col">
       <div>
-        <h2 className="eyebrow palette-eyebrow" id="lens-heading">Lens</h2>
-        <div className="lens" role="group" aria-labelledby="lens-heading">
-          {LENSES.map((l) => {
-            const disc = LENS_DISC[l.id];
-            return (
-              <button
-                key={l.id}
-                onClick={() => onLensChange(l.id)}
-                aria-pressed={lens === l.id}
-                className={lens === l.id ? "active" : ""}
-                title={l.describe}
-                aria-describedby={`lens-desc-${l.id}`}
-              >
-                <span
-                  className={`rt-disc rt-disc--nav rt-disc--${disc.family}`}
-                  data-glyph={disc.glyph}
-                  aria-hidden="true"
-                />
-                <span className="lens__label">{l.label}</span>
-              </button>
-            );
-          })}
-        </div>
-        {LENSES.map((l) => (
-          <span key={l.id} id={`lens-desc-${l.id}`} className="visually-hidden">{l.describe}</span>
-        ))}
-        <div className="lens-explainer caption">
+        <label className="eyebrow palette-eyebrow" htmlFor="lens-select">Lens</label>
+        <select id="lens-select" className="lens-select" value={lens}
+          onChange={event => onLensChange(event.target.value as LensId)} aria-describedby="lens-description">
+          {LENSES.map(l => <option key={l.id} value={l.id}>{l.label}</option>)}
+        </select>
+        <div id="lens-description" className="lens-explainer caption">
           {LENSES.find((l) => l.id === lens)?.describe}
         </div>
       </div>

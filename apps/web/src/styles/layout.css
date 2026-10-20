@@ -2347,9 +2347,9 @@ input:focus-visible,
   .shell.mobile .mobile-brief-feeds {
     display: flex;
     flex-wrap: nowrap;
-    justify-content: space-between;
+    justify-content: flex-start;
     overflow-x: auto;
-    gap: var(--s-1);
+    gap: var(--s-3);
     padding: var(--s-2) var(--s-4);
     border-top: 1px solid var(--line);
   }
@@ -2357,15 +2357,27 @@ input:focus-visible,
   .shell.mobile .mobile-brief-feeds .dot { width: 5px; height: 5px; min-width: 5px; }
   .shell.mobile .mobile-brief-actions {
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
+    overflow-x: auto;
     gap: var(--s-2);
-    padding: var(--s-3) var(--s-4) var(--s-4);
+    padding: var(--s-2) var(--s-4);
     border-top: 1px solid var(--line);
   }
   .shell.mobile .mobile-brief-actions button {
-    flex: 1 1 auto;
-    min-height: 48px;
+    flex: 0 0 auto;
+    white-space: nowrap;
+    min-height: 44px;
+    padding: var(--s-2) var(--s-3);
     font-size: var(--text-sm);
+  }
+  .mobile-brief-context { border-top: 1px solid var(--line); }
+  .mobile-brief-context > summary {
+    cursor: pointer;
+    padding: var(--s-3) var(--s-4);
+    min-height: 44px;
+    box-sizing: border-box;
+    font-size: var(--text-sm);
+    color: var(--ink-2);
   }
 
   /* Map is the dominant area. */
