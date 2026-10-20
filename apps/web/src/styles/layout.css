@@ -2247,7 +2247,8 @@ input:focus-visible,
     height: 52px;
     gap: var(--s-2);
     padding: 0 var(--s-3);
-    overflow: hidden;
+    overflow: visible;
+    z-index: 60;
   }
   .shell.mobile .topbar .brand {
     flex: 1 1 auto;

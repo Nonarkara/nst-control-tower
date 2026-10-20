@@ -33,3 +33,13 @@ test("mobile watch remains readable and missing observations never become an all
   await expect(page.getByText("ไม่มีสถานีน้ำอายุไม่เกิน 90 นาที — ห้ามอ่านว่าแม่น้ำปกติ")).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
+
+test("mobile map menu opens the flood watch without clipping", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+  await page.locator('[aria-controls="topbar-more-menu"]').click();
+  const watch = page.getByRole("button", { name: "Flood watch / เฝ้าระวังน้ำท่วม" });
+  await watch.click();
+  await expect(page).toHaveURL(/\/flood-ops$/);
+  await expect(page.getByRole("heading", { level: 1 })).toContainText("เฝ้าระวังต้นน้ำ");
+});
