@@ -168,13 +168,9 @@ export function WorldStrip({ hostAqi, hostPm25, hostWeather, hostPulse, precipNo
             {(hostWeather?.daily ?? []).slice(0, 5).map((d, i) => (
               <div className="world-day" key={d.date}>
                 <span className="world-day-name mono">{i === 0 ? "TODAY" : dayLabel(d.date)}</span>
-                <span className="world-day-bar" title={`${d.precipProb}% rain · ${d.precipMm.toFixed(1)}mm`}>
-                  <span
-                    className="world-day-fill"
-                    style={{ height: `${Math.max(6, Math.round(d.precipProb))}%`, background: "var(--data)" }}
-                  />
+                <span className="world-day-pct mono" title={`Rain probability · ${d.precipMm.toFixed(1)} mm forecast`}>
+                  {Number.isFinite(d.precipProb) && d.precipProb >= 0 && d.precipProb <= 100 ? `${Math.round(d.precipProb)}%` : "—"}
                 </span>
-                <span className="world-day-pct mono">{Math.round(d.precipProb)}%</span>
                 <span className="world-day-temp mono">
                   {Math.round(d.tempMinC)}–{Math.round(d.tempMaxC)}°
                 </span>

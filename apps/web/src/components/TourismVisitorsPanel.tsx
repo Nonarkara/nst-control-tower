@@ -95,6 +95,7 @@ export function TourismVisitorsPanel({ records, loading, ageMinutes, fallbackTie
       )}
 
       {/* Bar chart — horizontal bars, newest year at top, COVID years muted */}
+      <p className="pc-meta">Common scale: 0–{maxVisitors.toLocaleString()} visitors; full width = largest annual total in this series.</p>
       <ol className="tour-chart" aria-label="Annual visitors by year (Buddhist Era)">
         {records.map((r) => {
           const barPct = maxVisitors > 0 ? (r.visitors / maxVisitors) * 100 : 0;

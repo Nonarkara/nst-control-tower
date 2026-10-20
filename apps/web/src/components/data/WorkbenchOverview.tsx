@@ -114,6 +114,7 @@ export function WorkbenchOverview({ index, domain, onDomain }: Props) {
           ) : null}
         </div>
         <p className="note">จัดหมวดอัตโนมัติจากชื่อ คำอธิบาย และหน่วยงาน · Auto-classified from title, description and publisher. แตะเพื่อกรอง / tap to filter.</p>
+        <p className="note">Common scale: 0–{max} datasets; full width = largest domain.</p>
         <ul className="dwb-domain-list">
           {index.domains.map((d) => (
             <li key={d.key}>

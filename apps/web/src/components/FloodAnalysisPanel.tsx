@@ -6,7 +6,7 @@
  *    — annual totals, monthly normals, wet/dry season breakdown
  *  • UNOSAT 2021 Thailand flood population exposure summary
  *    — national totals, top 10 most-affected provinces
- *  • Flood cause breakdown (HII/DPM literature synthesis)
+ *  • Qualitative flood mechanism checklist (no measured attribution)
  *
  * All data is live/reference as available; degrades gracefully.
  */
@@ -22,20 +22,19 @@ import type {
 import { PanelHeader } from "./PanelHeader";
 import { STATUS, type StatusLevel } from "../lib/status";
 
-// ─── Flood cause breakdown (HII/DPM synthesis) ──────────────────────────────
+// ─── Qualitative mechanisms (overlapping, no percentage attribution) ──────────────────────────────
 
 interface FloodCause {
   cause: string;
   causeTh: string;
-  pct: number;
 }
 
 const FLOOD_CAUSES: FloodCause[] = [
-  { cause: "Southwest monsoon rainfall", causeTh: "ฝนมรสุมตะวันตกเฉียงใต้", pct: 45 },
-  { cause: "Tropical storms / cyclones", causeTh: "พายุหมุนเขตร้อน", pct: 25 },
-  { cause: "Upstream watershed runoff", causeTh: "น้ำป่าจากลุ่มน้ำตอนบน", pct: 15 },
-  { cause: "Gulf storm surge", causeTh: "คลื่นพายุจากอ่าวไทย", pct: 10 },
-  { cause: "Urban drainage failure", causeTh: "ระบบระบายน้ำเสียหาย", pct: 5 },
+  { cause: "Southwest monsoon rainfall", causeTh: "ฝนมรสุมตะวันตกเฉียงใต้" },
+  { cause: "Tropical storms / cyclones", causeTh: "พายุหมุนเขตร้อน" },
+  { cause: "Upstream watershed runoff", causeTh: "น้ำป่าจากลุ่มน้ำตอนบน" },
+  { cause: "Gulf storm surge", causeTh: "คลื่นพายุจากอ่าวไทย" },
+  { cause: "Urban drainage failure", causeTh: "ระบบระบายน้ำเสียหาย" },
 ];
 
 const MONTH_LABELS_TH = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
@@ -196,7 +195,7 @@ export function FloodAnalysisPanel({
           <>
             <div className="flood-table-wrap">
               <table className="flood-table">
-                <caption className="flood-label">Annual totals (mm)</caption>
+                <caption className="flood-label">Annual totals (mm) · common bar scale 0–{fmtN(maxAnnualTotal)} mm</caption>
                 <thead>
                   <tr>
                     <th scope="col">Year</th>
@@ -235,7 +234,7 @@ export function FloodAnalysisPanel({
             </dl>
 
             <div className="flood-section">
-              <p className="flood-label">Monthly averages (mm)</p>
+              <p className="flood-label">Monthly averages (mm)</p><p className="flood-meta">Common vertical scale: 0–{fmtN(maxMonthlyAvg)} mm; — means missing, 0 means measured zero.</p>
               <ol className="flood-analysis-months">
                 {monthlyNormals.slice(0, 12).map((m) => {
                   const pct = maxMonthlyAvg > 0 ? ((m.avgMm ?? 0) / maxMonthlyAvg) * 100 : 0;
@@ -249,7 +248,7 @@ export function FloodAnalysisPanel({
                       <span className="flood-analysis-month__track" aria-hidden="true">
                         <span
                           className={`flood-analysis-month__bar${isWet ? " is-wet" : ""}`}
-                          style={{ height: `${Math.max(pct, 4)}%` }}
+                          style={{ height: `${pct}%` }}
                         />
                       </span>
                       <span className="num">{m.avgMm != null ? Math.round(m.avgMm) : "—"}</span>
@@ -328,9 +327,9 @@ export function FloodAnalysisPanel({
 
       {/* ── Flood Cause Breakdown ──────────────────────────────────────── */}
       <section className="flood-section" aria-label="Flood cause analysis">
-        <PanelHeader title="FLOOD CAUSE ANALYSIS" source="HII/DPM synthesis" />
+        <PanelHeader title="FLOOD CAUSE ANALYSIS" source="mechanism checklist" />
         <p className="flood-meta">
-          Primary drivers of flood events in Nakhon Si Thammarat (literature synthesis)
+          Possible mechanisms to investigate; overlapping causes, not measured shares or a ranking of tonight’s event.
         </p>
         <ul className="flood-list">
           {FLOOD_CAUSES.map((c) => (
@@ -340,14 +339,12 @@ export function FloodAnalysisPanel({
                   <span className="flood-analysis-cause__name">{c.cause}</span>
                   <span className="flood-analysis-cause__th" lang="th">{c.causeTh}</span>
                 </span>
-                <span className="flood-figure num">{c.pct}%</span>
               </div>
-              <BarChart value={c.pct} max={100} />
             </li>
           ))}
         </ul>
         <p className="flood-footnote">
-          Sources: HII MMS flood survey 2025 · DDPM situation reports · UNOSAT Thailand 2021 · Thai Meteorological Department
+          Use current TMD warnings and local hydrological observations to identify active mechanisms; no numerical attribution is established here.
         </p>
       </section>
 

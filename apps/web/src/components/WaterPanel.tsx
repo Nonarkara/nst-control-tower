@@ -7,12 +7,13 @@
  *   2. Reservoirs    — RID + data.go.th reservoir levels (% capacity, volume).
  *   3. Rainfall      — 24h accumulation across 130 NST stations from ThaiWater.
  *
- * Pak Phanang basin framing: flooding here is uncontrolled monsoon runoff
+ * City Tha Dee basin (distinct from Pak Phanang): uncontrolled monsoon runoff
  * from Khao Luang → Tha Dee canal → city. No regulating dam. The gauge
  * situation_level is the primary leading indicator.
  */
 
 import { useId, useRef, useState, type KeyboardEvent } from "react";
+import { ReferenceGauge } from "./ReferenceGauge";
 import { PanelHeader } from "./PanelHeader";
 import { MixedText } from "./MixedText";
 import type { WaterGauge, RainfallStation, RidReservoir, FallbackTier } from "@nst/shared";
@@ -72,13 +73,9 @@ const RAIN_PREVIEW = 8;
 type Tab = "gauges" | "reservoirs" | "rain";
 
 function Bar({ pct, level }: { pct: number | null; level: StatusLevel }) {
-  const w = Math.max(0, Math.min(100, pct ?? 0));
-  const background = STATUS[level].color;
-  return (
-    <div className="flood-bar" aria-hidden="true">
-      <div className="flood-bar__fill" style={{ width: `${w}%`, background }} />
-    </div>
-  );
+  return <ReferenceGauge label="Reservoir storage" value={pct} unit="%" max={125} ticks={[0, 50, 100, 125]}
+    thresholds={[{ at: 100, label: "Rated capacity", level: level === "normal" ? "watch" : level }]}
+    basis="Stored volume / rated capacity. Capacity crossing alone does not establish downstream flooding." />;
 }
 
 function StatusWord({ level, children }: { level: StatusLevel; children: React.ReactNode }) {
@@ -95,9 +92,6 @@ function StatusWord({ level, children }: { level: StatusLevel; children: React.R
 
 function GaugeRow({ g }: { g: WaterGauge }) {
   const level = situationStatus(g.situationLevel);
-  const warningPct = g.warningMsl && g.levelMsl != null
-    ? Math.min(100, Math.max(0, (g.levelMsl / g.warningMsl) * 100))
-    : null;
   const shortName = g.name.replace(/^สถานีโทรมาตร\s*/u, "").replace(/สถานีวัดน้ำ\s*/u, "");
   return (
     <li className="flood-item">
@@ -118,7 +112,9 @@ function GaugeRow({ g }: { g: WaterGauge }) {
           <StatusWord level={level}>{sitLabel(g.situationLevel)}</StatusWord>
         </span>
       </div>
-      {warningPct != null && <Bar pct={warningPct} level={level} />}
+      {g.warningMsl != null && g.levelMsl != null && <p className="flood-meta num">
+        Warning reference {g.warningMsl.toFixed(2)} m MSL · {Math.abs(g.levelMsl - g.warningMsl).toFixed(2)} m {g.levelMsl >= g.warningMsl ? "at/above" : "below"} warning
+      </p>}
       {g.diffFromBank != null && (
         <p className="flood-meta">
           {g.diffFromBank >= 0
@@ -295,16 +291,17 @@ function ReservoirSection({ reservoirs, ridReservoirs }: { reservoirs: Reservoir
 
 // ─── Rainfall section ─────────────────────────────────────────────────────────
 
-function RainfallSection({ rain }: { rain: RainfallStation[] }) {
+export function RainfallSection({ rain }: { rain: RainfallStation[] }) {
   const [showAll, setShowAll] = useState(false);
   if (rain.length === 0) {
     return <p className="flood-empty">No rainfall data</p>;
   }
 
-  const withRain = rain.filter((r) => (r.rain24h ?? 0) > 0);
+  const reporting = rain.filter(r => r.rain24h != null && Number.isFinite(r.rain24h) && r.rain24h >= 0);
+  const withRain = reporting.filter(r => r.rain24h! > 0);
   const totalStations = rain.length;
-  const maxRain = Math.max(...rain.map((r) => r.rain24h ?? 0));
-  const totalRain24h = rain.reduce((s, r) => s + (r.rain24h ?? 0), 0) / totalStations;
+  const maxRain = reporting.length ? Math.max(...reporting.map(r => r.rain24h!)) : null;
+  const totalRain24h = reporting.length ? reporting.reduce((s, r) => s + r.rain24h!, 0) / reporting.length : null;
   const display = showAll ? withRain : withRain.slice(0, RAIN_PREVIEW);
   const maxLevel = rainStatus(maxRain);
 
@@ -312,23 +309,22 @@ function RainfallSection({ rain }: { rain: RainfallStation[] }) {
     <div className="flood-section">
       <div className="flood-row-head">
         <p className="flood-meta num">
-          {totalStations} <span lang="th">สถานี</span> · avg {totalRain24h.toFixed(1)} mm/24h
+          {reporting.length}/{totalStations} reporting · avg {totalRain24h?.toFixed(1) ?? "—"} mm/24h
         </p>
         <span className="flood-figure num">
-          <StatusWord level={maxLevel}>MAX {maxRain.toFixed(1)} mm</StatusWord>
+          <StatusWord level={maxLevel}>MAX {maxRain?.toFixed(1) ?? "—"} mm</StatusWord>
         </span>
       </div>
 
       {withRain.length === 0 && (
         <p className="flood-empty">
-          <span lang="th">ไม่มีฝน</span> — no rain across all {totalStations} stations
+          {reporting.length === 0 ? "No usable rainfall readings — unknown, not zero rain" : `No rain at ${reporting.length} reporting stations; ${totalStations - reporting.length} missing`}
         </p>
       )}
 
       <ul className="flood-list">
         {display.map((r) => {
           const level = rainStatus(r.rain24h);
-          const barPct = maxRain > 0 ? ((r.rain24h ?? 0) / maxRain) * 100 : 0;
           const name = r.name.replace(/^สถานีโทรมาตร\s*/u, "").replace(/สถานีวัดน้ำ\s*/u, "");
           return (
             <li key={r.id} className="flood-item">
@@ -342,7 +338,6 @@ function RainfallSection({ rain }: { rain: RainfallStation[] }) {
                   <span className="visually-hidden"> {STATUS[level].en}</span>
                 </span>
               </div>
-              <Bar pct={barPct} level={level} />
               {r.amphoe && <p className="flood-meta"><MixedText text={r.amphoe} /></p>}
             </li>
           );

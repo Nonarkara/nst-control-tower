@@ -36,11 +36,13 @@ function StressBar({ b }: { b: BasinWaterBalance }) {
   const cap = (h.conveyanceM3 ?? 0) + h.reservoirHeadroomM3;
   if (cap <= 0 || h.band === "unknown") return null;
   // Inflow bar scaled against total absorption capacity (=100 %).
-  const loPct = Math.min(140, (h.inflowM3Lo / cap) * 100);
-  const hiPct = Math.min(140, (h.inflowM3Hi / cap) * 100);
+  const rawLoPct = h.inflowM3Lo / cap * 100;
+  const rawHiPct = h.inflowM3Hi / cap * 100;
+  const loPct = Math.min(140, Math.max(0, rawLoPct));
+  const hiPct = Math.min(140, Math.max(0, rawHiPct));
   const color = STATUS[BAND_STATUS[h.band]].color;
   return (
-    <div
+    <div className="water-bal-gauge"><div
       className="water-bal-bar"
       role="img"
       aria-label={`Inflow ${fmtVolume(h.inflowM3Lo)} to ${fmtVolume(h.inflowM3Hi)} against capacity ${fmtVolume(cap)} per 24 hours`}
@@ -49,7 +51,9 @@ function StressBar({ b }: { b: BasinWaterBalance }) {
       <div className="water-bal-bar__in" style={{ width: `${hiPct / 1.4}%`, background: color }} />
       <div className="water-bal-bar__in water-bal-bar__in--lo" style={{ width: `${loPct / 1.4}%`, background: color }} />
       <div className="water-bal-bar__cap" />
-    </div>
+    </div><div className="reference-gauge__ticks" aria-hidden="true"><span className="is-first" style={{ left: 0 }}>0%</span><span style={{ left: `${100 / 140 * 100}%` }}>100%</span><span className="is-last" style={{ left: "100%" }}>140%</span></div>
+    <p className="flood-meta">Dark = lower estimate; pale = upper estimate · 100% = modelled absorption capacity.</p>
+    <p className="flood-meta num">Inflow {rawLoPct.toFixed(1)}–{rawHiPct.toFixed(1)}% of capacity · {rawLoPct >= 100 ? "both estimates reach/exceed capacity" : rawHiPct >= 100 ? "upper estimate reaches/exceeds capacity" : "both estimates below capacity"}{rawHiPct > 140 ? " · ABOVE PLOTTED 140% RANGE" : ""}</p></div>
   );
 }
 

@@ -159,3 +159,17 @@ it("preserves measured danger when the official gauge classification is missing"
 it("keeps unclassified gauges with no usable measurements unknown", () => {
   expect(summarizeWater([gauge({ id: "empty", name: "Empty", situationLevel: null, fullnessPct: null, diffFromBank: null })]).band).toBe("unknown");
 });
+
+it("respects the exact TMD boundaries rather than rounding them into alerts", () => {
+  const station = (rain24h: number): RainfallStation => ({ id: "edge", name: "Edge", lat: 8, lng: 99, rain24h, rain1h: null, amphoe: "", observedAt: "" });
+  expect(summarizeRain([station(35)]).heavy).toBe(0);
+  expect(summarizeRain([station(35.1)]).heavy).toBe(1);
+  expect(summarizeRain([station(90)]).veryHeavy).toBe(0);
+  expect(summarizeRain([station(90.1)]).veryHeavy).toBe(1);
+});
+
+it("invalid rainfall cannot become a calm/zero reading or poison valid observations", () => {
+  const s = (rain24h: number): RainfallStation => ({ id: "invalid", name: "Invalid", lat: 8, lng: 99, rain24h, rain1h: null, amphoe: "", observedAt: "" });
+  expect(summarizeRain([s(NaN), s(-1)]).band).toBe("unknown");
+  expect(summarizeRain([s(NaN), s(104.2)]).maxRain24h).toBe(104.2);
+});

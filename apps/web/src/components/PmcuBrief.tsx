@@ -69,9 +69,6 @@ function LoadRow({ name, title, share, level, value }: { name: string; title?: s
   return (
     <li className="ops-row">
       <span className="ops-row__name" title={title}>{name}</span>
-      <span className="pc-bar" aria-hidden="true">
-        <span className="pc-bar__fill" style={{ ...statusStyle(level), width: `${Math.round(share * 100)}%` }} />
-      </span>
       <span className="ops-row__val num">
         <span className="pc-glyph" style={statusStyle(level)} aria-hidden="true">{STATUS[level].glyph}</span>
         {value}
@@ -145,7 +142,7 @@ export function PmcuBrief({ hour, isWeekend, iticEvents, cityReports, trafficSam
           })}
         </ul>
         <p className="pc-meta num">
-          {trafficSampleCount} road samples · modeled · iTIC live: {iticEvents.length}
+          {trafficSampleCount} road samples · modelled load 0–100% (not measured occupancy) · iTIC live: {iticEvents.length}
         </p>
       </section>
 

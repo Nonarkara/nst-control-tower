@@ -319,7 +319,7 @@ button.pred-strip:hover { background: var(--ground); border-color: var(--line); 
 
 /* ── 13. Municipality ops (ops-) ──────────────────────────────────────── */
 
-.ops-row { display: grid; grid-template-columns: minmax(0, 8rem) minmax(0, 1fr) auto; align-items: center; gap: var(--s-2); padding: var(--s-1) 0; font-size: var(--text-sm); }
+.ops-row { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: var(--s-2); padding: var(--s-1) 0; font-size: var(--text-sm); }
 .ops-row__name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); }
 .ops-row__val { display: inline-flex; align-items: baseline; gap: var(--s-1); justify-content: flex-end; min-width: 4.5rem; font-weight: var(--weight-bold); color: var(--ink); }
 .ops-fleet { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0 var(--s-2); padding: var(--s-2) 0; font-size: var(--text-sm); }
@@ -1044,3 +1044,24 @@ button.pred-strip:hover { background: var(--ground); border-color: var(--line); 
 @media (min-width: 769px) and (max-width: 1200px) {
   .building-search { top: calc(var(--s-3) + 3rem); width: min(420px, calc(100% - 2 * var(--s-3))); }
 }
+
+/* Quantitative graphics must expose their coordinate system and boundaries. */
+.reference-gauge { margin: 0; min-width: 0; display: grid; gap: var(--s-1); }
+.reference-gauge__heading { display: flex; justify-content: space-between; gap: var(--s-2); font-size: var(--text-xs); color: var(--ink-2); }
+.reference-gauge__heading strong { color: var(--ink); white-space: nowrap; }
+.reference-gauge__plot { padding-top: 7px; }
+.reference-gauge__track { position: relative; height: 10px; background: var(--ground); border-bottom: 1px solid var(--ink-3); }
+.reference-gauge__fill { display: block; height: 100%; }
+.reference-gauge__threshold { position: absolute; top: -4px; bottom: -4px; border-left: 2px solid var(--threshold-color); }
+.reference-gauge__reading { position: absolute; top: -7px; width: 0; height: 0; border: 4px solid transparent; border-top-color: var(--ink); transform: translateX(-50%); }
+.reference-gauge__ticks { position: relative; height: 20px; font-size: var(--text-xs); color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.reference-gauge__ticks span { position: absolute; top: 3px; transform: translateX(-50%); }
+.reference-gauge__ticks .is-first { transform: none; }
+.reference-gauge__ticks .is-last { transform: translateX(-100%); }
+.reference-gauge__key, .reference-gauge__status, .reference-gauge__basis { margin: 0; font-size: var(--text-xs); line-height: 1.4; max-width: 65ch; }
+.reference-gauge__key { display: flex; flex-wrap: wrap; column-gap: var(--s-3); row-gap: var(--s-1); }
+.reference-gauge__key span { display: inline-flex; align-items: center; gap: var(--s-1); }
+.reference-gauge__key i { width: 2px; height: 10px; flex: none; }
+.reference-gauge__basis { color: var(--ink-3); }
+.reference-gauge[data-reading-state="unknown"] .reference-gauge__track { background: transparent; border: 1px dashed var(--ink-3); }
+.reference-gauge[data-overflow="true"] .reference-gauge__status { font-weight: var(--weight-bold); }

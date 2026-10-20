@@ -72,7 +72,7 @@ export function DamageHotspotPanel({ data, ageMinutes, fallbackTier }: Props) {
       ) : (
         <div className="flood-table-wrap">
           <table className="flood-table">
-            <caption className="visually-hidden">Restoration budget by district, highest first</caption>
+            <caption className="flood-meta">Restoration budget by district · bars 0–{fmtM(maxBudget)}, largest district total in this table</caption>
             <thead>
               <tr>
                 <th scope="col" className="is-rank">#</th>

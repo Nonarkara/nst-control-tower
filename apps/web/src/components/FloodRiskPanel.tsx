@@ -23,6 +23,7 @@ interface DistrictRisk {
   ปานกลาง: number;
   ต่ำ: number;
   ไม่มีความเสี่ยง: number;
+  unknown: number;
   total: number;
 }
 
@@ -56,7 +57,7 @@ function RiskChip({ level, count }: { level: RiskLevel; count: number }) {
 }
 
 function DistrictRow({ d }: { d: DistrictRisk }) {
-  const summary = RISK_ORDER.map((level) => `${RISK_STATUS[level].en} ${d[level]}`).join(", ");
+  const summary = RISK_ORDER.map((level) => `${RISK_STATUS[level].en} ${d[level]}`).join(", ") + `, Unknown ${d.unknown}`;
   return (
     <li className="flood-risk-district">
       <div className="flood-row-head">
@@ -78,7 +79,9 @@ function DistrictRow({ d }: { d: DistrictRisk }) {
             />
           ) : null;
         })}
+        {d.unknown > 0 && <span style={{ width: `${d.unknown / d.total * 100}%`, background: STATUS.unknown.color }} title={`Unknown: ${d.unknown}`} />}
       </div>
+      <p className="flood-meta">0–100% of {d.total} villages · unknown {d.unknown}</p>
     </li>
   );
 }
@@ -103,10 +106,11 @@ export function FloodRiskPanel({ villages, ageMinutes, fallbackTier }: Props) {
     villages.forEach((v) => {
       if (!v.district) return;
       if (!byDistrict.has(v.district)) {
-        byDistrict.set(v.district, { district: v.district, สูง: 0, ปานกลาง: 0, ต่ำ: 0, ไม่มีความเสี่ยง: 0, total: 0 });
+        byDistrict.set(v.district, { district: v.district, สูง: 0, ปานกลาง: 0, ต่ำ: 0, ไม่มีความเสี่ยง: 0, unknown: 0, total: 0 });
       }
       const d = byDistrict.get(v.district)!;
       if (v.riskLevel && v.riskLevel in counts) d[v.riskLevel]++;
+      else d.unknown++;
       d.total++;
     });
 
@@ -160,6 +164,7 @@ export function FloodRiskPanel({ villages, ageMinutes, fallbackTier }: Props) {
               <RiskChip key={level} level={level} count={stats.counts[level]} />
             ))}
           </dl>
+          <p className="flood-meta">Unclassified: {stats.total - Object.values(stats.counts).reduce((sum, n) => sum + n, 0)}. District bars: share of all villages, including grey unknown classifications. Unknown is not low risk.</p>
 
           {/* Risk-type flags */}
           <ul className="flood-risk-flags" aria-label="Villages by flood type">

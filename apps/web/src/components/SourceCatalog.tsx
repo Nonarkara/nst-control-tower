@@ -75,7 +75,6 @@ export function SourceCatalog({ open, onClose }: Props) {
     return m;
   }, []);
 
-  const maxCat = Math.max(1, ...[...byCategory.values()].map((e) => e.total));
 
   const list = useMemo(() => {
     return SOURCE_CATALOG.filter((s) =>
@@ -136,7 +135,7 @@ export function SourceCatalog({ open, onClose }: Props) {
       <div className="sources-grid">
         {/* Left — data domains */}
         <nav className="sources-domains" aria-label="Data domains">
-          <h3 className="eyebrow">Data domains</h3>
+          <h3 className="eyebrow">Data domains</h3><p className="caption">Bar length = share of all {SOURCE_CATALOG.length} sources</p>
           <button
             type="button"
             className={`sources-domain ${category === "all" ? "is-on" : ""}`}
@@ -162,7 +161,7 @@ export function SourceCatalog({ open, onClose }: Props) {
                 <span className="sources-domain__label">{CATEGORY_LABEL[c]} · {c}</span>
                 <span className="num">{e.total}</span>
                 <span className="sources-domain__bar" aria-hidden="true">
-                  <span style={{ width: `${Math.round((e.total / maxCat) * 100)}%` }} />
+                  <span style={{ width: `${Math.round((e.total / SOURCE_CATALOG.length) * 100)}%` }} />
                 </span>
                 <span className="caption num">{e.live} live</span>
               </button>

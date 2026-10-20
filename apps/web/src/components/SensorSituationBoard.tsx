@@ -1,4 +1,5 @@
 import type { AirQualityPoint, FallbackTier, RainfallStation, WaterGauge } from "@nst/shared";
+import { ReferenceGauge } from "./ReferenceGauge";
 import { PanelHeader } from "./PanelHeader";
 import {
   bandLabel,
@@ -32,19 +33,6 @@ interface Props {
   onShowAirHeat?: () => void;
 }
 
-// Bar scales are stated next to every bar. Fullness: 100% = water at the
-// bank crest (the feed can exceed 100 when overbank; the bar just fills).
-// Rain: 90 mm / 24 h is TMD's "very heavy" threshold. PM2.5: 55.5 µg/m³ is
-// where US-EPA "unhealthy" begins.
-const WATER_BAR_MAX = 100;
-const RAIN_BAR_MAX = 90;
-const PM25_BAR_MAX = 55.5;
-
-function fmt1(n: number | null, unit = ""): string {
-  if (n == null || !Number.isFinite(n)) return "—";
-  return `${n.toFixed(1)}${unit}`;
-}
-
 function fmt0(n: number | null, unit = ""): string {
   if (n == null || !Number.isFinite(n)) return "—";
   return `${Math.round(n)}${unit}`;
@@ -52,35 +40,6 @@ function fmt0(n: number | null, unit = ""): string {
 
 function BandLabel({ band }: { band: SituationBand }) {
   return <StatusText level={bandStatus(band)}>{bandLabel(band)}</StatusText>;
-}
-
-function ConcentrationBar({
-  label,
-  value,
-  max,
-  unit,
-  scale,
-}: {
-  label: string;
-  value: number | null;
-  max: number;
-  unit: string;
-  /** What a full bar means, in words. */
-  scale: string;
-}) {
-  const pct = value == null ? 0 : Math.min(100, Math.max(0, (value / max) * 100));
-  return (
-    <div className="sit-bar">
-      <div className="sit-bar__meta">
-        <span>{label}</span>
-        <span className="num">{fmt1(value, unit)}</span>
-      </div>
-      <span className="pc-bar" aria-hidden="true">
-        <span className="pc-bar__fill" style={{ width: `${pct}%` }} />
-      </span>
-      <span className="sit-bar__scale">{scale}</span>
-    </div>
-  );
 }
 
 export function SensorSituationBoard({
@@ -94,6 +53,7 @@ export function SensorSituationBoard({
   onShowAirHeat,
 }: Props) {
   const water = summarizeWater(waterGauges);
+  const fullest = water.maxFullnessPct == null ? undefined : waterGauges.find(g => g.fullnessPct === water.maxFullnessPct);
   const rain = summarizeRain(rainfall);
   const air = summarizeAir(airStations);
   // Air speaks the same AQI words as the header ("moderate"), not a
@@ -138,7 +98,7 @@ export function SensorSituationBoard({
           <BandLabel band={water.band} />
         </header>
 
-        <dl className="pc-stats">
+        <dl className="pc-stats pc-stats--pair">
           <div>
             <dt>Stations</dt>
             <dd className="num">{water.stationCount}</dd>
@@ -165,20 +125,14 @@ export function SensorSituationBoard({
           </div>
         </dl>
 
-        <ConcentrationBar
-          label="Fullest channel"
-          value={water.maxFullnessPct}
-          max={WATER_BAR_MAX}
-          unit="%"
-          scale="Full bar = water at the bank"
-        />
-        <ConcentrationBar
-          label="Most rain in 24 h (one station)"
-          value={rain.maxRain24h}
-          max={RAIN_BAR_MAX}
-          unit=" mm"
-          scale="Full bar = 90 mm, very heavy rain"
-        />
+        <ReferenceGauge label="Fullest channel" value={water.maxFullnessPct} unit="%" max={125}
+          ticks={[0, 50, 100, 125]}
+          thresholds={[{ at: 85, label: "Review", level: "warning" }, { at: 100, label: "Bank", level: "critical" }]}
+          basis={`HII fullness · 85% local review policy; 100% bank. Gaps in percentage points.${fullest ? ` Station: ${fullest.stationCode ?? fullest.name}` : ""}`} />
+        <ReferenceGauge label="Most rain in 24 h (one station)" value={rain.maxRain24h} unit="mm" max={150}
+          ticks={[0, 50, 100, 150]}
+          thresholds={[{ at: 35.1, label: "Heavy", level: "warning" }, { at: 90.1, label: "Very heavy", level: "critical" }]}
+          basis="TMD 24-hour rain classes; past accumulation, not additional forecast rain." />
 
         {/* The worst gauge and its time to overtop are in the headline card
             at the top of this rail — not repeated here. */}
@@ -197,7 +151,7 @@ export function SensorSituationBoard({
           <StatusText level={airLevel}>{air.maxAqi == null ? "NO DATA" : airWords.label.toUpperCase()}</StatusText>
         </header>
 
-        <dl className="pc-stats">
+        <dl className="pc-stats pc-stats--pair">
           <div>
             <dt>Stations</dt>
             <dd className="num">{air.withReading}/{air.stationCount || "—"}</dd>
@@ -212,17 +166,14 @@ export function SensorSituationBoard({
           </div>
           <div>
             <dt>Unhealthy</dt>
-            <dd className="num">{Math.round(air.unhealthyShare * 100)}%</dd>
+            <dd className="num">{air.withReading ? `${Math.round(air.unhealthyShare * 100)}%` : "—"}</dd>
           </div>
         </dl>
 
-        <ConcentrationBar
-          label="Highest PM2.5"
-          value={air.maxPm25}
-          max={PM25_BAR_MAX}
-          unit=" µg/m³"
-          scale="Full bar = 55.5 µg/m³, unhealthy"
-        />
+        <ReferenceGauge label="Highest PM2.5" value={air.maxPm25} unit="µg/m³" max={100}
+          ticks={[0, 25, 50, 75, 100]}
+          thresholds={[{ at: 35.5, label: "Sensitive groups", level: "warning" }, { at: 55.5, label: "Unhealthy", level: "critical" }]}
+          basis="US EPA 24h reference; source averaging window unverified. AQI retains its source scale." />
 
         {air.worst && (
           <button
@@ -245,6 +196,7 @@ export function SensorSituationBoard({
         )}
       </section>
 
+      <p className="flood-meta">Reference scales: <a href="https://www5.tmd.go.th/info/เกณฑ์อากาศ" target="_blank" rel="noreferrer">TMD rain</a> · <a href="https://aqs.epa.gov/aqsweb/documents/codetables/aqi_breakpoints.html" target="_blank" rel="noreferrer">US EPA 24h PM2.5</a></p>
       <footer className="pc-meta">
         Powered by{" "}
         <a className="link" href="https://flood.nonarkara.org" target="_blank" rel="noreferrer">FloodDash</a>

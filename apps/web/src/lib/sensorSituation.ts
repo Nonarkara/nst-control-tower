@@ -38,8 +38,8 @@ export interface AirSituationSummary {
 
 export interface RainSituationSummary {
   stationCount: number;
-  heavy: number; // ≥ 35 mm / 24 h (TMD)
-  veryHeavy: number; // ≥ 90 mm / 24 h
+  heavy: number; // ≥ 35.1 mm / 24 h (TMD)
+  veryHeavy: number; // ≥ 90.1 mm / 24 h
   maxRain24h: number | null;
   band: SituationBand;
 }
@@ -114,7 +114,7 @@ export function summarizeWater(gauges: WaterGauge[]): WaterSituationSummary {
   let freeN = 0;
 
   for (const g of gauges) {
-    if (g.fullnessPct != null) {
+    if (g.fullnessPct != null && Number.isFinite(g.fullnessPct) && g.fullnessPct >= 0) {
       maxFullnessPct = maxFullnessPct == null ? g.fullnessPct : Math.max(maxFullnessPct, g.fullnessPct);
     }
     if (g.diffFromBank != null) {
@@ -212,10 +212,11 @@ export function summarizeRain(stations: RainfallStation[]): RainSituationSummary
   let heavy = 0;
   let veryHeavy = 0;
   for (const s of stations) {
-    const mm = s.rain24h ?? 0;
-    if (s.rain24h != null) maxRain24h = maxRain24h == null ? s.rain24h : Math.max(maxRain24h, s.rain24h);
-    if (mm >= 90) veryHeavy++;
-    else if (mm >= 35) heavy++;
+    const mm = s.rain24h;
+    if (mm == null || !Number.isFinite(mm) || mm < 0) continue;
+    maxRain24h = maxRain24h == null ? mm : Math.max(maxRain24h, mm);
+    if (mm >= 90.1) veryHeavy++;
+    else if (mm >= 35.1) heavy++;
   }
   let band: SituationBand = maxRain24h == null ? "unknown" : "calm";
   if (veryHeavy > 0) band = "critical";
