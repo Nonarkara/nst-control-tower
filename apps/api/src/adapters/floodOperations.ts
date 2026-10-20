@@ -18,6 +18,17 @@ interface HourlyWeather {
 }
 const finite = (n: unknown): n is number => typeof n === "number" && Number.isFinite(n);
 
+/** Keep optional model retries or a stuck shared upstream request from blocking
+ * the whole watch page beyond the browser's 25-second cold-request budget. */
+export async function withinOperationsDeadline<T>(work: Promise<T>, timeoutMs = 18_000): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([work, new Promise<never>((_, reject) => {
+      timer = setTimeout(() => reject(new Error("Operational source deadline exceeded")), timeoutMs);
+    })]);
+  } finally { clearTimeout(timer); }
+}
+
 /** Unix timestamps avoid mixing Thai wall time with Worker UTC. Only complete
  * future hours are summed. Missing values never become zero rain. */
 export function summarizeRainWind(raw: HourlyWeather, now: number): Omit<RainWindPoint, "key" | "nameTh" | "lat" | "lng"> {
@@ -52,7 +63,11 @@ async function fetchTide(): Promise<FloodOperations["tide"]> {
 
 export async function fetchFloodOperations(): Promise<NormalizedFeed<FloodOperations>> {
   return cachedWithStale("flood-operations", 60, async () => {
-    const [water, rain, weather, tide, context, cameras] = await Promise.allSettled([fetchWaterGauges(), fetchRainfall(), fetchTransect(), fetchTide(), fetchFloodContext(), fetchNstCctv()]);
+    const [water, rain, weather, tide, context, cameras] = await Promise.allSettled([
+      withinOperationsDeadline(fetchWaterGauges()), withinOperationsDeadline(fetchRainfall()),
+      withinOperationsDeadline(fetchTransect()), withinOperationsDeadline(fetchTide()),
+      withinOperationsDeadline(fetchFloodContext()), withinOperationsDeadline(fetchNstCctv()),
+    ]);
     const unavailable = (source: string) => ({ source, fetchedAt: new Date().toISOString(), ageMinutes: 0, fallbackTier: "unavailable" as const });
     const gaps: string[] = [];
     const result = <T>(r: PromiseSettledResult<T>, name: string): T | null => { if (r.status === "fulfilled") return r.value; gaps.push(name); return null; };
