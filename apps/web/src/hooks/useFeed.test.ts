@@ -31,6 +31,19 @@ describe("feed freshness", () => {
 });
 
 describe("feed requests", () => {
+  it("allows the aggregate feed budget on warm polls without aborting at ten seconds", async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn((_url, { signal }: RequestInit) => new Promise<Response>((resolve, reject) => {
+      setTimeout(() => resolve(Response.json(feed)), 12_000);
+      signal!.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")));
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+    const result = fetchWithRetry("/api/flood/operations", new AbortController().signal, false, 25_000);
+    await vi.advanceTimersByTimeAsync(12_000);
+    expect(await result).toEqual(feed);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(vi.getTimerCount()).toBe(0);
+  });
   it("bounds stalled response bodies as well as headers on all retries", async () => {
     vi.useFakeTimers();
     const fetchMock = vi.fn(async (_url, { signal }: RequestInit) => new Response(new ReadableStream({

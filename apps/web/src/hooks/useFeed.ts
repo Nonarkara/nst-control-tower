@@ -114,9 +114,10 @@ function retryDelay(ms: number, signal: AbortSignal): Promise<void> {
   });
 }
 
-export async function fetchWithRetry<T>(url: string, signal: AbortSignal, isFirstAttempt = false): Promise<NormalizedFeed<T>> {
+export async function fetchWithRetry<T>(url: string, signal: AbortSignal, isFirstAttempt = false, requestTimeoutMs?: number): Promise<NormalizedFeed<T>> {
   const retries = isFirstAttempt ? FIRST_RETRIES : RETRIES;
-  const timeoutMs = isFirstAttempt ? FIRST_REQUEST_TIMEOUT_MS : REQUEST_TIMEOUT_MS;
+  const timeoutMs = requestTimeoutMs != null && Number.isFinite(requestTimeoutMs) && requestTimeoutMs > 0
+    ? requestTimeoutMs : isFirstAttempt ? FIRST_REQUEST_TIMEOUT_MS : REQUEST_TIMEOUT_MS;
   let lastErr: unknown;
   for (let i = 0; i <= retries; i++) {
     if (signal.aborted) throw new DOMException("Aborted", "AbortError");
@@ -132,7 +133,7 @@ export async function fetchWithRetry<T>(url: string, signal: AbortSignal, isFirs
   throw lastErr ?? new Error("Fetch failed after retries");
 }
 
-export function useFeed<T>(path: string, pollMs: number): FeedState<T> & { refetch: () => void } {
+export function useFeed<T>(path: string, pollMs: number, requestTimeoutMs?: number): FeedState<T> & { refetch: () => void } {
   const [state, setState] = useState<FeedState<T>>(() => readLocal<T>(path) ?? emptyInitial<T>());
   const inflight = useRef<AbortController | null>(null);
   const runRef = useRef<() => Promise<void>>(async () => {});
@@ -168,7 +169,7 @@ export function useFeed<T>(path: string, pollMs: number): FeedState<T> & { refet
       try {
         const sep = path.includes("?") ? "&" : "?";
         const url = `${path}${sep}_=${Date.now()}`;
-        const json = await fetchWithRetry<T>(url, ctrl.signal, firstAttempt);
+        const json = await fetchWithRetry<T>(url, ctrl.signal, firstAttempt, requestTimeoutMs);
         if (cancelled || ctrl.signal.aborted) return;
         isFirstAttempt.current = false;
         failCount.current = 0;
@@ -228,7 +229,7 @@ export function useFeed<T>(path: string, pollMs: number): FeedState<T> & { refet
       clearInterval(ageId);
       inflight.current?.abort();
     };
-  }, [path, pollMs]);
+  }, [path, pollMs, requestTimeoutMs]);
 
   const refetch = useCallback(() => runRef.current(), []);
   return { ...state, refetch };

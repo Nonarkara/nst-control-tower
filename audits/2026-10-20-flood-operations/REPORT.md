@@ -28,6 +28,7 @@ The new CV tool tracks contrast boundaries inside an operator-selected image reg
 - Tide gating samples future model timestamps instead of slicing from midnight/elapsed hours.
 - A fresh saturated antecedent-rain proxy can conservatively raise scenario runoff when no measured soil sensor exists, with that assumption explicitly stated.
 - Empty regional flood analytics report UNKNOWN instead of NORMAL.
+- Live verification exposed intermittent aggregate stalls. Each source now has an 18-second deadline; this feed retains a 25-second browser budget on warm polls, instead of the general 10-second deadline. A single existing FloodDash province relay supplies both observations, and camera inventory waits for the first source group to settle to reduce simultaneous upstream connections. This preserves available evidence and labels missing sources instead of indefinitely holding the whole view.
 
 ## Situation evidence, not a street-level prediction
 
@@ -51,4 +52,4 @@ Historical evidence: the provincial PRD report dated 27 November 2024 identifies
 
 ## Verification
 
-Workspace typechecks, web production build and Worker dry-run pass. Complete unit suite: 43 shared, 712 API, 1,058 web tests. New regressions cover upcoming hourly windows, missing versus measured-zero precipitation, old WRF runs, antecedent proxy labelling, contrast-boundary movement and unreadable/repeated/expired images. Independent review at 1440/1024/390 found and corrected water precision and heading wrapping; no page overflow or uncaught exceptions. A real municipal WHEP still was received without page errors. CI runs the complete production-mode browser suite before the existing same-commit Cloudflare deployment gate.
+Workspace typechecks, web production build and Worker dry-run pass. Unit suite after live hardening: 43 shared, 713 API, 1,059 web tests. New regressions cover upcoming hourly windows, missing versus measured-zero precipitation, old WRF runs, antecedent proxy labelling, contrast-boundary movement, unreadable/repeated/expired images, a permanently hanging source, and the aggregate feed's warm browser budget. All 38 browser tests passed before the final hardening release; CI repeats these for each release. Independent review at 1440/1024/390 corrected water precision, heading wrapping and a clipped mobile menu; no page overflow or uncaught exceptions remained. A real municipal WHEP still was also received on the production watch page. Deployment is gated on the same tested commit for both frontend and API.

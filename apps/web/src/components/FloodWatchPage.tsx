@@ -23,7 +23,7 @@ function brief(data: FloodOperations, now: number) {
 }
 
 export default function FloodWatchPage() {
-  const feed = useFeed<FloodOperations>(`${API_BASE}/api/flood/operations`, 60_000);
+  const feed = useFeed<FloodOperations>(`${API_BASE}/api/flood/operations`, 60_000, 25_000);
   const cameras = useFeed<CctvCamera>(`${API_BASE}/api/cctv/nst-municipality`, 5 * 60_000);
   const [now, setNow] = useState(Date.now());
   const [copy, setCopy] = useState("");

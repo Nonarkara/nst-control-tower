@@ -1,7 +1,7 @@
 import type { FloodOperations, NormalizedFeed, RainWindPoint } from "@nst/shared";
 import { cachedWithStale } from "../lib/cache.js";
 import { fetchJsonOrThrow } from "./common.js";
-import { fetchWaterGauges, fetchRainfall } from "./thaiwater.js";
+import { fetchRelay, mapRelayWater, mapRelayRain } from "./floodDashRelay.js";
 import { fetchNstCctv } from "./cctvNst.js";
 import { fetchFloodContext } from "./floodContext.js";
 
@@ -63,15 +63,30 @@ async function fetchTide(): Promise<FloodOperations["tide"]> {
 
 export async function fetchFloodOperations(): Promise<NormalizedFeed<FloodOperations>> {
   return cachedWithStale("flood-operations", 60, async () => {
-    const [water, rain, weather, tide, context, cameras] = await Promise.allSettled([
-      withinOperationsDeadline(fetchWaterGauges()), withinOperationsDeadline(fetchRainfall()),
-      withinOperationsDeadline(fetchTransect()), withinOperationsDeadline(fetchTide()),
-      withinOperationsDeadline(fetchFloodContext()), withinOperationsDeadline(fetchNstCctv()),
+    // One existing province relay supplies both observations. HII's direct
+    // endpoint is blocked from Worker egress; avoid two failed direct requests
+    // followed by duplicate relay reads. Keep initial fan-out within Workers'
+    // six outgoing connections (relay + forecast + tide + three context reads).
+    const observedWork = withinOperationsDeadline(fetchRelay().then(relay => {
+      const fetchedAt = new Date().toISOString();
+      const { gauges } = mapRelayWater(relay.water); const { stations } = mapRelayRain(relay.rain);
+      const meta = { source: "HII via FloodDash", fetchedAt, ageMinutes: 0, fallbackTier: "live" as const, note: "Observation times are retained per station; FloodDash relays HII readings" };
+      return {
+        water: { features: gauges, meta: { ...meta, fallbackTier: gauges.length ? "live" as const : "unavailable" as const } },
+        rain: { features: stations, meta: { ...meta, fallbackTier: stations.length ? "live" as const : "unavailable" as const } },
+      };
+    }));
+    const weatherWork = withinOperationsDeadline(fetchTransect());
+    const tideWork = withinOperationsDeadline(fetchTide());
+    const cameraWork = withinOperationsDeadline(Promise.allSettled([observedWork, weatherWork, tideWork]).then(() => fetchNstCctv()));
+    const [observations, weather, tide, context, cameras] = await Promise.allSettled([
+      observedWork, weatherWork, tideWork, withinOperationsDeadline(fetchFloodContext()), cameraWork,
     ]);
     const unavailable = (source: string) => ({ source, fetchedAt: new Date().toISOString(), ageMinutes: 0, fallbackTier: "unavailable" as const });
     const gaps: string[] = [];
     const result = <T>(r: PromiseSettledResult<T>, name: string): T | null => { if (r.status === "fulfilled") return r.value; gaps.push(name); return null; };
-    const w = result(water, "Water gauges unavailable"); const r = result(rain, "Rain gauges unavailable");
+    const observed = result(observations, "HII province relay unavailable");
+    const w = observed?.water; const r = observed?.rain;
     const f = result(weather, "Hourly rain/wind model unavailable"); const t = result(tide, "Coastal model unavailable");
     const c = result(context, "FloodDash context unavailable"); const cams = result(cameras, "Municipal camera inventory unavailable")?.features.filter(c => c.category === "water") ?? [];
     if (!w?.features.length) gaps.push("No usable river-gauge observations");
