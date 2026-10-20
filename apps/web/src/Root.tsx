@@ -16,6 +16,8 @@ const TerminalDashboard = lazy(() =>
 // Its own lazy chunk so the map bundle never carries it.
 const DataWorkbenchPage = lazy(() => import("./components/data/DataWorkbenchPage"));
 
+const FloodWatchPage = lazy(() => import("./components/FloodWatchPage"));
+
 type Mode = "geo" | "terminal";
 const KEY = "nst:mode";
 
@@ -24,6 +26,9 @@ function isDataRoute(): boolean {
 }
 
 export function Root() {
+  if (/^\/flood-ops(\/|$)/.test(window.location.pathname)) {
+    return <Suspense fallback={<p lang="th">กำลังโหลดศูนย์เฝ้าระวังน้ำท่วม…</p>}><FloodWatchPage /></Suspense>;
+  }
   if (isDataRoute()) {
     return (
       <LocaleProvider>

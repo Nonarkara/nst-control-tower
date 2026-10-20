@@ -507,7 +507,7 @@ export function computeSouthernRisk(
   const bandCounts: Record<FloodWatchBand, number> = { normal: 0, watch: 0, elevated: 0, high: 0 };
   for (const p of list) bandCounts[p.band] += 1;
 
-  const regionalBand: FloodWatchBand = list.some((p) => p.band === "high") ? "high"
+  const regionalBand: FloodWatchBand | "unknown" = list.length === 0 ? "unknown" : list.some((p) => p.band === "high") ? "high"
     : list.some((p) => p.band === "elevated") ? "elevated"
     : list.some((p) => p.band === "watch") ? "watch"
     : "normal";

@@ -221,6 +221,7 @@ export function TopBar({
         >
           CCTV
         </button>
+        <a href="/flood-ops" className="btn" aria-label="Open flood operations briefing">FLOOD WATCH</a>
         <button type="button" className="btn" onClick={onOpenCatalog} aria-label="Open source catalog">
           Source catalog
         </button>
@@ -246,6 +247,7 @@ export function TopBar({
         )}
         <MoreMenu
           items={[
+            { label: "Flood watch / เฝ้าระวังน้ำท่วม", onSelect: () => window.location.assign("/flood-ops") },
             // The analyst data view stays reachable, but not as a top-level
             // "Terminal" button in a mayor's header.
             ...(onFlip ? [{ label: "Analyst data view", onSelect: onFlip }] : []),

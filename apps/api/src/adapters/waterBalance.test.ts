@@ -225,12 +225,27 @@ describe("forecast grid coverage", () => {
     const { buildBasinLedger } = await import("./waterBalance.js");
     const city = BASINS.find((b) => b.basinId === "city_tha_dee")!;
     const grid = { lngMin: 99.7, latMax: 8.5, cellDeg: 0.1, nrows: 1, ncols: 1, valuesMm: [0] };
-    const inputs = { gauges: [], rain: [{ amphoe: "ลานสกา", rain24h: 0 }], reservoirs: [], ews: [], wrf: { runId: "test", fetchedAt: new Date().toISOString(), days: [grid, grid, grid] }, tideFactor: 0.75 };
+    const inputs = { gauges: [], rain: [{ amphoe: "ลานสกา", rain24h: 0 }], reservoirs: [], ews: [], wrf: { runId: `${new Date(Date.now() + 7 * 3600_000).toISOString().slice(0, 10)}_12UTC`, fetchedAt: new Date().toISOString(), days: [grid, grid, grid] }, tideFactor: 0.75 };
     expect(buildBasinLedger(city, inputs).horizons.every((h) => h.band === "ok")).toBe(true);
     expect(buildBasinLedger(city, { ...inputs, tideFactor: null }).horizons[0].band).toBe("unknown");
     const missing = buildBasinLedger(city, { ...inputs, wrf: { ...inputs.wrf, days: [grid, null, grid] } });
     expect(missing.horizons.map((h) => h.band)).toEqual(["ok", "unknown", "unknown"]);
     const nodata = { ...grid, valuesMm: [-1] };
     expect(buildBasinLedger(city, { ...inputs, wrf: { ...inputs.wrf, days: [nodata, nodata, nodata] } }).horizons[0].band).toBe("unknown");
+  });
+});
+
+describe("storm-time forecast and antecedent honesty", () => {
+  test("does not reuse yesterday's WRF day-1 as the next 24 hours", async () => {
+    const { buildBasinLedger } = await import("./waterBalance.js");
+    const grid = { lngMin: 99.7, latMax: 8.5, cellDeg: .1, nrows: 1, ncols: 1, valuesMm: [100] };
+    const b = buildBasinLedger(BASINS[0], { gauges: [], rain: [{ amphoe: "ลานสกา", rain24h: 50 }], reservoirs: [], ews: [], tideFactor: .7, wrf: { runId: "2020-01-01_12UTC", fetchedAt: new Date().toISOString(), days: [grid, grid, grid] } });
+    expect(b.horizons.every(h => h.band === "unknown")).toBe(true);
+  });
+  test("uses the fresh antecedent proxy conservatively without presenting it as a soil sensor", async () => {
+    const { buildBasinLedger } = await import("./waterBalance.js");
+    const b = buildBasinLedger(BASINS[0], { gauges: [], rain: [{ amphoe: "ลานสกา", rain24h: 2 }], reservoirs: [], ews: [], tideFactor: null, wrf: null, antecedent: { api: 900, band: "saturated", asOf: new Date().toISOString() } });
+    expect(b.wetness).toBe("saturated"); expect(b.soilMoisturePct).toBeNull();
+    expect(b.assumptions.join(" ")).toContain("not measured soil moisture");
   });
 });

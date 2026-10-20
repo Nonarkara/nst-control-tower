@@ -25,7 +25,8 @@ interface Props {
   fallbackTier?: FallbackTier;
 }
 
-const WATCH_LABEL: Record<FloodWatchBand, { th: string; en: string }> = {
+const WATCH_LABEL: Record<FloodWatchBand | "unknown", { th: string; en: string }> = {
+  unknown: { th: "ไม่มีข้อมูล", en: "UNKNOWN" },
   normal: { th: "ปกติ", en: "NORMAL" },
   watch: { th: "เฝ้าระวัง", en: "WATCH" },
   elevated: { th: "เสี่ยงสูง", en: "ELEVATED" },
@@ -50,7 +51,7 @@ function fmtCms(n: number | null | undefined): string {
   return `${n.toFixed(0)} m³/s`;
 }
 
-function WatchLabel({ band }: { band: FloodWatchBand }) {
+function WatchLabel({ band }: { band: FloodWatchBand | "unknown" }) {
   return (
     <StatusText level={floodWatchStatus(band)}>
       <span lang="th">{WATCH_LABEL[band].th}</span> {WATCH_LABEL[band].en}
@@ -84,7 +85,7 @@ export function SouthernFloodIntel({ risk, rivers, ageMinutes, fallbackTier }: P
   );
 
   const hasData = !!risk?.provinces.length || !!rivers?.reaches.length;
-  const regionalBand = risk?.summary.regionalBand ?? "normal";
+  const regionalBand = risk?.summary.regionalBand ?? "unknown";
 
   return (
     <section className="panel" aria-label="Southern flood intelligence" aria-busy={!hasData}>

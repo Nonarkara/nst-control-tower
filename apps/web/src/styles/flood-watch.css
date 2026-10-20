@@ -1,0 +1,35 @@
+.flood-watch { max-width: 1440px; margin: 0 auto; padding: var(--s-4); color: var(--ink); background: var(--paper); font-family: var(--font-sans); line-height: 1.55; overflow-wrap: break-word; }
+.flood-watch p, .flood-watch li { max-width: 65ch; }
+.flood-watch h1 { font-size: clamp(1.6rem, 3vw, 2.6rem); line-height: 1.25; max-width: 100%; text-wrap: balance; margin: var(--s-4) 0 var(--s-3); }
+.flood-watch h2 { font-size: var(--text-lg); line-height: 1.35; margin: 0 0 var(--s-3); }
+.flood-watch a { color: var(--accent); }
+.flood-watch-head, .flood-watch-actions { display: flex; align-items: center; flex-wrap: wrap; gap: var(--s-3); }
+.flood-watch-head { justify-content: space-between; border-bottom: 1px solid var(--line-2); padding-bottom: var(--s-3); }
+.flood-watch button, .flood-watch select { font: inherit; color: var(--ink); background: var(--panel); border: 1px solid var(--line-2); padding: var(--s-2) var(--s-3); min-height: 44px; cursor: pointer; max-width: 100%; }
+.flood-watch button:focus-visible, .flood-watch select:focus-visible, .flood-watch a:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.flood-watch button:disabled { opacity: .6; cursor: default; }
+.flood-watch-status { display: grid; gap: var(--s-2); padding: var(--s-3) 0; border-block: 2px solid var(--line-2); margin-block: var(--s-4); }
+.flood-watch-status--watch { border-color: var(--warn); }
+.flood-watch-status strong { font-size: var(--text-lg); }
+.flood-watch-layout { display: grid; grid-template-columns: minmax(0, 2.2fr) minmax(17rem, 1fr); gap: var(--s-5); }
+.flood-watch section { padding-block: var(--s-4); border-bottom: 1px solid var(--line); min-width: 0; }
+.flood-watch-focal { display: grid; gap: var(--s-2); }
+.flood-watch-focal b { font-size: clamp(2.2rem, 5vw, 4rem); line-height: 1.1; font-variant-numeric: tabular-nums; }
+.flood-watch-table { overflow-x: auto; }
+.flood-watch table { width: 100%; border-collapse: collapse; font-size: var(--text-sm); }
+.flood-watch th, .flood-watch td { text-align: left; vertical-align: top; padding: var(--s-2); border-bottom: 1px solid var(--line); }
+.flood-watch td { font-variant-numeric: tabular-nums; }
+.flood-watch small { display: block; font-size: var(--text-xs); color: var(--ink-2); }
+.flood-watch-flow { border-left: 2px solid var(--line-2); padding-left: var(--s-4); }
+.flood-watch-flow li { margin-block: var(--s-3); }
+.flood-watch-flow span { display: block; }
+.flood-watch-frames { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr)); gap: var(--s-3); margin-top: var(--s-3); }
+.flood-watch figure { margin: 0; }
+.flood-watch img { width: 100%; display: block; }
+.flood-watch-image { position: relative; cursor: crosshair; }
+.flood-watch-image span { position: absolute; color: var(--warn); font-size: 2rem; transform: translate(-50%, -50%); pointer-events: none; }
+.flood-watch figcaption { font-size: var(--text-xs); margin-top: var(--s-2); }
+.flood-watch-gap { color: var(--warn); }
+.flood-watch footer { padding-block: var(--s-4); font-size: var(--text-sm); }
+@media (max-width: 900px) { .flood-watch-layout { grid-template-columns: 1fr; } .flood-watch { padding: var(--s-3); } }
+@media print { .flood-watch { max-width: none; color: #111; background: white; font-size: 10pt; } .flood-watch button, .flood-watch select, .flood-watch-head .flood-watch-actions { display: none; } .flood-watch-layout { display: block; } .flood-watch section { break-inside: avoid; } .flood-watch a { color: inherit; } .flood-watch h1 { font-size: 22pt; } .flood-watch h2 { font-size: 14pt; } .flood-watch small { color: #333; } .flood-watch-table { overflow: visible; } }

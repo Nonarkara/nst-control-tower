@@ -1,3 +1,4 @@
+import { fetchFloodOperations } from "./adapters/floodOperations.js";
 import { Hono } from "hono";
 import { bearerAuth } from "hono/bearer-auth";
 import { bodyLimit } from "hono/body-limit";
@@ -158,6 +159,7 @@ app.get("/", (c) =>
       "/api/trends",
       "/api/markets",
       "/api/executive",
+      "/api/flood/operations",
       "/api/flood/gauges",
       "/api/flood/dam",
       "/api/flood/national-prone",
@@ -373,6 +375,7 @@ app.get("/api/water/rain", async (c) => safeFeed(c, fetchRainfall, "thaiwater-ra
 app.get("/api/water/ews", async (c) => safeFeed(c, fetchEwsStations, "dwr-ews"));
 app.get("/api/water/reservoirs-rid", async (c) => safeFeed(c, fetchRidReservoirs, "rid-reservoirs"));
 app.get("/api/water/national-waterways", async (c) => safeFeed(c, fetchNationalWaterways, "national-waterways"));
+app.get("/api/flood/operations", async (c) => safeFeed(c, fetchFloodOperations, "flood-operations"));
 app.get("/api/water/balance", async (c) => safeFeed(c, fetchWaterBalance, "water-balance"));
 app.get("/api/rainfall/historical", async (c) => {
   const qLat = parseFloat(c.req.query("lat") ?? "");

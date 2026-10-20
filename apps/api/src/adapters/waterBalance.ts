@@ -1,3 +1,4 @@
+import { fetchFloodContext } from "./floodContext.js";
 /**
  * Basin water-balance ledger — the "can the system absorb what's coming"
  * answer, per basin, as a first-order mass balance:
@@ -171,10 +172,10 @@ const MIN_RISE_M_PER_H = 0.02;
 // Gravity drainage through the Pak Nakhon / Pak Phanang estuaries works when
 // the sea is below its median; factor spans 0.5 (always-high sea) → 1.0.
 const MARINE_URL =
-  "https://marine-api.open-meteo.com/v1/marine?latitude=8.45&longitude=100.2&hourly=sea_level_height_msl&forecast_days=2&timezone=Asia%2FBangkok";
+  "https://marine-api.open-meteo.com/v1/marine?latitude=8.45&longitude=100.2&hourly=sea_level_height_msl&forecast_days=3&timeformat=unixtime&timezone=UTC";
 
 interface MarineResp {
-  hourly?: { time?: string[]; sea_level_height_msl?: (number | null)[] };
+  hourly?: { time?: number[]; sea_level_height_msl?: (number | null)[] };
 }
 
 export function tideFactorFromLevels(levels: number[]): number | null {
@@ -190,8 +191,11 @@ export function tideFactorFromLevels(levels: number[]): number | null {
 async function fetchTideFactor(): Promise<number | null> {
   try {
     const resp = await fetchJsonOrThrow<MarineResp>(MARINE_URL);
+    const now = Date.now();
     const levels = (resp.hourly?.sea_level_height_msl ?? []).filter(
-      (v): v is number => v != null,
+      (v, i): v is number => v != null && Number.isFinite(v)
+        && (resp.hourly?.time?.[i] ?? 0) * 1000 >= now
+        && (resp.hourly?.time?.[i] ?? 0) * 1000 < now + 48 * 3600_000,
     );
     return tideFactorFromLevels(levels);
   } catch {
@@ -339,13 +343,14 @@ async function computeWaterBalance(): Promise<NormalizedFeed<BasinWaterBalance>>
 
   // Pull every input concurrently; each inner feed degrades gracefully on its
   // own, so a single upstream outage narrows the ledger instead of killing it.
-  const [gaugesFeed, rainFeed, ridFeed, ewsFeed, wrf, tideFactor] = await Promise.all([
+  const [gaugesFeed, rainFeed, ridFeed, ewsFeed, wrf, tideFactor, context] = await Promise.all([
     fetchWaterGauges(),
     fetchRainfall(),
     fetchRidReservoirs(),
     fetchEwsStations(),
     fetchWrfWindows(),
     fetchTideFactor(),
+    fetchFloodContext().catch(() => null),
   ]);
 
   const gauges = gaugesFeed.features;
@@ -360,7 +365,7 @@ async function computeWaterBalance(): Promise<NormalizedFeed<BasinWaterBalance>>
   }
 
   const features = BASINS.map((cfg) =>
-    buildBasinLedger(cfg, { gauges, rain, reservoirs, ews, wrf, tideFactor }),
+    buildBasinLedger(cfg, { gauges, rain, reservoirs, ews, wrf, tideFactor, antecedent: context?.wetness ?? null }),
   );
 
   const liveInputs = [gaugesFeed, rainFeed, ridFeed].filter(
@@ -389,6 +394,7 @@ interface LedgerInputs {
   ews: { soilMoisture: number | null; amphoe: string }[];
   wrf: Awaited<ReturnType<typeof fetchWrfWindows>>;
   tideFactor: number | null;
+  antecedent?: { api: number; band: string; asOf: string } | null;
 }
 
 export function buildBasinLedger(cfg: BasinConfig, inputs: LedgerInputs): BasinWaterBalance {
@@ -433,8 +439,13 @@ export function buildBasinLedger(cfg: BasinConfig, inputs: LedgerInputs): BasinW
   const rainObservedMm = mean(rain24) ?? 0;
   if (rain24.length === 0) assumptions.push("no rain telemetry matched this basin — observed rain subtotal is incomplete; stress unavailable");
 
+  // A run from an earlier calendar day must not reuse its day-1 total as
+  // the next 24 hours. Exact rolling hourly forecasts live in /flood-ops.
+  const todayThai = new Date(Date.now() + 7 * 3600_000).toISOString().slice(0, 10);
+  const wrfCurrent = inputs.wrf?.runId.startsWith(todayThai) ? inputs.wrf : null;
+  if (inputs.wrf && !wrfCurrent) assumptions.push("WRF day-1 belongs to an older run date — rolling stress withheld; use hourly flood-ops forecast");
   const wrfDays = [1, 2, 3].map((d) => {
-    const w = inputs.wrf?.days[d - 1];
+    const w = wrfCurrent?.days[d - 1];
     const stats = w ? windowStats(w, cfg.wrfBox) : null;
     return stats && stats.validCells > 0 ? stats.meanMm : null;
   });
@@ -451,6 +462,12 @@ export function buildBasinLedger(cfg: BasinConfig, inputs: LedgerInputs): BasinW
   if (wetness === "unknown" && rain24.length > 0) {
     wetness = wetnessFromRain24h(rainObservedMm);
     assumptions.push("no soil telemetry — ground wetness inferred from 24 h rain");
+  }
+  const antecedent = inputs.antecedent;
+  const antecedentAge = antecedent ? Date.now() - Date.parse(antecedent.asOf) : Infinity;
+  if (soil == null && antecedent && antecedentAge >= -300_000 && antecedentAge <= 6 * 3600_000 && antecedent.band === "saturated") {
+    wetness = "saturated";
+    assumptions.push(`FloodDash antecedent precipitation index ${antecedent.api} indicates saturated proxy — not measured soil moisture; as of ${antecedent.asOf}`);
   }
   const c = adjustRunoffC(cfg.cLo, cfg.cHi, wetness);
   assumptions.push(

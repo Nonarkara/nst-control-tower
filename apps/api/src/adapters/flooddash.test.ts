@@ -53,7 +53,7 @@ describe("computeSouthernRisk", () => {
   it("returns empty provinces when no southern data", () => {
     const feed = computeSouthernRisk([], [], new Map());
     expect(feed.provinces).toHaveLength(0);
-    expect(feed.summary.regionalBand).toBe("normal");
+    expect(feed.summary.regionalBand).toBe("unknown");
   });
 });
 

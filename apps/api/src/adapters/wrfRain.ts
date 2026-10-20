@@ -22,7 +22,7 @@ import { cacheAgeMinutes, cachedWithStale as cached } from "../lib/cache.js";
 import { fetchTextOrNull } from "./common.js";
 
 const BASE = "https://tiservice.hii.or.th/opendata/wrf-roms";
-const TTL_SECONDS = 6 * 3600; // model runs land twice a day; 6 h is plenty
+const TTL_SECONDS = 3600; // hourly discovery during flood operations; upstream runs twice daily
 const SOURCE = "hii-wrf-roms";
 
 // ── Analysis windows (WGS84 degrees) ────────────────────────────────────────
@@ -269,8 +269,8 @@ export async function fetchWrfRainOutlook(): Promise<NormalizedFeed<WrfRainDay>>
       source: SOURCE,
       fetchedAt: run.fetchedAt,
       ageMinutes: cacheAgeMinutes(run.fetchedAt),
-      fallbackTier: "live" as const,
-      note: `model run ${run.runId}`,
+      fallbackTier: Date.now() - Date.parse(`${run.runId.slice(0, 10)}T${run.runId.includes("12UTC") ? "12" : "00"}:00:00Z`) > 24 * 3600_000 ? "cache" as const : "live" as const,
+      note: `model run ${run.runId} · calendar-day totals, not rolling next-24h rainfall`,
     },
   };
 }
@@ -307,8 +307,8 @@ export async function fetchWrfRainGrid(day: 1 | 2 | 3): Promise<NormalizedFeed<W
       source: SOURCE,
       fetchedAt: run.fetchedAt,
       ageMinutes: cacheAgeMinutes(run.fetchedAt),
-      fallbackTier: "live" as const,
-      note: `model run ${run.runId}`,
+      fallbackTier: Date.now() - Date.parse(`${run.runId.slice(0, 10)}T${run.runId.includes("12UTC") ? "12" : "00"}:00:00Z`) > 24 * 3600_000 ? "cache" as const : "live" as const,
+      note: `model run ${run.runId} · calendar-day totals, not rolling next-24h rainfall`,
     },
   };
 }

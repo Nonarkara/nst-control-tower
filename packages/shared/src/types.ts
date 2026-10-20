@@ -1065,7 +1065,7 @@ export interface ProvinceWatchScore {
 }
 
 export interface SouthernRiskSummary {
-  regionalBand: FloodWatchBand;
+  regionalBand: FloodWatchBand | "unknown";
   bandCounts: Record<FloodWatchBand, number>;
   bySituationLevel: Record<string, number>;
   worstRain: { provinceTh: string; mm: number } | null;
