@@ -44,6 +44,12 @@ function readStoredLocale(): Locale {
   } catch {
     /* localStorage may be unavailable (private mode / SSR guard) */
   }
+  // First visit: a Thai browser opens in Thai. The mayor should not have to find a toggle.
+  try {
+    if (typeof navigator !== "undefined" && /^th\b/i.test(navigator.language || "")) return "th";
+  } catch {
+    /* ignore */
+  }
   return "en";
 }
 

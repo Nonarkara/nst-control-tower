@@ -96,3 +96,32 @@ describe("plainReason", () => {
     ["something new", "something new"],
   ])("%s → %s", (raw, plain) => expect(plainReason(raw)).toBe(plain));
 });
+
+describe("Thai headline", () => {
+  const base = { id: "g", name: "สะพานนางพระยา", lat: 8.43, lng: 100.0, levelMsl: 0.6, levelPrev: 0.5, warningMsl: null, criticalMsl: null, diffFromBank: -0.13, situationLevel: 4, trend: "rising", riverName: "", amphoe: "เมือง", observedAt: "", isKeyStation: false, stationCode: null, bankMsl: 0.73, fullnessPct: 97, dischargeCms: null, qmaxCms: null } as unknown as WaterGauge;
+  const th = (over: Partial<WaterGauge> = {}, extra = {}) => buildSituationHeadline({ gauges: [{ ...base, ...over }], ageMinutes: 5, tier: "live", lang: "th", ...extra });
+
+  it("reads as one language — no English words in headline, detail, action or age", () => {
+    const h = th();
+    for (const text of [h.headline, h.detail, h.action, h.freshness]) expect(text).not.toMatch(/\b(water|bank|rising|check|gauge|updated|ago)\b/i);
+  });
+  it("says what it means in Thai", () => {
+    const h = th();
+    expect(h.headline).toContain("น้ำอยู่ที่ 97% ของระดับตลิ่ง");
+    expect(h.headline).toContain("และกำลังสูงขึ้น");
+    expect(h.freshness).toBe("อัปเดตข้อมูลสถานีเมื่อสักครู่".replace("เมื่อสักครู่", "5 นาทีที่แล้ว"));
+  });
+  it("over-bank is critical and in Thai", () => {
+    const h = th({ situationLevel: 5, diffFromBank: 0.2 });
+    expect(h.level).toBe("critical");
+    expect(h.headline).toContain("น้ำล้นตลิ่ง");
+    expect(h.action).toContain("แจ้งเตือนประชาชน");
+  });
+  it("no data and calm are in Thai too", () => {
+    expect(buildSituationHeadline({ gauges: [], ageMinutes: null, tier: "loading", lang: "th" }).headline).toBe("กำลังตรวจสอบสถานีวัดน้ำ…");
+    expect(buildSituationHeadline({ gauges: [{ ...base, situationLevel: 2, fullnessPct: 10, diffFromBank: -5 } as WaterGauge], ageMinutes: 1, tier: "live", lang: "th" }).headline).toMatch(/ต่ำกว่าระดับเฝ้าระวัง/);
+  });
+  it("English is unchanged when no language is given", () => {
+    expect(buildSituationHeadline({ gauges: [base], ageMinutes: 5, tier: "live" }).headline).toMatch(/water is 97% of the way/);
+  });
+});

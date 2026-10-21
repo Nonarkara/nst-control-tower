@@ -294,3 +294,57 @@ test.describe("Review fixes — phone and sticky mode", () => {
     expect(covered).toBe(false);
   });
 });
+
+test.describe("First map view", () => {
+  test("frames the city AND the worst gauge, so the first map shows water", async ({ page }) => {
+    const gauge = {
+      id: "g1", name: "Pak Nakhon", lat: 8.4304, lng: 100.0, levelMsl: 0.6, levelPrev: 0.5, warningMsl: null, criticalMsl: null,
+      diffFromBank: -0.13, situationLevel: 4, trend: "rising", riverName: "Pak Nakhon", amphoe: "Mueang", observedAt: new Date().toISOString(),
+      isKeyStation: false, stationCode: "PTTEP3", bankMsl: 0.73, fullnessPct: 97, dischargeCms: null, qmaxCms: null,
+    };
+    await page.route("**/api/water/gauges*", (r) => r.fulfill({
+      status: 200, contentType: "application/json",
+      body: JSON.stringify({ features: [gauge], meta: { source: "t", fetchedAt: new Date().toISOString(), ageMinutes: 1, fallbackTier: "live" } }),
+    }));
+    await page.goto("/");
+    await expect(page.locator(".map-host")).toBeVisible({ timeout: 20_000 });
+    await expect.poll(() => page.evaluate(() => (window as unknown as { __mapCam?: { longitude: number } }).__mapCam?.longitude), { timeout: 20_000 })
+      .toBeGreaterThan(99.97); // moved east of City Hall (99.963) toward the gauge (100.0)
+    const cam = await page.evaluate(() => (window as unknown as { __mapCam: { longitude: number } }).__mapCam);
+    expect(cam.longitude).toBeLessThan(100.0);
+  });
+});
+
+test.describe("Headline language", () => {
+  const stub = async (page: import("@playwright/test").Page) => {
+    const gauge = {
+      id: "g1", name: "Pak Nakhon", lat: 8.4304, lng: 100.0, levelMsl: 0.6, levelPrev: 0.5, warningMsl: null, criticalMsl: null,
+      diffFromBank: -0.13, situationLevel: 4, trend: "rising", riverName: "", amphoe: "Mueang", observedAt: new Date().toISOString(),
+      isKeyStation: false, stationCode: "PTTEP3", bankMsl: 0.73, fullnessPct: 97, dischargeCms: null, qmaxCms: null,
+    };
+    await page.route("**/api/water/gauges*", (r) => r.fulfill({
+      status: 200, contentType: "application/json",
+      body: JSON.stringify({ features: [gauge], meta: { source: "t", fetchedAt: new Date().toISOString(), ageMinutes: 1, fallbackTier: "live" } }),
+    }));
+  };
+
+  test("the TH toggle turns the whole headline card Thai", async ({ page }) => {
+    await stub(page);
+    await page.goto("/");
+    const card = page.getByRole("region", { name: "Right now" });
+    await expect(card).toContainText("water is 97% of the way", { timeout: 20_000 });
+    await page.getByRole("button", { name: /Switch to Thai/ }).click();
+    await expect(card).toContainText("น้ำอยู่ที่ 97% ของระดับตลิ่ง");
+    await expect(card).toContainText("สิ่งที่ควรทำ");
+    await expect(card).not.toContainText("Suggested action");
+  });
+
+  test("a Thai browser opens in Thai without touching the toggle", async ({ browser }) => {
+    const ctx = await browser.newContext({ locale: "th-TH" });
+    const page = await ctx.newPage();
+    await stub(page);
+    await page.goto("/");
+    await expect(page.getByRole("region", { name: "Right now" })).toContainText("สิ่งที่ควรทำ", { timeout: 20_000 });
+    await ctx.close();
+  });
+});

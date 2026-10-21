@@ -198,6 +198,7 @@ import { CctvStreamModal } from "./components/CctvStreamModal";
 import { CctvDirectory } from "./components/CctvDirectory";
 import { CvGaugePanel } from "./components/CvGaugePanel";
 import { CameraEyes } from "./components/CameraEyes";
+import { frameCityAndWorstGauge } from "./lib/mapFraming";
 import { useGaugeWatch } from "./hooks/useGaugeWatch";
 import { CctvCommandCenter } from "./components/CctvCommandCenter";
 import { RailSection } from "./components/RailSection";
@@ -1371,6 +1372,29 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
       .catch(() => { /* panel shows its loading/empty note; map layer stays empty */ });
     return () => ctrl.abort();
   }, []);
+  // First open: frame the city AND its worst gauge, once, so the first map a
+  // mayor sees shows the water that matters. A user who has already touched
+  // the map (or asked for a view) is never overridden.
+  const framedRef = useRef(false);
+  const mapTouchedRef = useRef(false);
+  useEffect(() => {
+    const touched = () => { mapTouchedRef.current = true; };
+    window.addEventListener("pointerdown", touched, { capture: true, once: true });
+    window.addEventListener("wheel", touched, { capture: true, once: true, passive: true });
+    return () => {
+      window.removeEventListener("pointerdown", touched, { capture: true });
+      window.removeEventListener("wheel", touched, { capture: true });
+    };
+  }, []);
+  useEffect(() => {
+    if (framedRef.current || mapTouchedRef.current || waterGauges.data.length === 0) return;
+    framedRef.current = true;
+    const base = viewStateRef.current;
+    const px = Math.min(900, Math.max(360, Math.round(window.innerWidth * (isMobile ? 1 : 0.55))));
+    const frame = frameCityAndWorstGauge(waterGauges.data, { lng: base.longitude, lat: base.latitude }, px);
+    if (frame) flyTo(frame.lng, frame.lat, frame.zoom);
+  }, [waterGauges.data, flyTo, isMobile]);
+
   const evacCoverage = useMemo(
     () => ({
       // null until the feed has answered — 0 must mean "offline", never "not loaded yet".

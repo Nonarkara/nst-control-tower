@@ -158,9 +158,10 @@ describe("news adapter — deduplication (isolated)", () => {
 });
 
 describe("news adapter — action tags (isolated)", () => {
-  it("applies EM tag to flood-related items and boosts their score", async () => {
+  it("tags flood items FL (not Emergency) and still boosts their score", async () => {
     vi.resetModules();
-    // Thai flood keyword (น้ำท่วม) + English flood — both should trigger EM
+    // Thai flood keyword (น้ำท่วม) + English flood — both trigger FL. Emergency
+    // is reserved for acute incidents (fire, landslide, drowning…).
     const xml = makeRss([
       { title: "น้ำท่วมหนัก Chonburi municipal area flood emergency", link: "https://thaipbs.or.th/flood1" },
     ]);
@@ -176,8 +177,9 @@ describe("news adapter — action tags (isolated)", () => {
 
     expect(feed.features.length).toBeGreaterThan(0);
     const floodItem = feed.features[0];
-    expect(floodItem.tags).toContain("EM");
-    // EM boost (+15) should push score above the baseline trust score (~42 for thaipbs 0.82 × 50)
+    expect(floodItem.tags).toContain("FL");
+    expect(floodItem.tags).not.toContain("EM");
+    // Flood keywords should push score above the baseline trust score (~42 for thaipbs 0.82 × 50)
     expect(floodItem.score).toBeGreaterThan(55);
     vi.restoreAllMocks();
   });
@@ -642,5 +644,29 @@ describe("undated and re-served old news", () => {
     expect(namesOldYear("เมื่อ พ.ศ. 2567 เกิดน้ำท่วมใหญ่", now)).toBe(true);
     expect(namesOldYear("เมื่อ พ.ศ.2568 เกิดน้ำท่วม", now)).toBe(false); // last year may still be context
     expect(namesOldYear("น้ำท่วมวันนี้ที่ปากพนัง", now)).toBe(false);
+  });
+});
+
+import { actionTags } from "./news";
+describe("Emergency tag means an acute incident", () => {
+  const t = (title: string) => actionTags({ title, summary: "" });
+  it("flooding is tagged Flood, not Emergency", () => {
+    expect(t("น้ำท่วมถนนสายหลักปากพนัง")).toContain("FL");
+    expect(t("น้ำท่วมถนนสายหลักปากพนัง")).not.toContain("EM");
+  });
+  it("a relief vote or a councillor's criticism is not an emergency", () => {
+    expect(t("บอร์ดกสทช. เคาะ 4 มติ เยียวยาน้ำท่วม")).not.toContain("EM");
+    expect(t("ส.ก. ซัด กทม.ไร้แผนรับมือท่วม")).not.toContain("EM");
+  });
+  it("'storm' as a metaphor is not an emergency", () => {
+    expect(t("'พายุ' เข้าไทยพีบีเอส ประเมินอดีต-อนาคต")).not.toContain("EM");
+  });
+  it("a real incident still is", () => {
+    expect(t("ไฟไหม้ตลาดสดท่าม้า ผู้ค้าอพยพ")).toContain("EM");
+    expect(t("Landslide blocks road in Lan Saka")).toContain("EM");
+    expect(t("เด็กจมน้ำเสียชีวิตที่คลองท่าดี")).toContain("EM");
+  });
+  it("a fire-safety drill is not an emergency", () => {
+    expect(t("ซ้อมแผนดับเพลิง ไฟไหม้จำลอง เทศบาลนคร")).not.toContain("EM");
   });
 });

@@ -216,9 +216,13 @@ const ACTION_PATTERNS: Array<{ tag: string; patterns: RegExp[] }> = [
     /\b(funeral|cremation|wake|condolence|memorial)\b/i,
     /(งานศพ|ฌาปนกิจ|พระราชทานเพลิง|รดน้ำศพ|สวดอภิธรรม|ไว้อาลัย)/,
   ]},
+  // EM = "go to the scene": an ACUTE incident. Flooding is the FL tag's job —
+  // matching it here too put the red Emergency badge on a telecom board's
+  // relief vote and a councillor's criticism. "Storm" is dropped: it appears
+  // as a metaphor as often as a weather event.
   { tag: "EM", patterns: [
-    /\b(flood|fire|earthquake|landslide|tsunami|drown|collapse|explosion|chemical leak|oil spill)\b/i,
-    /(น้ำท่วม|ไฟไหม้|เพลิงไหม้|พังถล่ม|แผ่นดินไหว|จมน้ำ|สึนามิ|รั่วไหล|ดินถล่ม|พายุ|น้ำขัง)/,
+    /\b(fire|earthquake|landslide|tsunami|drown|collapse|explosion|chemical leak|oil spill)\b/i,
+    /(ไฟไหม้|เพลิงไหม้|พังถล่ม|แผ่นดินไหว|จมน้ำ|สึนามิ|รั่วไหล|ดินถล่ม)/,
   ]},
   { tag: "PO", patterns: [
     /\b(arrested|raid|crackdown|protest|complaint against|police violence|brutality)\b/i,
@@ -250,10 +254,14 @@ const ACTION_PATTERNS: Array<{ tag: string; patterns: RegExp[] }> = [
   ]},
 ];
 
-function actionTags(item: { title: string; summary: string }): string[] {
+/** Policy, meetings and money are not incidents, whatever disaster they mention. */
+const NOT_AN_INCIDENT = /(ประชุม|มติ|งบประมาณ|เยียวยา|นโยบาย|แผนรับมือ|ซ้อมแผน|\b(board|meeting|budget|policy|compensation|drill|exercise)\b)/i;
+
+export function actionTags(item: { title: string; summary: string }): string[] {
   const text = `${item.title} ${item.summary}`;
   const tags: string[] = [];
   for (const { tag, patterns } of ACTION_PATTERNS) {
+    if (tag === "EM" && NOT_AN_INCIDENT.test(item.title)) continue;
     if (patterns.some((p) => p.test(text))) tags.push(tag);
   }
   return tags;
