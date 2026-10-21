@@ -20,7 +20,7 @@ describe("grounded schematic architecture", () => {
     const fc = { type: "FeatureCollection" as const, features: [hall] };
     const walls = buildingsLayer(fc, { extruded: true, zoomBucket: 2 });
     expect(walls.props.elevationScale).toBe(1);
-    expect((walls.props.getElevation as (f: BuildingFeature) => number)(hall)).toBe(model.eaves);
+    expect((walls.props.getElevation as unknown as (f: BuildingFeature) => number)(hall)).toBe(model.eaves);
     const roofs = buildingRoofsLayer(fc);
     expect(roofs.props.extruded).toBe(false);
     const coords = buildingRoofFaces(hall).flatMap(f => f.geometry.coordinates.flat());
