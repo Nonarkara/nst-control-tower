@@ -178,10 +178,61 @@ export function mapRelayRain(rows: RelayRain[]): { stations: RainfallStation[]; 
   return { stations, silent };
 }
 
+/** FloodDash computes this route from a 6.8 GB database on a busy Mac: measured
+ *  10 s cold (its own log: "slow request … ms:10129"), and the Worker used to
+ *  give up at exactly 10 s — so the relay failed every time the 60 s server
+ *  cache had expired, which is every time a 10-minute cache asks. */
+export const RELAY_TIMEOUT_MS = 25_000;
+/** Shared across every Worker instance in a data centre, so FloodDash is asked
+ *  about once per window, not once per cold instance. */
+export const RELAY_EDGE_TTL_S = 300;
+
+interface EdgeCache {
+  match(req: Request): Promise<Response | undefined>;
+  put(req: Request, res: Response): Promise<void>;
+}
+
+function edgeCache(): EdgeCache | null {
+  const c = (globalThis as { caches?: { default?: EdgeCache } }).caches?.default;
+  return c ?? null;
+}
+
+function validShape(body: RelayResponse | null | undefined): body is RelayResponse {
+  return Array.isArray(body?.water) && Array.isArray(body?.rain);
+}
+
 export async function fetchRelay(): Promise<RelayResponse> {
-  const body = await fetchJsonOrThrow<RelayResponse>(RELAY_URL, undefined, 10_000);
-  if (!Array.isArray(body?.water) || !Array.isArray(body?.rain)) {
-    throw new Error("FloodDash relay returned an unexpected shape");
+  const cache = edgeCache();
+  const key = new Request(RELAY_URL);
+  if (cache) {
+    try {
+      const hit = await cache.match(key);
+      if (hit) {
+        const cached = (await hit.json()) as RelayResponse;
+        if (validShape(cached)) return cached;
+      }
+    } catch (err) {
+      console.warn("floodDashRelay edge-cache read failed", (err as Error).message);
+    }
+  }
+
+  let body: RelayResponse;
+  try {
+    body = await fetchJsonOrThrow<RelayResponse>(RELAY_URL, undefined, RELAY_TIMEOUT_MS);
+  } catch (err) {
+    console.warn("floodDashRelay fetch failed", (err as Error).message);
+    throw err;
+  }
+  if (!validShape(body)) throw new Error("FloodDash relay returned an unexpected shape");
+
+  if (cache) {
+    try {
+      await cache.put(key, new Response(JSON.stringify(body), {
+        headers: { "content-type": "application/json", "cache-control": `public, max-age=${RELAY_EDGE_TTL_S}` },
+      }));
+    } catch (err) {
+      console.warn("floodDashRelay edge-cache write failed", (err as Error).message);
+    }
   }
   return body;
 }
