@@ -85,10 +85,9 @@ const AREA_BANDS: ReadonlyArray<{ maxM2: number; storeys: number }> = [
   { maxM2: 100, storeys: 1 },
   { maxM2: 400, storeys: 2 },
   { maxM2: 1000, storeys: 2.5 },
-  { maxM2: 3000, storeys: 3.5 },
-  { maxM2: 8000, storeys: 5 },
-  { maxM2: 20000, storeys: 10 },
-  { maxM2: Infinity, storeys: 15 },
+  // A large footprint can be a single-storey hall or warehouse, not a tower.
+  // Unclassified footprints remain low-rise unless height/storey tags say otherwise.
+  { maxM2: Infinity, storeys: 3 },
 ];
 
 /** Parse an OSM height string ("12", "12.5", "12 m") to metres, or null.
@@ -139,8 +138,7 @@ export interface HeightProps {
  *
  * Order of authority: a real OSM `height` beats a `building:levels` count,
  * which beats a typology lookup, which beats the area model. The legacy
- * `_elevM` is consulted LAST and only as a floor for landmarks, because it is
- * a hand-baked 10/28 m guess and should never outrank anything measured.
+ * `_elevM` is a hand-baked10/28m guess and is never used to override tags or estimates.
  */
 export function estimateBuildingHeight(areaM2: number, p: HeightProps): BuildingHeightResult {
   const osm = parseOsmHeight(p.height);
@@ -159,13 +157,6 @@ export function estimateBuildingHeight(areaM2: number, p: HeightProps): Building
   const band = AREA_BANDS.find((b) => areaM2 < b.maxM2) ?? AREA_BANDS[AREA_BANDS.length - 1]!;
   const jittered = Math.max(1, band.storeys + storeyJitter(p.id));
   return { metres: round1(jittered * STOREY_M), source: "area-model", measured: false };
-}
-
-/** Legacy `_elevM` is a 10/28 m guess; keep it only as a minimum for named
- *  landmarks so a hand-tagged tall building never shrinks. */
-export function legacyFloor(p: HeightProps): number | null {
-  if (typeof p._elevM !== "number") return null;
-  return p.name || p.mnType ? p._elevM : null;
 }
 
 function round1(n: number): number {

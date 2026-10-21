@@ -1615,22 +1615,29 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
   // change, the buildings/roofs GeoJsonLayer would otherwise be re-instantiated
   // and deck.gl would re-tessellate. With a stable reference, deck.gl sees the
   // same layer object and skips the diff entirely.
+  // The dedicated chedi mesh replaces its footprint prism, rather than being
+  // hidden inside a duplicate 56m box. Keep the source feature for search.
+  const chediModelEnabled = enabledLayers.has("mahatat-3d");
+  const buildingGeometryEnabled = enabledLayers.has("municipality-buildings") || enabledLayers.has("campus-buildings");
+  const automaticChedi = is3D && buildingGeometryEnabled;
+  const renderedBuildings = useMemo(() => buildings && (chediModelEnabled || automaticChedi) && is3D
+    ? { ...buildings, features: buildings.features.filter(f => f.properties.id !== "hand/mahatat-chedi") }
+    : buildings, [buildings, chediModelEnabled, automaticChedi, is3D]);
   const memoizedBuildingsLayer = useMemo<Layer | null>(
     // zoomBucket is in the deps so the layer re-creates when the camera crosses
     // a bucket boundary — that's when the LOD filter (zoom 0 keeps only landmarks,
     // zoom 1 keeps all but drops pickable, zoom 2 keeps everything) changes. The
     // re-tessellation cost is paid only at the few bucket boundaries the user
     // actually crosses, not on every pan/zoom tick.
-    () => buildings ? (buildingsLayer(buildings, { extruded: is3D, ghosted: isSubstructure, zoomBucket }) as Layer) : null,
-    [buildings, is3D, isSubstructure, zoomBucket],
+    () => renderedBuildings ? (buildingsLayer(renderedBuildings, { extruded: is3D, ghosted: isSubstructure, zoomBucket }) as Layer) : null,
+    [renderedBuildings, is3D, isSubstructure, zoomBucket],
   );
   const memoizedRoofsLayer = useMemo<Layer | null>(
     () => {
-      if (!buildings || !is3D || isSubstructure) return null;
-      const maxRoofs = zoomBucket === 2 ? 3200 : zoomBucket === 1 ? 1400 : 500;
-      return buildingRoofsLayer(buildings, { maxRoofs, elevationScale: 1.65 }) as Layer;
+      if (!renderedBuildings || !is3D || isSubstructure) return null;
+      return buildingRoofsLayer(renderedBuildings, { zoomBucket }) as Layer;
     },
-    [buildings, is3D, isSubstructure, zoomBucket],
+    [renderedBuildings, is3D, isSubstructure, zoomBucket],
   );
 
   const layers = useMemo<Layer[]>(() => {
@@ -1667,27 +1674,13 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
       out.push(campusBoundaryLayer(campus, { filled: showBoundaryFill, stroked: showBoundaryLine }) as Layer);
     if ((enabledLayers.has("municipality-buildings") || enabledLayers.has("campus-buildings")) && memoizedBuildingsLayer)
       out.push(memoizedBuildingsLayer);
-    if (enabledLayers.has("building-roofs") && memoizedRoofsLayer)
+    if ((enabledLayers.has("municipality-buildings") || enabledLayers.has("campus-buildings")) && memoizedRoofsLayer)
       out.push(memoizedRoofsLayer);
-    // ── Mahatat 3D — parametric model of Wat Phra Mahathat Voramahavihan ──
-    // The great chedi is the tallest structure in southern Thailand (~78m)
-    // and the defining landmark of the city. Mounted after the buildings
-    // layer so it draws on top of the hand-authored cloister footprint from
-    // buildings.geojson — the parametric model REPLACES the cloister's flat
-    // box extrusion with the iconic Sri-Lankan bell + spire + surrounding
-    // ubosot/wihan/prang/ho-trai/satellite-chedi cluster. Toggleable via the
-    // `mahatat-3d` layer id so it ships ON by default but an operator can
-    // turn it off if the bell silhouette competes with a current scenario.
-    // The parametric model is dimensioned to the UNESCO nomination itself:
-    // CHEDI_HEIGHT_M is 56.0 m (28 wa at 1 wa = 2 m) against a 28 m plinth.
-    //
-    // It therefore renders at 1.0x, NOT the buildings layer's 1.65x. This call
-    // used to pass `is3D ? 1.65 : 1`, which drew a World Heritage monument 40%
-    // too tall — 79 m instead of 56 m — and made the 2:1 proportion, the one
-    // number the nomination actually argues from, unreadable. Stylising this
-    // object to match the surrounding city would mean misstating a documented
-    // fact, so it stands at true size.
+    // Nomination-dimensioned parametric chedi, at 1:1 scale. Its duplicate
+    // footprint prism is excluded above when this model is enabled in 3D.
     out.push(...(mahatat3DLayer(enabledLayers.has("mahatat-3d"), 1) as Layer[]));
+    if (!chediModelEnabled && automaticChedi)
+      out.push(...mahatat3DLayer(true, 1));
     // Photorealistic 3D Tiles (Google) — textured glTF mesh streamed by deck.gl
     if (tile3d.layer) out.push(tile3d.layer as Layer);
     if (enabledLayers.has("road-network") && roads)
@@ -2008,7 +2001,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
     return out;
   }, [
     enabledLayers, zoomBucket, is3D, isSubstructure, campus, buildings,
-    memoizedBuildingsLayer, memoizedRoofsLayer,
+    memoizedBuildingsLayer, memoizedRoofsLayer, chediModelEnabled, automaticChedi,
     trafficSamples,
     transitStations, transitLines, roads,
     cctv.data, cityReports.data,

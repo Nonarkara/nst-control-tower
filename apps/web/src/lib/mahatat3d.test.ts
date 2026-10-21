@@ -30,22 +30,11 @@ describe("mahatat3DLayer() — enabled layer inventory", () => {
   const columns = layers.filter((l) => l instanceof ColumnLayer);
   const polygons = layers.filter((l) => l instanceof PolygonLayer);
 
-  it("renders the full Mahatat compound as a stack of primitives", () => {
-    // 13 chedi segments (3 plinth + 1 drum + 3 bell + 1 harmika + 4 spire +
-    // 1 finial) + 3 halls × 2 (walls + roof) + 6 prang tiers + 8 satellite
-    // chedis × 5 tiers each = 13 + 6 + 6 + 40 = 65 layers total.
-    expect(layers.length).toBe(65);
-  });
-
-  it("uses ColumnLayer for round segments (drum, bell, spire, prang, satellites)", () => {
-    // 9 round chedi (drum + 3 bell + 4 spire + finial) + 6 prang + 8 × 5
-    // satellite tiers = 55 round.
-    expect(columns.length).toBe(55);
-  });
-
-  it("uses PolygonLayer for square segments (plinth, harmika, hall walls + roofs)", () => {
-    // 3 plinth + 1 harmika + 3 halls × 2 (walls + roof) = 10 square.
-    expect(polygons.length).toBe(10);
+  it("renders only the13dimensioned central chedi sections", () => {
+    expect(layers.length).toBe(13);
+    expect(columns.length).toBe(9);
+    expect(polygons.length).toBe(4);
+    expect(layers.every(l => l.id.startsWith("mahatat-chedi-"))).toBe(true);
   });
 
   it("every layer is either a ColumnLayer or a PolygonLayer (no leaked primitives)", () => {
@@ -72,15 +61,8 @@ describe("mahatat3DLayer() — layer ids", () => {
     expect(new Set(chediIds).size).toBe(13);
   });
 
-  it("the satellite chedi cluster renders 8 unique sites", () => {
-    const satIds = layers
-      .map((l) => (l as { id?: string }).id ?? "")
-      .filter((id) => id.startsWith("mahatat-sat-"));
-    // 8 satellites × 5 tiers each = 40 sat-* ids
-    expect(satIds.length).toBe(40);
-    // 8 unique site indices (the first numeric segment of the id)
-    const sites = new Set(satIds.map((id) => id.split("-")[2]));
-    expect(sites.size).toBe(8);
+  it("does not invent surrounding halls or satellite placements", () => {
+    expect(layers.some(l => /mahatat-(sat|hall|prang)-/.test(l.id))).toBe(false);
   });
 });
 
@@ -90,4 +72,23 @@ describe("mahatat3DLayer() — elevationScale", () => {
     expect(mahatat3DLayer(true, 1.0).length).toBe(mahatat3DLayer(true, 1.65).length);
     expect(mahatat3DLayer(true, 2.5).length).toBe(mahatat3DLayer(true, 1.0).length);
   });
+});
+
+describe("rendered segment bases, not just authored totals", () => {
+  type Datum = { pos: number[]; ring: number[][]; h: number };
+  for (const scale of [1, 1.65]) {
+    it(`places the chedi's actual rendered summit at56m times${scale}`, () => {
+      const segments = mahatat3DLayer(true, scale);
+      const bounds = segments.map(layer => {
+        const p = layer.props as unknown as { data: Datum[]; getPosition?: (d: Datum) => number[]; getPolygon?: (d: Datum) => number[][]; getElevation: (d: Datum) => number; elevationScale: number };
+        const d = p.data[0]!;
+        const base = p.getPosition ? p.getPosition(d)[2]! : p.getPolygon!(d)[0]![2]!;
+        return { base, top: base + p.getElevation(d) * p.elevationScale };
+      });
+      expect(bounds).toHaveLength(13);
+      expect(new Set(bounds.map(x => x.base)).size).toBe(13);
+      expect(Math.max(...bounds.map(x => x.top))).toBeCloseTo(56 * scale, 5);
+      for (let i = 1; i < bounds.length; i++) expect(bounds[i]!.base).toBeCloseTo(bounds[i - 1]!.top, 5);
+    });
+  }
 });

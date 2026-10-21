@@ -99,14 +99,14 @@ export function MapLegend({ enabled }: { enabled: ReadonlySet<LayerId> }) {
           {heightCensus.total > 0 ? (
             <p className="map-legend__heights" data-testid="height-provenance">
               <strong>
-                3D heights: {heightCensus.measured} measured ·{" "}
+                3D heights: {heightCensus.measured} height-tagged ·{" "}
                 {heightCensus.total - heightCensus.measured} modelled
               </strong>
               <span>
-                OpenStreetMap carries a real height on{" "}
-                {((heightCensus.measured / heightCensus.total) * 100).toFixed(2)}% of NST
-                buildings and no open dataset covers Thailand. The rest is estimated from
-                building type and footprint area — about ±1 storey for shophouses.
+                Heights use source tags where available, otherwise type/area estimates.
+                Source tags are not verified surveys. 3D uses neutral masonry and
+                schematic roofs at 1:1 height; roof shapes and materials are unverified.
+                Type colours apply to 2D footprints. The chedi uses a separate parametric model.
               </span>
             </p>
           ) : null}

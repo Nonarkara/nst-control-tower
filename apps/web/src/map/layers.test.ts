@@ -397,15 +397,9 @@ describe("temple compounds render flat (Wat Mahathat wall)", () => {
     // (a 182,000 m² compound extruded as a solid box swallows the streets), and
     // the hall *inside* it must keep a real building height.
     //
-    // The threshold moved from `> 10` to `> 8` because the height model changed,
-    // not to make the new number pass. The old path returned a blanket 28 m for
-    // every temple — the height of the great CHEDI, copied onto every hall in
-    // the city. estimateBuildingHeight() now derives 3 storeys x 3.2 m = 9.6 m
-    // for this 487 m² hall, which is closer to a real Thai ordination hall
-    // (~7–10 m to the eaves, before the roof). `> 8` keeps the assertion's real
-    // meaning — a real multi-storey building, orders of magnitude above the
-    // 0.8 m compound — without re-asserting a number we now know was fiction.
-    expect(getElevation(hall)).toBeGreaterThan(8);
+    // The9.6m schematic hall now includes a pitched roof, so the wall eaves
+    // are lower than its ridge. The roof owns that remaining height.
+    expect(getElevation(hall)).toBeGreaterThan(5);
     expect(getElevation(hall)).toBeGreaterThan(getElevation(grounds) * 5);
   });
 

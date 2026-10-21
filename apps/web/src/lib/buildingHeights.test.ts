@@ -20,7 +20,6 @@ import {
   polygonAreaM2,
   storeyJitter,
   census,
-  legacyFloor,
   STOREY_M,
   DEFAULT_HEIGHT_M,
 } from "./buildingHeights";
@@ -88,11 +87,12 @@ describe("the city must not be a plateau", () => {
     );
   });
 
-  it("scales with footprint area — a big plot is taller than a small one", () => {
+  it("keeps large unclassified footprints low-rise instead of inventing towers", () => {
     const small = estimateBuildingHeight(80, { building: "yes", id: "a" }).metres;
     const huge = estimateBuildingHeight(30_000, { building: "yes", id: "a" }).metres;
     expect(huge).toBeGreaterThan(small);
-    expect(huge).toBeGreaterThan(6 * STOREY_M);
+    expect(huge).toBeLessThanOrEqual(3.5 * STOREY_M);
+    expect(estimateBuildingHeight(30_000, { height: 42 }).metres).toBe(42);
   });
 
   it("never returns zero or negative — a flat building is a missing one", () => {
@@ -105,18 +105,7 @@ describe("the city must not be a plateau", () => {
   });
 });
 
-describe("legacyFloor", () => {
-  it("holds a named landmark at its hand-tagged height", () => {
-    expect(legacyFloor({ _elevM: 28, mnType: "temple" })).toBe(28);
-    expect(legacyFloor({ _elevM: 28, name: "ศาลากลาง" })).toBe(28);
-  });
-  it("ignores _elevM for anonymous buildings, which is only a guess anyway", () => {
-    expect(legacyFloor({ _elevM: 10 })).toBeNull();
-  });
-  it("returns null when there is no legacy value", () => {
-    expect(legacyFloor({})).toBeNull();
-  });
-});
+
 
 describe("polygonAreaM2", () => {
   it("measures a known square: 20 m × 20 m ≈ 400 m²", () => {

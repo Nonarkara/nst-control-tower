@@ -40,7 +40,7 @@ export const ALL_LAYERS_PART_B: LayerEntry[] = [
   { id: "flood-marks",       label: "Flood marks (surveyed)",    swatch: "#DC2626", group: "environment",
     describe: "Real surveyed high-water marks (HII MMS survey 2025, m MSL, cm accuracy) read off walls and poles in the city's eastern lowland — red = Tropical Storm Pabuk (Jan 2019, up to 2.12 m MSL), amber = ordinary flood season (up to 1.76 m). The ground truth every scenario is judged against." },
   { id: "mahatat-3d",        label: "Wat Mahatat 3D model",      swatch: "#FFD27F", group: "municipality",
-    describe: "Parametric 3D model of Wat Phra Mahathat Voramahavihan — the iconic Sri-Lankan bell chedi (~78m), ubosot, wihan, prang, ho trai and 8 satellite chedis. Stacked deck.gl primitives (no GLTF asset) anchored at the canonical Old Town coordinates so the temple reads as a recognizable silhouette from province zoom down to street zoom. Toggleable — ON by default on OPS / FLOOD / EXEC." },
+    describe: "Schematic central chedi of Wat Phra Mahathat Voramahawihan,56m at1:1 scale from nomination dimensions. White masonry with a gold finial. Surrounding halls use traced OSM footprints; no invented compound placement. The chedi also replaces its footprint prism whenever3D buildings are shown." },
   { id: "district-boundaries", label: "District boundaries (amphoe)", swatch: "#7E57C2", group: "municipality",
     describe: "All 42 amphoe (district) boundaries of NST province rendered as dashed purple polygons with their Thai name at the centroid. The province-scale hydrology frame: every river + every district labelled the way RID's printed watershed maps read." },
   { id: "hydro-flow-arrows",   label: "River flow direction",     swatch: "#D6332F", group: "environment",

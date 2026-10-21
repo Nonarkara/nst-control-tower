@@ -1,4 +1,5 @@
 import { GeoJsonLayer, GridCellLayer, IconLayer, PathLayer, TextLayer } from "@deck.gl/layers";
+import { buildingModel, buildingRoofFaces, BUILDING_MATERIAL } from "../lib/buildingAppearance";
 import { judgeGauge } from "../lib/levelWatch";
 import {
   resampleTerrain,
@@ -7,11 +8,8 @@ import {
 } from "../lib/terrainSurface";
 import {
   census,
-  estimateBuildingHeight,
-  legacyFloor,
   type BuildingHeightResult,
   type HeightCensus,
-  type HeightProps,
 } from "../lib/buildingHeights";
 import type { Layer } from "@deck.gl/core";
 import { HeatmapLayer } from "@deck.gl/aggregation-layers";
@@ -457,22 +455,11 @@ export const BUILDING_LEGEND: { label: string; color: [number, number, number] }
 ];
 
 /**
- * Render every municipality building as a filled, tappable 3D box.
- *
- * 2D: hairline footprints — landmarks warmer, ordinary buildings dim.
- * 3D: extruded to real height. Landmarks get their category colour at full
- *     vibrancy regardless of height. Ordinary buildings stay on the blue
- *     height-ramp (sky-300 → sky-700). The result: the mayor can read the
- *     urban topology — the gold temple cluster, amber hotel strip, red
- *     hospital district — all visible in a single 3D view.
- * 3DS: ghosted for the substructure (utilities) cutaway view.
+ * Footprint-based architecture: type colours in2D, opaque neutral masonry
+ * with schematic roof planes in3D, true1:1 height and no legacy height floor.
+ * Source-tagged heights take precedence; the remainder are type/area estimates.
  */
-/**
- * Provenance of the heights currently drawn, refreshed every time
- * buildingsLayer() is built. Read it from BuildingLegend / the catalog to tell
- * the user the truth: most of these numbers are MODELLED, and a 3D city that
- * admits it is more credible than one that implies survey accuracy.
- */
+/** Heights for the mounted map legend, refreshed when the layer is built. */
 export let heightCensus: HeightCensus = {
   total: 0,
   measured: 0,
@@ -563,12 +550,9 @@ export function buildingsLayer(
   const _heightCache = new WeakMap<typeof filtered[number], number>();
   const _heightResults: BuildingHeightResult[] = [];
   for (const f of filtered) {
-    const p = f.properties as BuildingProperties & HeightProps;
-    const areaM2 = polygonAreaM2(f.geometry as { type: string; coordinates: unknown });
-    const res = estimateBuildingHeight(areaM2, p);
-    const floor = legacyFloor(p);
-    const metres = floor != null ? Math.max(res.metres, floor) : res.metres;
-    _heightCache.set(f, metres);
+    const model = buildingModel(f);
+    const res = model.height;
+    _heightCache.set(f, model.eaves);
     _heightResults.push(res);
   }
   heightCensus = census(_heightResults);
@@ -592,7 +576,7 @@ export function buildingsLayer(
     pickable,
     autoHighlight: false,
     extruded,
-    elevationScale: extruded && !ghosted ? 1.65 : 1,
+    elevationScale: 1,
     // Matte Phong. Two constraints, both learned from looking at the render:
     //
     //  - ambient + diffuse must not exceed 1. At 0.52 + 0.66 a face pointed at
@@ -617,13 +601,8 @@ export function buildingsLayer(
         return [base[0], base[1], base[2], 32] as [number, number, number, number];
       }
       if (extruded) {
-        // Anonymous footprints in 3D used to fill at 210/255 — present, but
-        // 10,000+ adjacent blocks at the same alpha blended into a flat
-        // mid-grey wash that read as "background" rather than "city fabric".
-        // Lifted to 235 so the residential block pattern stays visible as
-        // *texture* under the landmarks. Landmarks (hasKind) hold at 230
-        // because they're already saturated by their category hue.
-        return [base[0], base[1], base[2], hasKind ? 230 : 235] as [number, number, number, number];
+        const color = cached?.kind === "temple" ? BUILDING_MATERIAL.plaster : BUILDING_MATERIAL.concrete;
+        return [...color, 255] as [number, number, number, number];
       }
       // Anonymous footprints (no OSM type, no name — ~14k of ~21k buildings,
       // packed wall-to-wall in old-town blocks) previously filled at 70/255.
@@ -637,6 +616,7 @@ export function buildingsLayer(
     }) as unknown as [number, number, number, number],
     getLineColor: ((f: Feature<Polygon | MultiPolygon, BuildingProperties>) => {
       const cached = _kindCache.get(f as typeof filtered[number]);
+      if (extruded && !ghosted) return [95, 96, 91, 130] as [number, number, number, number];
       if (cached?.kind) {
         const c = cached.base;
         return [c[0], c[1], c[2], lineA] as [number, number, number, number];
@@ -655,10 +635,7 @@ export function buildingsLayer(
     getLineWidth: ((f: Feature<Polygon | MultiPolygon, BuildingProperties>) =>
       _kindCache.get(f as typeof filtered[number])?.kind ? 1.2 : 0.6) as unknown as number,
     lineWidthMinPixels: extruded && !ghosted ? 0.7 : 0.5,
-    // Prefer the pre-baked `_elevM` from the data file (one tuple-deref per
-    // feature per frame) over calling `buildingHeightMeters` (which is a JS
-    // function call that does ~15 string comparisons per call). Falls back to
-    // the function for older data files that haven't been re-slimmed yet.
+    // Eaves and roof ridge share buildingModel(); resolve once, not per frame.
     getElevation: ((f: Feature<Polygon | MultiPolygon, BuildingProperties>) => {
       // Grounds render flat — see the compound flag above.
       if (_kindCache.get(f as typeof filtered[number])?.compound) return 0.8;
@@ -710,112 +687,28 @@ export function capUntaggedFor3D(
   return [...keep, ...survivors];
 }
 
-/**
- * Roof cap layer — renders a thin shimmering slab on top of each extruded
- * building so the tops read as "rooftops" rather than flat cut-offs.
- *
- * Heritage types (temple / church / mosque / government) receive:
- *  • A significantly taller cap (+12 m for sacred buildings, +4 m for civic)
- *    — this makes their silhouettes read as "pointed / crowned" in the 3D
- *    skyline, suggesting the chedi/prang/bell-tower that would sit above the
- *    main structure.  True pitched-roof geometry would need ScenegraphLayer
- *    + custom GLTF, which is a larger effort.
- *  • A much brighter, more saturated colour so the gold temple cluster and
- *    the sky-blue civic strip are immediately readable from above.
- *
- * Ordinary buildings get a +0.5 m cap in their height-ramp colour.
- */
+/** Roof surfaces at the wall height, never a second ground-up extrusion. */
 export function buildingRoofsLayer(
   collection: FeatureCollection<Polygon | MultiPolygon, BuildingProperties>,
-  options: { maxRoofs?: number; elevationScale?: number } = {},
+  options: { zoomBucket?: 0 | 1 | 2 } = {},
 ) {
-  const maxRoofs = options.maxRoofs ?? 1400;
-  const scale = options.elevationScale ?? 1.65;
-
-  // Use the pre-baked `_elevM` for the sort — avoids a JS function call per
-  // pair comparison (2,457 buildings → ~3 M comparisons in the worst case).
-  const elev = (p: BuildingProperties) =>
-    (p as BuildingProperties & { _elevM?: number })._elevM ?? buildingHeightMeters(p);
-  // No crowns on grounds — a roof slab on Wat Mahathat's wall would hover a
-  // glowing lid over the whole compound. Compounds stay in the base layer,
-  // flat (see buildingsLayer's compound flag).
-  const roofable = collection.features.filter(
-    (f) => !isGroundsCompound(f.properties, polygonAreaM2(f.geometry as { type: string; coordinates: unknown })),
-  );
-  const sorted = [...roofable]
-    .sort((a, b) => elev(b.properties) - elev(a.properties))
-    .slice(0, maxRoofs);
-
-  const roofCollection: FeatureCollection = { type: "FeatureCollection", features: sorted };
-
-  // Heritage roof colours — bright, pure, recognisable at distance
-  // Declared BEFORE the cache loop because the cache reads from it.
-  const HERITAGE_ROOF: Partial<Record<NonNullable<LandmarkKind>, [number, number, number, number]>> = {
-    // Brighter tints of each type's LANDMARK_COLOR — same hue, reads as a crown.
-    temple:     withAlpha(tint(LANDMARK_COLOR.temple, 0.2), 240),
-    church:     withAlpha(tint(LANDMARK_COLOR.church, 0.2), 220),
-    mosque:     withAlpha(tint(LANDMARK_COLOR.mosque, 0.2), 220),
-    government: withAlpha(tint(LANDMARK_COLOR.government, 0.2), 220),
-    police:     withAlpha(tint(LANDMARK_COLOR.police, 0.2), 210),
-    fire:       withAlpha(tint(LANDMARK_COLOR.fire, 0.2), 220),
-    hospital:   withAlpha(tint(LANDMARK_COLOR.hospital, 0.2), 220),
-    hotel:      withAlpha(tint(LANDMARK_COLOR.hotel, 0.2), 210),
-  };
-
-  // Per-building roof elevation bonus (meters, before elevationScale is applied)
-  function roofBonus(props: BuildingProperties): number {
-    const kind = classifyBuilding(props);
-    if (kind === "temple" || kind === "church" || kind === "mosque") return 12; // spire crown
-    if (kind === "government" || kind === "police" || kind === "fire")  return  5; // civic parapet
-    if (kind === "hotel" || kind === "hospital")                        return  3; // landmark cap
-    return 0.5;
-  }
-
-  // Pre-compute per-feature: kind + heritage colour + roof bonus.
-  // Without this cache the accessors below call classifyBuilding() on every
-  // frame for every rendered roof (~1,400 features).
-  const _roofCache: WeakMap<typeof collection.features[number], { kind: ReturnType<typeof classifyBuilding>; heritage: [number, number, number, number] | undefined; bonus: number }> = new WeakMap();
-  for (const f of sorted) {
-    const kind = classifyBuilding(f.properties);
-    _roofCache.set(f, {
-      kind,
-      heritage: kind ? HERITAGE_ROOF[kind] : undefined,
-      bonus: roofBonus(f.properties),
-    });
-  }
-
+  // Use precisely the same LOD population as the walls: no floating roof-only buildings.
+  const candidates = options.zoomBucket === 0
+    ? collection.features.filter(f => !!f.properties.mnType || !!f.properties.name || !!classifyBuilding(f.properties) || (f.properties as BuildingProperties & { _elevM?: number })._elevM! >= 12)
+    : capUntaggedFor3D(collection.features);
+  const sorted = [...candidates].sort((a, b) => Number(!!classifyBuilding(b.properties)) - Number(!!classifyBuilding(a.properties)));
+  const features = sorted.flatMap(buildingRoofFaces);
   return new GeoJsonLayer({
     id: "building-roofs",
-    data: roofCollection,
-    // Source GeoJSON is already valid — skip normalization.
-    _normalize: false,
+    data: { type: "FeatureCollection", features } as FeatureCollection,
+    extruded: false,
     stroked: false,
     filled: true,
     pickable: false,
-    extruded: true,
-    elevationScale: scale,
-    material: { ambient: 0.90, diffuse: 0.75, shininess: 28, specularColor: [255, 252, 230] },
-    getFillColor: ((f: Feature<Polygon | MultiPolygon, BuildingProperties>) => {
-      const cached = _roofCache.get(f as typeof collection.features[number]);
-      if (cached?.heritage) return cached.heritage;
-      const kind = cached?.kind;
-      const base = kind ? LANDMARK_COLOR[kind] : UNTYPED_COLOR;
-      return [Math.min(base[0] + 30, 255), Math.min(base[1] + 30, 255), Math.min(base[2] + 30, 255), 200] as [number, number, number, number];
-    }) as unknown as [number, number, number, number],
-    getElevation: ((f: Feature<Polygon | MultiPolygon, BuildingProperties>) => {
-      const cached = _roofCache.get(f as typeof collection.features[number]);
-      const e = (f.properties as BuildingProperties & { _elevM?: number })._elevM
-        ?? buildingHeightMeters(f.properties);
-      return e + (cached?.bonus ?? 0.5);
-    }) as unknown as number,
-    opacity: 0.92,
-    // Without updateTriggers, deck.gl falls back to conservative heuristics and
-    // re-runs the elevation/color accessors every time the layer is instantiated.
-    // The accessors are pure functions of feature properties + scale, so we tag
-    // the only inputs that actually change.
-    updateTriggers: {
-      getElevation: [scale],
-    },
+    material: false,
+    opacity: 1,
+    getFillColor: f => [...f.properties.color, 255] as [number, number, number, number],
+    _subLayerProps: { "polygons-fill": { _full3d: true } },
   });
 }
 
