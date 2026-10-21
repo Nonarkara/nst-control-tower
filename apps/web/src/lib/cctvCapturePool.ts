@@ -255,6 +255,34 @@ export function getCachedFrame(camId: string): WhepFrame | undefined {
   return frames.get(camId);
 }
 
+/** Ask the pool for fresh stills of specific cameras, independent of any wall
+ *  tile — so computer vision works for a mayor who never opens the camera wall.
+ *  Resolves when every target has a frame no older than `maxAgeMs`, or at the
+ *  timeout (cameras that never answer are simply not analysed). Interest is
+ *  always released, and the pool's own token bucket and backoff still apply, so
+ *  this cannot hammer the upstream. */
+export async function requestFrames(
+  targets: ReadonlyArray<{ id: string; whepUrl: string }>,
+  timeoutMs = 45_000,
+  maxAgeMs = 120_000,
+): Promise<void> {
+  if (targets.length === 0) return;
+  const releases = targets.map((t) => addInterest(t.id, t.whepUrl, () => {}));
+  const deadline = Date.now() + timeoutMs;
+  try {
+    while (Date.now() < deadline) {
+      const now = Date.now();
+      if (targets.every((t) => {
+        const f = frames.get(t.id);
+        return f != null && now - f.capturedAt <= maxAgeMs;
+      })) return;
+      await new Promise((r) => setTimeout(r, 1_500));
+    }
+  } finally {
+    for (const release of releases) release();
+  }
+}
+
 export function subscribeCaptureStats(listener: () => void): () => void {
   statsListeners.push(listener);
   return () => {

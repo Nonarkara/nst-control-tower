@@ -1,5 +1,5 @@
 import { test, expect } from "./fixtures";
-import { selectLens, stubHiiSurvey } from "./floodSmokeHelpers";
+import { selectLens, stubHiiSurvey, openMore } from "./floodSmokeHelpers";
 
 /**
  * Smoke tests — these are the contracts that, if broken, mean a council
@@ -20,8 +20,8 @@ test.describe("Dashboard boot", () => {
   test("loads with map host and top bar", async ({ page }) => {
     await page.goto("/");
     await expect(page.locator(".map-host")).toBeVisible({ timeout: 20_000 });
-    // Top bar contains the SOURCES button — that's the proof the React tree mounted.
-    await expect(page.getByRole("button", { name: "Open source catalog" })).toBeVisible();
+    // The header's FLOOD WATCH link is the proof the React tree mounted.
+    await expect(page.getByRole("link", { name: "Open flood operations briefing" })).toBeVisible();
   });
 
   test("does not throw uncaught page errors during initial load", async ({ page }) => {
@@ -54,6 +54,7 @@ test.describe("Source catalog modal", () => {
     await page.goto("/");
     await expect(page.locator(".map-host")).toBeVisible({ timeout: 20_000 });
 
+    await openMore(page);
     const sourcesBtn = page.getByRole("button", { name: "Open source catalog" });
     await sourcesBtn.focus();
     await sourcesBtn.click();
@@ -130,6 +131,7 @@ test.describe("Source catalog — filter buttons", () => {
     await expect(page.locator(".map-host")).toBeVisible({ timeout: 20_000 });
 
     // Open the catalog — focus before click so the lazy-loaded chunk has time to start
+    await openMore(page);
     const sourcesBtn = page.getByRole("button", { name: "Open source catalog" });
     await sourcesBtn.focus();
     await sourcesBtn.click();
@@ -213,5 +215,22 @@ test.describe("WHO TO MOVE FIRST — coverage honesty", () => {
     const panel = page.getByRole("region", { name: "Who to move first" });
     await expect(panel.getByText(/Watching now: 0 river gauges/)).toBeVisible({ timeout: 30_000 });
     await expect(panel.getByRole("alert")).toContainText(/River gauges are offline/);
+  });
+});
+
+test.describe("Phone — first screen", () => {
+  test("opens on the Brief (the answer), not an empty map", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/");
+    await expect(page.getByRole("region", { name: "Right now" })).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByRole("region", { name: "What the cameras see" })).toBeVisible();
+  });
+
+  test("header stays one slim row at laptop width", async ({ page }) => {
+    await page.setViewportSize({ width: 1366, height: 768 });
+    await page.goto("/");
+    await expect(page.locator(".map-host")).toBeVisible({ timeout: 20_000 });
+    const h = await page.locator(".topbar").evaluate((el) => el.getBoundingClientRect().height);
+    expect(h).toBeLessThan(85); // one row is ~73px; a wrapped bar is ~101px and steals the map
   });
 });

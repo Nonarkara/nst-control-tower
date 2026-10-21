@@ -61,3 +61,10 @@ export async function stubHiiSurvey(page: Page) {
     });
   });
 }
+
+/** Open the header's More menu (idempotent). Source catalog, Atlas, Data and
+ *  the heritage viewer live there — the header keeps only what a mayor needs. */
+export async function openMore(page: Page) {
+  const more = page.getByRole("button", { name: /^More/ });
+  if ((await more.getAttribute("aria-expanded")) !== "true") await more.click();
+}

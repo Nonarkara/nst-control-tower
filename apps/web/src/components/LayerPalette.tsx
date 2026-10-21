@@ -84,7 +84,7 @@ export function LayerPalette({ lens, onLensChange, enabled, onToggleLayer, count
 
       <div>
         <h2 className="eyebrow palette-eyebrow">Layers</h2>
-        <p className="caption palette-intro">Toggle spatial data layers. Layers actively updating from APIs show feature counts.</p>
+        <p className="caption palette-intro">Choose what to draw on the map. A number shows how many items a layer has right now.</p>
         <div className="layer-groups">
           {GROUP_ORDER.map((g) => {
             const list = grouped.get(g) ?? [];

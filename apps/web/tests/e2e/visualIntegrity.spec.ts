@@ -1,6 +1,7 @@
 import { test, expect } from "./fixtures";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
+import { openMore } from "./floodSmokeHelpers";
 const stamp = new Date().toISOString();
 const meta = { source: "geometry-fixture", fetchedAt: stamp, ageMinutes: 0, fallbackTier: "live" };
 for (const width of [1440, 1024, 390]) {
@@ -42,28 +43,23 @@ for (const width of [1440, 1024, 390]) {
       const context = page.locator(".mobile-brief-context");
       await expect(context).not.toHaveAttribute("open", "");
       await expect(context.locator(".world-strip")).not.toBeVisible();
-      const tools = page.getByRole("navigation", { name: "Brief tools" });
-      const actionTops = await tools.getByRole("button").evaluateAll(items => items.map(el => Math.round(el.getBoundingClientRect().top)));
-      expect(new Set(actionTops).size).toBe(1);
-      expect(await tools.evaluate(el => el.getBoundingClientRect().height)).toBeLessThan(70);
+      // The jargon feed ticker and the Sources/Atlas/Flood buttons were removed
+      // from the phone Brief: feed health is the header dot, tools are in More.
+      await expect(page.locator(".mobile-brief-feeds")).toHaveCount(0);
+      await expect(page.getByRole("navigation", { name: "Brief tools" })).toHaveCount(0);
       await context.locator("summary").click();
       await expect(context.locator(".world-strip")).toBeVisible();
       await context.locator("summary").click();
-      const row = page.locator(".mobile-brief-feeds");
-      const bounds = await row.locator(".feed-chip").evaluateAll(items => items.map(x => x.getBoundingClientRect().top));
-      expect(new Set(bounds.map(Math.round)).size).toBe(1);
-      expect(await row.locator(".feed-chip").first().evaluate(el => parseFloat(getComputedStyle(el).fontSize))).toBeGreaterThanOrEqual(12);
-      expect(await row.evaluate(el => el.getBoundingClientRect().height)).toBeLessThan(45);
     }
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     if (process.env.SPATIAL_SCREENSHOTS) {
       const dir = resolve("../../var/spatial-integrity-2026-10-21"); mkdirSync(dir, { recursive: true });
-      if (width < 900) await page.locator(".mobile-brief-feeds").screenshot({ path: `${dir}/feeds-${width}.png` });
       await situation.screenshot({ path: `${dir}/gauges-${width}.png` });
       await page.locator(".left-bar").evaluate(el => { el.scrollTop = 0; });
       await page.screenshot({ path: `${dir}/page-${width}.png` });
     }
     if (width === 1440) {
+      await openMore(page);
       await page.getByRole("button", { name: "Open source catalog" }).click();
       const domains = page.locator(".sources-domains .sources-domain");
       await expect(domains.first()).toBeVisible();

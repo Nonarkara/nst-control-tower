@@ -159,10 +159,10 @@ export function buildSituationHeadline(opts: {
   const top = rankLevelWatch({ gauges, cameras })[0];
   if (top) {
     const level: StatusLevel = top.level === "critical" ? "critical" : top.level === "warning" ? "warning" : "watch";
-    const trend = top.trend === "rising" ? "rising" : top.trend === "falling" ? "falling" : "steady";
+    const trend = top.trend === "rising" ? "and rising" : top.trend === "falling" ? "and falling" : "and holding steady";
     return {
       level,
-      headline: `${top.river && !top.name.includes(top.river) ? `${top.name} (${top.river})` : top.name}: ${top.reason}, ${trend}`,
+      headline: `${top.river && !top.name.includes(top.river) ? `${top.name} (${top.river})` : top.name}: ${plainReason(top.reason)}, ${trend}`,
       detail: `Water level ${top.levelM != null ? `${top.levelM.toFixed(2)} m` : "—"}${top.refM != null ? ` · ${top.refKind === "critical" ? "critical" : "bank"} ${top.refM.toFixed(2)} m` : ""}${soonest ? ` · no gauge overtops within ${OVERTOP_WARNING_H} h at current rates` : " · no gauge is rising toward its bank"}`,
       action: level === "watch"
         ? "No action yet. Keep watching; this gauge is closest to its limit."
@@ -183,4 +183,16 @@ export function buildSituationHeadline(opts: {
     gauge: null,
     camera: null,
   };
+}
+
+/** "97% of bank" is analyst shorthand; the mayor reads a sentence. */
+export function plainReason(reason: string): string {
+  const pct = reason.match(/^(\d+)% of bank$/);
+  if (pct) return `water is ${pct[1]}% of the way to the top of the bank`;
+  if (reason === "over bank") return "water is over the bank";
+  if (reason === "at/above critical level") return "water has reached the critical level";
+  const gap = reason.match(/^([\d.]+) m below critical$/);
+  if (gap) return `water is ${gap[1]} m from the critical level`;
+  if (reason === "high (situation 4)") return "water is high";
+  return reason;
 }

@@ -401,7 +401,7 @@ kbd {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--s-2) var(--s-6);
+  gap: var(--s-2) var(--s-4);
   min-height: 56px;
   padding: var(--s-2) var(--s-4);
   background: var(--panel);
@@ -413,7 +413,7 @@ kbd {
 .topbar-id__city { font-size: var(--text-lg); font-weight: var(--weight-bold); letter-spacing: -0.01em; }
 .topbar-id__org { font-size: var(--text-xs); color: var(--ink-2); }
 
-.topbar-now { margin: 0; display: flex; gap: var(--s-6); }
+.topbar-now { margin: 0; display: flex; gap: var(--s-4); }
 .topbar-now > div { display: flex; flex-direction: column; min-width: 0; }
 .topbar-now dt {
   font-size: var(--text-xs);
@@ -428,8 +428,9 @@ kbd {
 .topbar-spacer { flex: 1 1 0; }
 .topbar-nav,
 .topbar-settings { display: flex; align-items: center; gap: var(--s-2); }
-.topbar-settings { padding-left: var(--s-4); border-left: 1px solid var(--line); }
+.topbar-settings { padding-left: 0; }
 .topbar-health__count { color: var(--ink-2); }
+.topbar-more__mobile-only { display: none; }
 
 /* CCTV Command Center button — distinct outline so the operator can find
    it without scanning the nav. One accent (--cctv-water, the Okabe–Ito
@@ -512,12 +513,20 @@ kbd {
 .shell:not(.mobile) .right-sections { flex: 1 1 0; min-height: 0; overflow-y: auto; }
 .shell:not(.mobile) .right-layers { flex: 0 0 auto; max-height: 50%; overflow-y: auto; border-top: 1px solid var(--line-2); }
 
+/* One header row at laptop widths: the clock is on the mayor's own screen. */
+@media (max-width: 1500px) {
+  .topbar-now > div:nth-child(1) { display: none; }
+}
 @media (max-width: 1280px) {
   .topbar-now > div:nth-child(3) { display: none; }
 }
 /* Phone header: one row — name (truncated), health dot, More, settings.
    Source catalog / Atlas / Flood guide live in the Brief tab's action row. */
 @media (max-width: 900px) {
+  .topbar-more__mobile-only { display: list-item; }
+  /* The header must stack ABOVE the fixed Brief/Layers panels (z 90), or the
+     More menu opens underneath the headline and cannot be tapped. */
+  .shell.mobile .topbar { z-index: 100; }
   .topbar { flex-wrap: nowrap; gap: var(--s-2); min-height: 52px; padding: var(--s-1) var(--s-3); }
   .topbar-id { flex: 1 1 auto; min-width: 0; }
   .topbar-id__city { font-size: var(--text-md); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

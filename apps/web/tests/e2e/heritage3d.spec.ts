@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "./fixtures";
-import { stubHiiSurvey } from "./floodSmokeHelpers";
+import { stubHiiSurvey, openMore } from "./floodSmokeHelpers";
 
 test.setTimeout(90_000);
 
@@ -30,6 +30,7 @@ test.describe("UNESCO heritage showcase", () => {
     await stubHiiSurvey(page);
     await page.goto("/");
     await expect(page.locator(".map-host")).toBeVisible({ timeout: 20_000 });
+    await openMore(page);
     await page.getByRole("button", { name: /heritage 3D demo/i }).click();
     const dialog = page.getByRole("dialog");
     await expect(dialog).toBeVisible({ timeout: DIALOG_TIMEOUT });

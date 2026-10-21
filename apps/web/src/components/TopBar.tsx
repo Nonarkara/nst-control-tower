@@ -79,7 +79,7 @@ export function feedHealthWord(
   return { word: `${notLive} of ${total} feeds not live`, dot: "stale" };
 }
 
-function MoreMenu({ items }: { items: Array<{ label: string; onSelect: () => void }> }) {
+function MoreMenu({ items }: { items: Array<{ label: string; ariaLabel?: string; mobileOnly?: boolean; onSelect: () => void }> }) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -118,10 +118,11 @@ function MoreMenu({ items }: { items: Array<{ label: string; onSelect: () => voi
       {open && (
         <ul id="topbar-more-menu" className="topbar-more__menu">
           {items.map((item) => (
-            <li key={item.label}>
+            <li key={item.label} className={item.mobileOnly ? "topbar-more__mobile-only" : undefined}>
               <button
                 type="button"
                 className="btn btn--quiet"
+                aria-label={item.ariaLabel}
                 onClick={() => {
                   setOpen(false);
                   item.onSelect();
@@ -222,32 +223,15 @@ export function TopBar({
           CCTV
         </button>
         <a href="/flood-ops" className="btn" aria-label="Open flood operations briefing">FLOOD WATCH</a>
-        <button type="button" className="btn" onClick={onOpenCatalog} aria-label="Open source catalog">
-          Source catalog
-        </button>
-        {/* Every data.go.th dataset for the province, parsed into tables. */}
-        <a className="btn" href="/data" aria-label="Open data — every data.go.th dataset for Nakhon Si Thammarat as searchable tables">
-          Data
-        </a>
-        <button type="button" className="btn" onClick={onOpenAtlas} aria-label="Open atlas — outcome indicators and data sources">
-          Atlas
-        </button>
-        <button type="button" className="btn" onClick={onOpenFloodGuide} aria-label="Open flood guide — how flooding works and what this dashboard monitors">
-          Flood guide
-        </button>
-        {onOpenHeritage3D && (
-          <button
-            type="button"
-            className="btn topbar-heritage-3d"
-            onClick={onOpenHeritage3D}
-            aria-label="Open heritage 3D demo — photogrammetry viewer"
-          >
-            3D heritage
-          </button>
-        )}
         <MoreMenu
           items={[
-            { label: "Flood watch / เฝ้าระวังน้ำท่วม", onSelect: () => window.location.assign("/flood-ops") },
+            // Phones hide the header buttons; the mayor still needs the flood briefing.
+            { label: "Flood watch / เฝ้าระวังน้ำท่วม", mobileOnly: true, onSelect: () => window.location.assign("/flood-ops") },
+            { label: "Flood guide", ariaLabel: "Open flood guide — how flooding works and what this dashboard monitors", onSelect: onOpenFloodGuide },
+            { label: "Source catalog", ariaLabel: "Open source catalog", onSelect: onOpenCatalog },
+            { label: "Data tables", ariaLabel: "Open data — every data.go.th dataset for Nakhon Si Thammarat as searchable tables", onSelect: () => window.location.assign("/data") },
+            { label: "Atlas", ariaLabel: "Open atlas — outcome indicators and data sources", onSelect: onOpenAtlas },
+            ...(onOpenHeritage3D ? [{ label: "3D heritage — Phra Borommathat Chedi", ariaLabel: "Open heritage 3D demo — photogrammetry viewer", onSelect: onOpenHeritage3D }] : []),
             // The analyst data view stays reachable, but not as a top-level
             // "Terminal" button in a mayor's header.
             ...(onFlip ? [{ label: "Analyst data view", onSelect: onFlip }] : []),

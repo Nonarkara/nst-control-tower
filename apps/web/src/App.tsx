@@ -197,6 +197,7 @@ import { BuildingCard } from "./components/BuildingCard";
 import { CctvStreamModal } from "./components/CctvStreamModal";
 import { CctvDirectory } from "./components/CctvDirectory";
 import { CvGaugePanel } from "./components/CvGaugePanel";
+import { CameraEyes } from "./components/CameraEyes";
 import { useGaugeWatch } from "./hooks/useGaugeWatch";
 import { CctvCommandCenter } from "./components/CctvCommandCenter";
 import { RailSection } from "./components/RailSection";
@@ -441,7 +442,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
   // Mobile: 1-column stack with bottom segmented nav to swap panels.
   const isMobile = useIsMobile();
   const online = useOnlineStatus();
-  const [mobilePanel, setMobilePanel] = useState<MobilePanel>("map");
+  const [mobilePanel, setMobilePanel] = useState<MobilePanel>("brief");
 
   // ── Map camera: UNCONTROLLED (deck.gl owns the live camera) ─────────────
   // `initialViewState` is the COMMAND channel — deck resets its internal camera
@@ -1129,7 +1130,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
   const cctv = useFeed<CctvCamera>(`${API_BASE}/api/cctv`, 10 * 60_000);
   // CCTV water-gauge watch — reads WL-camera stills on water lenses and posts
   // `water-rising` cv-events where telemetry doesn't reach.
-  useGaugeWatch(cctv.data, API_BASE, lens === "flood" || lens === "safety" || lens === "environment");
+  useGaugeWatch(cctv.data, API_BASE, true);
 
   // CCTV pulse radius — when a camera is highlighted, a separate halo
   // layer renders on the map with an oscillating radius (rAF). The radius
@@ -2269,28 +2270,12 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
           onOpenCamera={(c) => { highlightCamera(c.id); setSelectedCctv(c); }}
           evac={evacData ? evacSummary : null}
         />
-        {/* ── Mobile only: the world strip (weather + clocks), feed health, and
-            the secondary actions relocate here so the Map tab stays a clean,
-            full-screen map. Reflowed into readable blocks by CSS. ── */}
+        <CameraEyes pm25={aqiTrend.data[0]?.current.pm25 ?? null} />
+        {/* ── Mobile only: the world strip (weather + clocks) relocates here so
+            the Map tab stays a clean, full-screen map. Feed health is the dot
+            in the header; Sources/Atlas/Flood guide live in its More menu. ── */}
         {isMobile && (
           <div className="mobile-brief-top">
-            <div className="mobile-brief-feeds" aria-label="Live data feed health">
-              {feedHealth.map((f) => (
-                <span
-                  key={f.label}
-                  className={`feed-chip feed-${f.tier}`}
-                  title={`${f.tier} · ${f.ageMinutes}m ago`}
-                >
-                  <span className={`dot ${f.tier === "loading" ? "loading" : f.tier}`} />
-                  {f.label}
-                </span>
-              ))}
-            </div>
-            <nav className="mobile-brief-actions" aria-label="Brief tools">
-              <button className="mono flood-guide-toggle" onClick={() => setFloodGuideOpen(true)}>≋ FLOOD</button>
-              <button className="mono" onClick={() => setCatalogOpen(true)}>SOURCES · {ALL_LAYERS.length}</button>
-              <button className="mono" onClick={() => setAtlasOpen(true)}>◷ ATLAS</button>
-            </nav>
             <details className="mobile-brief-context">
               <summary>Weather &amp; city context</summary>
               <MemoWorldStrip

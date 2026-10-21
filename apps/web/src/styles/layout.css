@@ -2343,33 +2343,6 @@ input:focus-visible,
   .shell.mobile .world-city-time { font-size: var(--text-lg); }
   .shell.mobile .world-city-meta { font-size: var(--text-xs); }
 
-  /* Feed health + secondary actions relocated into the Brief page. */
-  .shell.mobile .mobile-brief-feeds {
-    display: flex;
-    flex-wrap: nowrap;
-    justify-content: flex-start;
-    overflow-x: auto;
-    gap: var(--s-3);
-    padding: var(--s-2) var(--s-4);
-    border-top: 1px solid var(--line);
-  }
-  .shell.mobile .mobile-brief-feeds .feed-chip { flex: 0 0 auto; white-space: nowrap; font-size: max(12px, var(--text-xs)); padding: var(--s-1) 0; min-height: 0; gap: 3px; border: 0; background: transparent; }
-  .shell.mobile .mobile-brief-feeds .dot { width: 5px; height: 5px; min-width: 5px; }
-  .shell.mobile .mobile-brief-actions {
-    display: flex;
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    gap: var(--s-2);
-    padding: var(--s-2) var(--s-4);
-    border-top: 1px solid var(--line);
-  }
-  .shell.mobile .mobile-brief-actions button {
-    flex: 0 0 auto;
-    white-space: nowrap;
-    min-height: 44px;
-    padding: var(--s-2) var(--s-3);
-    font-size: var(--text-sm);
-  }
   .mobile-brief-context { border-top: 1px solid var(--line); }
   .mobile-brief-context > summary {
     cursor: pointer;

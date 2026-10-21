@@ -65,7 +65,7 @@ describe("buildSituationHeadline", () => {
   it("falls back to the fullness ranking when nothing is rising", () => {
     const h = buildSituationHeadline({ gauges: [gauge({ fullnessPct: 92, trend: "falling" })], ageMinutes: 3, tier: "live" });
     expect(h.level).toBe("warning");
-    expect(h.headline).toMatch(/92% of bank, falling/);
+    expect(h.headline).toMatch(/water is 92% of the way to the top of the bank, and falling/);
   });
 
   it("calm when every gauge is below watch; flags non-live data", () => {
@@ -83,4 +83,16 @@ describe("feedHealthWord", () => {
     expect(feedHealthWord("down", 9, 9).dot).toBe("unavailable");
     expect(feedHealthWord("healthy", 0, 9).word).toBe("No live data feeds");
   });
+});
+
+import { plainReason } from "./situationHeadline";
+describe("plainReason", () => {
+  it.each([
+    ["97% of bank", "water is 97% of the way to the top of the bank"],
+    ["over bank", "water is over the bank"],
+    ["at/above critical level", "water has reached the critical level"],
+    ["0.45 m below critical", "water is 0.45 m from the critical level"],
+    ["high (situation 4)", "water is high"],
+    ["something new", "something new"],
+  ])("%s → %s", (raw, plain) => expect(plainReason(raw)).toBe(plain));
 });
