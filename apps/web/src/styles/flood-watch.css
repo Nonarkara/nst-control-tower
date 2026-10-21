@@ -33,3 +33,11 @@
 .flood-watch footer { padding-block: var(--s-4); font-size: var(--text-sm); }
 @media (max-width: 900px) { .flood-watch-layout { grid-template-columns: 1fr; } .flood-watch { padding: var(--s-3); } }
 @media print { .flood-watch { max-width: none; color: #111; background: white; font-size: 10pt; } .flood-watch button, .flood-watch select, .flood-watch-head .flood-watch-actions { display: none; } .flood-watch-layout { display: block; } .flood-watch section { break-inside: avoid; } .flood-watch a { color: inherit; } .flood-watch h1 { font-size: 22pt; } .flood-watch h2 { font-size: 14pt; } .flood-watch small { color: #333; } .flood-watch-table { overflow: visible; } }
+/* Touch: every link and button on the briefing is a 44 px target — this page is
+   opened one-handed, outdoors, in the rain. */
+@media (max-width: 900px) {
+  .flood-watch-head > a,
+  .flood-watch button { display: inline-flex; align-items: center; min-height: 44px; }
+  .flood-watch a:not(.flood-watch-head > a) { display: inline-block; padding-block: 14px; }
+  .flood-watch summary { min-height: 44px; display: flex; align-items: center; }
+}

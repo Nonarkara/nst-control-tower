@@ -78,10 +78,10 @@ describe("buildSituationHeadline", () => {
 
 describe("feedHealthWord", () => {
   it("only says all-live when every feed is live", () => {
-    expect(feedHealthWord("healthy", 9, 9).word).toBe("All data feeds live");
-    expect(feedHealthWord("healthy", 4, 9)).toEqual({ word: "5 of 9 feeds not live", dot: "stale" });
+    expect(feedHealthWord("healthy", 9, 9).word).toBe("All data sources live");
+    expect(feedHealthWord("healthy", 4, 9)).toEqual({ word: "5 of 9 data sources not live", dot: "stale" });
     expect(feedHealthWord("down", 9, 9).dot).toBe("unavailable");
-    expect(feedHealthWord("healthy", 0, 9).word).toBe("No live data feeds");
+    expect(feedHealthWord("healthy", 0, 9).word).toBe("No live data sources");
   });
 });
 

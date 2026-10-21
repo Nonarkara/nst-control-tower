@@ -80,11 +80,14 @@ export function SensorSituationBoard({
         ageMinutes={ageMinutes}
         fallbackTier={overall === "unknown" ? "unavailable" : fallbackTier}
         source="flooddash·airdash"
-        actions={
+        // The overall band only speaks when it adds something: a gap in the
+        // data. Otherwise it repeated the headline card and the WATER row
+        // below ("WARNING", "ELEVATED", "ELEVATED") and the eye had no winner.
+        actions={overall === "unknown" ? (
           <span aria-label={`Overall ${bandLabel(overall)}`}>
             <BandLabel band={overall} />
           </span>
-        }
+        ) : undefined}
       />
 
       {(water.band === "unknown" || rain.band === "unknown" || air.band === "unknown") && (

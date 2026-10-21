@@ -72,11 +72,11 @@ export function feedHealthWord(
   total: number,
 ): { word: string; dot: "live" | "stale" | "unavailable" | "loading" } {
   if (systemStatus === "down") return { word: "Data server unreachable", dot: "unavailable" };
-  if (total === 0 || systemStatus === "unknown") return { word: "Checking data feeds", dot: "loading" };
-  if (live >= total) return { word: "All data feeds live", dot: "live" };
-  if (live === 0) return { word: "No live data feeds", dot: "unavailable" };
+  if (total === 0 || systemStatus === "unknown") return { word: "Checking data sources", dot: "loading" };
+  if (live >= total) return { word: "All data sources live", dot: "live" };
+  if (live === 0) return { word: "No live data sources", dot: "unavailable" };
   const notLive = total - live;
-  return { word: `${notLive} of ${total} feeds not live`, dot: "stale" };
+  return { word: `${notLive} of ${total} data sources not live`, dot: "stale" };
 }
 
 function MoreMenu({ items }: { items: Array<{ label: string; ariaLabel?: string; mobileOnly?: boolean; onSelect: () => void }> }) {
@@ -206,7 +206,7 @@ export function TopBar({
         type="button"
         className="btn topbar-health"
         onClick={onOpenCatalog}
-        aria-label={`Data feeds: ${health.word}. Open feed details.`}
+        aria-label={`Data sources: ${health.word}. Open source details.`}
         title="Which data feeds are live, stale or down — opens the source catalog"
       >
         <span className={`dot ${health.dot}`} aria-hidden="true" />

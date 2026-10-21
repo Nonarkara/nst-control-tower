@@ -43,3 +43,14 @@ test("mobile map menu opens the flood watch without clipping", async ({ page }) 
   await expect(page).toHaveURL(/\/flood-ops$/);
   await expect(page.getByRole("heading", { level: 1 })).toContainText("เฝ้าระวังต้นน้ำ");
 });
+
+test("on a phone every control on the briefing is at least 44 px tall", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/flood-ops");
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible({ timeout: 20_000 });
+  const small = await page.locator(".flood-watch a, .flood-watch button, .flood-watch summary").evaluateAll((els) =>
+    els.filter((el) => (el as HTMLElement).offsetParent !== null)
+      .map((el) => ({ t: (el.textContent ?? "").trim().slice(0, 30), h: Math.round(el.getBoundingClientRect().height) }))
+      .filter((x) => x.t !== "" && x.h < 43)); // image-only links (the radar) size to their picture
+  expect(small).toEqual([]);
+});
