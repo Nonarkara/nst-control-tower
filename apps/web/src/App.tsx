@@ -2266,10 +2266,15 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
           cameras={cctv.data.filter((c) => c.category === "water")}
           ageMinutes={waterGauges.data.length > 0 ? waterGauges.ageMinutes : null}
           tier={waterGauges.fallbackTier}
-          onFocus={(lng, lat) => flyTo(lng, lat, 14)}
+          onFocus={(lng, lat) => { if (isMobile) setMobilePanel("map"); flyTo(lng, lat, 14); }}
           onOpenCamera={(c) => { highlightCamera(c.id); setSelectedCctv(c); }}
           evac={evacData ? evacSummary : null}
         />
+        {isMobile && (
+          <a className="btn btn--block" href="/flood-ops">
+            Flood watch briefing · <span lang="th">เฝ้าระวังน้ำท่วม</span>
+          </a>
+        )}
         <CameraEyes pm25={aqiTrend.data[0]?.current.pm25 ?? null} />
         {/* ── Mobile only: the world strip (weather + clocks) relocates here so
             the Map tab stays a clean, full-screen map. Feed health is the dot

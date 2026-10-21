@@ -565,8 +565,8 @@ describe("news adapter — malformed items skipped (isolated)", () => {
 
 // ── parseDate edge cases (isolated) ──────────────────────────────────────────
 
-describe("news adapter — parseDate fallback (isolated)", () => {
-  it("uses current time when pubDate field is absent", async () => {
+describe("news adapter — undated items are not 'live' (isolated)", () => {
+  it("drops an item whose pubDate field is absent", async () => {
     vi.resetModules();
     const before = Date.now();
     const rawXml = `<?xml version="1.0" encoding="UTF-8"?>
@@ -582,16 +582,14 @@ describe("news adapter — parseDate fallback (isolated)", () => {
     });
     const { fetchNews: fresh } = await import("./news") as unknown as { fetchNews: typeof import("./news").fetchNews };
     const feed = await fresh();
-    const after = Date.now();
+    void before;
 
-    expect(feed.features.length).toBeGreaterThan(0);
-    const publishedMs = new Date(feed.features[0].publishedAt).getTime();
-    expect(publishedMs).toBeGreaterThanOrEqual(before - 1000);
-    expect(publishedMs).toBeLessThanOrEqual(after + 1000);
+    // Stamping an undated story "now" made a 2017 article read "16 h ago".
+    expect(feed.features.some((f) => /no-date|invalid-date/.test(f.title))).toBe(false);
     vi.restoreAllMocks();
   });
 
-  it("uses current time when pubDate is not a valid date string", async () => {
+  it("drops an item whose pubDate is not a valid date string", async () => {
     vi.resetModules();
     const before = Date.now();
     const rawXml = `<?xml version="1.0" encoding="UTF-8"?>
@@ -608,12 +606,10 @@ describe("news adapter — parseDate fallback (isolated)", () => {
     });
     const { fetchNews: fresh } = await import("./news") as unknown as { fetchNews: typeof import("./news").fetchNews };
     const feed = await fresh();
-    const after = Date.now();
+    void before;
 
-    expect(feed.features.length).toBeGreaterThan(0);
-    const publishedMs = new Date(feed.features[0].publishedAt).getTime();
-    expect(publishedMs).toBeGreaterThanOrEqual(before - 1000);
-    expect(publishedMs).toBeLessThanOrEqual(after + 1000);
+    // Stamping an undated story "now" made a 2017 article read "16 h ago".
+    expect(feed.features.some((f) => /no-date|invalid-date/.test(f.title))).toBe(false);
     vi.restoreAllMocks();
   });
 });
@@ -630,5 +626,21 @@ describe("news location evidence", () => {
       expect(result.features).toHaveLength(1);
       expect(result.features[0]).toMatchObject({ lat: null, lng: null, placeName: null });
     } finally { vi.restoreAllMocks(); }
+  });
+});
+
+import { parseDate, namesOldYear } from "./news";
+describe("undated and re-served old news", () => {
+  it("an unreadable date is null, never 'now'", () => {
+    expect(parseDate("")).toBeNull();
+    expect(parseDate("not a date")).toBeNull();
+    expect(parseDate("Tue, 21 Oct 2026 10:00:00 GMT")?.toISOString()).toBe("2026-10-21T10:00:00.000Z");
+  });
+  it("a story that names a year long past is dropped", () => {
+    const now = new Date("2026-10-21T10:00:00Z"); // BE 2569
+    expect(namesOldYear("วันอังคารที่ 17 มกราคม พ.ศ.2560 มอบถุงยังชีพ", now)).toBe(true);
+    expect(namesOldYear("เมื่อ พ.ศ. 2567 เกิดน้ำท่วมใหญ่", now)).toBe(true);
+    expect(namesOldYear("เมื่อ พ.ศ.2568 เกิดน้ำท่วม", now)).toBe(false); // last year may still be context
+    expect(namesOldYear("น้ำท่วมวันนี้ที่ปากพนัง", now)).toBe(false);
   });
 });

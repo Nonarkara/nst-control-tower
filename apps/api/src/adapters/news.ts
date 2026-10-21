@@ -117,11 +117,22 @@ function stripHtml(s: string): string {
     .trim();
 }
 
-function parseDate(raw: string, now: Date): Date {
-  if (!raw) return now;
+/** null when the feed gave no readable date. Stamping such a story "now" made a
+ *  2017 article show as "16 h ago" in the mayor's live news. */
+export function parseDate(raw: string): Date | null {
+  if (!raw) return null;
   const d = new Date(raw);
-  if (Number.isNaN(d.getTime())) return now;
-  return d;
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+/** A story whose own text names a Buddhist-era year more than a year old
+ *  ("วันอังคารที่ 17 มกราคม พ.ศ.2560") is an old story re-served by a feed. */
+export function namesOldYear(text: string, now: Date): boolean {
+  const currentBE = now.getUTCFullYear() + 543;
+  for (const m of text.matchAll(/พ\.?\s?ศ\.?\s?(25\d\d)/g)) {
+    if (Number(m[1]) < currentBE - 1) return true;
+  }
+  return false;
 }
 
 function scoreItem(item: { title: string; summary: string }, trust: number): number {
@@ -269,10 +280,11 @@ async function parseFeed(feed: Feed): Promise<IntelligenceItem[]> {
 
     if (!title || !link) continue;
 
-    const parsedDate = parseDate(pubDate, now);
+    const parsedDate = parseDate(pubDate);
     // Freshness gate — reject stale items so the mayor never sees
-    // month-old embarrassing stories.
-    if (parsedDate < cutoff) continue;
+    // month-old embarrassing stories. Undated items cannot be "live" news.
+    if (!parsedDate || parsedDate < cutoff) continue;
+    if (namesOldYear(`${title} ${description}`, now)) continue;
 
     const tags = actionTags({ title, summary: description });
     const loc = extractLocation(`${title} ${description}`);

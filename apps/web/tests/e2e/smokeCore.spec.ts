@@ -234,3 +234,63 @@ test.describe("Phone — first screen", () => {
     expect(h).toBeLessThan(85); // one row is ~73px; a wrapped bar is ~101px and steals the map
   });
 });
+
+test.describe("Review fixes — phone and sticky mode", () => {
+  test("Show on map actually takes a phone to the map", async ({ page }) => {
+    const gauge = {
+      id: "g1", name: "Pak Nakhon", lat: 8.43, lng: 100.0, levelMsl: 0.6, levelPrev: 0.5, warningMsl: null, criticalMsl: null,
+      diffFromBank: -0.13, situationLevel: 4, trend: "rising", riverName: "Pak Nakhon", amphoe: "Mueang", observedAt: new Date().toISOString(),
+      isKeyStation: false, stationCode: "PTTEP3", bankMsl: 0.73, fullnessPct: 82, dischargeCms: null, qmaxCms: null,
+    };
+    await page.route("**/api/water/gauges*", (r) => r.fulfill({
+      status: 200, contentType: "application/json",
+      body: JSON.stringify({ features: [gauge], meta: { source: "t", fetchedAt: new Date().toISOString(), ageMinutes: 1, fallbackTier: "live" } }),
+    }));
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/");
+    const headline = page.getByRole("region", { name: "Right now" });
+    await expect(headline).toBeVisible({ timeout: 20_000 });
+    const show = headline.getByRole("button", { name: "Show on map" });
+    await expect(show).toBeVisible({ timeout: 20_000 });
+    await show.click();
+    await expect(page.getByRole("region", { name: "Right now" })).toBeHidden({ timeout: 5_000 });
+  });
+
+  test("the flood briefing is one tap from the phone Brief", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/");
+    await expect(page.getByRole("link", { name: /Flood watch briefing/ })).toBeVisible({ timeout: 20_000 });
+  });
+
+  test("phone controls are at least 44 px tall", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/");
+    await expect(page.getByRole("region", { name: "Right now" })).toBeVisible({ timeout: 20_000 });
+    const heights = await page.locator(".topbar .btn, .topbar button").evaluateAll((els) =>
+      els.filter((el) => (el as HTMLElement).offsetParent !== null).map((el) => el.getBoundingClientRect().height));
+    expect(heights.length).toBeGreaterThanOrEqual(4);
+    for (const h of heights) expect(h).toBeGreaterThanOrEqual(43.5);
+  });
+
+  test("a remembered analyst-terminal choice never hijacks the next visit", async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem("nst:mode", "terminal"));
+    await page.goto("/");
+    await expect(page.locator(".map-host")).toBeVisible({ timeout: 20_000 });
+  });
+
+  test("a dialog's title is not covered by the header on a phone", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/");
+    await expect(page.getByRole("region", { name: "Right now" })).toBeVisible({ timeout: 20_000 });
+    await openMore(page);
+    await page.getByRole("button", { name: /Open flood guide/ }).click();
+    const dialog = page.getByRole("dialog");
+    await expect(dialog).toBeVisible();
+    const covered = await dialog.getByRole("heading").first().evaluate((el) => {
+      const r = el.getBoundingClientRect();
+      const hit = document.elementFromPoint(r.left + 8, r.top + r.height / 2);
+      return !(hit && (el === hit || el.contains(hit) || hit.closest('[role="dialog"]')));
+    });
+    expect(covered).toBe(false);
+  });
+});

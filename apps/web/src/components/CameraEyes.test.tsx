@@ -10,7 +10,7 @@ describe("CameraEyes", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-10-21T20:00:00+07:00"));
     const html = renderToString(<CameraEyes pm25={null} />);
-    expect(html).toContain("read in daylight only");
+    expect(html).toContain("runs in daylight only");
     expect(html.match(/daylight only/g)).toHaveLength(1);
     expect(html).not.toContain("Flood<");
   });

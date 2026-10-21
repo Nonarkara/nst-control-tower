@@ -36,7 +36,7 @@ export function CameraEyes({ pm25 }: Props) {
   const flood = useSyncExternalStore(subscribeSweepStats, getSweepStats, getSweepStats);
   const eyes = useSyncExternalStore(subscribeEyes, getEyes, getEyes);
   const daylight = isDaylightICT();
-  const waiting = daylight ? "Checking the cameras…" : "Cameras are read in daylight only (07:00–18:00).";
+  const waiting = daylight ? "Checking the cameras…" : "Automatic reading runs in daylight only (07:00–18:00).";
 
   // Flood: canal-camera water line.
   let floodLevel: StatusLevel = "unknown";
@@ -70,7 +70,7 @@ export function CameraEyes({ pm25 }: Props) {
     return (
       <section className="eyes" aria-label="What the cameras see">
         <h3 className="eyes__title">What the cameras see</h3>
-        <p className="eyes__note">Cameras are read in daylight only (07:00–18:00). The next look is at 07:00.</p>
+        <p className="eyes__note">Automatic camera reading runs in daylight only (07:00–18:00); next check 07:00. Live camera views are still available.</p>
       </section>
     );
   }

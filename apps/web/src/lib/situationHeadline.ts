@@ -163,7 +163,7 @@ export function buildSituationHeadline(opts: {
     return {
       level,
       headline: `${top.river && !top.name.includes(top.river) ? `${top.name} (${top.river})` : top.name}: ${plainReason(top.reason)}, ${trend}`,
-      detail: `Water level ${top.levelM != null ? `${top.levelM.toFixed(2)} m` : "—"}${top.refM != null ? ` · ${top.refKind === "critical" ? "critical" : "bank"} ${top.refM.toFixed(2)} m` : ""}${soonest ? ` · no gauge overtops within ${OVERTOP_WARNING_H} h at current rates` : " · no gauge is rising toward its bank"}`,
+      detail: `Water level ${top.levelM != null ? `${top.levelM.toFixed(2)} m` : "—"}${top.refM != null ? ` · ${top.refKind === "critical" ? "critical" : "bank"} ${top.refM.toFixed(2)} m` : ""}${soonest ? ` · no gauge overtops within ${OVERTOP_WARNING_H} h at current rates` : " · no gauge is on course to overtop its bank"}`,
       action: level === "watch"
         ? "No action yet. Keep watching; this gauge is closest to its limit."
         : "Check the nearest camera and re-check in 1 hour.",

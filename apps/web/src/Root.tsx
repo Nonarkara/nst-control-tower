@@ -19,7 +19,6 @@ const DataWorkbenchPage = lazy(() => import("./components/data/DataWorkbenchPage
 const FloodWatchPage = lazy(() => import("./components/FloodWatchPage"));
 
 type Mode = "geo" | "terminal";
-const KEY = "nst:mode";
 
 function isDataRoute(): boolean {
   return /^\/data(\/|$)/.test(window.location.pathname);
@@ -42,10 +41,10 @@ export function Root() {
 }
 
 function Dashboard() {
-  const [mode, setMode] = useState<Mode>(() => {
-    try { return (localStorage.getItem(KEY) as Mode) || "geo"; } catch { return "geo"; }
-  });
-  useEffect(() => { try { localStorage.setItem(KEY, mode); } catch {} }, [mode]);
+  // Always open on the map. The analyst terminal was remembered across visits,
+  // so one stray tap in More turned the dashboard into a dense terminal on
+  // every later load (and the only way out is a small button).
+  const [mode, setMode] = useState<Mode>("geo");
 
   // Locale is app-wide (EN/TH/CN) so it wraps both systems — a language choice
   // made in the geo control-tower carries into the Watch Terminal too.

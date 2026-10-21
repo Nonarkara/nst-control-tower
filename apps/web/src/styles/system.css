@@ -590,3 +590,15 @@ button[aria-pressed="true"] .rt-disc {
 .fb-timeline > summary { cursor: pointer; min-height: 44px; padding: var(--s-2) 0; box-sizing: border-box; font-size: var(--text-sm); }
 
 .lens-select { display: block; width: 100%; min-width: 0; min-height: 44px; margin-top: var(--s-2); padding: var(--s-2); font: inherit; font-size: var(--text-sm); color: var(--ink); background: var(--panel); border: 1px solid var(--line); }
+
+/* Phone: every tap target is at least 44 px — a wet or gloved thumb. */
+.btn--block { display: flex; justify-content: center; margin: var(--s-3) var(--s-4); }
+@media (max-width: 900px) {
+  .shell.mobile .btn,
+  .shell.mobile .topbar-more__menu .btn { min-height: 44px; }
+  .shell.mobile .topbar-health { min-block-size: 44px; min-inline-size: 44px; }
+}
+/* Tablet: the clock/weather strip would wrap the header onto a second row. */
+@media (max-width: 1100px) {
+  .topbar-now { display: none; }
+}
