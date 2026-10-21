@@ -338,6 +338,20 @@ export async function fetchWaterBalance(): Promise<NormalizedFeed<BasinWaterBala
   }
 }
 
+/** Optional inputs (WRF grids, tide, FloodDash context) must narrow the ledger,
+ *  never hold it hostage: one stalled upstream pushed the whole feed past 40 s
+ *  and the dashboard read "Data server unreachable". */
+export const OPTIONAL_INPUT_DEADLINE_MS = 6_000;
+export function withinDeadline<T>(work: Promise<T>, ms: number, fallback: T): Promise<T> {
+  return new Promise<T>((resolve) => {
+    const timer = setTimeout(() => resolve(fallback), ms);
+    work.then(
+      (v) => { clearTimeout(timer); resolve(v); },
+      () => { clearTimeout(timer); resolve(fallback); },
+    );
+  });
+}
+
 async function computeWaterBalance(): Promise<NormalizedFeed<BasinWaterBalance>> {
   const fetchedAt = new Date().toISOString();
 
@@ -348,9 +362,9 @@ async function computeWaterBalance(): Promise<NormalizedFeed<BasinWaterBalance>>
     fetchRainfall(),
     fetchRidReservoirs(),
     fetchEwsStations(),
-    fetchWrfWindows(),
-    fetchTideFactor(),
-    fetchFloodContext().catch(() => null),
+    withinDeadline(fetchWrfWindows(), OPTIONAL_INPUT_DEADLINE_MS, null),
+    withinDeadline(fetchTideFactor(), OPTIONAL_INPUT_DEADLINE_MS, null),
+    withinDeadline(fetchFloodContext().catch(() => null), OPTIONAL_INPUT_DEADLINE_MS, null),
   ]);
 
   const gauges = gaugesFeed.features;

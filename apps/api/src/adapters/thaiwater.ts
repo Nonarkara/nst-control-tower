@@ -157,6 +157,20 @@ function trend(curr: number | null, prev: number | null): WaterGauge["trend"] {
   return "stable";
 }
 
+// ---- direct ThaiWater circuit breaker ----
+// ThaiWater answers in ~0.3 s when reachable and not at all from Cloudflare's
+// egress on bad days. Waiting 8 s for it before trying the relay put every cold
+// gauge request past the browser's deadline ("Data server unreachable" on a
+// healthy API). Fail fast, then skip the direct call for a few minutes.
+const DIRECT_TIMEOUT_MS = 3_000;
+const DIRECT_COOLDOWN_MS = 5 * 60_000;
+let directDownUntil = 0;
+const directThaiWaterAllowed = (): boolean => Date.now() >= directDownUntil;
+const directThaiWaterFailed = (): void => { directDownUntil = Date.now() + DIRECT_COOLDOWN_MS; };
+const directThaiWaterWorked = (): void => { directDownUntil = 0; };
+/** Test-only. */
+export function __resetDirectBreaker(): void { directDownUntil = 0; }
+
 // ---- fetchWaterGauges ----
 
 const computeWaterGauges = async (): Promise<NormalizedFeed<WaterGauge>> => {
@@ -166,11 +180,14 @@ const computeWaterGauges = async (): Promise<NormalizedFeed<WaterGauge>> => {
     // (no stale cache), cachedWithStale re-throws, so catch here to return a calm
     // unavailable feed instead of a 500 through safeFeed.
     let resp: TWResponse<TWWaterLevelEntry[]> | null = null;
+    if (!directThaiWaterAllowed()) return gaugesViaRelay(fetchedAt);
     try {
       resp = await fetchJsonOrThrow<TWResponse<TWWaterLevelEntry[]>>(
-        `${BASE}/waterlevel?province_code=${PROVINCE}`, undefined, 8_000
+        `${BASE}/waterlevel?province_code=${PROVINCE}`, undefined, DIRECT_TIMEOUT_MS
       );
+      directThaiWaterWorked();
     } catch {
+      directThaiWaterFailed();
       return gaugesViaRelay(fetchedAt);
     }
     const raw: TWWaterLevelEntry[] = resp?.data ?? [];
@@ -282,11 +299,14 @@ const computeRainfall = async (): Promise<NormalizedFeed<RainfallStation>> => {
     // (no stale cache), cachedWithStale re-throws, so catch here to return a calm
     // unavailable feed instead of a 500 through safeFeed.
     let resp: TWResponse<TWRainEntry[]> | null = null;
+    if (!directThaiWaterAllowed()) return rainViaRelay(fetchedAt);
     try {
       resp = await fetchJsonOrThrow<TWResponse<TWRainEntry[]>>(
-        `${BASE}/rain_24h?province_code=${PROVINCE}`, undefined, 8_000
+        `${BASE}/rain_24h?province_code=${PROVINCE}`, undefined, DIRECT_TIMEOUT_MS
       );
+      directThaiWaterWorked();
     } catch {
+      directThaiWaterFailed();
       return rainViaRelay(fetchedAt);
     }
     const raw: TWRainEntry[] = resp?.data ?? [];
