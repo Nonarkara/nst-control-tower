@@ -79,7 +79,7 @@ export function feedHealthWord(
   return { word: `${notLive} of ${total} data sources not live`, dot: "stale" };
 }
 
-function MoreMenu({ items }: { items: Array<{ label: string; ariaLabel?: string; mobileOnly?: boolean; onSelect: () => void }> }) {
+function MoreMenu({ items }: { items: Array<{ label: string; ariaLabel?: string; mobileOnly?: boolean; group?: string; onSelect: () => void }> }) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -117,8 +117,9 @@ function MoreMenu({ items }: { items: Array<{ label: string; ariaLabel?: string;
       </button>
       {open && (
         <ul id="topbar-more-menu" className="topbar-more__menu">
-          {items.map((item) => (
+          {items.map((item, index) => (
             <li key={item.label} className={item.mobileOnly ? "topbar-more__mobile-only" : undefined}>
+              {item.group && item.group !== items[index - 1]?.group && <div className="topbar-more__group">{item.group}</div>}
               <button
                 type="button"
                 className="btn btn--quiet"
@@ -226,20 +227,20 @@ export function TopBar({
         <MoreMenu
           items={[
             // Phones hide the header buttons; the mayor still needs the flood briefing.
-            { label: "Flood watch / เฝ้าระวังน้ำท่วม", mobileOnly: true, onSelect: () => window.location.assign("/flood-ops") },
-            { label: "Flood guide", ariaLabel: "Open flood guide — how flooding works and what this dashboard monitors", onSelect: onOpenFloodGuide },
-            { label: "Source catalog", ariaLabel: "Open source catalog", onSelect: onOpenCatalog },
-            { label: "Data tables", ariaLabel: "Open data — every data.go.th dataset for Nakhon Si Thammarat as searchable tables", onSelect: () => window.location.assign("/data") },
-            { label: "Atlas", ariaLabel: "Open atlas — outcome indicators and data sources", onSelect: onOpenAtlas },
-            ...(onOpenHeritage3D ? [{ label: "3D heritage — Phra Borommathat Chedi", ariaLabel: "Open heritage 3D demo — photogrammetry viewer", onSelect: onOpenHeritage3D }] : []),
+            { label: "Flood watch / เฝ้าระวังน้ำท่วม", group: "Operations", mobileOnly: true, onSelect: () => window.location.assign("/flood-ops") },
+            { label: "Flood guide", group: "Help", ariaLabel: "Open flood guide — how flooding works and what this dashboard monitors", onSelect: onOpenFloodGuide },
+            { label: "Source catalog", group: "Data", ariaLabel: "Open source catalog", onSelect: onOpenCatalog },
+            { label: "Data tables", group: "Data", ariaLabel: "Open data — every data.go.th dataset for Nakhon Si Thammarat as searchable tables", onSelect: () => window.location.assign("/data") },
+            { label: "Atlas", group: "Data", ariaLabel: "Open atlas — outcome indicators and data sources", onSelect: onOpenAtlas },
+            ...(onOpenHeritage3D ? [{ label: "3D heritage — Phra Borommathat Chedi", group: "City", ariaLabel: "Open heritage 3D demo — photogrammetry viewer", onSelect: onOpenHeritage3D }] : []),
             // The analyst data view stays reachable, but not as a top-level
             // "Terminal" button in a mayor's header.
-            ...(onFlip ? [{ label: "Analyst data view", onSelect: onFlip }] : []),
-            { label: sheetsConfigured ? "Google Sheet (live)" : "Connect Google Sheet", onSelect: onOpenSheets },
-            { label: "User manual", onSelect: onOpenManual },
-            { label: "Whitepaper", onSelect: onOpenWhitepaper },
-            { label: "Keyboard shortcuts", onSelect: onOpenShortcuts },
-          ]}
+            ...(onFlip ? [{ label: "Analyst data view", group: "Data", onSelect: onFlip }] : []),
+            { label: sheetsConfigured ? "Google Sheet (live)" : "Connect Google Sheet", group: "Data", onSelect: onOpenSheets },
+            { label: "User manual", group: "Help", onSelect: onOpenManual },
+            { label: "Whitepaper", group: "Help", onSelect: onOpenWhitepaper },
+            { label: "Keyboard shortcuts", group: "Help", onSelect: onOpenShortcuts },
+          ].sort((a, b) => ["Operations", "Data", "City", "Help"].indexOf(a.group) - ["Operations", "Data", "City", "Help"].indexOf(b.group))}
         />
       </nav>
 

@@ -22,5 +22,5 @@ export function useMediaQuery(query: string): boolean {
   return matches;
 }
 
-/** Phones + small tablets in portrait. */
-export const useIsMobile = () => useMediaQuery("(max-width: 900px)");
+/** Compact panels on phones and tablets; three rails need more than 1100px. */
+export const useIsMobile = () => useMediaQuery("(max-width: 1100px)");

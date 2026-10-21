@@ -41,7 +41,7 @@ test.describe("Lens switching", () => {
   test("Forecast and Flood lens selection updates the map view", async ({ page }) => {
     await page.goto("/");
     await expect(page.locator(".map-host")).toBeVisible({ timeout: 20_000 });
-    const selector = page.getByRole("combobox", { name: "Lens", exact: true });
+    const selector = page.getByRole("combobox", { name: "Advanced map views", exact: true });
     await selectLens(page, "Forecast");
     await expect(selector).toHaveValue("intelligence");
     await selectLens(page, "Flood");
@@ -115,7 +115,7 @@ test.describe("EXEC lens — executive briefing header", () => {
     await expect(page.locator(".map-host")).toBeVisible({ timeout: 20_000 });
 
     await selectLens(page, "Executive");
-    await expect(page.getByRole("combobox", { name: "Lens", exact: true })).toHaveValue("executive");
+    await expect(page.getByRole("combobox", { name: "Advanced map views", exact: true })).toHaveValue("executive");
 
     // ExecutiveBriefing renders "EXECUTIVE BRIEF" as its PanelHeader title
     await expect(page.getByText(/EXECUTIVE BRIEF/i).first()).toBeVisible({ timeout: 15_000 });

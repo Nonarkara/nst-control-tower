@@ -2087,7 +2087,7 @@ input:focus-visible,
   align-items: flex-start;
   max-width: min(260px, calc(100% - 24px));
 }
-@media (max-width: 900px) { .map-hud-bl { display: none; } }
+@media (max-width: 1100px) { .map-hud-bl { display: none; } }
 
 /* ── Google Photorealistic 3D Tiles — attribution + coverage badge (top-right) ── */
 .map-3d-badge {
@@ -2111,7 +2111,7 @@ input:focus-visible,
 }
 .map-3d-attr { color: var(--ink-3); }
 .map-3d-note { color: var(--ink-3); font-size: var(--text-xs); opacity: 0.85; }
-@media (max-width: 900px) { .map-3d-badge { font-size: var(--text-xs); max-width: min(220px, calc(100% - 24px)); } }
+@media (max-width: 1100px) { .map-3d-badge { font-size: var(--text-xs); max-width: min(220px, calc(100% - 24px)); } }
 
 
 /* ── Live lat/long readout — follows the cursor ── */
@@ -2218,7 +2218,7 @@ input:focus-visible,
   .markets-ticker { height: 34px; }
 }
 
-@media (max-width: 900px) {
+@media (max-width: 1100px) {
   /* Map-first: the shell is just the header and a full-screen map. The world
      strip, news/markets tickers, and bottom bar are relocated (weather + clocks
      → Brief page; news → Layers page) so the map tab is never crowded. */
@@ -2420,7 +2420,7 @@ input:focus-visible,
 /* ── Mobile map-tab HUD: declutter the floating controls and clear the 62px
    bottom nav. A second max-width:900px block so these win source-order ties
    without re-touching the tab-indented rules above. ── */
-@media (max-width: 900px) {
+@media (max-width: 1100px) {
   /* Drop the secondary overlays so the map reads clean. */
   .shell.mobile .map-overlay-controls { display: none; }
   .shell.mobile .aqi-badge { display: none; }
@@ -3066,7 +3066,7 @@ input:focus-visible,
 }
 .fk-steps--compact { gap: var(--s-1); }
 
-@media (max-width: 900px) {
+@media (max-width: 1100px) {
   .manual-backdrop { padding: var(--s-3); }
   .manual { max-height: calc(100vh - 24px); }
   .manual-body { padding: var(--s-3) var(--s-4) var(--s-4); }
@@ -3118,7 +3118,7 @@ input:focus-visible,
   line-height: 1.7;
   color: var(--ink);
 }
-@media (max-width: 900px) {
+@media (max-width: 1100px) {
   .whitepaper-bilingual {
     grid-template-columns: 1fr !important;
   }
@@ -3410,7 +3410,7 @@ input:focus-visible,
 }
 
 /* ── Mobile ── */
-@media (max-width: 900px) {
+@media (max-width: 1100px) {
   /* Sit above the MobileNav (z 95, ~58 px tall) */
   .chatbox { bottom: 64px; right: 8px; }
   .chatbox-closed { left: 8px; right: 8px; bottom: 118px; }
@@ -3593,7 +3593,7 @@ input:focus-visible,
 }
 .sheets-endpoints .muted { color: var(--ink-3); }
 
-@media (max-width: 900px) {
+@media (max-width: 1100px) {
   .sheets-panel { max-height: calc(100vh - 24px); }
   .sheets-body { padding: var(--s-3) var(--s-4) var(--s-4); }
   .sheets-step { grid-template-columns: 24px 1fr; gap: var(--s-2); }
@@ -4336,7 +4336,7 @@ input:focus-visible,
 .ops-res { margin-top: var(--s-2); white-space: normal; line-height: 1.6; color: var(--ink-3); }
 .ops-apply { margin-top: var(--s-2); width: 100%; border-color: var(--ink); color: var(--ink); font-size: var(--text-sm); }
 .ops-apply:hover { background: var(--ink); color: var(--paper); border-color: var(--ink); }
-@media (max-width: 900px) {
+@media (max-width: 1100px) {
   .ops-body { grid-template-columns: 1fr; }
 }
 
@@ -4556,7 +4556,7 @@ input:focus-visible,
   flex-shrink: 0;
 }
 
-@media (max-width: 900px) {
+@media (max-width: 1100px) {
   .ssb-kpi-row { grid-template-columns: repeat(2, 1fr); }
   .powered-by-chip { display: none; }
 }

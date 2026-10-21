@@ -522,7 +522,7 @@ kbd {
 }
 /* Phone header: one row — name (truncated), health dot, More, settings.
    Source catalog / Atlas / Flood guide live in the Brief tab's action row. */
-@media (max-width: 900px) {
+@media (max-width: 1100px) {
   .topbar-more__mobile-only { display: list-item; }
   /* The header must stack ABOVE the fixed Brief/Layers panels (z 90), or the
      More menu opens underneath the headline and cannot be tapped. */
@@ -593,7 +593,7 @@ button[aria-pressed="true"] .rt-disc {
 
 /* Phone: every tap target is at least 44 px — a wet or gloved thumb. */
 .btn--block { display: flex; justify-content: center; margin: var(--s-3) var(--s-4); }
-@media (max-width: 900px) {
+@media (max-width: 1100px) {
   .shell.mobile .btn,
   .shell.mobile .topbar-more__menu .btn { min-height: 44px; }
   .shell.mobile .topbar-health { min-block-size: 44px; min-inline-size: 44px; }
@@ -610,3 +610,9 @@ button[aria-pressed="true"] .rt-disc {
 @media (min-width: 901px) and (max-width: 1100px) {
   .topbar-settings { margin-left: auto; }
 }
+
+.map-view-shortcuts { display: flex; gap: var(--s-2); margin-bottom: var(--s-3); }
+.map-view-shortcuts button { min-height: 44px; padding: var(--s-2) var(--s-3); font: inherit; color: var(--ink); border: 1px solid var(--line-2); background: var(--panel); }
+.map-view-shortcuts button[aria-pressed="true"] { border-bottom: 3px solid var(--accent); font-weight: var(--weight-bold); }
+.topbar-more__menu { max-height: min(75dvh, 38rem); max-width: min(24rem, calc(100vw - 2rem)); overflow-y: auto; }
+.topbar-more__group { font-size: var(--text-xs); color: var(--ink-2); padding: var(--s-2); }

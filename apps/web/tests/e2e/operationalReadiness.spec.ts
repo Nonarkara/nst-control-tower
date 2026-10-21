@@ -3,6 +3,7 @@ import { test, expect } from "./fixtures";
 test("tablet landmark search remains clear of map action buttons", async ({ page }) => {
   await page.setViewportSize({ width: 1024, height: 900 });
   await page.goto("/");
+  await page.getByRole("tab", { name: /^MAP/ }).click();
   await expect(page.locator(".map-host")).toBeVisible({ timeout: 20_000 });
   const search = page.locator(".building-search");
   await expect(search).toBeVisible();
@@ -19,13 +20,14 @@ test("tablet landmark search remains clear of map action buttons", async ({ page
 test("lens selection stays compact and leaves layer controls reachable", async ({ page }) => {
   await page.setViewportSize({ width: 1024, height: 900 });
   await page.goto("/");
-  const selector = page.getByRole("combobox", { name: "Lens", exact: true });
+  await page.getByRole("tab", { name: /^LAYERS/ }).click();
+  const selector = page.getByRole("combobox", { name: "Advanced map views", exact: true });
   await selector.selectOption({ label: "Environment" });
   await expect(selector).toHaveValue("environment");
   const bounds = await selector.evaluate(el => {
     const r = el.getBoundingClientRect();
     const host = el.closest(".right-layers")!.getBoundingClientRect();
-    const layers = Array.from(el.closest(".col")!.querySelectorAll("h2")).find(x => x.textContent === "Layers")!.getBoundingClientRect();
+    const layers = Array.from(el.closest(".col")!.querySelectorAll("h2")).find(x => x.textContent === "Map overlays")!.getBoundingClientRect();
     return { height: r.height, bottom: layers.bottom, hostBottom: host.bottom };
   });
   expect(bounds.height).toBeLessThan(60);

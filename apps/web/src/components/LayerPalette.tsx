@@ -70,7 +70,10 @@ export function LayerPalette({ lens, onLensChange, enabled, onToggleLayer, count
   return (
     <div className="col">
       <div>
-        <label className="eyebrow palette-eyebrow" htmlFor="lens-select">Lens</label>
+        <div className="map-view-shortcuts" role="group" aria-label="Map views">
+          {([{ id: "flood", label: "Flood" }, { id: "executive", label: "City" }, { id: "environment", label: "Air" }] as const).map(view => <button type="button" key={view.id} aria-pressed={lens === view.id} onClick={() => onLensChange(view.id)}>{view.label}</button>)}
+        </div>
+        <label className="eyebrow palette-eyebrow" htmlFor="lens-select">Advanced map views</label>
         <select id="lens-select" className="lens-select" value={lens}
           onChange={event => onLensChange(event.target.value as LensId)} aria-describedby="lens-description">
           {LENSES.map(l => <option key={l.id} value={l.id}>{l.label}</option>)}
@@ -83,8 +86,8 @@ export function LayerPalette({ lens, onLensChange, enabled, onToggleLayer, count
       <hr className="divider" />
 
       <div>
-        <h2 className="eyebrow palette-eyebrow">Layers</h2>
-        <p className="caption palette-intro">Choose what to draw on the map. A number shows how many items a layer has right now.</p>
+        <h2 className="eyebrow palette-eyebrow">Map overlays</h2>
+        <p className="caption palette-intro">Changing a map view replaces custom overlays. Choose what to draw below. A number shows how many items a layer has right now.</p>
         <div className="layer-groups">
           {GROUP_ORDER.map((g) => {
             const list = grouped.get(g) ?? [];

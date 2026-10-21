@@ -12,7 +12,7 @@ for (const width of [1440, 1024, 390]) {
     await page.route("**/api/air-quality/air4thai?**", r => r.fulfill({ json: { meta, features: [{ id: "a1", station: "Air test", lat: 8.43, lng: 99.96, pm25: 12.9, aqi: 22, category: "good", observedAt: stamp }] } }));
     await page.addInitScript(() => localStorage.setItem("nst:theme", "dark"));
     await page.goto("/");
-    if (width < 900) await page.getByRole("tab", { name: /^BRIEF/ }).click();
+    if (width <= 1100) await page.getByRole("tab", { name: /^BRIEF/ }).click();
     const situation = page.getByRole("region", { name: "Sensor situation", exact: true });
     const header = situation.locator(".panel-hdr").first();
     const headerGeometry = await header.evaluate(el => {
@@ -39,7 +39,7 @@ for (const width of [1440, 1024, 390]) {
     expect(new Set(stats.map(p => p.y)).size).toBe(2);
     const rain = situation.locator(".reference-gauge").filter({ hasText: "Most rain in 24 h" });
     await expect(rain).toContainText("Very heavy: reached; 14.1 mm above");
-    if (width < 900) {
+    if (width <= 1100) {
       const context = page.locator(".mobile-brief-context");
       await expect(context).not.toHaveAttribute("open", "");
       await expect(context.locator(".world-strip")).not.toBeVisible();

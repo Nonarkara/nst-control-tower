@@ -11,7 +11,7 @@
 .flood-watch-status { display: grid; gap: var(--s-2); padding: var(--s-3) 0; border-block: 2px solid var(--line-2); margin-block: var(--s-4); }
 .flood-watch-status--watch { border-color: var(--warn); }
 .flood-watch-status strong { font-size: var(--text-lg); }
-.flood-watch-layout { display: grid; grid-template-columns: minmax(0, 2.2fr) minmax(17rem, 1fr); gap: var(--s-5); }
+.flood-watch-layout { display: grid; grid-template-columns: minmax(0, 2.2fr) minmax(17rem, 1fr); gap: var(--s-6); }
 .flood-watch section { padding-block: var(--s-4); border-bottom: 1px solid var(--line); min-width: 0; }
 .flood-watch-focal { display: grid; gap: var(--s-2); }
 .flood-watch-focal b { font-size: clamp(2.2rem, 5vw, 4rem); line-height: 1.1; font-variant-numeric: tabular-nums; }
@@ -41,3 +41,6 @@
   .flood-watch a:not(.flood-watch-head > a) { display: inline-block; padding-block: 14px; }
   .flood-watch summary { min-height: 44px; display: flex; align-items: center; }
 }
+
+.flood-watch-layout[hidden] { display: none; }
+.flood-watch .flood-watch-actions button[aria-pressed="true"] { border-bottom: 3px solid var(--accent); }

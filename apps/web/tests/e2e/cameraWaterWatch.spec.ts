@@ -9,7 +9,7 @@ for (const width of [1440, 390]) {
     await page.route("**/api/cctv?**", r => r.fulfill({ json: { features: [{ id: "wl-fixture", sourceId: "WLTEST", name: "Canal camera test", lat: 8.411, lng: 99.966, category: "water", status: "online", embedUrl: "https://camera.example.test/wl/" }], meta: { source: "fixture", fetchedAt: new Date().toISOString(), ageMinutes: 0, fallbackTier: "live" } } }));
     await page.route("https://camera.example.test/**", r => r.fulfill({ body: "Test camera source" }));
     await page.goto("/");
-    if (width < 900) await page.getByRole("tab", { name: /^LAYERS/ }).click();
+    if (width <= 1100) await page.getByRole("tab", { name: /^LAYERS/ }).click();
     await ensureSectionOpen(page, "CCTV");
     await page.getByRole("region", { name: "CCTV cameras" }).getByRole("button", { name: /Canal camera test/ }).click();
     const dialog = page.getByRole("dialog", { name: "Canal camera test" });

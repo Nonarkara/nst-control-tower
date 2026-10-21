@@ -74,22 +74,21 @@ jobs:
           # a single immediate check false-failed on almost every deploy.
           # Poll for up to 3 minutes before calling the deploy broken.
           WANT="${{ steps.hash.outputs.value }}"
-          LIVE=""
-          for i in $(seq 1 18); do
-            LIVE=$(curl -sSL "https://nst-control-tower.pages.dev/?cb=$RANDOM" -H 'Cache-Control: no-cache' | grep -oE 'index-[A-Za-z0-9_-]+\.js' | head -1)
-            if [ "$LIVE" = "$WANT" ]; then
-              echo "✅ Live site is serving $LIVE — matches local build (check $i)"
-              exit 0
+          for HOST in nst-control-tower.pages.dev nst.nonarkara.org; do
+            LIVE=""
+            for i in $(seq 1 18); do
+              LIVE=$(curl --fail --max-time 15 -sSL "https://$HOST/?cb=$RANDOM" -H 'Cache-Control: no-cache' | grep -oE 'index-[A-Za-z0-9_-]+\.js' | head -1) || LIVE=""
+              if [ "$LIVE" = "$WANT" ]; then
+                echo "✅ $HOST serves $LIVE — matches local build (check $i)"
+                break
+              fi
+              sleep 10
+            done
+            if [ "$LIVE" != "$WANT" ]; then
+              echo "::error::$HOST serves '$LIVE', expected '$WANT' — deployment is not verified"
+              exit 1
             fi
-            sleep 10
           done
-          if [ -z "$LIVE" ]; then
-            echo "::error::Live site returned no index-*.js hash — site is broken or unreachable"
-          else
-            echo "::error::After 3 min the live site still serves $LIVE, not $WANT"
-            echo "::error::Deploy did NOT take. Investigate before pushing the next commit."
-          fi
-          exit 1
 
   # The API worker deploys from the same tested commit as the web app, so
   # production can't drift from main (it did on 2026-09-18 when a hand deploy

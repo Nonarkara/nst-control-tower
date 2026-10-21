@@ -12,7 +12,7 @@ for (const width of [1440, 1024, 390]) {
     await page.addInitScript(() => localStorage.setItem("nst:theme", "dark"));
     await page.goto("/");
     await expect(page.locator(".map-host")).toBeVisible();
-    if (width < 900) await page.getByRole("tab", { name: /^MAP/ }).click();
+    if (width <= 1100) await page.getByRole("tab", { name: /^MAP/ }).click();
     await page.getByRole("button", { name: "Show Wat Mahathat in 3D", exact: true }).click();
     await expect(page.getByRole("button", { name: "Switch to 2D view", exact: true })).toBeVisible();
     await expect.poll(async () => page.evaluate(() => (window as unknown as { __mapCam?: { latitude: number } }).__mapCam?.latitude)).toBeCloseTo(8.411475, 5);
@@ -27,10 +27,10 @@ for (const width of [1440, 1024, 390]) {
     }
     // Exercise the ordinary Buildings toggle too: roofs are an integral part
     // of that layer, not an unreachable legacy building-roofs setting.
-    if (width < 900) await page.getByRole("tab", { name: /^LAYERS/ }).click();
-    await page.getByRole("combobox", { name: "Lens", exact: true }).selectOption("operations");
+    if (width <= 1100) await page.getByRole("tab", { name: /^LAYERS/ }).click();
+    await page.getByRole("combobox", { name: "Advanced map views", exact: true }).selectOption("operations");
     await page.getByRole("checkbox", { name: /^Buildings \(OSM/ }).check();
-    if (width < 900) await page.getByRole("tab", { name: /^MAP/ }).click();
+    if (width <= 1100) await page.getByRole("tab", { name: /^MAP/ }).click();
     await search.fill("Wat Srariang");
     await page.getByRole("option", { name: /Wat Srariang/ }).click();
     await page.keyboard.press("Escape");

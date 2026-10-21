@@ -34,7 +34,7 @@ export async function ensureSectionOpen(
 /** Switch lens by its visible label (Executive / Operations / Flood / Satellite …).
  *  Case-insensitive: the labels are title-case in the DOM, uppercased by CSS. */
 export async function selectLens(page: Page, label: string) {
-  const selector = page.getByRole("combobox", { name: "Lens", exact: true });
+  const selector = page.getByRole("combobox", { name: "Advanced map views", exact: true });
   const option = selector.getByRole("option", { name: new RegExp(`^${label}$`, "i") });
   await selector.selectOption(await option.getAttribute("value") as string);
   await expect(selector.locator("option:checked")).toHaveText(new RegExp(`^${label}$`, "i"), { timeout: 30_000 });

@@ -28,7 +28,7 @@ interface Props {
   airStations: AirQualityPoint[];
   ageMinutes: number;
   fallbackTier?: FallbackTier;
-  onFocus: (lng: number, lat: number) => void;
+  onFocus?: (lng: number, lat: number) => void;
   onShowWaterHeat?: () => void;
   onShowAirHeat?: () => void;
 }
@@ -178,7 +178,7 @@ export function SensorSituationBoard({
           thresholds={[{ at: 35.5, label: "Sensitive groups", level: "warning" }, { at: 55.5, label: "Unhealthy", level: "critical" }]}
           basis="US EPA 24h reference; source averaging window unverified. AQI retains its source scale." />
 
-        {air.worst && (
+        {air.worst && onFocus && (
           <button
             type="button"
             className="sit-worst"

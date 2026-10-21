@@ -54,3 +54,18 @@ test("on a phone every control on the briefing is at least 44 px tall", async ({
       .filter((x) => x.t !== "" && x.h < 43)); // image-only links (the radar) size to their picture
   expect(small).toEqual([]);
 });
+
+
+test("known near-bank observations survive missing rain and invalid synthesis time", async ({ page }) => {
+  await page.route("**/api/flood/operations?**", r => r.fulfill({ json: { features: [{ ...observation, rain: [], generatedAt: "invalid", weatherFetchedAt: "2099-01-01T00:00:00Z" }], meta } }));
+  await page.goto("/flood-ops");
+  await expect(page.locator(".flood-watch-status strong")).toContainText("1 สถานีใกล้/ถึงตลิ่ง");
+  await expect(page.locator(".flood-watch-status")).toContainText("Incomplete coverage");
+  await page.getByRole("button", { name: "English summary", exact: true }).click();
+  const summary = page.getByRole("region", { name: "English operational summary" });
+  await expect(summary).toContainText("within 0.30 m");
+  await expect(summary).toContainText("0.11");
+  await expect(summary).toContainText("No recent rainfall observations");
+  await expect(summary).toContainText("invalid timestamp");
+  await expect(page.locator(".flood-watch-layout")).not.toBeVisible();
+});
