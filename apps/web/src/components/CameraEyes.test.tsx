@@ -23,3 +23,14 @@ describe("CameraEyes", () => {
     expect(html).toContain("not an official reading");
   });
 });
+
+test("no image-change flags cannot produce a green water all-clear", async () => {
+  const { recordSweep } = await import("../lib/gaugeWatch");
+  vi.useFakeTimers(); vi.setSystemTime(new Date("2026-10-21T10:00:00+07:00"));
+  recordSweep([{ outcome: { status: "read", decision: { confidence: .8 } } as never, previewed: false }]);
+  const html = renderToString(<CameraEyes pm25={null} />);
+  expect(html).not.toContain("water not rising");
+  expect(html).toContain("No confirmed water trend");
+  vi.setSystemTime(new Date("2026-10-21T10:16:00+07:00"));
+  expect(renderToString(<CameraEyes pm25={null} />)).toContain("stale or paused");
+});

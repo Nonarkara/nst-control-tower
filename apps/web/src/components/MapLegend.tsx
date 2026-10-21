@@ -106,7 +106,7 @@ export function MapLegend({ enabled }: { enabled: ReadonlySet<LayerId> }) {
                 Heights use source tags where available, otherwise type/area estimates.
                 Source tags are not verified surveys. 3D uses neutral masonry and
                 schematic roofs at 1:1 height; roof shapes and materials are unverified.
-                Type colours apply to 2D footprints. The chedi uses a separate parametric model.
+                Type colours apply to 2D footprints. The chedi is an authored bell-and-spire reconstruction at the published nomination site coordinate; its surface detail is not surveyed.
               </span>
             </p>
           ) : null}

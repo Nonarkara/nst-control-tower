@@ -6,7 +6,7 @@
  * lib/gaugeWatch.ts, lib/hazeReader.ts and lib/cameraEyes.ts (all tested);
  * this only renders. It says what it could NOT do just as plainly.
  */
-import { useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { getSweepStats, subscribeSweepStats } from "../lib/gaugeWatch";
 import { getEyes, subscribeEyes, isDaylightICT } from "../lib/cameraEyes";
 import { HAZE_BAND_LABEL, crossCheckHaze, type HazeBand } from "../lib/hazeReader";
@@ -33,6 +33,8 @@ function Row({ label, level, children }: { label: string; level: StatusLevel; ch
 }
 
 export function CameraEyes({ pm25 }: Props) {
+  const [now, setNow] = useState(Date.now);
+  useEffect(() => { const id = window.setInterval(() => setNow(Date.now()), 60_000); return () => window.clearInterval(id); }, []);
   const flood = useSyncExternalStore(subscribeSweepStats, getSweepStats, getSweepStats);
   const eyes = useSyncExternalStore(subscribeEyes, getEyes, getEyes);
   const daylight = isDaylightICT();
@@ -41,15 +43,17 @@ export function CameraEyes({ pm25 }: Props) {
   // Flood: canal-camera water line.
   let floodLevel: StatusLevel = "unknown";
   let floodText = waiting;
-  if (flood.at > 0) {
+  const freshFlood = daylight && flood.at > 0 && now - flood.at >= -5000 && now - flood.at <= 15 * 60_000;
+  if (flood.at > 0 && !freshFlood) floodText = "Previous image checks are stale or paused; no current water assessment. Open a water camera to verify.";
+  if (freshFlood) {
     if (flood.confident === 0) {
       floodText = `Looked at ${flood.analysed} canal camera${flood.analysed === 1 ? "" : "s"}; none gave a clear water line.`;
     } else if (flood.previewed > 0) {
-      floodLevel = "warning";
-      floodText = `${flood.previewed} canal camera${flood.previewed === 1 ? "" : "s"} show water rising — check them on the map.`;
+      floodLevel = "watch";
+      floodText = `${flood.previewed} historical local image-change flag${flood.previewed === 1 ? "" : "s"} recorded — open the cameras and verify; these are not confirmed water rises.`;
     } else {
-      floodLevel = "normal";
-      floodText = `${flood.confident} of ${flood.analysed} canal cameras read — water not rising.`;
+      floodLevel = "unknown";
+      floodText = `${flood.confident} of ${flood.analysed} camera images have readable contrast. No confirmed water trend; no flags does not mean safe.`;
     }
   }
 
@@ -60,7 +64,8 @@ export function CameraEyes({ pm25 }: Props) {
   let hazeText = eyes.at > 0
     ? `Only ${eyes.city.cameras} road camera${eyes.city.cameras === 1 ? "" : "s"} gave a usable picture — need at least 2.`
     : waiting;
-  if (band) {
+  const freshHaze = Boolean(band) && daylight && eyes.at > 0 && now - eyes.at >= -5000 && now - eyes.at <= 15 * 60_000;
+  if (band && freshHaze) {
     hazeLevel = HAZE_LEVEL[band];
     hazeText = `${HAZE_BAND_LABEL[band].en} · ${HAZE_BAND_LABEL[band].th} — ${eyes.city.agreeing} of ${eyes.city.cameras} cameras agree.`;
   }
@@ -82,7 +87,7 @@ export function CameraEyes({ pm25 }: Props) {
         <Row label="Flood" level={floodLevel}>{floodText}</Row>
         <Row label="Haze" level={hazeLevel}>{hazeText}</Row>
       </dl>
-      {band && verdict.kind !== "clear" && verdict.kind !== "unknown" && <p className="eyes__note">{verdict.text}</p>}
+      {freshHaze && verdict.kind !== "clear" && verdict.kind !== "unknown" && <p className="eyes__note">{verdict.text}</p>}
       <p className="eyes__note">
         Estimated from camera pictures, in daylight — not an official reading.
         {eyes.calibrating > 0 ? " Still learning each camera's normal view; ratings sharpen over a few days." : ""}

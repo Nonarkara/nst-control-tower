@@ -91,7 +91,7 @@ export function CvGaugePanel({ cameras, apiBase, ageMinutes, fallbackTier }: Pro
       <p className="stat-line">
         <span className="stat-line__value num">{events.length}</span>
         <span className="stat-line__label">
-          rises recorded · {wlCount} water cameras online · daylight only
+          image-change flags recorded · {wlCount} water cameras online · daylight only
         </span>
       </p>
       {/* What the watch actually did — never imply coverage it doesn't have. */}
@@ -99,13 +99,13 @@ export function CvGaugePanel({ cameras, apiBase, ageMinutes, fallbackTier }: Pro
         {sweep.at === 0
           ? "Not running yet: it only reads stills the CCTV wall has captured (open CCTV mode in daylight)."
           : `Last check ${timeAgo(new Date(sweep.at).toISOString())}: ${sweep.analysed} frame${sweep.analysed === 1 ? "" : "s"} read, ` +
-            `${sweep.confident} with a clear water line` +
+            `${sweep.confident} with readable image contrast` +
             `${sweep.unreadable + sweep.undecodable > 0 ? `, ${sweep.unreadable + sweep.undecodable} unreadable` : ""}. ` +
             "Several water cameras watch streets, not canals; experimental, trend only."}
       </p>
       {events.length === 0 && (
         <p className="note">
-          No rises recorded. Browser previews stay on this device. Shared detections require an authenticated pipeline and can be missed
+          No image-change flags recorded. Browser previews stay on this device. Shared detections require an authenticated pipeline and can be missed
           across servers; do not rely on this panel alone.
         </p>
       )}

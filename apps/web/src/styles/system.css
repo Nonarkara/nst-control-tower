@@ -602,3 +602,11 @@ button[aria-pressed="true"] .rt-disc {
 @media (max-width: 1100px) {
   .topbar-now { display: none; }
 }
+
+.building-search__controls { display: flex; gap: var(--s-1); }
+.building-search__controls input { flex: 1; min-width: 0; }
+.building-search__temple { flex: none; min-height: 44px; padding: 0 var(--s-2); border: 1px solid var(--line-2); color: var(--ink); background: var(--panel); font: inherit; font-size: var(--text-xs); }
+
+@media (min-width: 901px) and (max-width: 1100px) {
+  .topbar-settings { margin-left: auto; }
+}

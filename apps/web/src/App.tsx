@@ -1,7 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, memo } from "react";
 import DeckGL from "@deck.gl/react";
 import type { Layer, ControllerProps } from "@deck.gl/core";
-import { FlyToInterpolator, LinearInterpolator } from "@deck.gl/core";
+import { FlyToInterpolator, LinearInterpolator, AmbientLight, DirectionalLight, LightingEffect } from "@deck.gl/core";
 import { Map as MapLibreMap } from "react-map-gl/maplibre";
 import * as maplibregl from "maplibre-gl";
 import type { Feature, FeatureCollection, LineString, Point, Polygon, MultiPolygon } from "geojson";
@@ -114,6 +114,7 @@ import {
   waterSystemPictureLayer,
   metroRouteLayer,
   mahatat3DLayer,
+  MAHATAT_CENTER,
   districtBoundariesLayer,
   hydroFlowArrowsLayer,
   mountainIconLayer,
@@ -377,6 +378,11 @@ const MemoTopBar = memo(TopBar);
 const MemoLayerPalette = memo(LayerPalette);
 const MemoKpiStrip = memo(KpiStrip);
 const MemoPmcuBrief = memo(PmcuBrief);
+// Neutral architectural lighting, not a real-time solar simulation.
+const MAP_LIGHTS = [new LightingEffect({
+  ambient: new AmbientLight({ color: [255, 255, 255], intensity: .9 }),
+  key: new DirectionalLight({ color: [255, 250, 240], intensity: 1.15, direction: [-2, -3, -4] }),
+})];
 const MemoWorldStrip = memo(WorldStrip);
 const MemoPredictivePanel = memo(PredictivePanel);
 const MemoTrendsPanel = memo(TrendsPanel);
@@ -659,12 +665,16 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
   const is3D = viewMode === "3D";
   const isSubstructure = false;
 
+  const templeFocusRequested = useRef(false);
   const cycleViewMode = useCallback(() => {
     setViewMode((prev) => (prev === "2D" ? "3D" : "2D"));
   }, []);
 
   useEffect(() => {
+    const temple = templeFocusRequested.current;
+    templeFocusRequested.current = false;
     flyCamera({
+      ...(temple ? { longitude: MAHATAT_CENTER.lng, latitude: MAHATAT_CENTER.lat, zoom: 18.2 } : {}),
       pitch: viewMode === "2D" ? 0 : 60,
       bearing: viewMode === "2D" ? 0 : -18,
       transitionDuration: 700,
@@ -2713,6 +2723,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
             // 0.004 is ~2.5× slower, still comfortable but safe.
             controller={{ minZoom: 8, maxZoom: 20, maxBounds: CHONBURI.outerBounds, scrollZoom: { speed: 0.004, smooth: false } } as ControllerProps & { minZoom?: number; maxZoom?: number }}
             layers={allLayers}
+            effects={MAP_LIGHTS}
             getTooltip={tooltipForPickMemo}
             onClick={handleMapClick}
             onHover={handleMapHover}
@@ -2743,6 +2754,12 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
           </DeckGL>
           <BuildingSearch
             buildings={buildings}
+            onTempleFocus={() => {
+              if (!is3D) { templeFocusRequested.current = true; setViewMode("3D"); }
+              setEnabledLayers(prev => new Set([...prev, "municipality-buildings", "mahatat-3d"]));
+              setSelectedBuilding(null);
+              if (is3D) flyCamera({ longitude: MAHATAT_CENTER.lng, latitude: MAHATAT_CENTER.lat, zoom: 18.2, pitch: 60, bearing: -18, transitionDuration: 700, transitionInterpolator: new FlyToInterpolator() });
+            }}
             onSelect={(centroid, props) => {
               setSelectedBuilding(props);
               setSelectedCoord([centroid[0], centroid[1]]);
@@ -2796,11 +2813,6 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
           <IncidentCard
             incident={selectedIncident}
             onClose={() => setSelectedIncident(null)}
-          />
-          <CctvStreamModal
-            camera={selectedCctv}
-            onClose={() => setSelectedCctv(null)}
-            apiBase={API_BASE}
           />
           {forecastAlerts.size > 0 && (
             <div className="map-alerts" role="status">
@@ -2918,6 +2930,11 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
         </div>
       </div>
 
+      <CctvStreamModal
+        camera={selectedCctv}
+        onClose={() => setSelectedCctv(null)}
+        apiBase={API_BASE}
+      />
       {/* Modals — lazy-loaded chunks, fetched only on first open */}
       <Suspense fallback={null}>
         {catalogOpen && <SourceCatalog open={catalogOpen} onClose={() => setCatalogOpen(false)} />}

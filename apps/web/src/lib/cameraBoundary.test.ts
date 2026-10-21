@@ -16,3 +16,14 @@ it("does not interpret a repeated frame or expired reference as stable water", (
   expect(compareBoundary(r, r, 3600_001)).toBe("unknown");
   expect(compareBoundary(r, { ...r, mean: r.mean + 40 }, 60_000)).toBe("unknown");
 });
+it("rejects gross same-brightness scene changes and frame-size changes", () => {
+  const ref = readMarkedBoundary(image(60), 100, 100, { x: .5, y: .6 })!;
+  const next = readMarkedBoundary(image(55), 100, 100, { x: .5, y: .6 })!;
+  expect(compareBoundary(ref, { ...next, width: 200 }, 60_000)).toBe("unknown");
+  expect(compareBoundary(ref, { ...next, scene: ref.scene.map(v => 185 - v) }, 60_000)).toBe("unknown");
+});
+
+it("includes an exact four-percent rise despite floating-point rounding", () => {
+  const ref = readMarkedBoundary(image(60), 100, 100, { x: .5, y: .6 })!;
+  expect(compareBoundary({ ...ref, y: .6 }, { ...ref, y: .56, digest: ref.digest + 1 }, 60_000)).toBe("inspect-rise");
+});

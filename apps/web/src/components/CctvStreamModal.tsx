@@ -14,6 +14,7 @@
  * button with a visible text label.
  */
 
+import { CameraWaterWatch } from "./CameraWaterWatch";
 import { useEffect, useId, useState } from "react";
 import type { CvDetectionEvent } from "@nst/shared";
 import type { CctvCamera } from "../map/layers";
@@ -31,6 +32,7 @@ const CV_POLL_MS = 10_000;
 const IMG_REFRESH_MS = 5_000;
 
 export function CctvStreamModal({ camera, onClose, apiBase = "" }: Props) {
+  const [waterWatch, setWaterWatch] = useState(false);
   const [cvEvent, setCvEvent] = useState<CvDetectionEvent | null>(null);
   const [imgTs, setImgTs] = useState(Date.now());
   const [videoError, setVideoError] = useState(false);
@@ -46,6 +48,7 @@ export function CctvStreamModal({ camera, onClose, apiBase = "" }: Props) {
   }, [camera, onClose]);
 
   useEffect(() => {
+    setWaterWatch(false);
     setVideoError(false);
     setCvEvent(null);
     setHd(false);
@@ -60,7 +63,7 @@ export function CctvStreamModal({ camera, onClose, apiBase = "" }: Props) {
         const res = await fetch(`${apiBase}/api/cctv/cv-events?cameraId=${encodeURIComponent(camera.id)}&limit=1`);
         if (!res.ok) return;
         const data = (await res.json()) as { events?: CvDetectionEvent[] };
-        if (active && data.events?.length) setCvEvent(data.events[0]);
+        if (active) setCvEvent(data.events?.[0] ?? null);
       } catch {
         // CV pipeline not running — nothing to show.
       }
@@ -119,7 +122,10 @@ export function CctvStreamModal({ camera, onClose, apiBase = "" }: Props) {
           </p>
         )}
 
-        <div className="cctv-modal-stream">
+        {camera.category === "water" && <div className="cctv-modal-controls">
+          <button type="button" className="btn" aria-pressed={waterWatch} onClick={() => setWaterWatch(v => !v)}>{waterWatch ? "Return to live player" : "Compare water images · CV"}</button>
+        </div>}
+        {waterWatch ? <CameraWaterWatch key={camera.id} cameras={[camera]} compact /> : <div className="cctv-modal-stream">
           {camera.embedUrl ? (
             <iframe
               key={embedSrc}
@@ -149,7 +155,7 @@ export function CctvStreamModal({ camera, onClose, apiBase = "" }: Props) {
           ) : (
             <p className="cctv-no-stream">No stream available for this camera.</p>
           )}
-        </div>
+        </div>}
 
         <div className="cctv-modal-controls">
           {camera.embedHdUrl && (
@@ -175,7 +181,7 @@ export function CctvStreamModal({ camera, onClose, apiBase = "" }: Props) {
         {cvEvent && Object.keys(cvEvent.counts).length > 0 && (
           <section className="cctv-modal-cv" aria-label="Latest computer-vision detection">
             <p className="cctv-modal-eyebrow">
-              Last detection · <span className="num">{new Date(cvEvent.timestamp).toLocaleTimeString()}</span>
+              Recorded detection (historical, not a current flood assessment) · <span className="num">{new Date(cvEvent.timestamp).toLocaleString("th-TH", { timeZone: "Asia/Bangkok" })}</span>
             </p>
             <ul className="cctv-det-list">
               {Object.entries(cvEvent.counts).map(([cls, count]) => (

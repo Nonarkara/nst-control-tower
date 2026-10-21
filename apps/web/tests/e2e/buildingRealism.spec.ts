@@ -7,27 +7,21 @@ for (const width of [1440, 1024, 390]) {
     test.setTimeout(90_000);
     const errors: string[] = [];
     page.on("pageerror", e => errors.push(e.message));
-    page.on("console", m => { if (m.type() === "error" && /building-roofs|municipality-buildings|shader|tessellat/i.test(m.text())) errors.push(m.text()); });
+    page.on("console", m => { if (m.type() === "error" && /mahatat|building-roofs|municipality-buildings|shader|tessellat/i.test(m.text())) errors.push(m.text()); });
     await page.setViewportSize({ width, height: 1000 });
     await page.addInitScript(() => localStorage.setItem("nst:theme", "dark"));
     await page.goto("/");
     await expect(page.locator(".map-host")).toBeVisible();
-    if (width < 900) await page.getByRole("tab", { name: /^LAYERS/ }).click();
-    await page.getByRole("combobox", { name: "Lens", exact: true }).selectOption("executive");
-    await expect(page.getByRole("checkbox", { name: /^Buildings \(OSM/ })).toBeChecked();
     if (width < 900) await page.getByRole("tab", { name: /^MAP/ }).click();
-    await page.getByRole("button", { name: "Switch to 3D view", exact: true }).click();
+    await page.getByRole("button", { name: "Show Wat Mahathat in 3D", exact: true }).click();
     await expect(page.getByRole("button", { name: "Switch to 2D view", exact: true })).toBeVisible();
-    await page.waitForTimeout(900);
+    await expect.poll(async () => page.evaluate(() => (window as unknown as { __mapCam?: { latitude: number } }).__mapCam?.latitude)).toBeCloseTo(8.411475, 5);
     const search = page.getByRole("combobox", { name: "Search buildings by name" });
-    await search.fill("Wat Phra Mahathat");
-    await page.getByRole("option", { name: /Wat Phra Mahathat/ }).first().click();
-    await page.keyboard.press("Escape");
     await page.waitForTimeout(1800);
     expect(errors).toEqual([]);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     if (process.env.BUILDING_SCREENSHOTS) {
-      const dir = resolve("../../var/buildings-realism-2026-10-21");
+      const dir = resolve("../../var/hero-temple-2026-10-21");
       mkdirSync(dir, { recursive: true });
       await page.screenshot({ path: `${dir}/buildings-${width}.png` });
     }
@@ -43,7 +37,7 @@ for (const width of [1440, 1024, 390]) {
     await page.waitForTimeout(1800);
     expect(errors).toEqual([]);
     if (process.env.BUILDING_SCREENSHOTS) {
-      const dir = resolve("../../var/buildings-realism-2026-10-21");
+      const dir = resolve("../../var/hero-temple-2026-10-21");
       await page.screenshot({ path: `${dir}/city-halls-${width}.png` });
     }
   });

@@ -1,8 +1,8 @@
 /**
  * Mahatat3D — parametric 3D model of Wat Phra Mahathat Voramahavihan.
  *
- * The compound sits in NST Old Town at the canonical coordinates (99.9638°E,
- * 8.4367°N). The great chedi is the defining landmark of the city and the
+ * The compound sits in NST Old Town at the nomination coordinates (99.9662167°E,
+ *8.411475°N). The great chedi is the defining landmark of the city and the
  * subject of an active UNESCO World Heritage nomination.
  *
  * DIMENSIONS — taken from the nomination itself, not estimated. The OUV text
@@ -43,169 +43,47 @@
  * ones. See lib/buildingFootprints.test.ts, which pins both facts.
  */
 
-import { ColumnLayer } from "@deck.gl/layers";
 import { PolygonLayer } from "@deck.gl/layers";
+import { SimpleMeshLayer } from "@deck.gl/mesh-layers";
 import type { Layer } from "@deck.gl/core";
+import reference from "../data/mahatatReference.json";
+import { BELL_PROFILE, SPIRE_PROFILE, latheMesh } from "./templeMesh";
 
-// ─── Canonical position (matches hand/mahatat-chedi in buildings.geojson) ──
-
-export const MAHATAT_CENTER: { lng: number; lat: number } = {
-  lng: 99.9638,
-  lat: 8.4367,
-};
-
-// ─── Helpers — small offsets in metres, converted to degrees ──────────────
-
-// At lat 8.4367: 1° lng ≈ 107.6 km → 1 m ≈ 9.29e-6 deg lng
-//                 1° lat ≈ 110.6 km → 1 m ≈ 9.04e-6 deg lat
-const LNG_PER_M = 9.29e-6;
-const LAT_PER_M = 9.04e-6;
-
-function offsetM(center: { lng: number; lat: number }, eastM: number, northM: number) {
-  return {
-    lng: center.lng + eastM * LNG_PER_M,
-    lat: center.lat + northM * LAT_PER_M,
-  };
-}
-
-// ─── Color palette — warm stone-white (the actual chedi is yellow-cream,
-// pale grey-gold under sunlight) with subtle banding to read the tiers ──────
-
-const STONE_TOP: [number, number, number] = [236, 233, 223]; // pale gold-cream
-const STONE_MID: [number, number, number] = [220, 218, 208]; // mid stone-gold
-const STONE_LOW: [number, number, number] = [197, 196, 187]; // shaded base stone
-
-// Roof / finial gold (slightly brighter — reads as the gilded top)
-const GOLD_FINIAL: [number, number, number] = [255, 218, 130];
-
-// ─── The great chedi — built bottom-to-top as a vertical stack ────────────
-//
-// Each segment is rendered as either an extruded square polygon (SquareLayer
-// style) or a polygonal column. The deck.gl `getElevation` returns the
-// segment height; we compose the chedi by stacking 13 segments and letting
-// each segment's height sit on top of the previous one.
-
-interface ChediSegment {
-  /** Centre offset from MAHATAT_CENTER, in metres (east, north) */
-  eastM: number;
-  northM: number;
-  /** Width × depth in metres (for square plinths); diameter in metres
-   *  (for round segments — bell, drum, spire). Round segments ignore this
-   *  field and use `radiusM` instead. */
-  widthM: number;
-  depthM: number;
-  /** For round segments. */
-  radiusM?: number;
-  /** Height of the segment in metres. */
-  heightM: number;
-  /** Cumulative height in metres — segment base elevation. */
-  baseM: number;
-  /** Colour. */
-  rgb: [number, number, number];
-  /** 12-sided polygon for "octagonal" drum/bell; 16 for spire (smoother). */
-  sides: number;
-  /** "round" = ColumnLayer, "square" = PolygonLayer extruded. */
-  shape: "round" | "square";
-}
-
-const CHEDI_BASE_ELEV = 0; // sits on ground level inside the cloister
-
-const CHEDI_SEGMENTS: ChediSegment[] = [
-  // 1. Square multi-tier plinth (3 receding tiers) — Sri Lankan-style base
-  { eastM: 0, northM: 0, widthM: 28, depthM: 28, heightM: 2.2, baseM: 0,  rgb: STONE_LOW, sides: 4, shape: "square" },
-  { eastM: 0, northM: 0, widthM: 25, depthM: 25, heightM: 2.0, baseM: 2.2, rgb: STONE_MID, sides: 4, shape: "square" },
-  { eastM: 0, northM: 0, widthM: 22, depthM: 22, heightM: 1.8, baseM: 4.2, rgb: STONE_TOP, sides: 4, shape: "square" },
-
-  // 2. Octagonal drum — radius 14 m, so the bell stands 28 m across
-  { eastM: 0, northM: 0, widthM: 0, depthM: 0, radiusM: 14, heightM: 9.3, baseM: 6.0,  rgb: STONE_MID, sides: 12, shape: "round" },
-
-  // 3. Bell-shaped anda — 3 stacked drums of decreasing radius, so the
-  //    silhouette reads as a tapered bell rather than a stepped cone
-  { eastM: 0, northM: 0, widthM: 0, depthM: 0, radiusM: 14,   heightM: 4.7, baseM: 15.3, rgb: STONE_TOP, sides: 16, shape: "round" },
-  { eastM: 0, northM: 0, widthM: 0, depthM: 0, radiusM: 12.1, heightM: 7.0, baseM: 20.0, rgb: STONE_TOP, sides: 16, shape: "round" },
-  { eastM: 0, northM: 0, widthM: 0, depthM: 0, radiusM: 9.5,  heightM: 5.8, baseM: 27.0, rgb: STONE_TOP, sides: 16, shape: "round" },
-
-  // 4. Harmika — square box at the top of the bell (the "shoulders")
-  { eastM: 0, northM: 0, widthM: 9.3, depthM: 9.3, heightM: 3.5, baseM: 32.8, rgb: STONE_MID, sides: 4, shape: "square" },
-
-  // 5. Yasti (conical spire) — tapering toward the finial
-  { eastM: 0, northM: 0, widthM: 0, depthM: 0, radiusM: 4.7, heightM: 3.5, baseM: 36.3, rgb: STONE_TOP, sides: 16, shape: "round" },
-  { eastM: 0, northM: 0, widthM: 0, depthM: 0, radiusM: 2.9, heightM: 4.6, baseM: 39.8, rgb: STONE_TOP, sides: 16, shape: "round" },
-  { eastM: 0, northM: 0, widthM: 0, depthM: 0, radiusM: 1.8, heightM: 4.6, baseM: 44.4, rgb: STONE_TOP, sides: 16, shape: "round" },
-  { eastM: 0, northM: 0, widthM: 0, depthM: 0, radiusM: 0.8, heightM: 3.5, baseM: 49.0, rgb: GOLD_FINIAL, sides: 16, shape: "round" },
-
-  // 6. Finial — gilded, closing the model out at exactly 56.0 m
-  { eastM: 0, northM: 0, widthM: 0, depthM: 0, radiusM: 0.6, heightM: 3.5, baseM: 52.5, rgb: GOLD_FINIAL, sides: 8, shape: "round" },
-];
-
-/** Total modelled height of the chedi, in metres. Derived from
- *  CHEDI_SEGMENTS so the segment table and this constant cannot drift.
- *  Equals 56.0 m — the nomination's "H. 28 wa" at 1 wa = 2 m. */
-export const CHEDI_HEIGHT_M = CHEDI_SEGMENTS.reduce((a, s) => a + s.heightM, 0);
-
-/** Widest modelled point, the plinth, in metres. The nomination gives
- *  "W. 14 wa" = 28 m, and the nomination states the 2:1 H:W ratio is
- *  deliberate (28 corporeality to 14 functions of consciousness). */
+// Official nomination:8°24′41.31″N,99°57′58.38″E. This is a site reference,
+// not a surveyed mesh registration. Earlier8.4367/99.9638 was2.8km north.
+export const MAHATAT_CENTER = { lng: reference.lng, lat: reference.lat };
+export const CHEDI_HEIGHT_M = 56;
 export const CHEDI_WIDTH_M = 28;
+const LNG_PER_M = 1 / (111320 * Math.cos(MAHATAT_CENTER.lat * Math.PI / 180));
+const LAT_PER_M = 1 / 110574;
+const bell = latheMesh(BELL_PROFILE);
+const spire = latheMesh(SPIRE_PROFILE);
+const position: [number, number, number] = [MAHATAT_CENTER.lng, MAHATAT_CENTER.lat, 0];
+const material = { ambient: .5, diffuse: .5, shininess: 12, specularColor: [55, 50, 40] as [number, number, number] };
 
-
-/** Only the dimensioned central chedi is modelled. Surrounding halls use
- * traced OSM footprints; no invented compound layout is drawn. */
-export function mahatat3DLayer(
-  enabled: boolean,
-  elevationScale: number = 1,
-): Layer[] {
+/** Smooth bell, ringed gilded spire and stepped plinth on the hero map.
+ * Only overall dimensions are sourced; profiles are an authored reconstruction.
+ * Surrounding halls retain their traced footprints, not invented placements. */
+export function mahatat3DLayer(enabled: boolean, elevationScale = 1): Layer[] {
   if (!enabled) return [];
-
-  const out: Layer[] = [];
-
-  // ── The great chedi ────────────────────────────────────────────────────
-  // One ColumnLayer per round segment, one PolygonLayer per square segment.
-  // deck.gl draws them additively so the chedi reads as a stacked silhouette.
-  for (const seg of CHEDI_SEGMENTS) {
-    const centre = offsetM(MAHATAT_CENTER, seg.eastM, seg.northM);
-    if (seg.shape === "round") {
-      const r = seg.radiusM ?? 1;
-      out.push(
-        new ColumnLayer<{ pos: [number, number]; r: number; h: number; base: number; rgb: [number, number, number] }>({
-          id: `mahatat-chedi-${seg.baseM.toFixed(0)}-${r.toFixed(1)}`,
-          data: [{ pos: [centre.lng, centre.lat], r, h: seg.heightM, base: seg.baseM, rgb: seg.rgb }],
-          diskResolution: seg.sides,
-          getPosition: (d) => [d.pos[0], d.pos[1], d.base * elevationScale],
-          getElevation: (d) => d.h,
-          getFillColor: (d) => [d.rgb[0], d.rgb[1], d.rgb[2], 255] as [number, number, number, number],
-          radius: r,
-          extruded: true,
-          pickable: false,
-          stroked: false,
-          elevationScale,
-        }) as Layer,
-      );
-    } else {
-      const w = seg.widthM / 2;
-      const d = seg.depthM / 2;
-      const ring: [number, number][] = [
-        [centre.lng - w * LNG_PER_M, centre.lat - d * LAT_PER_M],
-        [centre.lng + w * LNG_PER_M, centre.lat - d * LAT_PER_M],
-        [centre.lng + w * LNG_PER_M, centre.lat + d * LAT_PER_M],
-        [centre.lng - w * LNG_PER_M, centre.lat + d * LAT_PER_M],
-        [centre.lng - w * LNG_PER_M, centre.lat - d * LAT_PER_M],
-      ];
-      out.push(
-        new PolygonLayer<{ ring: [number, number][]; h: number; rgb: [number, number, number] }>({
-          id: `mahatat-chedi-square-${seg.baseM.toFixed(0)}`,
-          data: [{ ring, h: seg.heightM, rgb: seg.rgb }],
-          getPolygon: (d) => d.ring.map(p => [p[0], p[1], seg.baseM * elevationScale]),
-          getElevation: (d) => d.h,
-          getFillColor: (d) => [d.rgb[0], d.rgb[1], d.rgb[2], 255] as [number, number, number, number],
-          extruded: true,
-          pickable: false,
-          stroked: false,
-          elevationScale,
-        }) as Layer,
-      );
-    }
-  }
-
-  return out;
+  const steps = [
+    { width: 28, base: 0, height: 2.2 },
+    { width: 25, base: 2.2, height: 2 },
+    { width: 22, base: 4.2, height: 1.8 },
+    { width: 5.6, base: 32.8, height: 3.5 },
+  ].map((step, i) => {
+    const x = step.width / 2 * LNG_PER_M, y = step.width / 2 * LAT_PER_M;
+    const ring = [[position[0] - x, position[1] - y], [position[0] + x, position[1] - y], [position[0] + x, position[1] + y], [position[0] - x, position[1] + y], [position[0] - x, position[1] - y]].map(p => [p[0]!, p[1]!, step.base * elevationScale]);
+    return new PolygonLayer({ id: `mahatat-chedi-plinth-${i}`, data: [ring],
+      getPolygon: (p: number[][]) => p, getElevation: step.height, elevationScale,
+      getFillColor: [224, 221, 210, 255], material, extruded: true, stroked: false, pickable: false });
+  });
+  return [...steps,
+    new SimpleMeshLayer({ id: "mahatat-chedi-bell", data: [position], mesh: bell,
+      getPosition: (p: [number, number, number]) => p, getColor: [235, 233, 223, 255],
+      getScale: [1, 1, elevationScale], material, pickable: false }),
+    new SimpleMeshLayer({ id: "mahatat-chedi-spire", data: [position], mesh: spire,
+      getPosition: (p: [number, number, number]) => p, getColor: [207, 163, 65, 255],
+      getScale: [1, 1, elevationScale], material: { ...material, shininess: 30 }, pickable: false }),
+  ];
 }

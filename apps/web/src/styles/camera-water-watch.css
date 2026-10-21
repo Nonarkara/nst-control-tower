@@ -1,0 +1,13 @@
+.camera-water-watch { padding: var(--s-3); font-size: var(--text-sm); line-height: 1.5; }
+.camera-water-watch h2 { font-size: var(--text-lg); margin: 0 0 var(--s-2); }
+.camera-water-watch p { max-width: 65ch; }
+.camera-water-watch select { max-width: 100%; }
+.camera-water-watch button, .camera-water-watch select { min-height: 44px; padding: var(--s-2); font: inherit; color: var(--ink); background: var(--panel); border: 1px solid var(--line-2); }
+.camera-water-watch .flood-watch-actions { display: flex; flex-wrap: wrap; gap: var(--s-2); margin-block: var(--s-2); }
+.camera-water-watch .flood-watch-frames { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr)); gap: var(--s-3); }
+.camera-water-watch figure { margin: 0; min-width: 0; }
+.camera-water-watch img { width: 100%; height: auto; display: block; }
+.camera-water-watch .flood-watch-image { position: relative; cursor: crosshair; }
+.camera-water-watch .flood-watch-image > span { position: absolute; color: var(--warn); transform: translate(-50%, -50%); pointer-events: none; }
+.camera-water-watch__boundary { position: absolute; left: 0; right: 0; border-top: 2px dashed var(--warn); pointer-events: none; }
+.cctv-modal-head { position: sticky; top: 0; background: var(--panel); z-index: 2; }

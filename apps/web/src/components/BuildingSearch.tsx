@@ -12,6 +12,7 @@ interface Hit {
 
 interface Props {
   buildings: FeatureCollection<Polygon | MultiPolygon, BuildingProperties> | null;
+  onTempleFocus?: () => void;
   onSelect: (centroid: [number, number], building: BuildingProperties) => void;
 }
 
@@ -19,7 +20,7 @@ interface Props {
 
 const LISTBOX_ID = "building-search-results";
 
-export function BuildingSearch({ buildings, onSelect }: Props) {
+export function BuildingSearch({ buildings, onSelect, onTempleFocus }: Props) {
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
   const [focusedIndex, setFocusedIndex] = useState(-1);
@@ -102,6 +103,7 @@ export function BuildingSearch({ buildings, onSelect }: Props) {
 
   return (
     <div className="building-search">
+      <div className="building-search__controls">
       <input
         className="building-search-input"
         type="search"
@@ -132,6 +134,8 @@ export function BuildingSearch({ buildings, onSelect }: Props) {
         spellCheck={false}
         autoComplete="off"
       />
+      {onTempleFocus && <button type="button" className="building-search__temple" onClick={onTempleFocus} aria-label="Show Wat Mahathat in 3D">TEMPLE 3D</button>}
+      </div>
       {open && results.length > 0 && (
         <ul
           id={LISTBOX_ID}
