@@ -138,10 +138,14 @@ describe("the relay goes down", () => {
       setCache("thaiwater-gauges", good, -1);
       const out = await fetchWaterGauges();
       expect(out.features).toHaveLength(2);
+      // The refresh runs in the background (serve-stale-while-revalidate) so
+      // the visitor never waits on a dead relay; let it settle.
+      await new Promise((r) => setTimeout(r, 20));
     }
 
-    // A retry every single time: the empty feed was never written into the cache.
-    expect(relayCalls).toBe(4);
+    // The relay WAS retried after the outage began (not given up on), and the
+    // empty feed was never written into the cache — every read still had data.
+    expect(relayCalls).toBeGreaterThanOrEqual(2);
   });
 
   it("cold start with no snapshot says so, instead of showing an empty river", async () => {
@@ -242,14 +246,15 @@ describe("a snapshot served through an outage must not lie about its age", () =>
     relayDown = true;
     setCache("thaiwater-gauges", good, -1);
     await fetchWaterGauges();
+    await new Promise((r) => setTimeout(r, 20)); // let the background refresh fail
 
-    // cachedWithStale re-stamps a stale entry with exactly staleTtlSeconds.
-    // The 24 h default would freeze one snapshot for a whole day and never
-    // notice the relay recovering.
+    // A failed background refresh re-stamps the stale snapshot with a SHORT
+    // retry cooldown, never the 24 h default (which would freeze one snapshot
+    // for a day and never notice the relay recovering).
     const entry = snapshotCache()["thaiwater-gauges"];
     expect(entry).toBeDefined();
     const remainingMs = entry!.expiresAt - Date.now();
     expect(remainingMs).toBeGreaterThan(0);
-    expect(remainingMs).toBeLessThanOrEqual(10 * 60_000 + 5_000); // the 10-min TTL
+    expect(remainingMs).toBeLessThanOrEqual(60_000 + 5_000); // the retry cooldown
   });
 });

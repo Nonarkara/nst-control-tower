@@ -19,6 +19,10 @@ const BASE = "https://api-v3.thaiwater.net/api/v1/thaiwater30/public";
 const PROVINCE = "80"; // Nakhon Si Thammarat
 const TTL_GAUGES = 10 * 60;  // 10 min
 const TTL_RAIN = 30 * 60;    // 30 min
+// Serve an expired snapshot (honestly aged by trueAge) while refreshing in the
+// background: the first visitor after expiry used to wait ~14 s for a live
+// fetch through the relay. Beyond an hour the data is too old to show as-is.
+const STALE_SERVE_S = 60 * 60;
 
 // ---- ThaiWater response shapes ----
 
@@ -283,7 +287,7 @@ export async function fetchWaterGauges(): Promise<NormalizedFeed<WaterGauge>> {
     // stale entry with exactly this value, so the default would pin a single
     // snapshot for a whole day and never notice the relay coming back. Ten
     // minutes is how often this feed would have refreshed anyway.
-    const feed = await cached("thaiwater-gauges", TTL_GAUGES, computeWaterGauges, TTL_GAUGES);
+    const feed = await cached("thaiwater-gauges", TTL_GAUGES, computeWaterGauges, STALE_SERVE_S, true);
     return trueAge(feed);
   } catch {
     return relayDown<WaterGauge>("River gauges", "thaiwater-waterlevel");
@@ -352,7 +356,7 @@ const computeRainfall = async (): Promise<NormalizedFeed<RainfallStation>> => {
 /** Rain gauges. Same outage rule as the river gauges, for the same reason. */
 export async function fetchRainfall(): Promise<NormalizedFeed<RainfallStation>> {
   try {
-    const feed = await cached("thaiwater-rain", TTL_RAIN, computeRainfall, TTL_RAIN);
+    const feed = await cached("thaiwater-rain", TTL_RAIN, computeRainfall, STALE_SERVE_S, true);
     return trueAge(feed);
   } catch {
     return relayDown<RainfallStation>("Rain gauges", "thaiwater-rain");
