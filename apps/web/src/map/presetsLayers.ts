@@ -31,5 +31,5 @@ export const COMPUTED_LAYERS: ReadonlySet<LayerId> = new Set<LayerId>([
   "terrain-3d",
   "precip-radar",
   "air-waqi-field",
-  "waterway-flow", // animated dot cloud — a count badge would be meaningless
+  "waterway-flow", // blinking arrows — a count badge would be meaningless
 ]);
