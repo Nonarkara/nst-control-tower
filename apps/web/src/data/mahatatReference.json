@@ -1,8 +1,14 @@
 {
-  "lng": 99.9662166667,
-  "lat": 8.411475,
+  "lng": 99.96619375,
+  "lat": 8.4109925,
   "heightM": 56,
   "widthM": 28,
   "source": "https://www.phramahathatworldheritage.org/index.php/en/world-heritage/identification-of-the-nominated-property",
-  "positionBasis": "Published nomination site coordinate; not a surveyed mesh registration"
+  "positionBasis": "Approximate center of mapped circular chedi footprint way/774945305, checked against aerial imagery; not surveyed registration",
+  "positionSource": "https://www.openstreetmap.org/way/774945305",
+  "footprintId": "way/774945305",
+  "nominationSiteReference": {
+    "lng": 99.9662166667,
+    "lat": 8.411475
+  }
 }

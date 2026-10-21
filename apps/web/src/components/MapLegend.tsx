@@ -1,3 +1,4 @@
+import { CLASSIFIED_ROOF_COUNT } from "../lib/roofEvidence";
 /**
  * MapLegend — one key for everything currently drawn, and nothing else.
  *
@@ -105,8 +106,8 @@ export function MapLegend({ enabled }: { enabled: ReadonlySet<LayerId> }) {
               <span>
                 Heights use source tags where available, otherwise type/area estimates.
                 Source tags are not verified surveys. 3D uses neutral masonry and
-                schematic roofs at 1:1 height; roof shapes and materials are unverified.
-                Type colours apply to 2D footprints. The chedi is an authored bell-and-spire reconstruction at the published nomination site coordinate; its surface detail is not surveyed.
+                schematic roofs at 1:1 height. {CLASSIFIED_ROOF_COUNT} roofs have aerial-reviewed form; the rest remain unverified neutral caps, not confirmed flat roofs. Roof dimensions and materials are unmeasured.
+                Type colours apply to 2D footprints. The chedi is an authored bell-and-spire reconstruction aligned approximately to the aerial-checked round OSM footprint; its surface detail is not surveyed.
               </span>
             </p>
           ) : null}

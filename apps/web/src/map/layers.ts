@@ -1,5 +1,6 @@
 import { GeoJsonLayer, GridCellLayer, IconLayer, PathLayer, TextLayer } from "@deck.gl/layers";
 import { buildingModel, buildingRoofFaces, BUILDING_MATERIAL } from "../lib/buildingAppearance";
+import { hasReviewedRoof } from "../lib/roofEvidence";
 import { judgeGauge } from "../lib/levelWatch";
 import {
   resampleTerrain,
@@ -504,7 +505,7 @@ export function buildingsLayer(
     zoomBucket === 0
       ? features.filter((f) => {
           const p = f.properties as BuildingProperties & { _elevM?: number };
-          if (p.mnType) return true;
+          if (p.mnType || hasReviewedRoof(p.id)) return true;
           if (p.name) return true;
           if (typeof p._elevM === "number" && p._elevM >= 12) return true;
           if (classifyBuilding(p)) return true; // classified residential/retail/etc still reads as fabric at province scale
@@ -670,7 +671,7 @@ export function capUntaggedFor3D(
   const maybeDrop: typeof features = [];
   for (const f of features) {
     const p = f.properties as BuildingProperties & { _elevM?: number };
-    const isLandmark = !!p.mnType;
+    const isLandmark = !!p.mnType || hasReviewedRoof(p.id);
     const isNamed = !!p.name;
     const isTall = typeof p._elevM === "number" && p._elevM >= 20;
     const isClassified = !!classifyBuilding(p);
@@ -694,7 +695,7 @@ export function buildingRoofsLayer(
 ) {
   // Use precisely the same LOD population as the walls: no floating roof-only buildings.
   const candidates = options.zoomBucket === 0
-    ? collection.features.filter(f => !!f.properties.mnType || !!f.properties.name || !!classifyBuilding(f.properties) || (f.properties as BuildingProperties & { _elevM?: number })._elevM! >= 12)
+    ? collection.features.filter(f => !!f.properties.mnType || hasReviewedRoof(f.properties.id) || !!f.properties.name || !!classifyBuilding(f.properties) || (f.properties as BuildingProperties & { _elevM?: number })._elevM! >= 12)
     : capUntaggedFor3D(collection.features);
   const sorted = [...candidates].sort((a, b) => Number(!!classifyBuilding(b.properties)) - Number(!!classifyBuilding(a.properties)));
   const features = sorted.flatMap(buildingRoofFaces);

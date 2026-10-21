@@ -14,7 +14,7 @@ export const ALL_LAYERS_PART_A: LayerEntry[] = [
   { id: "municipality-boundary",  label: "Municipal boundary",        swatch: "#C8C8C8", group: "municipality",
     describe: "Nakhon Si Thammarat City Municipality boundary (เทศบาลนครนครศรีธรรมราช)." },
   { id: "municipality-buildings", label: "Buildings (OSM, 3D by type)",  swatch: "#E69F00", group: "municipality",
-    describe: "OSM footprints: category colours in 2D; neutral masonry and schematic roofs in 3D at 1:1 height. Source height/storey tags take precedence over type/area estimates. Simple temple halls have modelled gables; complex roofs remain flat. Roof shape and material are unverified, not photogrammetry. Types use OSM tags and civic POI joins." },
+    describe: "OSM footprints: category colours in 2D; neutral masonry and schematic roofs in 3D at 1:1 height. Source height/storey tags take precedence over type/area estimates. Selected roofs use aerial-reviewed gabled, hipped, flat or tiered temple forms; unknown and complex roofs keep neutral caps, not confirmed flat roofs. No roof is inferred from a temple POI alone. Roof dimensions/materials are schematic, not photogrammetry. Types use OSM tags and civic POI joins." },
   { id: "tile3d-buildings",       label: "Photorealistic 3D (Google)", swatch: "#7DD3FC", group: "municipality",
     describe: "Google Photorealistic 3D Tiles — real textured city mesh streamed via deck.gl. Full coverage over Bangkok and major metros; provincial towns may show coarse terrain only. Requires a Google Maps key." },
 

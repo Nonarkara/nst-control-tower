@@ -6,10 +6,12 @@ import { mahatat3DLayer, MAHATAT_CENTER, CHEDI_HEIGHT_M, CHEDI_WIDTH_M } from ".
 import { BELL_PROFILE, SPIRE_PROFILE, latheMesh } from "./templeMesh";
 
 describe("mapped Wat Mahathat reconstruction", () => {
-  it("uses the published nomination site rather than the old location2.8km north", () => {
-    expect(MAHATAT_CENTER.lat).toBeCloseTo(8.411475, 6);
-    expect(MAHATAT_CENTER.lng).toBeCloseTo(99.9662166667, 6);
+  it("aligns to the aerial-checked chedi footprint rather than the nomination site reference", () => {
+    expect(MAHATAT_CENTER.lat).toBeCloseTo(8.4109925, 6);
+    expect(MAHATAT_CENTER.lng).toBeCloseTo(99.96619375, 6);
     const fc = JSON.parse(readFileSync(new URL("../../public/geo/nst/buildings.geojson", import.meta.url), "utf8"));
+    const mapped = fc.features.find((f: { properties: { id: string } }) => f.properties.id === "way/774945305").geometry.coordinates[0].slice(0, -1) as number[][];
+    expect(mapped.reduce((sum, p) => sum + p[1]!, 0) / mapped.length).toBeCloseTo(MAHATAT_CENTER.lat, 6);
     const b = fc.features.find((f: { properties: { id: string } }) => f.properties.id === "hand/mahatat-chedi").properties._bbox;
     expect((b[0] + b[2]) / 2).toBeCloseTo(MAHATAT_CENTER.lng, 6);
     expect((b[1] + b[3]) / 2).toBeCloseTo(MAHATAT_CENTER.lat, 6);

@@ -1656,7 +1656,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
   const buildingGeometryEnabled = enabledLayers.has("municipality-buildings") || enabledLayers.has("campus-buildings");
   const automaticChedi = is3D && buildingGeometryEnabled;
   const renderedBuildings = useMemo(() => buildings && (chediModelEnabled || automaticChedi) && is3D
-    ? { ...buildings, features: buildings.features.filter(f => f.properties.id !== "hand/mahatat-chedi") }
+    ? { ...buildings, features: buildings.features.filter(f => f.properties.id !== "hand/mahatat-chedi" && f.properties.id !== "way/774945305") }
     : buildings, [buildings, chediModelEnabled, automaticChedi, is3D]);
   const memoizedBuildingsLayer = useMemo<Layer | null>(
     // zoomBucket is in the deps so the layer re-creates when the camera crosses

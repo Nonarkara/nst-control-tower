@@ -61,6 +61,7 @@ export interface BuildingProperties {
   // When set to a valid LandmarkKind it wins over any OSM-derived classification,
   // so curated data colours the building instead of its raw OSM tags.
   mnType?: string | null;
+  "roof:shape"?: string | null;
 }
 
 export type LandmarkKind =

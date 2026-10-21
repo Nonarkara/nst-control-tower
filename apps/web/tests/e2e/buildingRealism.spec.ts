@@ -11,11 +11,11 @@ for (const width of [1440, 1024, 390]) {
     await page.setViewportSize({ width, height: 1000 });
     await page.addInitScript(() => localStorage.setItem("nst:theme", "dark"));
     await page.goto("/");
-    await expect(page.locator(".map-host")).toBeVisible();
+    await expect(page.locator(".map-host")).toBeVisible({ timeout: 20_000 });
     if (width <= 1100) await page.getByRole("tab", { name: /^MAP/ }).click();
     await page.getByRole("button", { name: "Show Wat Mahathat in 3D", exact: true }).click();
     await expect(page.getByRole("button", { name: "Switch to 2D view", exact: true })).toBeVisible();
-    await expect.poll(async () => page.evaluate(() => (window as unknown as { __mapCam?: { latitude: number } }).__mapCam?.latitude)).toBeCloseTo(8.411475, 5);
+    await expect.poll(async () => page.evaluate(() => (window as unknown as { __mapCam?: { latitude: number } }).__mapCam?.latitude)).toBeCloseTo(8.4109925, 5);
     const search = page.getByRole("combobox", { name: "Search buildings by name" });
     await page.waitForTimeout(1800);
     expect(errors).toEqual([]);

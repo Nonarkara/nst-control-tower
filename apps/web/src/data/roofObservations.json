@@ -1,0 +1,2041 @@
+{
+  "source": {
+    "name": "Esri World Imagery",
+    "url": "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer",
+    "reviewedAt": "2026-10-21",
+    "imageryCapturedAt": null,
+    "method": "Visual interpretation of north-up zoom19 imagery against existing OSM footprints; no measured roof heights/materials/ornaments. Unknown is not flat."
+  },
+  "areas": [
+    {
+      "id": "mahatat",
+      "imageSha256": "602b853a7a13afadfde0413735718a4bf4fbdaf7c3e71a7e8d3a43b328246c5e",
+      "visibleFootprints": 122,
+      "center": [
+        99.9666,
+        8.412
+      ],
+      "zoom": 19,
+      "imageSizePx": 1600
+    },
+    {
+      "id": "cityhall",
+      "imageSha256": "baf8cc5bc806a1571cb354f45dc0f8be962c474583963259124fd52e95bf7354",
+      "visibleFootprints": 16,
+      "center": [
+        99.9631,
+        8.4364
+      ],
+      "zoom": 19,
+      "imageSizePx": 1600
+    },
+    {
+      "id": "oldtown",
+      "imageSha256": "02514520583e7048bf69397e9ef3e132a2c6ebfc8c7e419a3ee7d2976b41d781",
+      "visibleFootprints": 72,
+      "center": [
+        99.9638,
+        8.4267
+      ],
+      "zoom": 19,
+      "imageSizePx": 1600
+    },
+    {
+      "id": "south",
+      "imageSha256": "b5f352bcbb7f2b7a3df7cc8cdf4234ee36e20d581d9214ec9637933af4d16751",
+      "visibleFootprints": 62,
+      "center": [
+        99.9668,
+        8.4015
+      ],
+      "zoom": 19,
+      "imageSizePx": 1600
+    }
+  ],
+  "observations": [
+    {
+      "id": "way/766207681",
+      "area": "mahatat",
+      "label": 1,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207683",
+      "area": "mahatat",
+      "label": 2,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207684",
+      "area": "mahatat",
+      "label": 3,
+      "shape": "temple-tiered",
+      "note": "Multiple stepped eave bands on the long temple hall; exact ornament and end profile unresolved.",
+      "color": [
+        146,
+        76,
+        52
+      ]
+    },
+    {
+      "id": "way/766207685",
+      "area": "mahatat",
+      "label": 4,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207686",
+      "area": "mahatat",
+      "label": 5,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207687",
+      "area": "mahatat",
+      "label": 6,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207688",
+      "area": "mahatat",
+      "label": 7,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207689",
+      "area": "mahatat",
+      "label": 8,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207690",
+      "area": "mahatat",
+      "label": 9,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207691",
+      "area": "mahatat",
+      "label": 10,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207692",
+      "area": "mahatat",
+      "label": 11,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207693",
+      "area": "mahatat",
+      "label": 12,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207694",
+      "area": "mahatat",
+      "label": 13,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207695",
+      "area": "mahatat",
+      "label": 14,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207697",
+      "area": "mahatat",
+      "label": 15,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207698",
+      "area": "mahatat",
+      "label": 16,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207699",
+      "area": "mahatat",
+      "label": 17,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207700",
+      "area": "mahatat",
+      "label": 18,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207701",
+      "area": "mahatat",
+      "label": 19,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207702",
+      "area": "mahatat",
+      "label": 20,
+      "shape": "unknown",
+      "note": "Independent aerial review: no decisive single ridge, curved surface, end/wing changes or multiple roof units; no simple roof form assigned."
+    },
+    {
+      "id": "way/766207703",
+      "area": "mahatat",
+      "label": 21,
+      "shape": "unknown",
+      "note": "Independent aerial review: no decisive single ridge, curved surface, end/wing changes or multiple roof units; no simple roof form assigned."
+    },
+    {
+      "id": "way/766207704",
+      "area": "mahatat",
+      "label": 22,
+      "shape": "unknown",
+      "note": "Independent aerial review: no decisive single ridge, curved surface, end/wing changes or multiple roof units; no simple roof form assigned."
+    },
+    {
+      "id": "way/766207705",
+      "area": "mahatat",
+      "label": 23,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207706",
+      "area": "mahatat",
+      "label": 24,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207707",
+      "area": "mahatat",
+      "label": 25,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207708",
+      "area": "mahatat",
+      "label": 26,
+      "shape": "flat",
+      "note": "Mottled terrace slab, rooftop objects and parapet; no pitched ridge.",
+      "color": [
+        126,
+        133,
+        135
+      ]
+    },
+    {
+      "id": "way/766207709",
+      "area": "mahatat",
+      "label": 27,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207710",
+      "area": "mahatat",
+      "label": 28,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207711",
+      "area": "mahatat",
+      "label": 29,
+      "shape": "unknown",
+      "note": "Independent aerial review: no decisive single ridge, curved surface, end/wing changes or multiple roof units; no simple roof form assigned."
+    },
+    {
+      "id": "way/766207712",
+      "area": "mahatat",
+      "label": 30,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207713",
+      "area": "mahatat",
+      "label": 31,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207715",
+      "area": "mahatat",
+      "label": 32,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207721",
+      "area": "mahatat",
+      "label": 33,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207723",
+      "area": "mahatat",
+      "label": 34,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207724",
+      "area": "mahatat",
+      "label": 35,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207725",
+      "area": "mahatat",
+      "label": 36,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207726",
+      "area": "mahatat",
+      "label": 37,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207727",
+      "area": "mahatat",
+      "label": 38,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207728",
+      "area": "mahatat",
+      "label": 39,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207729",
+      "area": "mahatat",
+      "label": 40,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207730",
+      "area": "mahatat",
+      "label": 41,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207800",
+      "area": "mahatat",
+      "label": 42,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207801",
+      "area": "mahatat",
+      "label": 43,
+      "shape": "hipped",
+      "note": "Four red roof planes converge to a short ridge.",
+      "color": [
+        146,
+        76,
+        52
+      ]
+    },
+    {
+      "id": "way/766207802",
+      "area": "mahatat",
+      "label": 44,
+      "shape": "hipped",
+      "note": "Pavilion with diagonal corner hips and a short ridge.",
+      "color": [
+        146,
+        76,
+        52
+      ]
+    },
+    {
+      "id": "way/766207803",
+      "area": "mahatat",
+      "label": 45,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207804",
+      "area": "mahatat",
+      "label": 46,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207805",
+      "area": "mahatat",
+      "label": 47,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207806",
+      "area": "mahatat",
+      "label": 48,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207807",
+      "area": "mahatat",
+      "label": 49,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207808",
+      "area": "mahatat",
+      "label": 50,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207809",
+      "area": "mahatat",
+      "label": 51,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207810",
+      "area": "mahatat",
+      "label": 52,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207812",
+      "area": "mahatat",
+      "label": 53,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207813",
+      "area": "mahatat",
+      "label": 54,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207814",
+      "area": "mahatat",
+      "label": 55,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207815",
+      "area": "mahatat",
+      "label": 56,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207816",
+      "area": "mahatat",
+      "label": 57,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207817",
+      "area": "mahatat",
+      "label": 58,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207818",
+      "area": "mahatat",
+      "label": 59,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207819",
+      "area": "mahatat",
+      "label": 60,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207820",
+      "area": "mahatat",
+      "label": 61,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207821",
+      "area": "mahatat",
+      "label": 62,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207822",
+      "area": "mahatat",
+      "label": 63,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207823",
+      "area": "mahatat",
+      "label": 64,
+      "shape": "flat",
+      "note": "Broad weathered terrace slab with parapet/rooftop objects.",
+      "color": [
+        126,
+        133,
+        135
+      ]
+    },
+    {
+      "id": "way/766207828",
+      "area": "mahatat",
+      "label": 65,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207829",
+      "area": "mahatat",
+      "label": 66,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207830",
+      "area": "mahatat",
+      "label": 67,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207831",
+      "area": "mahatat",
+      "label": 68,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207832",
+      "area": "mahatat",
+      "label": 69,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207833",
+      "area": "mahatat",
+      "label": 70,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207834",
+      "area": "mahatat",
+      "label": 71,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207835",
+      "area": "mahatat",
+      "label": 72,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207836",
+      "area": "mahatat",
+      "label": 73,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207837",
+      "area": "mahatat",
+      "label": 74,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207838",
+      "area": "mahatat",
+      "label": 75,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207839",
+      "area": "mahatat",
+      "label": 76,
+      "shape": "flat",
+      "note": "Weathered concrete terrace and parapet; not a pitched temple hall.",
+      "color": [
+        126,
+        133,
+        135
+      ]
+    },
+    {
+      "id": "way/766207840",
+      "area": "mahatat",
+      "label": 77,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207842",
+      "area": "mahatat",
+      "label": 78,
+      "shape": "flat",
+      "note": "Joined concrete terraces with rooftop objects; keep the mapped irregular outline.",
+      "color": [
+        126,
+        133,
+        135
+      ]
+    },
+    {
+      "id": "way/766207843",
+      "area": "mahatat",
+      "label": 79,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207844",
+      "area": "mahatat",
+      "label": 80,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207845",
+      "area": "mahatat",
+      "label": 81,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207846",
+      "area": "mahatat",
+      "label": 82,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766214216",
+      "area": "mahatat",
+      "label": 83,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766214217",
+      "area": "mahatat",
+      "label": 84,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766214218",
+      "area": "mahatat",
+      "label": 85,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766214220",
+      "area": "mahatat",
+      "label": 86,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766214221",
+      "area": "mahatat",
+      "label": 87,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766214222",
+      "area": "mahatat",
+      "label": 88,
+      "shape": "unknown",
+      "note": "Independent aerial review: no decisive single ridge, curved surface, end/wing changes or multiple roof units; no simple roof form assigned."
+    },
+    {
+      "id": "way/766214224",
+      "area": "mahatat",
+      "label": 89,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766214227",
+      "area": "mahatat",
+      "label": 90,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766214228",
+      "area": "mahatat",
+      "label": 91,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766214230",
+      "area": "mahatat",
+      "label": 92,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766214231",
+      "area": "mahatat",
+      "label": 93,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766214232",
+      "area": "mahatat",
+      "label": 94,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766214233",
+      "area": "mahatat",
+      "label": 95,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766214234",
+      "area": "mahatat",
+      "label": 96,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766214235",
+      "area": "mahatat",
+      "label": 97,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766214236",
+      "area": "mahatat",
+      "label": 98,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766214253",
+      "area": "mahatat",
+      "label": 99,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766214255",
+      "area": "mahatat",
+      "label": 100,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766214256",
+      "area": "mahatat",
+      "label": 101,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766214257",
+      "area": "mahatat",
+      "label": 102,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766214258",
+      "area": "mahatat",
+      "label": 103,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766214259",
+      "area": "mahatat",
+      "label": 104,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766214260",
+      "area": "mahatat",
+      "label": 105,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766214261",
+      "area": "mahatat",
+      "label": 106,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/774942240",
+      "area": "mahatat",
+      "label": 107,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/774945305",
+      "area": "mahatat",
+      "label": 108,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/774945306",
+      "area": "mahatat",
+      "label": 109,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/774945307",
+      "area": "mahatat",
+      "label": 110,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/774945308",
+      "area": "mahatat",
+      "label": 111,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/1442798976",
+      "area": "mahatat",
+      "label": 112,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/1442798980",
+      "area": "mahatat",
+      "label": 113,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/1442798981",
+      "area": "mahatat",
+      "label": 114,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/1442798982",
+      "area": "mahatat",
+      "label": 115,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/1442798983",
+      "area": "mahatat",
+      "label": 116,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/1442798984",
+      "area": "mahatat",
+      "label": 117,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/1442798986",
+      "area": "mahatat",
+      "label": 118,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/1442798988",
+      "area": "mahatat",
+      "label": 119,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/1442798989",
+      "area": "mahatat",
+      "label": 120,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/1442798990",
+      "area": "mahatat",
+      "label": 121,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "hand/mahatat-chedi",
+      "area": "mahatat",
+      "label": 122,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/770813022",
+      "area": "cityhall",
+      "label": 1,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/770813042",
+      "area": "cityhall",
+      "label": 2,
+      "shape": "gabled",
+      "note": "Blue metal roof with two slopes and north-south ridge.",
+      "color": [
+        78,
+        126,
+        161
+      ]
+    },
+    {
+      "id": "way/770813043",
+      "area": "cityhall",
+      "label": 3,
+      "shape": "flat",
+      "note": "Parapet terrace and visible rooftop equipment.",
+      "color": [
+        126,
+        133,
+        135
+      ]
+    },
+    {
+      "id": "way/770813044",
+      "area": "cityhall",
+      "label": 4,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/770813045",
+      "area": "cityhall",
+      "label": 5,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/770813046",
+      "area": "cityhall",
+      "label": 6,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/1159797928",
+      "area": "cityhall",
+      "label": 7,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/1159797929",
+      "area": "cityhall",
+      "label": 8,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/1159797931",
+      "area": "cityhall",
+      "label": 9,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/1159797932",
+      "area": "cityhall",
+      "label": 10,
+      "shape": "hipped",
+      "note": "Red roof with east-west ridge and clear diagonal end hips.",
+      "color": [
+        146,
+        76,
+        52
+      ]
+    },
+    {
+      "id": "way/1159797933",
+      "area": "cityhall",
+      "label": 11,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/1159798351",
+      "area": "cityhall",
+      "label": 12,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/1159798352",
+      "area": "cityhall",
+      "label": 13,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/1159798353",
+      "area": "cityhall",
+      "label": 14,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/1159798354",
+      "area": "cityhall",
+      "label": 15,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/1159798355",
+      "area": "cityhall",
+      "label": 16,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766420696",
+      "area": "oldtown",
+      "label": 1,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766420699",
+      "area": "oldtown",
+      "label": 2,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766420700",
+      "area": "oldtown",
+      "label": 3,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766420703",
+      "area": "oldtown",
+      "label": 4,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766420704",
+      "area": "oldtown",
+      "label": 5,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766420709",
+      "area": "oldtown",
+      "label": 6,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766420711",
+      "area": "oldtown",
+      "label": 7,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766420712",
+      "area": "oldtown",
+      "label": 8,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766420714",
+      "area": "oldtown",
+      "label": 9,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766420715",
+      "area": "oldtown",
+      "label": 10,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766420716",
+      "area": "oldtown",
+      "label": 11,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766420719",
+      "area": "oldtown",
+      "label": 12,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766420725",
+      "area": "oldtown",
+      "label": 13,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766420726",
+      "area": "oldtown",
+      "label": 14,
+      "shape": "flat",
+      "note": "L-shaped weathered terrace with parapet and rooftop objects.",
+      "color": [
+        126,
+        133,
+        135
+      ]
+    },
+    {
+      "id": "way/766425572",
+      "area": "oldtown",
+      "label": 15,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766425619",
+      "area": "oldtown",
+      "label": 16,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766425620",
+      "area": "oldtown",
+      "label": 17,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766425621",
+      "area": "oldtown",
+      "label": 18,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766425623",
+      "area": "oldtown",
+      "label": 19,
+      "shape": "hipped",
+      "note": "Four-plane red pavilion roof.",
+      "color": [
+        146,
+        76,
+        52
+      ]
+    },
+    {
+      "id": "way/766425624",
+      "area": "oldtown",
+      "label": 20,
+      "shape": "unknown",
+      "note": "Independent aerial review: no decisive single ridge, curved surface, end/wing changes or multiple roof units; no simple roof form assigned."
+    },
+    {
+      "id": "way/766425625",
+      "area": "oldtown",
+      "label": 21,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766425626",
+      "area": "oldtown",
+      "label": 22,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766425627",
+      "area": "oldtown",
+      "label": 23,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766425628",
+      "area": "oldtown",
+      "label": 24,
+      "shape": "hipped",
+      "note": "Four-plane red pavilion roof.",
+      "color": [
+        146,
+        76,
+        52
+      ]
+    },
+    {
+      "id": "way/766425629",
+      "area": "oldtown",
+      "label": 25,
+      "shape": "hipped",
+      "note": "Red roof with diagonal end hips and short central ridge.",
+      "color": [
+        146,
+        76,
+        52
+      ]
+    },
+    {
+      "id": "way/766425630",
+      "area": "oldtown",
+      "label": 26,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766425633",
+      "area": "oldtown",
+      "label": 27,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766425634",
+      "area": "oldtown",
+      "label": 28,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766425650",
+      "area": "oldtown",
+      "label": 29,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766425651",
+      "area": "oldtown",
+      "label": 30,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766425652",
+      "area": "oldtown",
+      "label": 31,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766425653",
+      "area": "oldtown",
+      "label": 32,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766425654",
+      "area": "oldtown",
+      "label": 33,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766425655",
+      "area": "oldtown",
+      "label": 34,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766425656",
+      "area": "oldtown",
+      "label": 35,
+      "shape": "unknown",
+      "note": "Independent aerial review: no decisive single ridge, curved surface, end/wing changes or multiple roof units; no simple roof form assigned."
+    },
+    {
+      "id": "way/766425657",
+      "area": "oldtown",
+      "label": 36,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/768997431",
+      "area": "oldtown",
+      "label": 37,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/768997439",
+      "area": "oldtown",
+      "label": 38,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/768997441",
+      "area": "oldtown",
+      "label": 39,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/768998133",
+      "area": "oldtown",
+      "label": 40,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/768998134",
+      "area": "oldtown",
+      "label": 41,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/768998135",
+      "area": "oldtown",
+      "label": 42,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/768998136",
+      "area": "oldtown",
+      "label": 43,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/768998137",
+      "area": "oldtown",
+      "label": 44,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/768998140",
+      "area": "oldtown",
+      "label": 45,
+      "shape": "unknown",
+      "note": "Independent aerial review: no decisive single ridge, curved surface, end/wing changes or multiple roof units; no simple roof form assigned."
+    },
+    {
+      "id": "way/768998141",
+      "area": "oldtown",
+      "label": 46,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/768998148",
+      "area": "oldtown",
+      "label": 47,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/768998150",
+      "area": "oldtown",
+      "label": 48,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/768998151",
+      "area": "oldtown",
+      "label": 49,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/768998161",
+      "area": "oldtown",
+      "label": 50,
+      "shape": "flat",
+      "note": "Concrete terrace with rooftop objects and parapet.",
+      "color": [
+        126,
+        133,
+        135
+      ]
+    },
+    {
+      "id": "way/768998162",
+      "area": "oldtown",
+      "label": 51,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/768998164",
+      "area": "oldtown",
+      "label": 52,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/768998165",
+      "area": "oldtown",
+      "label": 53,
+      "shape": "flat",
+      "note": "Weathered terrace with visible parapet and equipment.",
+      "color": [
+        126,
+        133,
+        135
+      ]
+    },
+    {
+      "id": "way/768998166",
+      "area": "oldtown",
+      "label": 54,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/768998168",
+      "area": "oldtown",
+      "label": 55,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/768998169",
+      "area": "oldtown",
+      "label": 56,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/770827135",
+      "area": "oldtown",
+      "label": 57,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/774945296",
+      "area": "oldtown",
+      "label": 58,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/774945297",
+      "area": "oldtown",
+      "label": 59,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/781194536",
+      "area": "oldtown",
+      "label": 60,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/781194537",
+      "area": "oldtown",
+      "label": 61,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/781194538",
+      "area": "oldtown",
+      "label": 62,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/998212277",
+      "area": "oldtown",
+      "label": 63,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/998212408",
+      "area": "oldtown",
+      "label": 64,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/1004122818",
+      "area": "oldtown",
+      "label": 65,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/1004122819",
+      "area": "oldtown",
+      "label": 66,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/1004132184",
+      "area": "oldtown",
+      "label": 67,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/1161339321",
+      "area": "oldtown",
+      "label": 68,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/1442798993",
+      "area": "oldtown",
+      "label": 69,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/1442798994",
+      "area": "oldtown",
+      "label": 70,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/1442798995",
+      "area": "oldtown",
+      "label": 71,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/1442798996",
+      "area": "oldtown",
+      "label": 72,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/765949329",
+      "area": "south",
+      "label": 1,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/765949330",
+      "area": "south",
+      "label": 2,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/765949357",
+      "area": "south",
+      "label": 3,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/765949358",
+      "area": "south",
+      "label": 4,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/765949359",
+      "area": "south",
+      "label": 5,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/765949360",
+      "area": "south",
+      "label": 6,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/765949361",
+      "area": "south",
+      "label": 7,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/765949362",
+      "area": "south",
+      "label": 8,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/765949363",
+      "area": "south",
+      "label": 9,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/765949364",
+      "area": "south",
+      "label": 10,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/765949365",
+      "area": "south",
+      "label": 11,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/765949366",
+      "area": "south",
+      "label": 12,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/765949369",
+      "area": "south",
+      "label": 13,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/765949371",
+      "area": "south",
+      "label": 14,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/765949372",
+      "area": "south",
+      "label": 15,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/765949377",
+      "area": "south",
+      "label": 16,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/765949379",
+      "area": "south",
+      "label": 17,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/765949380",
+      "area": "south",
+      "label": 18,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/765949381",
+      "area": "south",
+      "label": 19,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/765949382",
+      "area": "south",
+      "label": 20,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207537",
+      "area": "south",
+      "label": 21,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207538",
+      "area": "south",
+      "label": 22,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207541",
+      "area": "south",
+      "label": 23,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207543",
+      "area": "south",
+      "label": 24,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207544",
+      "area": "south",
+      "label": 25,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207545",
+      "area": "south",
+      "label": 26,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207546",
+      "area": "south",
+      "label": 27,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207547",
+      "area": "south",
+      "label": 28,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207548",
+      "area": "south",
+      "label": 29,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207549",
+      "area": "south",
+      "label": 30,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207551",
+      "area": "south",
+      "label": 31,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207552",
+      "area": "south",
+      "label": 32,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207553",
+      "area": "south",
+      "label": 33,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207554",
+      "area": "south",
+      "label": 34,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207555",
+      "area": "south",
+      "label": 35,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207556",
+      "area": "south",
+      "label": 36,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207557",
+      "area": "south",
+      "label": 37,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207558",
+      "area": "south",
+      "label": 38,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207561",
+      "area": "south",
+      "label": 39,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207562",
+      "area": "south",
+      "label": 40,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207563",
+      "area": "south",
+      "label": 41,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207564",
+      "area": "south",
+      "label": 42,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207567",
+      "area": "south",
+      "label": 43,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207570",
+      "area": "south",
+      "label": 44,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207572",
+      "area": "south",
+      "label": 45,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207573",
+      "area": "south",
+      "label": 46,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207574",
+      "area": "south",
+      "label": 47,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207575",
+      "area": "south",
+      "label": 48,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207577",
+      "area": "south",
+      "label": 49,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207578",
+      "area": "south",
+      "label": 50,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207579",
+      "area": "south",
+      "label": 51,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207580",
+      "area": "south",
+      "label": 52,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207582",
+      "area": "south",
+      "label": 53,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207583",
+      "area": "south",
+      "label": 54,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207584",
+      "area": "south",
+      "label": 55,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207585",
+      "area": "south",
+      "label": 56,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207849",
+      "area": "south",
+      "label": 57,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207850",
+      "area": "south",
+      "label": 58,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/766207851",
+      "area": "south",
+      "label": 59,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/774940107",
+      "area": "south",
+      "label": 60,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/774940108",
+      "area": "south",
+      "label": 61,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "way/774940109",
+      "area": "south",
+      "label": 62,
+      "shape": "unknown",
+      "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    }
+  ]
+}

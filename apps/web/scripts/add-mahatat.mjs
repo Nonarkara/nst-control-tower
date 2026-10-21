@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-/** Rebuild only the schematic chedi search footprint from the published site
- * coordinate. Never author an invented compound wall. Run from apps/web. */
+/** Rebuild only the schematic chedi search footprint at the aerial-checked mapped chedi
+ * footprint center. Never author an invented compound wall. Run from apps/web. */
 import fs from "node:fs/promises";
 const reference = JSON.parse(await fs.readFile(new URL("../src/data/mahatatReference.json", import.meta.url), "utf8"));
 const file = new URL("../public/geo/nst/buildings.geojson", import.meta.url);
@@ -14,7 +14,7 @@ old.geometry = { type: "Polygon", coordinates: [[[lng-x,lat-y],[lng+x,lat-y],[ln
 old.properties.height = reference.heightM;
 old.properties._elevM = reference.heightM;
 old.properties._bbox = [lng-x,lat-y,lng+x,lat+y];
-old.properties.source = "hand-authored; official nomination site reference";
+old.properties.source = "hand-authored search extent; aerial-checked OSM chedi footprint center";
 fc.features = fc.features.filter(f => f.properties?.id !== "hand/mahatat-cloister");
 await fs.writeFile(file, JSON.stringify(fc));
 console.log("Updated chedi search footprint; all traced buildings preserved");

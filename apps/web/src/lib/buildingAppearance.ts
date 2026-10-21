@@ -1,6 +1,7 @@
 /** Footprint-constrained, schematic architecture. No survey detail is invented. */
 import type { Feature, MultiPolygon, Polygon, Position } from "geojson";
 import { classifyBuilding, isGroundsCompound, polygonAreaM2, type BuildingProperties } from "./building";
+import { roofObservation, type RoofShape } from "./roofEvidence";
 import { estimateBuildingHeight } from "./buildingHeights";
 
 export type BuildingFeature = Feature<Polygon | MultiPolygon, BuildingProperties>;
@@ -28,15 +29,18 @@ export function buildingModel(feature: BuildingFeature) {
   });
   const compound = isGroundsCompound(p, area);
   const polygons = feature.geometry.type === "Polygon" ? [feature.geometry.coordinates] : feature.geometry.coordinates;
-  // Infer only simple hall roofs. Courtyards, concave outlines and stupas stay
-  // as mapped; a type tag alone cannot justify ornate spires or multi-tier roofs.
-  const shape = (p as unknown as { "roof:shape"?: string })["roof:shape"];
-  const hall = kind === "temple" && !/pagoda|chedi|เจดีย์|stupa/i.test(`${p.building} ${p.name ?? ""} ${p.nameTh ?? ""}`);
-  const gables = !compound && (shape === "gabled" || (!shape && hall)) && polygons.every(poly => poly.length === 1 && isConvex(poly[0]!));
+  // A POI/category does not establish the roof on each building in a precinct.
+  const observation = roofObservation(p.id);
+  const tagged = p["roof:shape"];
+  const mappedShape: RoofShape = tagged === "gabled" || tagged === "hipped" || tagged === "flat" ? tagged : "unknown";
+  const observedShape = observation && observation.shape !== "unknown" ? observation.shape : mappedShape;
+  const simple = polygons.every(poly => poly.length === 1 && isConvex(poly[0]!));
+  const stupa = /pagoda|chedi|เจดีย์|stupa/i.test(`${p.building} ${p.name ?? ""} ${p.nameTh ?? ""}`);
+  const shape: RoofShape = !compound && !stupa && simple ? observedShape : observedShape === "flat" ? "flat" : "unknown";
   const frames = polygons.map(poly => roofFrame(poly[0]!));
-  const rise = gables ? Math.min(5, height.metres * .4, Math.max(1.2, Math.min(...frames.map(f => f.width)) * .32)) : 0;
+  const rise = shape !== "flat" && shape !== "unknown" ? Math.min(5, height.metres * .4, Math.max(1.2, Math.min(...frames.map(f => f.width)) * .32)) : 0;
   const total = compound ? .8 : height.metres;
-  return { height, total, eaves: total - rise, rise, compound, polygons, frames, kind };
+  return { height, total, eaves: total - rise, rise, compound, polygons, frames, kind, shape, observation };
 }
 
 function isConvex(closed: Position[]): boolean {
@@ -65,8 +69,10 @@ function roofFrame(ring: Position[]) {
     if (length > longest) { longest = length; dx = x / length; dy = y / length; }
   }
   const across = (p: Position) => -(p[0]! - origin[0]!) * mx * dy + (p[1]! - origin[1]!) * my * dx;
+  const along = (p: Position) => (p[0]! - origin[0]!) * mx * dx + (p[1]! - origin[1]!) * my * dy;
   const values = ring.map(across), low = Math.min(...values), high = Math.max(...values);
-  return { across, center: (low + high) / 2, width: high - low };
+  const alongValues = ring.map(along), start = Math.min(...alongValues), end = Math.max(...alongValues);
+  return { across, along, low, high, start, end, center: (low + high) / 2, width: high - low };
 }
 
 function clip(ring: Position[], side: (p: Position) => number): Position[] {
@@ -87,34 +93,68 @@ export function buildingRoofFaces(feature: BuildingFeature): RoofFace[] {
   const model = buildingModel(feature);
   if (model.compound) return [];
   const faces: RoofFace[] = [];
+  const observedColor = model.observation?.color;
+  const roofColor: Rgb = observedColor?.length === 3 ? [observedColor[0]!, observedColor[1]!, observedColor[2]!] : BUILDING_MATERIAL.tile;
+  const shade: Rgb = roofColor.map(c => Math.round(c * .82)) as Rgb;
   const add = (rings: Position[][], color: Rgb, roofBasis: string) => faces.push({
     type: "Feature", properties: { id: feature.properties.id, color, roofBasis },
     geometry: { type: "Polygon", coordinates: rings },
   });
+  const basis = model.shape === "unknown" ? "neutral schematic cap; roof shape unverified or geometry unresolved"
+    : model.observation?.shape !== "unknown" && model.observation
+    ? `aerial-reviewed ${model.shape}; Esri World Imagery; capture date unknown; schematic dimensions`
+    : `mapped roof:shape=${model.shape}; schematic dimensions`;
   model.polygons.forEach((poly, index) => {
     if (!model.rise) {
-      add(poly.map(ring => ring.map(p => [p[0]!, p[1]!, model.total + .03])), BUILDING_MATERIAL.roof, "flat schematic cap; shape unverified");
+      add(poly.map(ring => ring.map(p => [p[0]!, p[1]!, model.total + .03])), BUILDING_MATERIAL.roof, basis);
       return;
     }
-    const frame = model.frames[index]!;
-    const distance = (p: Position) => frame.across(p) - frame.center;
-    const z = (p: Position) => model.eaves + model.rise * Math.max(0, 1 - Math.abs(distance(p)) / (frame.width / 2));
+    const frame = model.frames[index]!, halfWidth = frame.width / 2;
+    const planes = [
+      (p: Position) => (frame.high - frame.across(p)) / halfWidth,
+      (p: Position) => (frame.across(p) - frame.low) / halfWidth,
+      ...(model.shape === "gabled" ? [] : [
+        (p: Position) => (frame.along(p) - frame.start) / halfWidth,
+        (p: Position) => (frame.end - frame.along(p)) / halfWidth,
+      ]),
+    ];
+    // Two observed eave bands, with a small closed fascia step. Heights are
+    // schematic; there are no invented finials, gilded ornaments or overhangs.
+    const bands = model.shape === "temple-tiered"
+      ? [{ lo: 0, hi: .48, z0: 0, z1: .28 }, { lo: .48, hi: 1, z0: .33, z1: 1 }]
+      : [{ lo: 0, hi: 1, z0: 0, z1: 1 }];
     const outline = poly[0]!.slice(0, -1);
-    for (const sign of [1, -1]) {
-      const half = clip(outline, p => sign * distance(p));
-      if (half.length < 3) continue;
-      const top = half.map(p => [p[0]!, p[1]!, z(p)]);
-      add([[...top, top[0]!]], sign > 0 ? BUILDING_MATERIAL.tile : BUILDING_MATERIAL.tileShade, "schematic gable; footprint-derived ridge, unverified roof");
-      // Close the gable ends. Split at ridge intersections so no roof floats
-      // over an open triangular wall; full3d tessellation handles vertical faces.
-      for (let i = 0; i < half.length; i++) {
-        const a = half[i]!, b = half[(i + 1) % half.length]!;
-        if (Math.abs(distance(a)) < 1e-7 && Math.abs(distance(b)) < 1e-7) continue;
-        if (z(a) <= model.eaves + 1e-6 && z(b) <= model.eaves + 1e-6) continue;
-        const ring = [[a[0]!, a[1]!, model.eaves], [b[0]!, b[1]!, model.eaves], [b[0]!, b[1]!, z(b)], [a[0]!, a[1]!, z(a)], [a[0]!, a[1]!, model.eaves]];
-        add([ring], BUILDING_MATERIAL.plaster, "schematic gable end");
+    const onOutline = (a: Position, b: Position) => outline.some((v, i) => {
+      const w = outline[(i + 1) % outline.length]!;
+      const dx = w[0]! - v[0]!, dy = w[1]! - v[1]!;
+      const len2 = dx * dx + dy * dy;
+      const on = (p: Position) => {
+        const x = p[0]! - v[0]!, y = p[1]! - v[1]!;
+        const t = (x * dx + y * dy) / len2;
+        return Math.abs(x * dy - y * dx) < 1e-12 && t >= -1e-6 && t <= 1 + 1e-6;
+      };
+      return len2 > 0 && on(a) && on(b);
+    });
+    planes.forEach((q, planeIndex) => {
+      let region = outline;
+      for (const other of planes) if (other !== q) region = clip(region, p => other(p) - q(p));
+      region = clip(region, p => 1 - q(p));
+      for (const band of bands) {
+        const part = clip(clip(region, p => q(p) - band.lo), p => band.hi - q(p));
+        if (part.length < 3) continue;
+        const z = (p: Position) => model.eaves + model.rise * (band.z0 + (band.z1 - band.z0) * (q(p) - band.lo) / (band.hi - band.lo));
+        const top = part.map(p => [p[0]!, p[1]!, z(p)]);
+        add([[...top, top[0]!]], planeIndex % 2 ? shade : roofColor, `${basis}; footprint-derived ridge`);
+        for (let i = 0; i < part.length; i++) {
+          const a = part[i]!, b = part[(i + 1) % part.length]!;
+          let bottom: number | null = null;
+          if (onOutline(a, b)) bottom = model.eaves;
+          else if (band.lo > 0 && Math.abs(q(a) - band.lo) < 1e-6 && Math.abs(q(b) - band.lo) < 1e-6) bottom = model.eaves + model.rise * .28;
+          if (bottom == null || (Math.abs(z(a) - bottom) < 1e-6 && Math.abs(z(b) - bottom) < 1e-6)) continue;
+          add([[[a[0]!, a[1]!, bottom], [b[0]!, b[1]!, bottom], [b[0]!, b[1]!, z(b)], [a[0]!, a[1]!, z(a)], [a[0]!, a[1]!, bottom]]], onOutline(a, b) ? BUILDING_MATERIAL.plaster : shade, `${basis}; roof edge closure`);
+        }
       }
-    }
+    });
   });
   return faces;
 }

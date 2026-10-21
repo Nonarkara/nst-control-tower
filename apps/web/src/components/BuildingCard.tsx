@@ -1,3 +1,5 @@
+import chediReference from "../data/mahatatReference.json";
+import { ROOF_STUDY, roofObservation } from "../lib/roofEvidence";
 import type { BuildingProperties } from "../map/layers";
 import { useTwinBuilding } from "../hooks/useTwinBuilding";
 import { API_BASE } from "../lib/apiBase";
@@ -24,6 +26,8 @@ export function BuildingCard({ building, coord, onClose }: Props) {
   const name = building.nameEn || building.name || building.nameTh || "Untitled building";
   const altName = building.nameTh && building.nameTh !== name ? building.nameTh : null;
   const osmId = building.id;
+  const roof = roofObservation(building.id);
+  const isChedi = building.id === "hand/mahatat-chedi" || building.id === chediReference.footprintId;
 
   // Find sensors that monitor this building
   const sensors = twin.related.filter(
@@ -65,6 +69,9 @@ export function BuildingCard({ building, coord, onClose }: Props) {
             <dd>{building.operator}</dd>
           </>
         )}
+        <dt>ROOF</dt>
+        <dd>{isChedi ? "Chedi · authored bell-and-spire reconstruction" : roof && roof.shape !== "unknown" ? `${roof.shape} · aerial interpretation` : building["roof:shape"] ? `${building["roof:shape"]} · mapped tag` : "Unverified · neutral schematic cap"}</dd>
+        {!isChedi && roof && <><dt>ROOF BASIS</dt><dd>{roof.note} <a href={ROOF_STUDY.url} target="_blank" rel="noreferrer">Esri World Imagery</a> · reviewed {ROOF_STUDY.reviewedAt}; image capture date unknown. Heights and roof profile dimensions are schematic.</dd></>}
         <dt>OSM</dt>
         <dd className="num">{osmId}</dd>
       </dl>
