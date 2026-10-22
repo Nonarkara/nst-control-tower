@@ -954,14 +954,17 @@ button.pred-strip:hover { background: var(--ground); border-color: var(--line); 
 }
 
 /* ── Situation headline — first block of the left rail, every lens.
-   Status marked by a left rule + glyph + word, never colour alone. ── */
+   Status marked by a glyph + word + a 2px rule on the level line, never
+   colour alone. The rule marks the line that states the status: run down
+   the side of the card it framed the whole panel, implied that the action
+   and the data age below it were also the alert, and outranked the
+   headline it annotated. ── */
 .situation-headline {
   display: flex;
   flex-direction: column;
   gap: var(--s-2);
   padding: var(--s-3) var(--s-4);
   border-bottom: 1px solid var(--line);
-  border-left: 4px solid var(--status, var(--ink-3));
   background: var(--panel);
 }
 .situation-headline p { margin: 0; }
@@ -971,6 +974,18 @@ button.pred-strip:hover { background: var(--ground); border-color: var(--line); 
   text-transform: uppercase;
   letter-spacing: var(--tracking-label);
   color: var(--ink);
+  position: relative;
+}
+/* The rule sits in the card's own left gutter, so the status line's text
+   keeps the same 16px alignment as every other line in the rail. */
+.situation-headline__level::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(var(--s-4) * -1);
+  width: 2px;
+  background: var(--status, var(--ink-3));
 }
 .situation-headline__level .pc-glyph { color: var(--status, var(--ink-3)); }
 .situation-headline__title {
@@ -1003,12 +1018,27 @@ button.pred-strip:hover { background: var(--ground); border-color: var(--line); 
 .evac-row {
   display: grid;
   gap: var(--s-1);
-  padding: var(--s-2) var(--s-3);
+  /* Left padding takes back the 4px the old status border used, so the row's
+     text sits exactly where it did before the rule moved onto the tier
+     line. */
+  padding: var(--s-2) var(--s-3) var(--s-2) var(--s-4);
   border: 1px solid var(--line);
-  border-left: 4px solid var(--status, var(--ink-3));
+  border-left: 0;
 }
 .evac-row p { margin: 0; }
-.evac-row__tier { font-size: var(--text-xs); font-weight: var(--weight-bold); letter-spacing: var(--tracking-label); color: var(--ink); }
+.evac-row__tier { font-size: var(--text-xs); font-weight: var(--weight-bold); letter-spacing: var(--tracking-label); color: var(--ink); position: relative; }
+/* The severity rule marks the tier line, not the whole row. Run down the
+   card it implied that the population count and the action below it were
+   also the alert — and it was the longest coloured bar on the screen. */
+.evac-row__tier::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(var(--s-4) * -1);
+  width: 2px;
+  background: var(--status, var(--ink-3));
+}
 .evac-row__tier span[aria-hidden] { color: var(--status); }
 .evac-row__name { font-size: var(--text-sm); font-weight: var(--weight-bold); color: var(--ink); }
 .evac-row__why, .evac-row__lead { font-size: var(--text-xs); color: var(--ink-2); }
@@ -1027,7 +1057,15 @@ button.pred-strip:hover { background: var(--ground); border-color: var(--line); 
 .evac-blind span[aria-hidden] { color: var(--status); }
 .hotlines { display: grid; gap: var(--s-1); margin-top: var(--s-2); }
 .hotlines .row-list { display: grid; gap: var(--s-1); }
-.hotlines__call { justify-content: flex-start; min-height: var(--hit); width: 100%; }
+.hotlines__call {
+  justify-content: flex-start;
+  min-height: var(--hit);
+  width: 100%;
+  /* No global box-sizing reset in this codebase: width:100% resolved to the
+     content box and the button's own padding pushed it 10px past the rail,
+     where overflow-x:hidden silently cut the line number off. */
+  box-sizing: border-box;
+}
 
 /* Chat: hotlines shown under an emergency message, before any model reply. */
 .chat-emergency {

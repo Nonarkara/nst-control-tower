@@ -25,6 +25,24 @@ Reviewed surfaces were rendered against the live production API (`nst-control-to
   - *First attempt, withdrawn.* The first implementation was a CSS `mask-image` on the scroll container. That masked the container's own background as well as its content, so the sheet turned translucent at its bottom edge and the **map bled through** behind the rail — visible in both themes. The mask was replaced by the sticky overlay, which keeps the panel opaque. Found by inspecting the rendered pixels, not by reading the CSS.
 - **Identity layer.** `TopBar.tsx` now imports `NST`, the canonical export, instead of the `CHONBURI` legacy alias — the only `CHONBURI` reference left in the web app. The alias itself stays in the shared package for the other consumers it exists for.
 
+## The severity bars (22 October, second pass)
+
+The owner pointed at the orange bar running down the left edge of the situation card in the tablet preview and called it spatial hallucination. It was.
+
+The card carried `border-left: 4px solid var(--status)`. In the warning state that is a 4 × 221 px band of saturated orange (4 × 335 px when the card is at full length), and it failed the law's test three ways:
+
+- **Why is it here?** To mark severity — which the card already states twice, 20 px away: a coloured status glyph and the word "WARNING". The rule's marginal job was zero.
+- **Why this size?** 4 px wide and the card's *entire* height. The house pattern is 2 px (`/Users/axiom/Projects/_docs/DESIGN.md`: "Accent stripe pattern: 2px solid var(--accent) as a top or left edge indicator").
+- **Why this far from that?** Flush with the card's edge, so it read as a frame around the whole panel — implying that the suggested action, the button and the "Gauges updated 1h ago" line were also the alert. And because it was the largest block of colour in the rail, it outranked the headline it annotated.
+
+**The fix:** the rule now marks the line that states the status. It is 2 px, it is the height of the level line (~18 px), and it sits in the card's own left gutter so the level line's text keeps the same 16 px alignment as every other line in the rail. Removing the card's 4 px border also let the card's content align with the rest of the rail instead of sitting 4 px proud of it.
+
+A sweep of every rendered element with a left border of 3 px or more found the same failure elsewhere: `.evac-row` — the "who to move first" village card — ran a 4 px gold rule down **356 px** at 1440 px, the longest coloured bar in the product, on a card whose first line already says "▲ WATCH · เฝ้าระวัง · flash flood" with a coloured glyph. It got the same treatment: a 2 px rule on the tier line, with the row's left padding taking back the 4 px so its text does not move.
+
+After both fixes, at 390 / 1024 / 1440 px with every collapsed section opened, the only remaining left rules of 3 px or more are a 3 × 36 px active-state marker on a layer toggle — the sanctioned "2 px accent stripe … active panel, current lens, live status" pattern, bounded by its own row.
+
+**A second defect fell out of the same sweep:** the hotline buttons overflowed the rail by 10 px (`.hotlines__call` sets `width: 100%`, and with no global `box-sizing` reset that resolved to the content box, so the button's own padding pushed it past the rail edge where `overflow-x: hidden` silently cut the line number off). This was a regression introduced by narrowing the rail to 460 px. `box-sizing: border-box` on that rule fixes it; rail overflow is now 0 at every width.
+
 ## Independent review
 
 The law and `anti-slop-design` both require a second pair of eyes — "never self-review". An independent verifier agent reviewed this change against the claims above, without having written any of it, and drove the real interface at every width. Its verdict was **PASS WITH NOTES**: the spatial-hallucination repair itself held up, but it found six defects in the repair, two of them live WCAG 2.5.3 AA regressions. All six are now fixed and re-measured.
