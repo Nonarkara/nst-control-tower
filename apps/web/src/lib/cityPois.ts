@@ -15,6 +15,7 @@
 import type { FeatureCollection, Point } from "geojson";
 import { ScatterplotLayer, TextLayer } from "@deck.gl/layers";
 import type { Layer } from "@deck.gl/core";
+import { MAP_FONT } from "../map/fonts";
 
 // ─── Category palette (Okabe-Ito friendly) ──────────────────────────────
 // Each category gets a unique colour + radius so it reads distinctly on
@@ -111,7 +112,7 @@ export function cityPoisLayer(
         const style = CATEGORY_STYLE[d.category] ?? CATEGORY_STYLE.tourist!;
         return [style.color[0] / 2, style.color[1] / 2, style.color[2] / 2, 245] as [number, number, number, number];
       },
-      fontFamily: "'IBM Plex Sans Thai', 'Inter', sans-serif",
+      fontFamily: MAP_FONT,
       fontWeight: 700,
       characterSet: "auto",
       background: true,

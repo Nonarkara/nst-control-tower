@@ -51,6 +51,7 @@ import {
 import { ZONE_STATUS_RGB, ZONE_STATUS_LABEL, isThaDeeZone, leadTimeToCity, worstStatus, CELERITY_MIN_MS, type ZoneSummary } from "../lib/watershed";
 import type { BasinWaterBalance } from "@nst/shared";
 import { STATUS, statusRgba, type StatusLevel } from "../lib/status";
+import { MAP_FONT } from "./fonts";
 
 export type CctvCategory = "traffic" | "school" | "safety" | "water" | "other";
 export type CctvStatus = "online" | "offline" | "unknown";
@@ -129,8 +130,6 @@ function statusRgbMap<K extends string | number>(levels: Record<K, StatusLevel>)
 /** Map ink — tokens.css --paper / --ink — for outlines, label grounds and text. */
 const INK_DARK: RGB = [14, 14, 14];
 const INK_LIGHT: RGB = [244, 244, 244];
-/** One type family on the map, same as the interface. */
-const MAP_FONT = "'Libre Franklin Variable', 'IBM Plex Sans Thai', system-ui, sans-serif";
 /** "Beyond critical" (PM2.5 hazardous > 150): the critical hue, darkened — still
  *  reads as critical, and darker keeps intensity ramps monotonic in luminance. */
 const CRITICAL_DEEP: RGB = shade(STATUS.critical.rgb, 0.4);
@@ -3510,7 +3509,7 @@ export function flowInfoGraphicLayer(
       getTextAnchor: "middle",
       getAlignmentBaseline: "center",
       billboard: true,
-      fontFamily: "'Inter', 'IBM Plex Sans Thai', sans-serif",
+      fontFamily: MAP_FONT,
       fontWeight: "bold",
       getBackgroundColor: [10, 14, 20, 215],
       background: true,
@@ -3712,7 +3711,7 @@ export function waterSystemPictureLayer(summaries: ZoneSummary[]): Layer[] {
       getText: (d) => d.text,
       getSize: 10,
       getColor: withAlpha(grey(110), 240),
-      fontFamily: "'Inter', 'IBM Plex Sans Thai', sans-serif",
+      fontFamily: MAP_FONT,
       fontWeight: "bold",
       getTextAnchor: "middle",
       getAlignmentBaseline: "center",
@@ -3734,7 +3733,7 @@ export function waterSystemPictureLayer(summaries: ZoneSummary[]): Layer[] {
       getText: (d) => d.text,
       getSize: 9,
       getColor: withAlpha(grey(135), 240),
-      fontFamily: "'Inter', 'IBM Plex Sans Thai', sans-serif",
+      fontFamily: MAP_FONT,
       fontWeight: "600",
       getTextAnchor: "middle",
       getAlignmentBaseline: "center",
@@ -4908,7 +4907,7 @@ export function metroRouteLayer(
       getText: (d) => d.s.labelEn,
       getSize: 12,
       getColor: [255, 255, 255, 230],
-      fontFamily: "'Inter', sans-serif",
+      fontFamily: MAP_FONT,
       fontWeight: 700,
       characterSet: "auto",
       getPixelOffset: (d) => labelOffsetFor(d.s),
@@ -4930,7 +4929,7 @@ export function metroRouteLayer(
       getText: (d) => d.s.labelTh,
       getSize: 11,
       getColor: [255, 255, 255, 220],
-      fontFamily: "'Inter', 'IBM Plex Sans Thai', sans-serif",
+      fontFamily: MAP_FONT,
       fontWeight: 600,
       characterSet: "auto",
       getPixelOffset: (d) => thLabelOffsetFor(d.s),

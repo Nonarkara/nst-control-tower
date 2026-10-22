@@ -373,7 +373,7 @@ button.pred-strip:hover { background: var(--ground); border-color: var(--line); 
    gets one row with its live level, trend glyph, and the ETA-to-city math.
    Picture-book (.wfp) tells the story; this shows the numbers behind it. */
 .lcr {
-  font-family: 'Inter', 'IBM Plex Sans Thai', sans-serif;
+  font-family: var(--font-sans);
   background: var(--panel);
   border: 1px solid var(--line-2);
   color: var(--ink);
@@ -425,7 +425,7 @@ button.pred-strip:hover { background: var(--ground); border-color: var(--line); 
 
 .lcr__foot { margin-top: var(--s-2); padding-top: var(--s-2); border-top: 1px solid var(--line); }
 .lcr__math { margin: 0; font-size: 10px; color: var(--ink-3); }
-.lcr__math code { font-family: 'Inter', monospace; font-size: 10px; color: var(--ink-2); }
+.lcr__math code { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 10px; color: var(--ink-2); }
 .lcr__note { margin: var(--s-1) 0 0; font-size: 10px; color: var(--ink-3); }
 
 /* ── 19. Flood story card (fsc-) ─────────────────────────────────────
@@ -435,7 +435,7 @@ button.pred-strip:hover { background: var(--ground); border-color: var(--line); 
    reading, and a kid-readable description + Thai version. Collapses to
    a header strip when the user prefers reduced motion. */
 .fsc {
-  font-family: 'Inter', 'IBM Plex Sans Thai', sans-serif;
+  font-family: var(--font-sans);
   background: var(--panel);
   border: 1px solid var(--line-2);
   color: var(--ink);
@@ -518,7 +518,7 @@ button.pred-strip:hover { background: var(--ground); border-color: var(--line); 
   align-items: center;
   gap: var(--s-1);
   padding: 4px 8px;
-  font-family: 'Inter', 'IBM Plex Sans Thai', sans-serif;
+  font-family: var(--font-sans);
   font-size: var(--text-xs);
   font-weight: var(--weight-bold);
   letter-spacing: var(--tracking-label);
@@ -528,8 +528,14 @@ button.pred-strip:hover { background: var(--ground); border-color: var(--line); 
   cursor: pointer;
 }
 .ffa__trigger:hover { filter: brightness(1.08); }
+/* A touch target is 44px on a phone, not 32px. */
+@media (max-width: 1100px) {
+  .ffa__trigger,
+  .mtr__trigger { min-height: 44px; }
+}
 .ffa__trigger-count {
-  font-family: 'Inter', monospace;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   font-size: 11px;
   padding: 0 4px;
   background: rgba(255,255,255,0.15);
@@ -560,7 +566,7 @@ button.pred-strip:hover { background: var(--ground); border-color: var(--line); 
 .ffa__tbl {
   width: 100%;
   border-collapse: collapse;
-  font-family: 'Inter', 'IBM Plex Sans Thai', sans-serif;
+  font-family: var(--font-sans);
   font-size: var(--text-sm);
 }
 .ffa__tbl thead th {
@@ -624,7 +630,8 @@ button.pred-strip:hover { background: var(--ground); border-color: var(--line); 
 }
 .ffa__formula-title { color: var(--ink); font-weight: var(--weight-bold); margin-right: var(--s-1); }
 .ffa__formula {
-  font-family: 'Inter', monospace;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   font-size: 11px;
   color: var(--ink-2);
   background: var(--ground);
@@ -642,7 +649,7 @@ button.pred-strip:hover { background: var(--ground); border-color: var(--line); 
   align-items: center;
   gap: var(--s-1);
   padding: 4px 8px;
-  font-family: 'Inter', 'IBM Plex Sans Thai', sans-serif;
+  font-family: var(--font-sans);
   font-size: var(--text-xs);
   font-weight: var(--weight-bold);
   letter-spacing: var(--tracking-label);
@@ -653,7 +660,8 @@ button.pred-strip:hover { background: var(--ground); border-color: var(--line); 
 }
 .mtr__trigger:hover { filter: brightness(1.08); }
 .mtr__trigger-count {
-  font-family: 'Inter', monospace;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   font-size: 11px;
   padding: 0 4px;
   background: rgba(0,0,0,0.18);
@@ -666,7 +674,7 @@ button.pred-strip:hover { background: var(--ground); border-color: var(--line); 
   gap: 0;
   background: var(--panel);
   color: var(--ink);
-  font-family: 'Inter', 'IBM Plex Sans Thai', sans-serif;
+  font-family: var(--font-sans);
 }
 .mtr__hdr {
   grid-column: 1 / -1;
@@ -719,7 +727,8 @@ button.pred-strip:hover { background: var(--ground); border-color: var(--line); 
 }
 .mtr__row:last-child { border-bottom: 0; }
 .mtr__num {
-  font-family: 'Inter', monospace;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   font-size: var(--text-sm);
   font-weight: 700;
   color: var(--ink-3);
@@ -784,7 +793,7 @@ button.pred-strip:hover { background: var(--ground); border-color: var(--line); 
    answers "which station is currently the worst?" at a glance — level,
    24h delta, % of bank, status pill — without leaving the dashboard. */
 .tsr {
-  font-family: 'Inter', 'IBM Plex Sans Thai', sans-serif;
+  font-family: var(--font-sans);
   background: var(--panel);
   border: 1px solid var(--line-2);
   color: var(--ink);

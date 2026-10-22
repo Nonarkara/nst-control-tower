@@ -26,6 +26,7 @@
 import { useEffect, useState } from "react";
 import type { FallbackTier } from "@nst/shared";
 import type { FlowStep } from "../lib/sensorSituation";
+import { MAP_FONT } from "../map/fonts";
 
 interface Props {
   steps: FlowStep[];
@@ -345,7 +346,7 @@ export function WaterFlowPicture({ steps, forceReducedMotion, fallbackTier }: Pr
             a tiny tag so a reader knows what they're looking at */}
         <text x={nodePosX(1)} y={56} textAnchor="middle"
               fontSize="8" letterSpacing="0.14em" fill="var(--ink-3)"
-              fontFamily="'Inter', 'IBM Plex Sans Thai', sans-serif" fontWeight="600">
+              fontFamily={MAP_FONT} fontWeight="600">
           KH LONG THA DEE · คลองท่าดี
         </text>
 
@@ -422,7 +423,7 @@ export function WaterFlowPicture({ steps, forceReducedMotion, fallbackTier }: Pr
               fontSize="11"
               fontWeight="600"
               fill="var(--ink)"
-              fontFamily="'Inter', 'IBM Plex Sans Thai', sans-serif"
+              fontFamily={MAP_FONT}
             >
               {n.labelEn}
             </text>
@@ -433,7 +434,7 @@ export function WaterFlowPicture({ steps, forceReducedMotion, fallbackTier }: Pr
               textAnchor="middle"
               fontSize="9"
               fill="var(--ink-3)"
-              fontFamily="'Inter', 'IBM Plex Sans Thai', sans-serif"
+              fontFamily={MAP_FONT}
               lang="th"
             >
               {n.labelTh}
@@ -458,7 +459,7 @@ export function WaterFlowPicture({ steps, forceReducedMotion, fallbackTier }: Pr
                   fontSize="9"
                   fontWeight="700"
                   fill={pillColor(n)}
-                  fontFamily="'Inter', monospace"
+                  fontFamily={MAP_FONT}
                   letterSpacing="0.04em"
                 >
                   {n.level}{n.trend ? ` ${trendGlyph(n.trend)}` : ""}
@@ -478,7 +479,7 @@ export function WaterFlowPicture({ steps, forceReducedMotion, fallbackTier }: Pr
             fontSize="11"
             fontWeight="600"
             fill="var(--ink)"
-            fontFamily="'Inter', 'IBM Plex Sans Thai', sans-serif"
+            fontFamily={MAP_FONT}
           >
             {mountain.labelEn}
           </text>
@@ -488,7 +489,7 @@ export function WaterFlowPicture({ steps, forceReducedMotion, fallbackTier }: Pr
             textAnchor="middle"
             fontSize="9"
             fill="var(--ink-3)"
-            fontFamily="'Inter', 'IBM Plex Sans Thai', sans-serif"
+            fontFamily={MAP_FONT}
             lang="th"
           >
             {mountain.labelTh}
@@ -500,7 +501,7 @@ export function WaterFlowPicture({ steps, forceReducedMotion, fallbackTier }: Pr
             fontSize="8"
             letterSpacing="0.14em"
             fill="var(--ink-3)"
-            fontFamily="'Inter', monospace"
+            fontFamily={MAP_FONT}
             fontWeight="600"
           >
             MOUNTAIN · ต้นน้ำ
@@ -516,7 +517,7 @@ export function WaterFlowPicture({ steps, forceReducedMotion, fallbackTier }: Pr
             fontSize="11"
             fontWeight="600"
             fill="var(--ink)"
-            fontFamily="'Inter', 'IBM Plex Sans Thai', sans-serif"
+            fontFamily={MAP_FONT}
           >
             {city.labelEn}
           </text>
@@ -526,7 +527,7 @@ export function WaterFlowPicture({ steps, forceReducedMotion, fallbackTier }: Pr
             textAnchor="middle"
             fontSize="9"
             fill="var(--ink-3)"
-            fontFamily="'Inter', 'IBM Plex Sans Thai', sans-serif"
+            fontFamily={MAP_FONT}
             lang="th"
           >
             {city.labelTh}
@@ -542,7 +543,7 @@ export function WaterFlowPicture({ steps, forceReducedMotion, fallbackTier }: Pr
             fontSize="11"
             fontWeight="600"
             fill="var(--ink)"
-            fontFamily="'Inter', 'IBM Plex Sans Thai', sans-serif"
+            fontFamily={MAP_FONT}
           >
             {bay.labelEn}
           </text>
@@ -552,7 +553,7 @@ export function WaterFlowPicture({ steps, forceReducedMotion, fallbackTier }: Pr
             textAnchor="middle"
             fontSize="9"
             fill="var(--ink-3)"
-            fontFamily="'Inter', 'IBM Plex Sans Thai', sans-serif"
+            fontFamily={MAP_FONT}
             lang="th"
           >
             {bay.labelTh}
@@ -564,7 +565,7 @@ export function WaterFlowPicture({ steps, forceReducedMotion, fallbackTier }: Pr
             fontSize="8"
             letterSpacing="0.14em"
             fill="var(--ink-3)"
-            fontFamily="'Inter', monospace"
+            fontFamily={MAP_FONT}
             fontWeight="600"
           >
             OUTLET · ปลายน้ำ

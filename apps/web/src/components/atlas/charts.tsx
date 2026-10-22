@@ -185,19 +185,37 @@ function HBar({ data, unit, title, note }: Extract<AtlasChart, { kind: "hbar" }>
 
 // ── Line / Area ────────────────────────────────────────────────────────────────
 function LineArea({ series, unit, title, note, area }: Extract<AtlasChart, { kind: "line" | "area" }> & { area: boolean }) {
-  // A gap in the series (a missing year, a null reading) arrives as a
-  // non-numeric point. Fed straight into the scales it produced NaN
-  // coordinates — the SVG logged "Expected number, NaN" and the chart drew
-  // nothing. Drop the unusable points and scale what is left.
+  // Two kinds of gap arrive here. A missing reading is a non-finite y and is
+  // dropped. But the x can also be categorical — "Monthly rainfall
+  // climatology" is Jan…Dec, not numbers — and treating those as numbers
+  // emptied the series and left a chart with no line and a fabricated 0–1
+  // axis. So: if the x values are not numbers, the position is the point's
+  // index and the label keeps its original text.
+  const numericX = series.every((s) => s.points.every((p) => Number.isFinite(Number(p.x))));
   const clean = series.map((s) => ({
     ...s,
     points: s.points
-      .map((p) => ({ ...p, x: Number(p.x), y: Number(p.y) }))
-      .filter((p) => Number.isFinite(p.x) && Number.isFinite(p.y)),
+      .map((p, i) => ({
+        label: String(p.x ?? ""),
+        x: numericX ? Number(p.x) : i,
+        y: Number(p.y),
+      }))
+      .filter((p) => Number.isFinite(p.y)),
   }));
   const all = clean.flatMap((s) => s.points);
   const xs = all.map((p) => p.x);
   const ys = all.map((p) => p.y);
+  // No usable reading: say so. An axis for a series that has no data is a
+  // scale that lies about the numbers it replaced.
+  if (!all.length) {
+    return (
+      <ChartFrame title={title} note={note} h={196}>
+        <text x={W / 2} y={96} textAnchor="middle" className="atlas-svg-cap" fill="var(--ink-3)">
+          No data for this series
+        </text>
+      </ChartFrame>
+    );
+  }
   const minX = xs.length ? Math.min(...xs) : 0;
   const maxX = xs.length ? Math.max(...xs) : 1;
   const maxY = ys.length ? Math.max(...ys, 1) : 1;
@@ -227,7 +245,7 @@ function LineArea({ series, unit, title, note, area }: Extract<AtlasChart, { kin
         );
       })}
       {first.map((p, i) => i % Math.ceil(first.length / 6) === 0 ? (
-        <text key={i} x={sx(p.x)} y={base + 16} textAnchor="middle" className="atlas-svg-tick" fill="var(--ink-low)">{p.x}</text>
+        <text key={i} x={sx(p.x)} y={base + 16} textAnchor="middle" className="atlas-svg-tick" fill="var(--ink-low)">{p.label}</text>
       ) : null)}
       {unit ? <text x={padL} y={10} className="atlas-svg-tick" fill="var(--ink-low)">{unit}</text> : null}
     </ChartFrame>

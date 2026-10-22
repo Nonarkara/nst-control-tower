@@ -97,20 +97,20 @@ describe("the model's dimensions still match the nomination", () => {
   // "verified" the constants by grepping App.tsx for their names — which
   // passes for an import that has nothing to do with what is drawn.
   //
-  // The 20s budgets below are for the module load, not for the assertion:
+  // The 10s budgets below are for the module load, not for the assertion:
   // `mahatat3d` pulls in a heavy dependency graph, and the default 5s test
   // timeout was reported as a failure on a loaded machine even though the
   // assertion itself is instant.
   it("the chedi is 56.0 m tall — 28 wa at 1 wa = 2 m", async () => {
     const { CHEDI_HEIGHT_M } = await import("../lib/mahatat3d");
     expect(CHEDI_HEIGHT_M).toBeCloseTo(56, 1);
-  }, 20_000);
+  }, 10_000);
 
   it("the chedi is 28 m across — 14 wa at 1 wa = 2 m, the deliberate 2:1", async () => {
     const { CHEDI_WIDTH_M, CHEDI_HEIGHT_M } = await import("../lib/mahatat3d");
     expect(CHEDI_WIDTH_M).toBe(28);
     expect(CHEDI_HEIGHT_M / CHEDI_WIDTH_M).toBeCloseTo(2, 2);
-  }, 20_000);
+  }, 10_000);
 });
 
 describe("the height-provenance label is on a component that RENDERS", () => {

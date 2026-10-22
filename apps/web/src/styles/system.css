@@ -56,6 +56,13 @@ kbd {
 
 /* ── 2. Legacy normalisation — remove decoration, fix status semantics ─ */
 
+/* MapLibre's own stylesheet sets `.maplibregl-map { font: 12px/20px
+   Helvetica Neue, ... }`, and every control inside it inherits that face —
+   the attribution line and the control buttons were the only text in the
+   product outside the house family. The family is the only thing replaced;
+   the size and leading stay the library's. */
+.maplibregl-map { font-family: var(--font-sans); }
+
 .left-bar::before,
 .right-bar::before,
 .bottom-bar::before { content: none !important; }

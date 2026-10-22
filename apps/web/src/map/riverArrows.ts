@@ -5,6 +5,7 @@ import type { Layer } from "@deck.gl/core";
 import type { Feature, LineString, MultiLineString } from "geojson";
 import type { WaterGauge } from "@nst/shared";
 import { WATERSHED_ZONES, fmtCityInflowShort, type CityInflow } from "../lib/watershed";
+import { MAP_FONT } from "./fonts";
 
 export type WaterwayFlowClass = "slow" | "medium" | "fast";
 
@@ -386,7 +387,7 @@ export function riverTypographyLayer(labels: RiverLabel[]) {
     getTextAnchor: "middle",
     getAlignmentBaseline: "center",
     billboard: true,
-    fontFamily: "'Inter', 'IBM Plex Sans Thai', sans-serif",
+    fontFamily: MAP_FONT,
     fontWeight: "bold",
     background: true,
     getBackgroundColor: [10, 14, 20, 175],

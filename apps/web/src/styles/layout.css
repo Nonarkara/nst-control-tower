@@ -1107,6 +1107,7 @@ input:focus-visible,
   background: color-mix(in srgb, var(--panel) 96%, transparent);
   color: var(--ink);
   border: 1px solid var(--line-2);
+  font-family: var(--font-sans);
   font-size: var(--text-sm);
 }
 .building-search-input:focus-visible {
@@ -2514,6 +2515,10 @@ input:focus-visible,
   left: 0;
   right: 0;
   z-index: 95;
+  /* No global border-box reset in this codebase, so the 1px top border used
+     to sit outside the 62px and the bar measured 63px — one pixel over the
+     rail's bottom edge. */
+  box-sizing: border-box;
   height: 62px;
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -5033,7 +5038,11 @@ input:focus-visible,
   align-items: baseline;
   gap: 6px;
   padding: 4px 6px 3px;
-  background: linear-gradient(to top, rgba(0, 0, 0, 0.85), rgba(0, 0, 0, 0));
+  /* The scrim has to stay opaque behind the TEXT, not just at the very
+     bottom: over a bright video frame the faded top of the strip left the
+     name's upper pixels on white (measured 1.8–3.1:1 at the worst pixel).
+     The strip is 90% black under the text and fades above it. */
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.9) 0%, rgba(0, 0, 0, 0.9) 72%, rgba(0, 0, 0, 0) 100%);
   pointer-events: none;
 }
 .cctv-cell__id {
@@ -5053,7 +5062,9 @@ input:focus-visible,
   text-overflow: ellipsis;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
 }
-/* Code and state, cornered on the picture (top right). */
+/* Code and state, cornered on the picture (top right). It carries its own
+   dark plate — the picture behind it can be a video or, in the light theme,
+   the pale standby placeholder, and white text on that would be unreadable. */
 .cctv-cell__corner {
   position: absolute;
   top: 4px;
@@ -5063,6 +5074,8 @@ input:focus-visible,
   flex-direction: column;
   align-items: flex-end;
   gap: 3px;
+  padding: 3px 5px;
+  background: rgba(0, 0, 0, 0.62);
   font-size: 9px;
   line-height: 1;
   letter-spacing: 0.1em;

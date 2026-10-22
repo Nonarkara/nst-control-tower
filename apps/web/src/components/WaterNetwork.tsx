@@ -28,6 +28,7 @@
 import { useEffect, useState } from "react";
 import type { DamStatus, FallbackTier, RidReservoir, BasinWaterBalance, BasinStressBand } from "@nst/shared";
 import type { ZoneStatus, ZoneSummary } from "../lib/watershed";
+import { MAP_FONT } from "../map/fonts";
 
 interface Props {
   watershedSummaries: ZoneSummary[];
@@ -344,7 +345,7 @@ export function WaterNetwork({
           fontSize="9"
           letterSpacing="0.12em"
           fill="var(--ink-3)"
-          fontFamily="'Inter', 'IBM Plex Sans Thai', sans-serif"
+          fontFamily={MAP_FONT}
           fontWeight="600"
         >
           RID RESERVOIRS · SOUTH
@@ -404,7 +405,7 @@ export function WaterNetwork({
                 x={10}
                 y={16}
                 fontSize="11"
-                fontFamily="'Inter', 'IBM Plex Sans Thai', sans-serif"
+                fontFamily={MAP_FONT}
                 fontWeight="700"
                 fill="var(--ink)"
               >
@@ -414,7 +415,7 @@ export function WaterNetwork({
                 x={10}
                 y={30}
                 fontSize="9.5"
-                fontFamily="'Inter', 'IBM Plex Sans Thai', sans-serif"
+                fontFamily={MAP_FONT}
                 fill="var(--ink-3)"
                 lang="th"
               >
@@ -425,7 +426,7 @@ export function WaterNetwork({
                   x={10}
                   y={42}
                   fontSize="8.5"
-                  fontFamily="'Inter', monospace"
+                  fontFamily={MAP_FONT}
                   letterSpacing="0.06em"
                   fill="var(--ink-low)"
                 >
@@ -438,7 +439,7 @@ export function WaterNetwork({
                   y={NODE_H - 8}
                   textAnchor="end"
                   fontSize="10"
-                  fontFamily="'Inter', monospace"
+                  fontFamily={MAP_FONT}
                   fontWeight="600"
                   fill={stroke}
                 >
@@ -470,7 +471,7 @@ export function WaterNetwork({
                 x={6}
                 y={14}
                 fontSize="9.5"
-                fontFamily="'Inter', 'IBM Plex Sans Thai', sans-serif"
+                fontFamily={MAP_FONT}
                 fontWeight="700"
                 fill="var(--ink)"
               >
@@ -480,7 +481,7 @@ export function WaterNetwork({
                 x={6}
                 y={28}
                 fontSize="9"
-                fontFamily="'Inter', monospace"
+                fontFamily={MAP_FONT}
                 letterSpacing="0.06em"
                 fill="var(--ink-3)"
               >
@@ -500,7 +501,7 @@ export function WaterNetwork({
                 y={58}
                 textAnchor="end"
                 fontSize="9"
-                fontFamily="'Inter', monospace"
+                fontFamily={MAP_FONT}
                 fill="var(--ink-2)"
               >
                 {r.volume != null ? `${r.volume.toFixed(1)} MCM` : "—"}

@@ -151,7 +151,7 @@ The measurement passes were re-run after every repair, and the numbers below are
 |---|---|---|
 | Landmark search, 1440 px | click on the field **timed out**; hit-test → `.map-overlay-actions` | **click focuses the field**; hit-test → the input |
 | Rail section header, 1024 px | hit-test → `button.mobile-nav-btn.active` | **hit-test → the header**; the rail still scrolls |
-| CCTV camera name | 26 px of a 141 px tile; 60–170 px cut | **127 px, 0 px cut**; 12 clipped elements → 4 |
+| CCTV camera name | 26 px of a 141 px tile; 60–170 px cut | **127 px — the tile's full width**; 18 of 24 names now fit whole, 6 still overrun (max 68 px) but each truncates with a visible ellipsis, and the tile's `title` and `aria-label` both carry the full name |
 | CCTV tile height / wall height | 81 px tile in a 420 px wall | **81 px tile in the same 420 px wall** — the same rows fit |
 | Open-data ink coverage, 1440 px | 0.261 (≈ 400 px of empty right) | **0.307, the void is gone** |
 | Shell grid rows, 1440 px | `56px 765px 49px 30px` | **`56px 765px 49px`** |
@@ -163,7 +163,9 @@ The measurement passes were re-run after every repair, and the numbers below are
 
 Local release gates: **1138 web unit tests passed (78 files)**, `tsc -b` clean, production build succeeded.
 
-One test, `terrainAndChediWiring.test.ts`, failed a 5 s timeout while three Chrome sweeps were running and passed alone in 3.4 s. The assertion is unchanged; the budget was widened to 20 s because the cost is the module load, not the check.
+**Two limits on what the table above proves.** The CCTV command centre is reachable only at **≥1101 px** — `.topbar-nav > .btn` is `display: none` below that — so every CCTV row is measured at 1440 px alone and is *not* evidence about tablet or phone. And the six names that still overrun are a deliberate truncation, not a repair I can claim: a 141 px tile at a 13 px type floor cannot hold `ปากซอยอิศวร(ถ.ศรีธรรมราช)ตัวที่ 1`, and the two ways to fix it — wrapping to a second line or shrinking the type — would each cost more picture or more size than the name is worth in a wall of 24.
+
+One test, `terrainAndChediWiring.test.ts`, failed a 5 s timeout while three Chrome sweeps were running and passed alone in 3.4 s. The assertion is unchanged; the budget was widened because the cost is the module load, not the check. It was then measured cold at **1.8 s** and the budget settled at **10 s** — enough headroom for a loaded machine, and still tight enough to catch a genuine regression.
 
 ## Remaining — measured, and left in place on purpose
 
@@ -173,3 +175,124 @@ One test, `terrainAndChediWiring.test.ts`, failed a 5 s timeout while three Chro
 - **The flood-ops page's right column ends 658 px above the left column's end.** An unequal two-column document; the space is the end of the shorter column.
 - **The upstream API is degraded during this window.** `/api/water/gauges` times out (60 s, 0 bytes) while `/api/health` reports `ok`, so the left rail's headline card renders its "NO DATA · Checking the water gauges…" state and the critical-system banner appears at times. Geometry measured in that state is valid; any figure that depends on live water readings is not.
 - **Pre-existing and still open** (from the first pass, unchanged): the desktop header still wraps to two rows at 1101–1211 px and 1281–~1330 px; at 200 % text zoom on a 390 px phone the header overflows by 14 px; with the tablet rail up, the Old Town label and the western third of the boundary outline sit behind the rail.
+
+# Independent review — the second pass
+
+The law and `anti-slop-design` both require a second pair of eyes: *"never
+self-review."* A second independent verifier agent reviewed the six sweep
+repairs against the claims above, drove the real interface at every width,
+and returned **six defects in the repair** — the same shape of finding as
+the first pass. All six are now fixed and re-measured.
+
+| # | what the verifier found | | the repair |
+|---|---|---|---|
+| V1 | **The atlas rainfall chart had emptied itself and drawn a fabricated 0–1 mm axis in its place.** Its x values are categorical (`Jan`…`Dec`); `Number("Jan")` is `NaN`, so every point was filtered out and the chart rendered an empty frame around a scale that lied about the numbers it replaced. | HIGH | The chart now detects a categorical x and positions by point **index** while keeping the original **label**. A series with no usable readings renders **"No data for this series"** instead of an axis. Verified: the rainfall chart draws 1 polygon + 1 polyline + **12 circles**, ticks 0/140/280, labels Jan…Nov; **0 `NaN`** across all 39 atlas charts. |
+| V2 | **The CCTV camera's code and state had left the accessible name.** The corner slug carrying them was `aria-hidden`, so the tile announced a name and nothing else — no state, no asset code. | MEDIUM | The tile's `aria-label` now reads `{name} — {state} — {code} — open live view`. Measured: `"สี่แยกศาลากลางตัวที่ 1 — Online — TF001 — open live view"`. |
+| V3 | **The CCTV corner slug had no scrim.** White 9 px text sat straight on the picture — measured **1.00:1** at the brightest pixel of the light-theme standby placeholder. | MEDIUM | The corner now carries its own `rgba(0,0,0,0.62)` plate → **21:1** in both themes. |
+| V4 | **The CCTV lower-third's worst pixel over a bright video frame was 1.82–3.09:1.** | LOW | The scrim is now 90 % black under the text (72 % opaque, fading above), so the name survives any frame. |
+| V5 | **The two rail triggers were 29 px tall** at 390 px — under the 44 px touch rule. | LOW | `min-height: 44px` under `@media (max-width: 1100px)`. Measured at 390 and 1024: both triggers are exactly **44 px** and hit-test to themselves. |
+| V6 | **The rail's bottom edge and the tab bar's top edge still overlapped by 1 px** — the nav's 1 px top border sat outside its 62 px. | LOW | `box-sizing: border-box` on `.mobile-nav` (scoped; this codebase has no global border-box reset). Measured: rail bottom **838 = nav top 838** at 1024, **782 = 782** at 390; overlap **0**. |
+
+# Third pass — the typeface that was never shipped
+
+Reading the diff to correct the report turned up a defect that has nothing
+to do with space and everything to do with what the product claims to be.
+
+**The product ships two typefaces: Libre Franklin (self-hosted, `styles/fonts.css`)
+and IBM Plex Sans Thai (via `@fontsource`).** It does **not** ship Inter.
+Yet **49 font-stack references across 7 source files named Inter** — the
+design language of a *different* project — and the whitepaper's prose named
+it once more, for **50 in all**.
+
+The reference is dead, and a dead font-family name does not fail loudly.
+It falls through to whatever is next in the stack, and what is next is
+different for each rule. Measured by matching canvas text width against
+each candidate face (same sample string, 40 px):
+
+| declared stack | measured width | what it actually drew |
+|---|---|---|
+| `'Inter', monospace` | **909.36 px** | the **system monospace** — identical to `monospace` (909.36 px) |
+| `'Inter', 'IBM Plex Sans Thai', sans-serif` | **794.28 px** | **IBM Plex Sans Thai** — identical to `'IBM Plex Sans Thai', sans-serif` (794.28 px) |
+| the house stack | 804.49 px | Libre Franklin |
+
+So the fall-through was silent and total: five panel families and every
+map label that asked for Inter were drawn in a **face the product does not
+own**, while the layers beside them on the same map were drawn in the house
+Latin face. Two type systems, side by side, with nothing to indicate it.
+
+## Found, and what it cost
+
+1. **Five panel families were not the product's typeface.** `.lcr` (the live
+   cascade rail), `.fsc` (flood-safety cards), `.ffa` (flash flood), `.mtr`
+   (metro infographic) and `.tsr` (ThaiWater strip) declared
+   `'Inter', 'IBM Plex Sans Thai', sans-serif` and rendered in IBM Plex
+   Sans Thai's Latin subset. Their **numerals** declared `'Inter', monospace`
+   and rendered in the **system Courier** — the unmistakable look of an
+   unfinished build.
+2. **The map carried two type systems at once.** `layers.ts` asked for the
+   house Latin face; `hydroMap.ts`, `cityPois.ts`, `riverArrows.ts`,
+   `WaterNetwork.tsx` and `WaterFlowPicture.tsx` — **37 label layers in
+   all** — asked for Inter, and so rendered in IBM Plex Sans Thai while the
+   labels next to them rendered in Libre Franklin.
+3. **The landmark search input rendered in Arial.** A form control does not
+   inherit `font-family`, and `.building-search-input` set a size but never
+   a face, so the browser's UA default for `<input>` applied — in the one
+   field an operator types into.
+4. **MapLibre's own chrome was in Helvetica Neue.** The library's
+   stylesheet sets `.maplibregl-map { font: 12px/20px Helvetica Neue, … }`
+   and every control inside it inherits that face.
+5. **The whitepaper told users the product uses Inter.** The architecture
+   section shipped a false claim — `<strong>Inter</strong> (one
+   neo-grotesque family, every weight)` — and described the design DNA as
+   *"NYCTA Graphics Standards… a closed 8-color route palette for
+   wayfinding only — no rounding"*, which is a **different project's**
+   design language, not this one.
+
+## Changed
+
+- **One map face, in one place.** A new `src/map/fonts.ts` owns
+  `MAP_FONT` — the house Latin face with the house Thai face behind it —
+  and all six map modules import it. No map layer names a font that does
+  not ship.
+- **The panels use the tokens.** The seven `'Inter', 'IBM Plex Sans Thai',
+  sans-serif` declarations became `var(--font-sans)`; the five numeric
+  ones became `var(--font-mono)` with `font-variant-numeric: tabular-nums`,
+  which is this codebase's own idiom for figures that must line up.
+- **The search input inherits the house face**, and **MapLibre's controls
+  are normalised** in `system.css` — the file that exists to normalise
+  legacy and third-party rules, and is loaded last on purpose.
+- **The whitepaper tells the truth.** It now names Libre Franklin and IBM
+  Plex Sans Thai, and describes this product's DNA — black and white carry
+  the interface, colour is reserved for status, one accent, one family, a
+  bento-box composition.
+
+## Verified
+
+| | before | after |
+|---|---|---|
+| Elements naming a font the product does not ship | **50** (49 stacks across 7 files + 1 claim in the whitepaper) | **0** |
+| Typefaces the **rendered** interface asks for | Libre Franklin, plus **IBM Plex Sans Thai's Latin** (5 panel families, 37 map layers), **system Courier** (every numeral), **Arial** (the search input) and **Helvetica Neue** (the map's controls) | **Libre Franklin + IBM Plex Sans Thai** — 665 and 7 elements, and nothing else |
+| The two trigger count badges | system Courier, 11 px | **Libre Franklin, 11 px, `tabular-nums`**, 0 px clipped |
+| The landmark search input | Arial, 14 px | **Libre Franklin**, 14 px |
+| The map's own controls | Helvetica Neue, 12 px | **Libre Franklin**, 12 px |
+| 72-surface sweep, 390 / 1024 / 1440 | — | **0 regressions** in clipping, overflow and holes; **0 horizontal overflow**; touch targets under 44 px **down on every 390 px surface** (5→3, 12→10, 16→14, 17→15) |
+
+The census that proved the fix walks every element in the document and reads
+its computed `font-family`. After the change the **rendered** interface asks
+for exactly two families — **665 elements in Libre Franklin, 7 in IBM Plex
+Sans Thai** — and nothing else. The 49 `Times` hits in that census are the
+non-rendered `<head>` elements (`meta`, `title`, `script`, `style`), which
+draw nothing. The two faces are confirmed loaded in the document at render
+time (`document.fonts`: *Libre Franklin Variable*, *IBM Plex Sans Thai*).
+
+**One limit, stated plainly.** The map's labels changed face, so their widths
+changed with them. The full 72-surface sweep was re-run after the change and
+found no new clipping, no new overflow and no new holes at any width, and
+the flood lens — the label-densest surface, carrying the street names, the
+hydro network and the river gauges — was compared before and after: the
+labels are in place, legible, and not colliding. Two of the changed files
+draw into the map's canvas rather than the DOM, so a DOM census cannot see
+them: `WaterFlowPicture.tsx` is **not currently mounted** by any component
+(only its own test reads it), and `WaterNetwork.tsx` draws deck.gl text
+layers over the canvas. Their `fontFamily` is now `MAP_FONT` in source, and
+the two faces it names are both confirmed loaded in the document.
