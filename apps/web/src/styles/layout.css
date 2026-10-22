@@ -2377,6 +2377,23 @@ input:focus-visible,
     transform: translateY(110%);
     transition: transform var(--t-state) var(--ease-hover);
   }
+  /* The sheet ends on a hard edge above the tab bar, and the last visible
+     line was cut in half. This overlay dissolves that line into the panel.
+     It is sticky with no negative margin, so it takes its own 18px at the
+     end of the content and lifts away with it — nothing is permanently
+     hidden, and the panel's own background stays opaque (a mask here would
+     let the map show through the sheet). */
+  .shell.mobile .left-bar::after,
+  .shell.mobile .right-bar::after {
+    content: "";
+    position: sticky;
+    bottom: 0;
+    display: block;
+    flex: none;
+    height: 18px;
+    background: linear-gradient(to bottom, transparent, var(--panel));
+    pointer-events: none;
+  }
   .shell.mobile.mobile-panel-brief  .left-bar  { transform: translateY(0); }
   .shell.mobile.mobile-panel-layers .right-bar { transform: translateY(0); }
   .shell.mobile .left-bar::before,
@@ -2416,6 +2433,44 @@ input:focus-visible,
 	    display: none;
 	  }
 	}
+
+/* ── Tablet (768–1100px): the brief and layers sheets stop being full-bleed
+   opaque panels. A 1024px-wide sheet stretched every label→value pair across
+   half the screen — a stat pair 504px apart, a section status 911px from its
+   own title, a chart 992px wide holding two threshold marks — and hid the
+   map behind it. At tablet width the sheet becomes a rail beside the map:
+   the map keeps the majority of the screen, and every panel gets a measure a
+   person can actually read. ── */
+@media (min-width: 768px) and (max-width: 1100px) {
+  :root { --tablet-rail: min(460px, 46vw); }
+
+  .shell.mobile .left-bar,
+  .shell.mobile .right-bar {
+    right: auto;
+    width: var(--tablet-rail);
+    bottom: 0;
+    padding-bottom: 62px;          /* clear the fixed tab bar */
+    border-right: 1px solid var(--line);
+    border-left: 0;
+  }
+  /* A rail is not a bottom sheet: the grab handle has nothing to grab. */
+  .shell.mobile .left-bar::before,
+  .shell.mobile .right-bar::before { display: none; }
+
+  /* The rail runs to the bottom of the screen and its content stops 62px
+     above it (the tab bar). The sticky overlay measures from the content
+     box, which already ends there — so no extra offset is needed, and adding
+     one would lift the fade 62px into the middle of the content. */
+
+  /* The landmark search was sized for a phone (92vw) — at tablet width that
+     is a 942px box for one input. It keeps the desktop's width and centre. */
+  .shell.mobile .building-search {
+    width: min(420px, 50vw);
+    left: 50%;
+    transform: translateX(-50%);
+    top: var(--s-3);
+  }
+}
 
 /* ── Mobile map-tab HUD: declutter the floating controls and clear the 62px
    bottom nav. A second max-width:900px block so these win source-order ties

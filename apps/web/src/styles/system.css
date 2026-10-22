@@ -402,8 +402,12 @@ kbd {
   flex-wrap: wrap;
   align-items: center;
   gap: var(--s-2) var(--s-4);
+  /* Without a border-box reset, min-height sizes the CONTENT box: the bar
+     became 56 + 16 (padding) + 1 (border) = 73px instead of the 56 it asked
+     for, pushing the map down a fifth of a row for nothing. */
+  box-sizing: border-box;
   min-height: 56px;
-  padding: var(--s-2) var(--s-4);
+  padding: var(--s-1) var(--s-4);
   background: var(--panel);
   border-bottom: 1px solid var(--line);
   grid-template-columns: none;
@@ -411,6 +415,10 @@ kbd {
 .topbar-id { display: flex; flex-direction: column; color: var(--ink); line-height: 1.2; text-decoration: none; }
 .topbar-id:hover { color: var(--ink); }
 .topbar-id__city { font-size: var(--text-lg); font-weight: var(--weight-bold); letter-spacing: -0.01em; }
+/* One identity line, three complete widths — never a truncated name. */
+.topbar-id__tier { display: inline; }
+.topbar-id__tier--mid,
+.topbar-id__tier--short { display: none; }
 .topbar-id__org { font-size: var(--text-xs); color: var(--ink-2); }
 
 .topbar-now { margin: 0; display: flex; gap: var(--s-4); }
@@ -422,7 +430,9 @@ kbd {
   text-transform: uppercase;
   color: var(--ink-3);
 }
-.topbar-now dd { margin: 0; font-size: var(--text-md); font-weight: var(--weight-medium); color: var(--ink); white-space: nowrap; }
+/* A clock and a temperature are data, not prose: 1.15 line height (house
+   type rule) instead of 1.5, which was padding the header by 8px a side. */
+.topbar-now dd { margin: 0; font-size: var(--text-md); font-weight: var(--weight-medium); line-height: 1.15; color: var(--ink); white-space: nowrap; }
 .topbar-now__sub { font-weight: var(--weight-regular); color: var(--ink-2); font-size: var(--text-sm); }
 
 .topbar-spacer { flex: 1 1 0; }
@@ -430,7 +440,12 @@ kbd {
 .topbar-settings { display: flex; align-items: center; gap: var(--s-2); }
 .topbar-settings { padding-left: 0; }
 .topbar-health__count { color: var(--ink-2); }
+/* The short state word only replaces the sentence where the header is too
+   narrow for it (see the ≤1100px block). */
+.topbar-health__short { display: none; }
 .topbar-more__mobile-only { display: none; }
+/* The display controls' twin in the More menu, shown only on narrow phones. */
+.topbar-more__narrow-only { display: none; }
 
 /* CCTV Command Center button — distinct outline so the operator can find
    it without scanning the nav. One accent (--cctv-water, the Okabe–Ito
@@ -510,7 +525,26 @@ kbd {
 
 /* Right rail: sections scroll together above a pinned layer palette */
 .shell:not(.mobile) .right-bar { display: flex; flex-direction: column; overflow: hidden; }
-.shell:not(.mobile) .right-sections { flex: 1 1 0; min-height: 0; overflow-y: auto; }
+.shell:not(.mobile) .right-sections {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow-y: auto;
+}
+/* The two scroll regions meet at a hard edge, and a line of text sliced in
+   half by that edge reads as a rendering fault, not as "there is more
+   below". This overlay dissolves the last line into the rail. It is sticky
+   and has no negative margin, so it occupies its own 18px at the end of the
+   content: when the reader reaches the end it lifts away with the content
+   and nothing is permanently hidden. */
+.shell:not(.mobile) .right-sections::after {
+  content: "";
+  display: block;
+  position: sticky;
+  bottom: 0;
+  height: 18px;
+  background: linear-gradient(to bottom, transparent, var(--panel));
+  pointer-events: none;
+}
 .shell:not(.mobile) .right-layers { flex: 0 0 auto; max-height: 50%; overflow-y: auto; border-top: 1px solid var(--line-2); }
 
 /* One header row at laptop widths: the clock is on the mayor's own screen. */
@@ -528,17 +562,44 @@ kbd {
      More menu opens underneath the headline and cannot be tapped. */
   .shell.mobile .topbar { z-index: 100; }
   .topbar { flex-wrap: nowrap; gap: var(--s-2); min-height: 52px; padding: var(--s-1) var(--s-3); }
-  .topbar-id { flex: 1 1 auto; min-width: 0; }
+  /* The identity takes only the width its name needs. Left to grow, it
+     claimed 737px of a 1024px bar and pushed the controls off the right
+     edge of the row it was supposed to share. */
+  .topbar-id { flex: 0 1 auto; min-width: 0; }
   .topbar-id__city { font-size: var(--text-md); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .topbar-id__tier--full { display: none; }
+  .topbar-id__tier--mid { display: inline; }
   .topbar-id__org,
   .topbar-now,
-  .topbar-spacer,
-  .topbar-nav > .btn,
-  .topbar-health > :not(.dot) { display: none; }
-  .topbar-health { min-inline-size: var(--hit); padding: 0; }
+  .topbar-nav > .btn { display: none; }
+  /* Free space belongs between the identity and the controls, not inside the
+     identity box. */
+  .topbar-spacer { display: block; flex: 1 1 0; }
+  /* The status keeps its word: a bare dot in a 44px box told the mayor
+     nothing about whether the numbers could be trusted. `flex: none` stops
+     the button shrinking below its own word, which would paint the word
+     outside the button's border. */
+  .topbar-health__word { display: none; }
+  .topbar-health__short { display: inline; }
+  .topbar-health { flex: none; min-inline-size: var(--hit); padding: 0 var(--s-2); }
   .topbar-settings { border-left: 0; padding-left: 0; gap: var(--s-1); }
   .topbar-settings .btn,
   .topbar-more .btn { padding: 0 var(--s-2); }
+}
+/* Phone: the full municipality name does not fit beside the controls, and a
+   truncated name identifies nothing. The deployment's own short id does. */
+@media (max-width: 760px) {
+  .topbar-id__tier--mid { display: none; }
+  .topbar-id__tier--short { display: inline; }
+}
+/* Narrow phone (≤380px): the header cannot carry the identity, the feed
+   health word and three display buttons at once — 52 + 80 + 65 + 131 plus
+   gaps is already 384px. Clipping the identity to "N…" or squeezing the
+   health word out of its own button are both worse than moving the three
+   display controls into the More menu, which is one tap away. */
+@media (max-width: 380px) {
+  .shell.mobile .topbar-settings { display: none; }
+  .topbar-more__narrow-only { display: list-item; }
 }
 
 .left-bar > .sidebar-section:first-of-type,
@@ -616,3 +677,38 @@ button[aria-pressed="true"] .rt-disc {
 .map-view-shortcuts button[aria-pressed="true"] { border-bottom: 3px solid var(--accent); font-weight: var(--weight-bold); }
 .topbar-more__menu { max-height: min(75dvh, 38rem); max-width: min(24rem, calc(100vw - 2rem)); overflow-y: auto; }
 .topbar-more__group { font-size: var(--text-xs); color: var(--ink-2); padding: var(--s-2); }
+
+/* ── Route fallback ──────────────────────────────────────────────────────────
+   Shown while a route's chunk is still arriving. It replaces the whole app, so
+   it owns the viewport — but a viewport with nothing in it is a region with no
+   job. These three lines each have one: name the place, name what is coming,
+   and (on a deep link) offer the way back out. No spinner, no invented
+   progress bar: neither would be a claim this code can support. ── */
+.route-fallback {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: var(--s-1);
+  padding: var(--s-6) var(--s-4);
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-sans);
+}
+.route-fallback__place { margin: 0; font-size: var(--text-sm); font-weight: var(--weight-semibold); }
+.route-fallback__what   { margin: 0; font-size: var(--text-sm); color: var(--ink-3); }
+.route-fallback__back {
+  margin-top: var(--s-3);
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  padding: var(--s-2) var(--s-3);
+  font-size: var(--text-sm);
+  color: var(--ink);
+  border: 1px solid var(--line-2);
+  background: var(--panel);
+  text-decoration: none;
+}
+.route-fallback__back:hover { border-color: var(--ink); }

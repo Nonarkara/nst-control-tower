@@ -7,7 +7,7 @@
  * Each control's visible text is contained in its accessible name (WCAG 2.5.3).
  */
 import { useEffect, useRef, useState } from "react";
-import { type AcademicSnapshot, type FallbackTier, CHONBURI } from "@nst/shared";
+import { type AcademicSnapshot, type FallbackTier, NST } from "@nst/shared";
 import { useTheme } from "../hooks/useTheme";
 import { useLocale } from "../hooks/useLocale";
 import { aqiBand } from "../lib/worldStrip";
@@ -79,7 +79,32 @@ export function feedHealthWord(
   return { word: `${notLive} of ${total} data sources not live`, dot: "stale" };
 }
 
-function MoreMenu({ items }: { items: Array<{ label: string; ariaLabel?: string; mobileOnly?: boolean; group?: string; onSelect: () => void }> }) {
+/**
+ * The same worst-case state in one word, for headers too narrow for the full
+ * sentence. A bare status dot says nothing — the mayor cannot tell whether
+ * the numbers can be trusted — so the narrow header keeps the state word and
+ * drops the sentence. The long form stays the accessible name.
+ */
+export function feedHealthShort(dot: "live" | "stale" | "unavailable" | "loading"): string {
+  switch (dot) {
+    case "live": return "LIVE";
+    case "stale": return "STALE";
+    case "unavailable": return "DOWN";
+    case "loading": return "CHECK";
+  }
+}
+
+/**
+ * The identity line, in the three widths the header actually has room for.
+ * The full municipality name does not fit a phone header — when it was
+ * squeezed in, the browser truncated it to "Nakhon Si T…", which is a name
+ * that identifies nothing. Each tier below is a complete name, not a cut one.
+ */
+const CITY_FULL = NST.name.en;                     // desktop
+const CITY_MID = "Nakhon Si Thammarat";            // tablet
+const CITY_SHORT = "NST-01";                       // phone
+
+function MoreMenu({ items }: { items: Array<{ label: string; ariaLabel?: string; mobileOnly?: boolean; narrowOnly?: boolean; group?: string; onSelect: () => void }> }) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -118,7 +143,14 @@ function MoreMenu({ items }: { items: Array<{ label: string; ariaLabel?: string;
       {open && (
         <ul id="topbar-more-menu" className="topbar-more__menu">
           {items.map((item, index) => (
-            <li key={item.label} className={item.mobileOnly ? "topbar-more__mobile-only" : undefined}>
+            <li
+              key={item.label}
+              className={
+                item.mobileOnly ? "topbar-more__mobile-only"
+                : item.narrowOnly ? "topbar-more__narrow-only"
+                : undefined
+              }
+            >
               {item.group && item.group !== items[index - 1]?.group && <div className="topbar-more__group">{item.group}</div>}
               <button
                 type="button"
@@ -168,8 +200,18 @@ export function TopBar({
 
   return (
     <header className="topbar">
-      <a className="topbar-id" href="https://www.nakhoncity.org" target="_blank" rel="noreferrer">
-        <span className="topbar-id__city">{CHONBURI.name.en}</span>
+      <a
+        className="topbar-id"
+        href="https://www.nakhoncity.org"
+        target="_blank"
+        rel="noreferrer"
+        aria-label={`${CITY_SHORT} · ${NST.name.en} · ${NST.name.th} · Control Tower`}
+      >
+        <span className="topbar-id__city">
+          <span className="topbar-id__tier topbar-id__tier--full">{CITY_FULL}</span>
+          <span className="topbar-id__tier topbar-id__tier--mid" aria-hidden="true">{CITY_MID}</span>
+          <span className="topbar-id__tier topbar-id__tier--short" aria-hidden="true">{CITY_SHORT}</span>
+        </span>
         <span className="topbar-id__org" lang="th">เทศบาลนครนครศรีธรรมราช · Control Tower</span>
       </a>
 
@@ -207,11 +249,12 @@ export function TopBar({
         type="button"
         className="btn topbar-health"
         onClick={onOpenCatalog}
-        aria-label={`Data sources: ${health.word}. Open source details.`}
+        aria-label={`${feedHealthShort(health.dot)} — ${health.word}. Open source details.`}
         title="Which data feeds are live, stale or down — opens the source catalog"
       >
         <span className={`dot ${health.dot}`} aria-hidden="true" />
-        <span>{health.word}</span>
+        <span className="topbar-health__word">{health.word}</span>
+        <span className="topbar-health__short" aria-hidden="true">{feedHealthShort(health.dot)}</span>
       </button>
 
       <nav className="topbar-nav" aria-label="Tools">
@@ -228,6 +271,14 @@ export function TopBar({
           items={[
             // Phones hide the header buttons; the mayor still needs the flood briefing.
             { label: "Flood watch / เฝ้าระวังน้ำท่วม", group: "Operations", mobileOnly: true, onSelect: () => window.location.assign("/flood-ops") },
+            // Below ~380px the header cannot carry the identity, the feed-health
+            // word and three display buttons at once. Rather than clip the
+            // identity to "N…" or squeeze the health word out of its button,
+            // the display controls move into this menu — a deliberate
+            // arrangement change, not a squeezed one.
+            { label: nextView === "2D" ? "3D view" : "2D view", group: "Display", narrowOnly: true, ariaLabel: `Switch to ${nextView} view`, onSelect: onCycleViewMode },
+            { label: locale === "en" ? "ภาษาไทย / Thai" : "English", group: "Display", narrowOnly: true, ariaLabel: `Switch to ${locale === "en" ? "Thai" : "English"} interface`, onSelect: toggleLocale },
+            { label: nextTheme === "light" ? "Light theme" : "Dark theme", group: "Display", narrowOnly: true, ariaLabel: `Switch to ${nextTheme === "light" ? "light" : "dark"} theme`, onSelect: toggle },
             { label: "Flood guide", group: "Help", ariaLabel: "Open flood guide — how flooding works and what this dashboard monitors", onSelect: onOpenFloodGuide },
             { label: "Source catalog", group: "Data", ariaLabel: "Open source catalog", onSelect: onOpenCatalog },
             { label: "Data tables", group: "Data", ariaLabel: "Open data — every data.go.th dataset for Nakhon Si Thammarat as searchable tables", onSelect: () => window.location.assign("/data") },
@@ -240,7 +291,7 @@ export function TopBar({
             { label: "User manual", group: "Help", onSelect: onOpenManual },
             { label: "Whitepaper", group: "Help", onSelect: onOpenWhitepaper },
             { label: "Keyboard shortcuts", group: "Help", onSelect: onOpenShortcuts },
-          ].sort((a, b) => ["Operations", "Data", "City", "Help"].indexOf(a.group) - ["Operations", "Data", "City", "Help"].indexOf(b.group))}
+          ].sort((a, b) => ["Operations", "Display", "Data", "City", "Help"].indexOf(a.group) - ["Operations", "Display", "Data", "City", "Help"].indexOf(b.group))}
         />
       </nav>
 
