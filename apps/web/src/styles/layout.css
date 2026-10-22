@@ -1133,15 +1133,24 @@ input:focus-visible,
   left: var(--s-3);
   z-index: 36;
   width: min(360px, calc(100% - 96px));
-  pointer-events: auto;
+  /* The column is 360px wide but its chips occupy only the first ~130px.
+     The rest is transparent — and it reached across the centred landmark
+     search, so a click in the middle of the search field landed on this
+     empty box instead of the field. A container that does not paint must
+     not intercept pointer events; only its controls do. */
+  pointer-events: none;
   display: flex;
   flex-direction: column;
   gap: var(--s-2);
 }
+.map-overlay-controls button { pointer-events: auto; }
 .map-overlay-actions {
   display: flex;
   flex-wrap: wrap;
   gap: var(--s-1);
+  /* The row sizes to its chips instead of claiming the whole column. */
+  width: fit-content;
+  max-width: 100%;
 }
 .map-overlay-actions button,
 .map-overlay-chip {
@@ -2448,8 +2457,15 @@ input:focus-visible,
   .shell.mobile .right-bar {
     right: auto;
     width: var(--tablet-rail);
-    bottom: 0;
-    padding-bottom: 62px;          /* clear the fixed tab bar */
+    /* The rail's scroll viewport ends where the fixed tab bar begins.
+       It used to run to the bottom of the screen with 62px of bottom
+       padding instead — but padding only clears the tab bar at the END of
+       the scroll. Mid-scroll, sections passed behind the opaque tab bar and
+       their headers became unclickable (measured: a section header whose
+       hit-test landed on the tab button). The tab bar is full width and
+       opaque, so nothing shows in the strip below the rail anyway. */
+    bottom: 62px;
+    padding-bottom: 0;
     border-right: 1px solid var(--line);
     border-left: 0;
   }
@@ -2457,10 +2473,9 @@ input:focus-visible,
   .shell.mobile .left-bar::before,
   .shell.mobile .right-bar::before { display: none; }
 
-  /* The rail runs to the bottom of the screen and its content stops 62px
-     above it (the tab bar). The sticky overlay measures from the content
-     box, which already ends there — so no extra offset is needed, and adding
-     one would lift the fade 62px into the middle of the content. */
+  /* The rail now ends on the tab bar's edge, so the sticky fade measures
+     from the content box, which already ends there — no extra offset, and
+     adding one would lift the fade 62px into the middle of the content. */
 
   /* The landmark search was sized for a phone (92vw) — at tablet width that
      is a 942px box for one input. It keeps the desktop's width and centre. */
@@ -4905,8 +4920,7 @@ input:focus-visible,
 /* ── Single camera cell (rail context — narrower than fullscreen) ──── */
 .cctv-cell {
   position: relative;
-  display: grid;
-  grid-template-rows: 1fr auto;
+  display: block;
   border: 1px solid var(--line-2);
   background: var(--panel);
   color: var(--ink);
@@ -4915,6 +4929,10 @@ input:focus-visible,
   padding: 0;
   text-align: left;
   overflow: hidden;
+  /* The tile IS the picture, 16:9. The camera's name rides on it as a
+     lower-third; the code and the state are cornered on the picture. The
+     tile used to carry a separate label row, and in a 141px tile that row
+     left the name 26px — every camera name was cut off. */
   aspect-ratio: 16 / 9;
   transition: transform 80ms ease, border-color 80ms ease, box-shadow 80ms ease;
 }
@@ -4986,51 +5004,78 @@ input:focus-visible,
   .cctv-cell.is-highlighted { animation: none; border-color: var(--cell-tone); }
 }
 .cctv-cell__viewport {
-  position: relative;
-  width: 100%;
-  height: 100%;
+  position: absolute;
+  inset: 0;
   overflow: hidden;
   background: #000;
 }
 .cctv-cell__viewport iframe,
 .cctv-cell__viewport video,
 .cctv-cell__viewport img {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   border: 0;
   display: block;
   object-fit: cover;
 }
+/* The lower-third: the camera's NAME owns the full width of the tile — it is
+   the only thing that tells one feed from another. A scrim keeps it legible
+   over arbitrary video (functional legibility, not ornament). */
 .cctv-cell__meta {
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  gap: 4px;
-  align-items: center;
-  padding: 3px 5px;
-  border-top: 1px solid var(--line);
-  background: var(--panel);
-  font-size: var(--text-xs);
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 2;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 4px 6px 3px;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.85), rgba(0, 0, 0, 0));
+  pointer-events: none;
 }
 .cctv-cell__id {
   font-weight: 700;
-  color: var(--cell-tone);
-  letter-spacing: 0.04em;
-  font-size: var(--text-xs);
+  color: #fff;
+  letter-spacing: 0.1em;
+  font-size: 9px;
+  line-height: 1;
 }
 .cctv-cell__name {
-  color: var(--ink);
+  flex: 1 1 auto;
+  min-width: 0;
+  color: #fff;
   font-size: var(--text-xs);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
+}
+/* Code and state, cornered on the picture (top right). */
+.cctv-cell__corner {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+  font-size: 9px;
+  line-height: 1;
+  letter-spacing: 0.1em;
+  font-weight: 700;
+  pointer-events: none;
 }
 .cctv-cell__status {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
-  color: var(--ink-2);
-  letter-spacing: 0.04em;
-  font-size: var(--text-xs);
+  gap: 4px;
+  color: rgba(255, 255, 255, 0.92);
+  letter-spacing: 0.1em;
+  font-size: 9px;
 }
 .cctv-cell__status-dot {
   width: 5px;
@@ -5077,7 +5122,9 @@ input:focus-visible,
   animation: cctv-live-pulse 1.4s ease-in-out infinite;
 }
 .cctv-cell__ts {
-  bottom: 4px;
+  /* The bottom of the tile now carries the camera name, so the frame time
+     stacks under the LIVE badge at the top left. */
+  top: 24px;
   left: 4px;
   color: rgba(255, 255, 255, 0.92);
   font-variant-numeric: tabular-nums;

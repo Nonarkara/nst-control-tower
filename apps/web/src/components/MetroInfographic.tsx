@@ -13,6 +13,7 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import DeckGL from "@deck.gl/react";
 import { MapView } from "@deck.gl/core";
 import type { MapViewState, Layer } from "@deck.gl/core";
@@ -101,6 +102,10 @@ export function MetroInfographic({ summaries }: Props) {
         Metro
         <span className="mtr__trigger-count">{line.stations.length}</span>
       </button>
+      {/* Portalled to <body>: the trigger lives in the left rail, and on a
+          phone that rail is a translated sheet — a fixed overlay inside it
+          would be trapped in the sheet instead of covering the screen. */}
+      {createPortal(
       <Dialog
         open={open}
         onClose={() => setOpen(false)}
@@ -132,7 +137,9 @@ export function MetroInfographic({ summaries }: Props) {
 
           <Legend line={line} path={path} />
         </div>
-      </Dialog>
+      </Dialog>,
+      document.body,
+      )}
     </>
   );
 }

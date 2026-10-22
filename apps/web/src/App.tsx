@@ -2376,6 +2376,21 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
             Flood watch briefing · <span lang="th">เฝ้าระวังน้ำท่วม</span>
           </a>
         )}
+        {/* The flash-flood and watershed-metro openers belong to the rail, with
+            the rest of the situation content. Rendered at shell level they had
+            no grid area, so the shell auto-placed them in an implicit row
+            under the page — below the bottom bar on a desktop, behind the
+            fixed tab bar on a phone, where they could not be reached. */}
+        {(lens === "flood" || lens === "environment" || lens === "intelligence") && (
+          <div className="rail-triggers">
+            <FlashFloodAlert
+              rain={waterRain.data}
+              ews={ewsCurrent}
+              gauges={waterGauges.data}
+            />
+            <MetroInfographic summaries={watershedSummaries} />
+          </div>
+        )}
         <CameraEyes pm25={aqiTrend.data[0]?.current.pm25 ?? null} />
         {/* ── Mobile only: the world strip (weather + clocks) relocates here so
             the Map tab stays a clean, full-screen map. Feed health is the dot
@@ -3058,22 +3073,14 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
           the maths in plain Thai/English. Trigger button stays available
           on FLOOD / ENV / INT lenses regardless of band so a user can
           always see "what's currently the worst?". */}
-      {(lens === "flood" || lens === "environment" || lens === "intelligence") && (
-        <FlashFloodAlert
-          rain={waterRain.data}
-          ews={ewsCurrent}
-          gauges={waterGauges.data}
-        />
-      )}
+      {/* FlashFloodAlert and MetroInfographic now live in the left rail. */}
+
       {/* Metro infographic — watershed-as-subway standalone modal.
           Path follows real lng/lat between stations so the shape agrees
           with the actual map; styling is subway-map (rounded stroke,
           station markers, status-coloured line). Stays on the rail as a
           trigger button so the user can open it any time on FLOOD / ENV
           / INT. */}
-      {(lens === "flood" || lens === "environment" || lens === "intelligence") && (
-        <MetroInfographic summaries={watershedSummaries} />
-      )}
       {shortcutsOpen && (
         <ShortcutsDialog
           lenses={LENSES}

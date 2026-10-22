@@ -377,6 +377,11 @@ function CameraCell({ camera, tone, highlighted, onClick }: CellProps) {
         ["--cell-tone" as never]: tone,
         ["--cell-cat" as never]: `var(--cctv-${category})`,
       }}
+      /* The tile's own contents are its picture (the frame's alt text), the
+         corner slug and the name strip — which would announce the name twice
+         and leave the camera's state unsaid. Name it once, and say the state:
+         which camera, is it up, and what is its asset code. */
+      aria-label={`${camera.name} — ${statusLabel(camera)} — ${camera.sourceId ?? camera.id} — open live view`}
       title={`${camera.name} — click for live view · pulses on map`}
     >
       <div className="cctv-cell__viewport" ref={viewportRef}>
@@ -389,6 +394,17 @@ function CameraCell({ camera, tone, highlighted, onClick }: CellProps) {
         {frame && (
           <div className="cctv-cell__ts mono" aria-hidden="true">{frameClock(frame.capturedAt)}</div>
         )}
+        {/* The camera's code and state, cornered on the picture. The tile is
+            141px wide; when these sat in a row with the name, the name — the
+            one thing that tells one feed from another — was crushed to 26px
+            and 60–170px of it was cut away. */}
+        <div className="cctv-cell__corner" aria-hidden="true">
+          <span className="cctv-cell__id num">{camera.sourceId ?? camera.id}</span>
+          <span className="cctv-cell__status mono">
+            <span className="cctv-cell__status-dot" />
+            {statusLabel(camera)}
+          </span>
+        </div>
         {frame ? (
           // A captured still. WebRTC frames aren't cross-origin-tainted, so the
           // data URL renders directly. It refreshes on the pool's cadence.
@@ -406,12 +422,7 @@ function CameraCell({ camera, tone, highlighted, onClick }: CellProps) {
         )}
       </div>
       <div className="cctv-cell__meta">
-        <span className="cctv-cell__id num">{camera.sourceId ?? camera.id}</span>
         <span className="cctv-cell__name" lang="th">{camera.name}</span>
-        <span className="cctv-cell__status mono">
-          <span className="cctv-cell__status-dot" aria-hidden="true" />
-          {statusLabel(camera)}
-        </span>
       </div>
     </div>
   );

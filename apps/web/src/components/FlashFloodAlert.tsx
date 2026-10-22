@@ -14,6 +14,7 @@
  */
 
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import type { EwsStation, RainfallStation, WaterGauge } from "@nst/shared";
 import {
   rankFfpi,
@@ -164,6 +165,11 @@ export function FlashFloodAlert({
         Flash flood
         <span className="ffa__trigger-count">{rows.length}</span>
       </button>
+      {/* The modal is portalled to <body>: the trigger lives in the left rail,
+          and on a phone that rail is a translated sheet — a fixed overlay
+          inside it would be trapped in the sheet instead of covering the
+          screen. */}
+      {createPortal(
       <Dialog
         open={open}
         onClose={() => setOpen(false)}
@@ -249,7 +255,9 @@ export function FlashFloodAlert({
             Source: HII ThaiWater (rain) · DWR EWS (soil/status) · RID (gauges)
           </p>
         </footer>
-      </Dialog>
+      </Dialog>,
+      document.body,
+      )}
     </>
   );
 }

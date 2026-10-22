@@ -85,7 +85,7 @@ export function WorkbenchOverview({ index, domain, onDomain }: Props) {
         </ul>
       </aside>
 
-      <section aria-labelledby="dwb-stats-title">
+      <section className="dwb-stats-wrap" aria-labelledby="dwb-stats-title">
         <h2 id="dwb-stats-title" className="visually-hidden">
           สรุปตัวเลข / Summary
         </h2>

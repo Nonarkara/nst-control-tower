@@ -38,6 +38,28 @@
 }
 .dwb-error { color: var(--bad); }
 
+/* ── Wide screens: the introduction is two columns ───────────────────────
+   The hero (what this is) and the preparation rule (how a dataset is
+   prepared) are two halves of one thought. Stacked inside a 1360px
+   container they left ~400px of unexplained black to the right of both,
+   while the stat grid below already ran the full width. Beside each other
+   the width is earned. */
+@media (min-width: 1200px) {
+  .dwb-main {
+    display: grid;
+    grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+    column-gap: var(--s-6);
+    row-gap: var(--s-6);
+    align-items: start;
+  }
+  .dwb-hero { grid-column: 1; max-width: none; }
+  .dwb-rule { grid-column: 2; max-width: none; }
+  .dwb-stats-wrap,
+  .dwb-tabs,
+  .dwb-panel,
+  .dwb-main > .note { grid-column: 1 / -1; }
+}
+
 /* ── Hero ───────────────────────────────────────────────────────────── */
 .dwb-hero { display: flex; flex-direction: column; gap: var(--s-3); max-width: var(--max-w-app); }
 .dwb-eyebrow,

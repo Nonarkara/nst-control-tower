@@ -104,3 +104,72 @@ Local release gates: **1138 web unit tests passed (78 files)**, `tsc -b` typeche
 - **At 200 % text zoom on a 390 px phone the header overflows by 14 px** and the identity collapses to zero width. Pre-existing and unchanged by this work, but the phone header is now denser, so it is closer to the edge than it was.
 - **Upstream data was slow during the audit window.** The production API answers cold requests in 15–60 s; several captures caught the loading state, where panels show "—" and "Checking the water gauges…". Layout geometry is unaffected by that state, but the figures in those captures are placeholders, not readings.
 - This is a bounded audit of the shell and the sheets named above, not a claim that every panel in the product is free of spatial hallucination.
+
+---
+
+# Second pass — the complete sweep (every surface)
+
+The first pass was a bounded audit of the shell. The owner then asked for the whole product: *"Check everything: MSH completely — the site is still heavily spatially hallucinated."* This pass therefore swept **every surface the product exposes** and repaired what it found.
+
+## The sweep
+
+A harness (`var/spatial-hallucination-2026-10-22/sweep.mjs`, git-ignored) drives the real interface in Chrome and measures, at **390 × 844, 1024 × 900 and 1440 × 900**:
+
+| surface | what was walked |
+|---|---|
+| `/` | all **9 lenses** (executive, operations, flood, traffic, air, earth, safety, vibes, intelligence), 2D/3D |
+| `/` on a phone | all **3 tabs** — BRIEF, MAP, LAYERS |
+| dialogs | source catalog, user manual, flood guide, whitepaper, atlas, Google Sheet, keyboard shortcuts, 3D heritage, CCTV command centre |
+| routes | `/flood-ops`, `/data`, the Watch Terminal (More → Analyst data view) |
+
+**72 surfaces** in total, each measured for: chrome cost (union of fixed/sticky bands), ink coverage of the first screen, **ink holes** (vertical bands of a scroll container with no content in them), stretch (a child that inherited a taller sibling's height), clipping (a box hiding the content it was given), occlusion (a control whose hit-test lands on something else), touch-target size, horizontal overflow and console errors.
+
+The measurement passes were re-run after every repair, and the numbers below are read from the rendered DOM, not from the source.
+
+## Found, and what it cost
+
+1. **The map's overlay column stole the clicks of the landmark search** (desktop, ≥1101 px). `.map-overlay-controls` was a 360 px-wide transparent column at `z-index: 36`; the centred `.building-search` sat at `z-index: 35`. The overlay's chips occupy its first ~130 px, but the column's empty right half reached across the search field. Measured before: `document.elementFromPoint` at the search input's centre returned `.map-overlay-actions`, and a Playwright click on the input **timed out** — 165 px of a 324 px field could not be clicked, including its middle. The same transparent column also blocked map dragging in the map's top-left corner.
+2. **At tablet width the rail scrolled under the fixed tab bar.** The tablet rail had `bottom: 0; padding-bottom: 62px`, so its scroll viewport ran to the bottom of the screen *under* the 62 px opaque tab bar. Bottom padding only clears the bar at the *end* of a scroll; mid-scroll, content passed behind it. Measured before: `button.sidebar-section__hdr` — a rail section header — hit-tested onto `button.mobile-nav-btn.active`. The header was visible and unclickable.
+3. **Every camera name in the CCTV command centre was crushed to 18 % of its box.** `.cctv-cell` carried `aspect-ratio: 16/9` *and* a label row, so the name's grid column got **26 px of a 141 px tile**; 60–170 px of each Thai camera name was cut (`scrollWidth − clientWidth`). Twelve elements were clipped. In a wall whose whole job is to identify a camera, no tile could be named.
+4. **400 px of unexplained black beside the open-data workbench's introduction** (1440 px). `.dwb-main` is a 1360 px container, but `.dwb-hero` and `.dwb-rule` were capped at 960 px and left-aligned inside it — so ~400 px of the screen stood empty beside both, while the stat grid immediately below already ran the full width. The page read as unfinished, not composed.
+5. **The atlas charts drew `NaN` geometry.** `LineArea` fed unfiltered points into its scales; one non-numeric reading poisoned `min`/`max` and the browser logged `<polygon> attribute points: Expected number, "NaN,170 NaN,139.…"` and `<circle> attribute cx: Expected length, "NaN"`. The population-trend chart drew nothing.
+6. **Two buttons had no place on the page at all.** The flash-flood and watershed-metro openers were rendered as children of the shell with no grid area, so the grid auto-placed them in an **implicit row under the page**. Measured at 1440 px: the shell's rows were `56px 765px 49px 30px` — a 4th row nobody asked for, below the bottom bar. At 390 px: two extra 29 px rows at y = 786 and y = 815, which is exactly where the fixed tab bar sits (781–844). Both buttons were unreachable, and the phone page grew 58 px for nothing.
+7. **The desktop header grew 38 px during the sweep** — traced to the critical-system banner appearing because the upstream API reported `down`. Not a layout defect; recorded because it changes every chrome measurement taken in that state.
+
+## Changed
+
+- **The overlay column no longer intercepts what it does not paint.** `.map-overlay-controls` is `pointer-events: none` with its buttons `pointer-events: auto`, and `.map-overlay-actions` sizes to its chips (`width: fit-content`) instead of claiming the column's full width. The chips, the map drag and the search field each own their own pixels again.
+- **The tablet rail ends at the tab bar.** `bottom: 62px`, `padding-bottom: 0` — the scroll viewport now stops where the tab bar begins, so nothing passes behind it. The tab bar is full-width and opaque, so nothing shows in the strip below the rail anyway. The sticky fade still measures flush from the content box.
+- **The CCTV tile is the picture again, and the name rides on it.** The 16:9 ratio belongs to the video, not to a card that also carries a label. The camera's **name is a lower-third over the picture with the tile's full width**; the asset code and the state moved to a corner slug on the picture, and the frame time stacked under the LIVE badge. Nothing was removed from the tile and the density per screen did not change.
+- **The open-data overview is two columns.** At ≥1200 px the hero (779 px) and the preparation rule (557 px) sit side by side — two halves of one thought — and the stats and tables span the full width. Below 1200 px it stacks exactly as before. The prose keeps its own 720 px measure.
+- **The atlas charts filter before they scale.** Non-finite points are dropped, empty series are skipped, and an empty scale falls back to a safe range. The chart now draws what the data contains.
+- **The two orphan buttons came home.** `FlashFloodAlert` and `MetroInfographic` now render in the left rail, in a `.rail-triggers` row with the rest of the situation content. Their modals are portalled to `document.body`: the phone rail is a translated sheet, and a `position: fixed` overlay inside a transformed ancestor is contained by it — the modal would have opened inside the sheet instead of over the screen. The shell's grid has no implicit row again (`56px 765px 49px`).
+
+## Verified
+
+| | before | after |
+|---|---|---|
+| Landmark search, 1440 px | click on the field **timed out**; hit-test → `.map-overlay-actions` | **click focuses the field**; hit-test → the input |
+| Rail section header, 1024 px | hit-test → `button.mobile-nav-btn.active` | **hit-test → the header**; the rail still scrolls |
+| CCTV camera name | 26 px of a 141 px tile; 60–170 px cut | **127 px, 0 px cut**; 12 clipped elements → 4 |
+| CCTV tile height / wall height | 81 px tile in a 420 px wall | **81 px tile in the same 420 px wall** — the same rows fit |
+| Open-data ink coverage, 1440 px | 0.261 (≈ 400 px of empty right) | **0.307, the void is gone** |
+| Shell grid rows, 1440 px | `56px 765px 49px 30px` | **`56px 765px 49px`** |
+| Shell grid rows, 390 px | `52px 734px 29px 29px` | **`52px 792px`**; document height 844 = viewport |
+| Both orphan triggers, 390 px | under the tab bar, unclickable | **hit-test → the button** |
+| Flash-flood modal, 390 px | — | **covers 390 × 844 at (0,0)** |
+| Atlas charts | 6 `NaN` SVG console errors | **0** |
+| Horizontal overflow, 72 surfaces | 0 | **0** |
+
+Local release gates: **1138 web unit tests passed (78 files)**, `tsc -b` clean, production build succeeded.
+
+One test, `terrainAndChediWiring.test.ts`, failed a 5 s timeout while three Chrome sweeps were running and passed alone in 3.4 s. The assertion is unchanged; the budget was widened to 20 s because the cost is the module load, not the check.
+
+## Remaining — measured, and left in place on purpose
+
+- **The bilingual whitepaper's Thai column carries 211–655 px of space** below its last section. It is a two-column pairing with a 2 px divider rule down the seam; the rule is the reason the column is as tall as it is, and the English column beside it carries text to the same depth. The space is the end of the shorter column, not an invented gap.
+- **The atlas KPI and chart cards are equal-height** (56–129 px of slack in the chart row). `.atlas-kpi-src` pushes the source note to the card's foot with `margin-top: auto`, so the gap between the number and its source is consistent across the row by design.
+- **The desktop right rail is two scroll regions** — news above (373 px holding 1683 px), the layer palette pinned below (423 px holding 1236 px). The palette's seven groups are collapsible and one starts collapsed, so the reader can shorten it; the two regions hold different kinds of content (a feed and a control surface) and are deliberately not one long scroll.
+- **The flood-ops page's right column ends 658 px above the left column's end.** An unequal two-column document; the space is the end of the shorter column.
+- **The upstream API is degraded during this window.** `/api/water/gauges` times out (60 s, 0 bytes) while `/api/health` reports `ok`, so the left rail's headline card renders its "NO DATA · Checking the water gauges…" state and the critical-system banner appears at times. Geometry measured in that state is valid; any figure that depends on live water readings is not.
+- **Pre-existing and still open** (from the first pass, unchanged): the desktop header still wraps to two rows at 1101–1211 px and 1281–~1330 px; at 200 % text zoom on a 390 px phone the header overflows by 14 px; with the tablet rail up, the Old Town label and the western third of the boundary outline sit behind the rail.

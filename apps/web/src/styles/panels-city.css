@@ -498,6 +498,17 @@ button.pred-strip:hover { background: var(--ground); border-color: var(--line); 
 .fsc.is-collapsed .fsc__cause,
 .fsc.is-collapsed .fsc__foot { display: none; }
 
+/* The rail's action row: the flash-flood and watershed-metro openers sit
+   with the rest of the situation content instead of being auto-placed into
+   an implicit row under the page. */
+.rail-triggers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  padding: var(--s-2) var(--s-4);
+  border-bottom: 1px solid var(--line);
+}
+
 /* ── 20. Flash flood alert (ffa-) ──────────────────────────────────────
    ONWR-style popup surfaced when FFPI crosses `prepare`/`critical`. Same
    columns + same FFPI band colours used by the agency site. Tokens only

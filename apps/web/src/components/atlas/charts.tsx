@@ -185,14 +185,27 @@ function HBar({ data, unit, title, note }: Extract<AtlasChart, { kind: "hbar" }>
 
 // ── Line / Area ────────────────────────────────────────────────────────────────
 function LineArea({ series, unit, title, note, area }: Extract<AtlasChart, { kind: "line" | "area" }> & { area: boolean }) {
-  const all = series.flatMap((s) => s.points);
-  const xs = all.map((p) => Number(p.x));
+  // A gap in the series (a missing year, a null reading) arrives as a
+  // non-numeric point. Fed straight into the scales it produced NaN
+  // coordinates — the SVG logged "Expected number, NaN" and the chart drew
+  // nothing. Drop the unusable points and scale what is left.
+  const clean = series.map((s) => ({
+    ...s,
+    points: s.points
+      .map((p) => ({ ...p, x: Number(p.x), y: Number(p.y) }))
+      .filter((p) => Number.isFinite(p.x) && Number.isFinite(p.y)),
+  }));
+  const all = clean.flatMap((s) => s.points);
+  const xs = all.map((p) => p.x);
   const ys = all.map((p) => p.y);
-  const minX = Math.min(...xs), maxX = Math.max(...xs);
-  const maxY = Math.max(...ys, 1), minY = Math.min(...ys, 0);
+  const minX = xs.length ? Math.min(...xs) : 0;
+  const maxX = xs.length ? Math.max(...xs) : 1;
+  const maxY = ys.length ? Math.max(...ys, 1) : 1;
+  const minY = ys.length ? Math.min(...ys, 0) : 0;
   const padL = 36, padR = 14, padT = 14, padB = 24, base = 170;
   const sx = (x: number) => padL + ((x - minX) / (maxX - minX || 1)) * (W - padL - padR);
   const sy = (y: number) => base - ((y - minY) / (maxY - minY || 1)) * (base - padT);
+  const first = clean[0]?.points ?? [];
   return (
     <ChartFrame title={title} note={note} h={196}>
       {[0, 0.5, 1].map((f, i) => {
@@ -200,20 +213,21 @@ function LineArea({ series, unit, title, note, area }: Extract<AtlasChart, { kin
         const v = minY + f * (maxY - minY);
         return <g key={i}><line x1={padL} y1={y} x2={W - padR} y2={y} stroke="var(--line)" strokeDasharray="2 3" /><text x={4} y={y + 3} className="atlas-svg-tick" fill="var(--ink-low)">{fmtNum(v)}</text></g>;
       })}
-      {series.map((s, si) => {
+      {clean.map((s, si) => {
         const col = s.color ?? catColor(si);
-        const pts = s.points.map((p) => `${sx(Number(p.x))},${sy(p.y)}`).join(" ");
-        const areaPts = `${sx(Number(s.points[0].x))},${base} ${pts} ${sx(Number(s.points[s.points.length - 1].x))},${base}`;
+        if (!s.points.length) return null;
+        const pts = s.points.map((p) => `${sx(p.x)},${sy(p.y)}`).join(" ");
+        const areaPts = `${sx(s.points[0].x)},${base} ${pts} ${sx(s.points[s.points.length - 1].x)},${base}`;
         return (
           <g key={si}>
             {area ? <polygon points={areaPts} fill={col} opacity={0.16} /> : null}
             <polyline points={pts} fill="none" stroke={col} strokeWidth={2} />
-            {s.points.map((p, i) => <circle key={i} cx={sx(Number(p.x))} cy={sy(p.y)} r={2} fill={col} />)}
+            {s.points.map((p, i) => <circle key={i} cx={sx(p.x)} cy={sy(p.y)} r={2} fill={col} />)}
           </g>
         );
       })}
-      {series[0].points.map((p, i) => i % Math.ceil(series[0].points.length / 6) === 0 ? (
-        <text key={i} x={sx(Number(p.x))} y={base + 16} textAnchor="middle" className="atlas-svg-tick" fill="var(--ink-low)">{p.x}</text>
+      {first.map((p, i) => i % Math.ceil(first.length / 6) === 0 ? (
+        <text key={i} x={sx(p.x)} y={base + 16} textAnchor="middle" className="atlas-svg-tick" fill="var(--ink-low)">{p.x}</text>
       ) : null)}
       {unit ? <text x={padL} y={10} className="atlas-svg-tick" fill="var(--ink-low)">{unit}</text> : null}
     </ChartFrame>
