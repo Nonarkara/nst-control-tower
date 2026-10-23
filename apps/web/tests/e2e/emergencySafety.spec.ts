@@ -20,6 +20,12 @@ for (const width of [390, 1024, 1440]) {
     const headline = page.getByRole("region", {name:"Right now", exact:true});
     await expect(headline).toContainText("Safety test station", {timeout:30_000});
     await expect(headline).toContainText("overtopping time is not established");
+    // Official warnings must surface on the default view, before selecting FLOOD.
+    const initialAlert = page.getByRole("dialog");
+    await expect(initialAlert).toContainText("DWR test critical", {timeout:20_000});
+    await expect(initialAlert).toContainText("Contact the duty officer now");
+    await page.keyboard.press("Escape");
+    await expect(initialAlert).toHaveCount(0);
     await expect(headline.getByRole("button", {name:"Show on map"})).toBeInViewport();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     let focus: {tag?: string; outline?: string | null} = {};
@@ -29,6 +35,8 @@ for (const width of [390, 1024, 1440]) {
     expect(focus.tag).not.toBe("BODY");
     if (width <= 1100) await page.getByRole("tab", {name:/^LAYERS/}).click();
     await page.getByRole("combobox", {name:"Advanced map views",exact:true}).selectOption("flood");
+    if (width <= 1100) await page.getByRole("tab", {name:/^BRIEF/}).click();
+    await page.getByRole("button", {name:/Open flash flood alert/}).click();
     const dialog = page.getByRole("dialog");
     await expect(dialog).toContainText("DWR test critical", {timeout:20_000});
     await expect(dialog).toContainText("Critical");

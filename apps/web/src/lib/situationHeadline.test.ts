@@ -28,6 +28,7 @@ describe("buildSituationHeadline", () => {
     const h = buildSituationHeadline({ gauges: [], ageMinutes: null, tier: "unavailable" });
     expect(h.level).toBe("unknown");
     expect(h.headline).toMatch(/No water-gauge data/);
+    expect(h.action).toContain("duty officer and field team");
   });
 
   it("an overbank gauge is the headline, whatever the ETAs say", () => {

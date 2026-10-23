@@ -2402,7 +2402,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
             no grid area, so the shell auto-placed them in an implicit row
             under the page — below the bottom bar on a desktop, behind the
             fixed tab bar on a phone, where they could not be reached. */}
-        {(lens === "flood" || lens === "environment" || lens === "intelligence") && (
+        {(lens === "flood" || lens === "environment" || lens === "intelligence" || ewsCurrent.some(st => st.status >= 2)) && (
           <div className="rail-triggers">
             <FlashFloodAlert
               rain={waterRain.data}

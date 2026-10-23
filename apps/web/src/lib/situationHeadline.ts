@@ -103,7 +103,7 @@ export function buildSituationHeadline(opts: {
         ? (opts.tier === "loading" ? "กำลังตรวจสอบสถานีวัดน้ำ…" : "ขณะนี้ไม่มีข้อมูลสถานีวัดน้ำ")
         : (opts.tier === "loading" ? "Checking the water gauges…" : "No water-gauge data right now"),
       detail: th ? "ไม่สามารถประเมินระดับน้ำในแม่น้ำได้หากไม่มีข้อมูลจากสถานี" : "The river levels can't be judged without the gauge feed.",
-      action: th ? "เปิดเมนู “More” แล้วเลือก “Source catalog” เพื่อดูว่าแหล่งข้อมูลใดขัดข้อง" : "Open Source catalog to see which feed is down.",
+      action: th ? "ยืนยันระดับน้ำกับเจ้าหน้าที่เวรและทีมภาคสนามทันที ติดตามประกาศราชการระหว่างที่ข้อมูลขัดข้อง" : "Confirm current water levels with the duty officer and field team now. Check official warnings while the feed is unavailable.",
       freshness,
       gauge: null,
       camera: null,
