@@ -22,7 +22,7 @@ const UNAVAILABLE_AFTER_FAILS = 3;
 const REQUEST_TIMEOUT_MS = 10_000;
 const FIRST_REQUEST_TIMEOUT_MS = 25_000;
 const RETRIES = 2;
-const FIRST_RETRIES = 4;
+const FIRST_RETRIES = 0;
 // setTimeout/setInterval delays are stored as a 32-bit signed int internally;
 // a delay above this clamps to ~0 in most engines, firing (and re-firing) almost
 // immediately instead of waiting — a caller passing e.g. a 30-day pollMs would
@@ -210,13 +210,13 @@ export function useFeed<T>(path: string, pollMs: number, requestTimeoutMs?: numb
               ? "unavailable"
               : prev.loadedAt
                 ? retainedTier(prev.fallbackTier)
-                : "loading";
+                : "unavailable";
           if (prev.error === errMsg && prev.fallbackTier === tier) return prev;
           return { ...ageState(prev), error: errMsg, fallbackTier: tier };
         });
       } finally {
         // A poll never cancels its own slow request; the next starts after settlement.
-        if (!cancelled && inflight.current === ctrl) pollId = setTimeout(run, interval);
+        if (!cancelled && inflight.current === ctrl) pollId = setTimeout(run, failCount.current > 0 ? Math.min(interval, 30_000) : interval);
       }
     };
     runRef.current = run;

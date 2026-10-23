@@ -14,6 +14,7 @@
  *    its last value — a dead gauge must never read as a calm river.
  *  - The note says how many were dropped, so "no data" is visible.
  */
+import { finishCacheWrite } from "../lib/cache.js";
 import type { RainfallStation, WaterGauge } from "@nst/shared";
 import { fetchJsonOrThrow } from "./common.js";
 import { AMPHOE_NAMES, AMPHOE_POINTS } from "../data/amphoePoints.js";
@@ -182,10 +183,10 @@ export function mapRelayRain(rows: RelayRain[]): { stations: RainfallStation[]; 
  *  10 s cold (its own log: "slow request … ms:10129"), and the Worker used to
  *  give up at exactly 10 s — so the relay failed every time the 60 s server
  *  cache had expired, which is every time a 10-minute cache asks. */
-export const RELAY_TIMEOUT_MS = 25_000;
+export const RELAY_TIMEOUT_MS = 16_000;
 /** Shared across every Worker instance in a data centre, so FloodDash is asked
  *  about once per window, not once per cold instance. */
-export const RELAY_EDGE_TTL_S = 300;
+export const RELAY_EDGE_TTL_S = 60;
 
 interface EdgeCache {
   match(req: Request): Promise<Response | undefined>;
@@ -201,14 +202,24 @@ function validShape(body: RelayResponse | null | undefined): body is RelayRespon
   return Array.isArray(body?.water) && Array.isArray(body?.rain);
 }
 
+/** Cache I/O is an optimization, not a reason to miss an emergency deadline. */
+async function cacheDeadline<T>(work: Promise<T>): Promise<T> {
+  let timer: ReturnType<typeof setTimeout>;
+  try {
+    return await Promise.race([work, new Promise<never>((_, reject) => {
+      timer = setTimeout(() => reject(new Error("Relay cache deadline")), 1000);
+    })]);
+  } finally { clearTimeout(timer!); }
+}
+
 export async function fetchRelay(): Promise<RelayResponse> {
   const cache = edgeCache();
   const key = new Request(RELAY_URL);
   if (cache) {
     try {
-      const hit = await cache.match(key);
+      const hit = await cacheDeadline(cache.match(key));
       if (hit) {
-        const cached = (await hit.json()) as RelayResponse;
+        const cached = (await cacheDeadline(hit.json())) as RelayResponse;
         if (validShape(cached)) return cached;
       }
     } catch (err) {
@@ -226,13 +237,9 @@ export async function fetchRelay(): Promise<RelayResponse> {
   if (!validShape(body)) throw new Error("FloodDash relay returned an unexpected shape");
 
   if (cache) {
-    try {
-      await cache.put(key, new Response(JSON.stringify(body), {
-        headers: { "content-type": "application/json", "cache-control": `public, max-age=${RELAY_EDGE_TTL_S}` },
-      }));
-    } catch (err) {
-      console.warn("floodDashRelay edge-cache write failed", (err as Error).message);
-    }
+    await finishCacheWrite(cacheDeadline(cache.put(key, new Response(JSON.stringify(body), {
+      headers: { "content-type": "application/json", "cache-control": `public, max-age=${RELAY_EDGE_TTL_S}` },
+    }))).catch(err => { console.warn("floodDashRelay edge-cache write failed", (err as Error).message); }));
   }
   return body;
 }

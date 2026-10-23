@@ -7,6 +7,13 @@ export function withCacheLifetime<T>(waitUntil: (promise: Promise<unknown>) => v
   return refreshLifetime.run(waitUntil, work);
 }
 
+/** Attach optional cache writes to this request's lifetime, never another request. */
+export async function finishCacheWrite(work: Promise<unknown>): Promise<void> {
+  const waitUntil = refreshLifetime.getStore();
+  if (waitUntil) waitUntil(work);
+  else await work;
+}
+
 // Per-isolate in-memory cache with TTL + promise dedup.
 // In Cloudflare Workers, this lives for the lifetime of the isolate (minutes
 // to hours per region). On cold start it's empty — adapters refetch.

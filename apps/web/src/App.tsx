@@ -1,3 +1,4 @@
+import { isCurrentObservation } from "@nst/shared";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, memo } from "react";
 import DeckGL from "@deck.gl/react";
 import type { Layer, ControllerProps } from "@deck.gl/core";
@@ -1412,13 +1413,32 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
   const conflictIncidents = useFeed<ConflictIncident>(`${API_BASE}/api/security/incidents`, 30 * 60_000);
   const floodGauges = useFeed<FloodGauge>(`${API_BASE}/api/flood/gauges`, 15 * 60_000);
   const damStatus = useFeed<DamStatus>(`${API_BASE}/api/flood/dam`, 30 * 60_000);
-  const waterGauges = useFeed<WaterGauge>(`${API_BASE}/api/water/gauges`, 10 * 60_000);
-  const waterRain = useFeed<RainfallStation>(`${API_BASE}/api/water/rain`, 30 * 60_000);
-  const ewsStations = useFeed<EwsStation>(`${API_BASE}/api/water/ews`, 15 * 60_000);
-  // Analyses use only stations that are still reporting: a station frozen
-  // months ago (several in NST) must not count as "normal" or as an alarm.
-  // The map still draws every station — stale ones grey, "not reporting".
-  const ewsCurrent = useMemo(() => ewsStations.data.filter((st) => !st.stale), [ewsStations.data]);
+  const waterGaugesFeed = useFeed<WaterGauge>(`${API_BASE}/api/water/gauges`, 60_000, 25_000);
+  const waterRainFeed = useFeed<RainfallStation>(`${API_BASE}/api/water/rain`, 60_000, 25_000);
+  const ewsStations = useFeed<EwsStation>(`${API_BASE}/api/water/ews`, 60_000, 25_000);
+  // Recheck observation clocks even if a failed poll retains the same array.
+  const [observationNow, setObservationNow] = useState(Date.now);
+  useEffect(() => {
+    const id = setInterval(() => setObservationNow(Date.now()), 60_000);
+    return () => clearInterval(id);
+  }, []);
+  const currentGauges = useMemo(() => waterGaugesFeed.fallbackTier === "scenario" ? [] : waterGaugesFeed.data.filter(g => isCurrentObservation(g.observedAt, observationNow)), [waterGaugesFeed.data, waterGaugesFeed.fallbackTier, observationNow]);
+  const currentRain = useMemo(() => waterRainFeed.fallbackTier === "scenario" ? [] : waterRainFeed.data.filter(r => isCurrentObservation(r.observedAt, observationNow)), [waterRainFeed.data, waterRainFeed.fallbackTier, observationNow]);
+  const waterGauges = { ...waterGaugesFeed, data: currentGauges };
+  const waterRain = { ...waterRainFeed, data: currentRain };
+  // Stale EWS remains on the map as historical evidence, never in current analysis.
+  const ewsCurrent = useMemo(() => ewsStations.fallbackTier === "scenario" ? [] : ewsStations.data.filter(st => !st.stale && isCurrentObservation(st.observedAt, observationNow)), [ewsStations.data, ewsStations.fallbackTier, observationNow]);
+  const ewsMap = useMemo(() => ewsStations.data.map(st => ({...st, stale: st.stale || !isCurrentObservation(st.observedAt, observationNow)})), [ewsStations.data, observationNow]);
+  const currentBasins = useMemo(() => {
+    if (waterBalance.fallbackTier !== "live" || waterBalance.ageMinutes > 10) return [];
+    const ids = new Set(waterGauges.data.map(g => g.id));
+    return waterBalance.data.map(b => {
+      const gauges = b.gauges.filter(g => ids.has(g.id));
+      const etas = gauges.map(g => g.etaOvertopH).filter((h): h is number => h != null && Number.isFinite(h) && h > 0);
+      return {...b, gauges, worstEtaOvertopH: etas.length ? Math.min(...etas) : null,
+        suggestedScenarioM: gauges.length === b.gauges.length ? b.suggestedScenarioM : null};
+    });
+  }, [waterBalance.data, waterBalance.fallbackTier, waterBalance.ageMinutes, waterGauges.data]);
   // Who to move first: the provincial flood-risk village register joined with
   // population + district bedridden/homebound/disabled counts
   // (scripts/buildEvacData.py), ranked live against the gauges below.
@@ -1469,13 +1489,13 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
         ? rankEvacuation({
             data: evacData,
             gauges: waterGauges.data,
-            basins: waterBalance.data,
+            basins: currentBasins,
             ews: ewsCurrent,
             rain: waterRain.data,
             cameras: cctv.data.filter((c) => c.category === "water"),
           })
         : [],
-    [evacData, waterGauges.data, waterBalance.data, ewsCurrent, waterRain.data, cctv.data],
+    [evacData, waterGauges.data, currentBasins, ewsCurrent, waterRain.data, cctv.data],
   );
   const evacSummary = useMemo(() => summarizeEvacuation(evacRows), [evacRows]);
   const ridReservoirs = useFeed<RidReservoir>(`${API_BASE}/api/water/reservoirs-rid`, 60 * 60_000);
@@ -1618,9 +1638,9 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
         rain: waterRain.data,
         ews: ewsCurrent,
         reservoirs: ridReservoirs.data,
-        basins: waterBalance.data,
+        basins: currentBasins,
       }),
-    [waterGauges.data, waterRain.data, ewsCurrent, ridReservoirs.data, waterBalance.data],
+    [waterGauges.data, waterRain.data, ewsCurrent, ridReservoirs.data, currentBasins],
   );
   // The REAL คลองท่าดี geometry (lib/thaDee.ts) — the animated dots and the
   // cascade line follow the river, not straight segments between zone
@@ -1898,7 +1918,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
       waterGauges.data.length > 0 &&
       zoomBucket === 0
     ) {
-      out.push(...(watershedNodesLayer(watershedSummaries, waterBalance.data, thaDeeFlow) as Layer[]));
+      out.push(...(watershedNodesLayer(watershedSummaries, currentBasins, thaDeeFlow) as Layer[]));
       // Kid-readable "subway" line on top of the cascade — same data, but
       // rendered with the metro-map metaphor (rounded status-coloured stroke
       // + station markers at KW / LS / CITY / Bay + bilingual labels). The
@@ -2036,7 +2056,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
     if (enabledLayers.has("rain-stations") && waterRain.data.length > 0)
       out.push(rainStationsLayer(waterRain.data) as Layer);
     if (enabledLayers.has("ews-stations") && ewsStations.data.length > 0)
-      out.push(ewsStationsLayer(ewsStations.data) as Layer);
+      out.push(ewsStationsLayer(ewsMap) as Layer);
     // FloodDash water concentration wash — CITY SCALE ONLY.
     // At province scale the orange/blue blobs paint over the rivers the
     // user is trying to read. Skip at bucket 0.
@@ -2085,12 +2105,12 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
     ringRoads, riverBuffer, alphaLandcover, alphaFloodProne,
     provinceBoundaries, districtBoundaries,
     conflictIncidents.data, floodGauges.data, damStatus.data,
-    waterGauges.data, waterRain.data, ewsStations.data,
+    waterGauges.data, waterRain.data, ewsStations.data, ewsMap,
     air4thai.data, airQuality.data,
     southernRisk.data, southernRivers.data,
     thaDeeFlow, levelPosts.data, floodExtent.data, evacRows,
     watershedSummaries,
-    waterBalance.data,
+    currentBasins,
     floodMarks, wrfGrid.data,
     presence.lng, presence.lat, presence.accuracyM,
     tile3d.layer, gpuHeatmapOk, terrainGrid,
@@ -2361,9 +2381,10 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
         {/* ── RIGHT NOW: worst gauge + time to overtop, suggested action, data
             age. First in the rail on every lens so the answer to "is the city
             OK?" is always above the fold. ── */}
+        <p className="flood-meta" role="status">Current analysis uses station observations ≤ 2 h old. {waterGaugesFeed.data.length - waterGauges.data.length} older/undated water records excluded; missing stations are not safe stations.</p>
         <SituationHeadline
           gauges={waterGauges.data}
-          basins={waterBalance.data}
+          basins={currentBasins}
           cameras={cctv.data.filter((c) => c.category === "water")}
           ageMinutes={waterGauges.data.length > 0 ? waterGauges.ageMinutes : null}
           tier={waterGauges.fallbackTier}
@@ -2566,7 +2587,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
 
         <RailSection sectionKey="water-balance" lens={lens} title="Water Balance">
           <WaterBalancePanel
-            basins={waterBalance.data}
+            basins={currentBasins}
             ageMinutes={waterBalance.ageMinutes}
             fallbackTier={waterBalance.fallbackTier === "loading" ? undefined : waterBalance.fallbackTier}
             note={waterBalance.note}
@@ -2579,7 +2600,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
             watershedSummaries={watershedSummaries}
             reservoirs={ridReservoirs.data}
             runoffProxy={damStatus.data[0] ?? null}
-            basins={waterBalance.data}
+            basins={currentBasins}
             ageMinutes={waterBalance.ageMinutes}
             fallbackTier={waterBalance.fallbackTier === "loading" ? undefined : waterBalance.fallbackTier}
           />
@@ -2672,7 +2693,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
             wrfLayerOn={enabledLayers.has("wrf-rain-grid")}
             onToggleWrfLayer={() => onToggleLayer("wrf-rain-grid")}
             wrfNote={wrfOutlook.note}
-            modelSuggestedM={waterBalance.data.find((b) => b.basinId === "city_tha_dee")?.suggestedScenarioM ?? null}
+            modelSuggestedM={currentBasins.find((b) => b.basinId === "city_tha_dee")?.suggestedScenarioM ?? null}
           />
         </RailSection>
 
@@ -3032,7 +3053,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
       <Suspense fallback={null}>
         {opsOpen && (
           <FloodOpsBoard
-            basins={waterBalance.data}
+            basins={currentBasins}
             ageMinutes={waterBalance.ageMinutes}
             note={waterBalance.note}
             wrfOutlook={wrfOutlook.data}

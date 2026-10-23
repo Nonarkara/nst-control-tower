@@ -17,8 +17,8 @@ import { RELAY_SOURCE_NOTE, SILENT_AFTER_H, bangkokIso, fetchRelay, mapRelayRain
 
 const BASE = "https://api-v3.thaiwater.net/api/v1/thaiwater30/public";
 const PROVINCE = "80"; // Nakhon Si Thammarat
-const TTL_GAUGES = 10 * 60;  // 10 min
-const TTL_RAIN = 30 * 60;    // 30 min
+const TTL_GAUGES = 60; // emergency operations: refresh every minute
+const TTL_RAIN = 60; // relay edge cache bounds upstream polling
 // Serve an expired snapshot (honestly aged by trueAge) while refreshing in the
 // background: the first visitor after expiry used to wait ~14 s for a live
 // fetch through the relay. Beyond an hour the data is too old to show as-is.

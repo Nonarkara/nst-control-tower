@@ -61,7 +61,7 @@ function Coverage({ coverage }: { coverage: EvacCoverage }) {
 }
 
 const TIER: Record<Exclude<EvacTier, "calm">, { level: StatusLevel; en: string; th: string }> = {
-  "move-now": { level: "critical", en: "MOVE NOW", th: "ย้ายทันที" },
+  "move-now": { level: "critical", en: "URGENT CHECK", th: "ตรวจสอบเร่งด่วน" },
   "get-ready": { level: "warning", en: "GET READY", th: "เตรียมย้าย" },
   watch: { level: "watch", en: "WATCH", th: "เฝ้าระวัง" },
 };
@@ -126,12 +126,13 @@ export function EvacuationPanel({ rows, summary, loading, years, onFocus, onOpen
       ) : (
         <>
           <Coverage coverage={coverage} />
+          <p className="note">Proximity screening only: nearby stations can be in a different catchment. Confirm village conditions and evacuation decisions with the responsible local authority.</p>
           <p className="stat-line">
             <span className="stat-line__value num" style={summary.moveNow > 0 ? { color: STATUS.critical.color } : undefined}>
               {summary.moveNow}
             </span>
             <span className="stat-line__label">
-              villages to move now{summary.moveNow > 0 ? ` · ~${fmt(summary.needHelpMoveNow)} bedridden/homebound people in them` : ""}
+              villages needing urgent local assessment{summary.moveNow > 0 ? ` · ~${fmt(summary.needHelpMoveNow)} bedridden/homebound people in them` : ""}
               {" · "}{summary.getReady} get ready · {summary.watch} watch
             </span>
           </p>

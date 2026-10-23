@@ -1,3 +1,5 @@
+import { assessFloodFeed } from "./lib/floodReadiness.js";
+import { withinOperationsDeadline } from "./adapters/floodOperations.js";
 import { fetchFloodOperations } from "./adapters/floodOperations.js";
 import { Hono } from "hono";
 import { bearerAuth } from "hono/bearer-auth";
@@ -139,6 +141,7 @@ app.get("/", (c) =>
     service: "nst-control-tower-api",
     routes: [
       "/api/health",
+      "/api/health/flood-readiness",
       "/api/db/status",
       "/api/sources",
       "/api/incidents/city-reports",
@@ -203,6 +206,7 @@ app.get("/api/sources", (c) => c.json({ sources: SOURCE_CATALOG }));
 app.get("/api/health", (c) =>
   c.json({
     ok: true,
+    scope: "process-liveness; use /api/health/flood-readiness for flood-feed availability",
     at: new Date().toISOString(),
     env: c.env.ENVIRONMENT ?? "unknown",
     // Lets CI (and anyone) confirm which commit is live — hand deploys from
@@ -210,6 +214,19 @@ app.get("/api/health", (c) =>
     version: c.env.GIT_SHA ?? "local",
   }),
 );
+
+// Active probes: unlike the per-isolate adapter log, this checks actual data.
+app.get("/api/health/flood-readiness", async (c) => {
+  c.header("Cache-Control", "no-store");
+  const probes = await Promise.allSettled([
+    withinOperationsDeadline(fetchWaterGauges().then(f => assessFloodFeed(f, g => Number.isFinite(g.levelMsl) || Number.isFinite(g.situationLevel))), 22_000),
+    withinOperationsDeadline(fetchRainfall().then(f => assessFloodFeed(f, r => Number.isFinite(r.rain24h) || Number.isFinite(r.rain1h))), 22_000),
+    withinOperationsDeadline(fetchEwsStations().then(f => assessFloodFeed(f, e => !e.stale && Number.isInteger(e.status) && e.status >= 0 && e.status <= 3)), 22_000),
+  ]);
+  const feeds = Object.fromEntries(probes.map((probe, i) => [["water", "rain", "ews"][i], probe.status === "fulfilled" ? probe.value : { available: false, error: "Feed probe failed or exceeded deadline" }]));
+  const available = probes.every(probe => probe.status === "fulfilled" && probe.value.available);
+  return c.json({ available, scope: "feed availability only; incomplete station coverage is not an all-clear or operational certification", observationMaxMinutes: 120, feeds, at: new Date().toISOString(), version: c.env.GIT_SHA ?? "local" }, available ? 200 : 503);
+});
 
 app.get("/api/health/detailed", (c) => {
   const sys = getSystemStatus();

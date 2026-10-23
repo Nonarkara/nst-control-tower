@@ -171,13 +171,13 @@ function actionFor(tier: EvacTier, v: EvacVillage): string {
   const who = v.centre?.authority ? v.centre.authority : `the ${v.tambon} local authority`;
   switch (tier) {
     case "move-now":
-      return `Move bedridden and homebound residents now, before the roads flood. Call ${who} and the village health volunteers (อสม.) for the named list; send a vehicle that can carry a stretcher.`;
+      return `Urgently call ${who} and village health volunteers (อสม.) to confirm local danger, the named vulnerable-resident list and evacuation needs. A nearby station does not establish village inundation; follow the local emergency plan.`;
     case "get-ready":
       return `Call ${who}: confirm who is bedridden or homebound, who their carers are, and which vehicle will move them. Be ready to go within the hour.`;
     case "watch":
       return `Check the list of residents who cannot leave on their own is current, and where they would go.`;
     default:
-      return "No action needed.";
+      return "No nearby signal in available readings. Confirm missing coverage and continue monitoring.";
   }
 }
 

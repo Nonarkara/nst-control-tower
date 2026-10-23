@@ -97,3 +97,14 @@ it("preserves scenario identity instead of relabelling reference data as cached 
   vi.stubGlobal("window", { localStorage: { getItem: () => JSON.stringify({ savedAt: Date.parse(stamp), state: { ...state, fallbackTier: "scenario" } }) } });
   expect(readLocal("/api/test")).toMatchObject({ fallbackTier: "scenario", ageMinutes: 8 });
 });
+
+it("reports a cold timeout after one bounded attempt instead of a 133-second loading chain", async () => {
+  vi.useFakeTimers();
+  const f = vi.fn(async (_url, {signal}: RequestInit) => new Response(new ReadableStream({start(controller) {signal!.addEventListener("abort", () => controller.error(new DOMException("Aborted", "AbortError")));}})));
+  vi.stubGlobal("fetch", f);
+  const work = fetchWithRetry("/api/water/gauges", new AbortController().signal, true);
+  const check = expect(work).rejects.toThrow("Request timed out after 25s");
+  await vi.advanceTimersByTimeAsync(25_001); await check;
+  expect(f).toHaveBeenCalledTimes(1);
+  expect(vi.getTimerCount()).toBe(0);
+});

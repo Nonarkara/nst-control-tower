@@ -93,7 +93,7 @@ describe("computeFfpi", () => {
   it("treats null inputs as zero (no spurious bumps)", () => {
     const r = computeFfpi({ rain1hMm: null, rain24hMm: null, soilPct: null, ewsStatus: null });
     expect(r.score).toBe(0);
-    expect(r.band).toBe("normal");
+    expect(r.band).toBe("unknown");
   });
 
   it("ignores negative or NaN values", () => {
@@ -109,10 +109,12 @@ describe("EWS / rain station → FFPI mapping", () => {
     expect(r1.score).toBeGreaterThanOrEqual(r2.score);
   });
 
-  it("EWS rain07h is treated as the 24h proxy (the closest metric they report)", () => {
+  it("does not relabel since-07:00 rain as hourly or rolling 24h", () => {
     const heavy24 = ewsStationToFfpi(ews({ rain07h: 200, status: 0, soilMoisture: 0 }));
     const light24 = ewsStationToFfpi(ews({ rain07h: 5, status: 0, soilMoisture: 0 }));
-    expect(heavy24.score).toBeGreaterThan(light24.score);
+    expect(heavy24.score).toBe(light24.score);
+    expect(heavy24.components.rain24h).toBe(0);
+    expect(heavy24.components.rain1h).toBe(0);
   });
 
   it("rain station with no live rain stays normal", () => {
@@ -157,7 +159,9 @@ describe("rankFfpi", () => {
         ews({ id: "S1", amphoe: "พรหมคีรี", status: 3, rain: 0, rain07h: 0, soilMoisture: 0 }),
       ],
     });
-    expect(rows[0]!.ffpi.score).toBeGreaterThan(rows[1]!.ffpi.score);
+    expect(rows[0]!.ewsStatus).toBe(3);
+    expect(rows[0]!.ffpi.band).toBe("critical");
+    expect(rows).toHaveLength(3);
     expect(rows[0]!.amphoe).toBe("พรหมคีรี");
   });
 
@@ -186,7 +190,7 @@ describe("rankFfpi", () => {
       gaugesByAmphoe: new Map([["a", [
         { ...( { id: "G1", name: "", lat: 0, lng: 0, levelMsl: 0, levelPrev: 0, warningMsl: 0, criticalMsl: 0, diffFromBank: 0, situationLevel: 3 as const, trend: "stable" as const, riverName: "", amphoe: "", observedAt: "", isKeyStation: false, stationCode: null, bankMsl: null, fullnessPct: 96, dischargeCms: null, qmaxCms: null } ), }] ]]),
     });
-    expect(rows[0]!.ffpi.score).toBe(1); // bonus only
+    expect(rows[0]!.ffpi.score).toBe(0); // an amphoe does not prove a shared catchment
   });
 });
 
@@ -204,4 +208,9 @@ describe("FFPI constants", () => {
     expect(FFPI.BAND_LABEL_EN.normal).toBe("Normal");
     expect(FFPI.BAND_LABEL_TH.critical).toBe("วิกฤติ");
   });
+});
+
+it("never downgrades official DWR alerts when other inputs are missing", () => {
+  expect(ewsStationToFfpi(ews({status: 3, rain: null, rain07h: null, soilMoisture: null})).band).toBe("critical");
+  expect(ewsStationToFfpi(ews({status: 2, rain: null, rain07h: null, soilMoisture: null})).band).toBe("prepare");
 });

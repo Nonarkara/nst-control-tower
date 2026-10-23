@@ -41,7 +41,7 @@ describe("rankEvacuation", () => {
     expect(rows[0]!.tier).toBe("watch");
   });
 
-  it("an overbank gauge nearby moves a must-evacuate village now, with the reason and the estimate", () => {
+  it("an overbank gauge prioritizes urgent local assessment with the reason and estimate", () => {
     const rows = rankEvacuation({
       data: data([village({ mustEvacuate: true })]),
       gauges: [gauge({ situationLevel: 5, diffFromBank: 0.2, fullnessPct: 104 })],
@@ -53,7 +53,7 @@ describe("rankEvacuation", () => {
     // district rate × village population: 72/31301×1000 ≈ 2, 223/31301×1000 ≈ 7
     expect(r.est).toEqual({ bedridden: 2, homebound: 7, disabled: 43 });
     expect(r.needHelp).toBe(9);
-    expect(r.action).toMatch(/Move bedridden and homebound residents now/);
+    expect(r.action).toMatch(/confirm local danger/);
     expect(r.action).toMatch(/อบต\.ควนหนองคว้า/);
   });
 

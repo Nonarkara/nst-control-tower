@@ -1,3 +1,4 @@
+import { isCurrentObservation } from "@nst/shared";
 /**
  * situationHeadline — the one sentence a mayor needs above the fold:
  * which gauge is worst, how long until it overtops, what to do, and how old
@@ -90,7 +91,7 @@ export function buildSituationHeadline(opts: {
   lang?: HeadlineLang;
 }): SituationHeadline {
   const th = opts.lang === "th";
-  const { gauges } = opts;
+  const gauges = opts.tier === "scenario" ? [] : opts.gauges.filter(g => isCurrentObservation(g.observedAt));
   const basins = opts.basins ?? [];
   const cameras = opts.cameras ?? [];
   const freshness = th ? freshnessTh(opts.ageMinutes, opts.tier) : freshnessOf(opts.ageMinutes, opts.tier);
@@ -147,6 +148,7 @@ export function buildSituationHeadline(opts: {
   let soonest: { h: number; snap: BasinWaterBalance["gauges"][number]; g: WaterGauge | undefined } | null = null;
   for (const b of basins) {
     for (const snap of b.gauges) {
+      if (!byId.has(snap.id) && !(snap.code && byCode.has(snap.code))) continue;
       const h = snap.etaOvertopH;
       if (h == null || !Number.isFinite(h) || h <= 0) continue;
       if (!soonest || h < soonest.h) {
@@ -203,9 +205,9 @@ export function buildSituationHeadline(opts: {
       return {
         level,
         headline: `${nameWithRiver}: ${plainReasonTh(top.reason, top.reasonTh)} ${trendTh(top.trend)}`,
-        detail: `ระดับน้ำ ${top.levelM != null ? `${top.levelM.toFixed(2)} ม.` : "—"}${top.refM != null ? ` · ${top.refKind === "critical" ? "ระดับวิกฤต" : "ตลิ่ง"} ${top.refM.toFixed(2)} ม.` : ""}${soonest ? ` · ไม่มีสถานีใดล้นตลิ่งภายใน ${OVERTOP_WARNING_H} ชม. ตามอัตราปัจจุบัน` : " · ไม่มีสถานีใดมีแนวโน้มล้นตลิ่ง"}`,
+        detail: `ระดับน้ำ ${top.levelM != null ? `${top.levelM.toFixed(2)} ม.` : "—"}${top.refM != null ? ` · ${top.refKind === "critical" ? "ระดับวิกฤต" : "ตลิ่ง"} ${top.refM.toFixed(2)} ม.` : ""}${soonest ? ` · ค่าประมาณที่มีเกิน ${OVERTOP_WARNING_H} ชม. สถานีอื่นอาจไม่มีค่าประมาณ` : " · ยังประเมินเวลาล้นตลิ่งไม่ได้"}`,
         action: level === "watch"
-          ? "ยังไม่ต้องดำเนินการ เฝ้าระวังต่อไป สถานีนี้ใกล้ระดับสูงสุดมากที่สุด"
+          ? "ตรวจสอบในพื้นที่และเฝ้าระวังต่อ สถานีนี้ใกล้ระดับสูงสุดมากที่สุด"
           : "ตรวจสอบกล้องที่ใกล้ที่สุด และตรวจซ้ำใน 1 ชั่วโมง",
         freshness,
         gauge: { name: top.name, lat: top.lat, lng: top.lng },
@@ -216,9 +218,9 @@ export function buildSituationHeadline(opts: {
     return {
       level,
       headline: `${nameWithRiver}: ${plainReason(top.reason)}, ${trend}`,
-      detail: `Water level ${top.levelM != null ? `${top.levelM.toFixed(2)} m` : "—"}${top.refM != null ? ` · ${top.refKind === "critical" ? "critical" : "bank"} ${top.refM.toFixed(2)} m` : ""}${soonest ? ` · no gauge overtops within ${OVERTOP_WARNING_H} h at current rates` : " · no gauge is on course to overtop its bank"}`,
+      detail: `Water level ${top.levelM != null ? `${top.levelM.toFixed(2)} m` : "—"}${top.refM != null ? ` · ${top.refKind === "critical" ? "critical" : "bank"} ${top.refM.toFixed(2)} m` : ""}${soonest ? ` · available estimate exceeds ${OVERTOP_WARNING_H} h; other stations may lack estimates` : " · overtopping time is not established"}`,
       action: level === "watch"
-        ? "No action yet. Keep watching; this gauge is closest to its limit."
+        ? "Verify locally and keep watching; this gauge is closest to its limit."
         : "Check the nearest camera and re-check in 1 hour.",
       freshness,
       gauge: { name: top.name, lat: top.lat, lng: top.lng },
@@ -226,17 +228,14 @@ export function buildSituationHeadline(opts: {
     };
   }
 
-  // 5. Calm.
+  // No ranked hazard is not proof of safety, especially with missing references.
+  const assessed = gauges.filter(g => Number.isFinite(g.situationLevel) || Number.isFinite(g.fullnessPct) || Number.isFinite(g.diffFromBank)).length;
   return {
-    level: "normal",
-    headline: th ? `สถานีวัดน้ำทั้ง ${gauges.length} แห่งอยู่ต่ำกว่าระดับเฝ้าระวัง` : `All ${gauges.length} water gauges are below watch level`,
-    detail: th
-      ? (soonest ? `ประมาณการล้นตลิ่งที่ใกล้ที่สุดยังอีกมากกว่า ${OVERTOP_WARNING_H} ชม.` : "ไม่มีสถานีใดมีแนวโน้มล้นตลิ่ง")
-      : (soonest ? `Nearest overtop estimate is more than ${OVERTOP_WARNING_H} h away.` : "No gauge is rising toward its bank."),
-    action: th ? "ไม่ต้องดำเนินการ" : "No action needed.",
-    freshness,
-    gauge: null,
-    camera: null,
+    level: "unknown",
+    headline: th ? `ยังไม่พบสัญญาณระดับเฝ้าระวังจากข้อมูลที่ประเมินได้ ${assessed} แห่ง` : `No watch-level signal in ${assessed} assessable gauges`,
+    detail: th ? `มีข้อมูลล่าสุด ${gauges.length} แห่ง · ไม่ใช่การยืนยันว่าปลอดภัย · ยังประเมินเวลาล้นตลิ่งไม่ได้` : `${gauges.length} recent stations; coverage may be incomplete. This is not an all-clear. Overtopping time is not established.`,
+    action: th ? "ตรวจสอบสถานีที่ขาดข้อมูล กล้อง และรายงานภาคสนาม เฝ้าระวังต่อ" : "Check missing stations, cameras and field reports. Continue monitoring.",
+    freshness, gauge: null, camera: null,
   };
 }
 

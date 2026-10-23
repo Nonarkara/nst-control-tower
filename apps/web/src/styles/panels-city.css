@@ -563,64 +563,6 @@ button.pred-strip:hover { background: var(--ground); border-color: var(--line); 
   text-transform: uppercase;
 }
 
-.ffa__tbl {
-  width: 100%;
-  border-collapse: collapse;
-  font-family: var(--font-sans);
-  font-size: var(--text-sm);
-}
-.ffa__tbl thead th {
-  font-size: 10px;
-  font-weight: var(--weight-bold);
-  letter-spacing: var(--tracking-label);
-  text-transform: uppercase;
-  text-align: left;
-  color: var(--ink-3);
-  padding: var(--s-1) var(--s-2);
-  border-bottom: 1px solid var(--line-2);
-  background: var(--ground);
-}
-.ffa__tbl tbody td {
-  padding: var(--s-2);
-  border-bottom: 1px solid var(--line);
-  color: var(--ink);
-  vertical-align: middle;
-}
-.ffa__tbl tbody tr[data-band="prepare"] td { background: rgba(255, 154, 61, 0.08); }
-.ffa__tbl tbody tr[data-band="critical"] td { background: rgba(255, 107, 94, 0.10); }
-.ffa__num { text-align: right; font-variant-numeric: tabular-nums; }
-.ffa__pill {
-  display: inline-block;
-  padding: 1px 6px;
-  border: 1px solid;
-  font-weight: 700;
-  font-size: var(--text-sm);
-  min-width: 36px;
-  text-align: center;
-}
-.ffa__ews {
-  display: inline-block;
-  width: 24px;
-  height: 22px;
-  line-height: 22px;
-  text-align: center;
-  font-weight: 700;
-  font-size: var(--text-sm);
-  color: var(--on-status);
-  border-radius: 0;
-}
-.ffa__station { display: flex; align-items: center; gap: var(--s-2); }
-.ffa__station--no { color: var(--ink-3); }
-.ffa__full {
-  display: inline-block;
-  font-size: 10px;
-  letter-spacing: var(--tracking-label);
-  font-weight: 700;
-  padding: 1px 4px;
-  background: var(--alert);
-  color: var(--on-status);
-}
-
 .ffa__foot {
   margin-top: var(--s-3);
   padding-top: var(--s-3);
@@ -628,16 +570,6 @@ button.pred-strip:hover { background: var(--ground); border-color: var(--line); 
   font-size: var(--text-xs);
   color: var(--ink-3);
 }
-.ffa__formula-title { color: var(--ink); font-weight: var(--weight-bold); margin-right: var(--s-1); }
-.ffa__formula {
-  font-family: var(--font-mono);
-  font-variant-numeric: tabular-nums;
-  font-size: 11px;
-  color: var(--ink-2);
-  background: var(--ground);
-  padding: 1px 6px;
-}
-.ffa__legend b { color: var(--ink); }
 .ffa__meta { margin-top: var(--s-1); }
 
 /* ── 21. Metro infographic (mtr-) ─────────────────────────────────────
@@ -1133,3 +1065,10 @@ button.pred-strip:hover { background: var(--ground); border-color: var(--line); 
 .eyes__row dd { margin: 0; font-size: var(--text-sm); color: var(--ink); }
 .eyes__glyph { margin-right: var(--s-1); }
 .eyes__note { margin: 0; max-width: 65ch; font-size: var(--text-xs); color: var(--ink-2); }
+
+/* Evidence rows keep the official warning beside its station at phone widths. */
+.ffa__stations { list-style: none; margin: 0; padding: 0; }
+.ffa__station-row { padding: 12px 0; border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
+.ffa__station-row p { margin: 0 0 4px; }
+.ffa__station-row p:last-child { margin-bottom: 0; }
+.ffa__foot summary { cursor: pointer; padding: 8px 0; }

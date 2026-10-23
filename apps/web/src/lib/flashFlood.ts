@@ -1,42 +1,10 @@
-/**
- * flashFlood.ts — NST-flavored Flash Flood Potential Index (FFPI).
- *
- * Mirrors the spirit of ONWR's public FFPI popup (สำนักงานทรัพยากรน้ำแห่งชาติ —
- * Office of National Water Resources) that surfaces top-at-risk sub-districts
- * based on a multi-factor score.
- *
- * Why we built our own rather than scraping the ONWR feed:
- *   1. ONWR's score is per-tambon across Thailand; we need an NST-only
- *      score we can wire into our own panels + map pins + chatbot.
- *   2. Per-station visibility — our existing rain telemetry + DWR EWS
- *      sensors carry every input ONWR uses (rain 1h, 24h, soil moisture,
- *      EWS official alert). No need to pull from upstream blindly.
- *   3. We can tune the bands to match our 5-level Status vocabulary
- *      (normal / watch / prepare / critical) instead of only matching
- *      TMD warning thresholds.
- *
- * Score (0–10), four bands:
- *   0–2   น้อย          normal  (--good)
- *   2–4   ปานกลาง       watch   (--warn)
- *   4–6   เตรียมพร้อม   prepare (--alert)
- *   6+    วิกฤติ         critical (--bad)
- *
- * Formula (each component capped to keep a single dimension from
- * dominating):
- *   rain24h band  : 0 / 0.5 / 1 / 2 / 3  (mm: 0 / 1-35 / 35-90 / 90-150 / 150+)
- *   rain1h rate   : 0 / 0.5 / 1.5 / 2.5  (mm/h: 0 / 1-15 / 15-35 / 35+)
- *   soil moisture : 0 / 1 / 2 / 3       (% : <50 / 50-70 / 70-85 / 85+)
- *   EWS official  : 0 / 1 / 2 / 3       (status: 0 / 1 / 2 / 3)
- *   ─── clamp ──> 0..10
- *
- * Each component's ceiling mirrors ONWR's documented "ไม่คิดค่าหนัก
- * เกินความจริง" — saturating instead of letting one spike dominate.
+/** Experimental station screening score. Not ONWR FFPI, a calibrated flood
+ * probability, or an evacuation instruction. DWR alerts always take precedence.
  */
-
 import type { EwsStation, RainfallStation, WaterGauge } from "@nst/shared";
 import type { StatusLevel } from "./status";
 
-export type FfpiBand = "normal" | "watch" | "prepare" | "critical";
+export type FfpiBand = "unknown" | "normal" | "watch" | "prepare" | "critical";
 
 export interface FfpiScore {
   score: number; // 0–10 (clamped)
@@ -51,6 +19,7 @@ export interface FfpiScore {
 }
 
 const STATUS_VAR: Record<FfpiBand, string> = {
+  unknown: "var(--muted)",
   normal: "var(--good)",
   watch: "var(--warn)",
   prepare: "var(--alert)",
@@ -58,6 +27,7 @@ const STATUS_VAR: Record<FfpiBand, string> = {
 };
 
 const BAND_LABEL_EN: Record<FfpiBand, string> = {
+  unknown: "Unknown",
   normal: "Normal",
   watch: "Watch",
   prepare: "Prepare",
@@ -65,6 +35,7 @@ const BAND_LABEL_EN: Record<FfpiBand, string> = {
 };
 
 const BAND_LABEL_TH: Record<FfpiBand, string> = {
+  unknown: "ไม่ทราบ",
   normal: "น้อย",
   watch: "ปานกลาง",
   prepare: "เตรียมพร้อม",
@@ -130,7 +101,10 @@ export function computeFfpi(input: {
     ews: ewsComponent(input.ewsStatus),
   };
   const score = clamp(c.rain24h + c.rain1h + c.soil + c.ews, 0, 10);
-  return { score, band: bandFromScore(score), components: c };
+  const observed = Object.values(input).some(v => v != null && Number.isFinite(v) && v >= 0);
+  const officialFloor = input.ewsStatus === 3 ? 6 : input.ewsStatus === 2 ? 4 : input.ewsStatus === 1 ? 2 : 0;
+  const effective = Math.max(score, officialFloor);
+  return { score: effective, band: observed ? bandFromScore(effective) : "unknown", components: c };
 }
 
 // ─── Station-level FFPI ────────────────────────────────────────────────────
@@ -152,8 +126,8 @@ export function rainStationToFfpi(s: RainfallStation): FfpiScore {
  *  on these, so we trust the official call. */
 export function ewsStationToFfpi(s: EwsStation): FfpiScore {
   return computeFfpi({
-    rain1hMm: s.rain ?? null,
-    rain24hMm: s.rain07h ?? null, // DWR's rain07h is "since 07:00 today" — closest 24h proxy
+    rain1hMm: null, // DWR accumulation duration is unverified.
+    rain24hMm: null, // Since 07:00 is not a rolling 24-hour accumulation.
     soilPct: s.soilMoisture ?? null,
     ewsStatus: s.status,
   });
@@ -171,7 +145,7 @@ export function mergedFfpi(opts: {
    *  to +1 to the composite when the channel is already at the bank. */
   channelFullnessPct?: number | null;
 }): FfpiScore {
-  const base = opts.ews ? ewsStationToFfpi(opts.ews) : opts.rain ? rainStationToFfpi(opts.rain) : computeFfpi({ rain1hMm: 0, rain24hMm: 0, soilPct: 0, ewsStatus: 0 });
+  const base = opts.ews ? ewsStationToFfpi(opts.ews) : opts.rain ? rainStationToFfpi(opts.rain) : computeFfpi({ rain1hMm: null, rain24hMm: null, soilPct: null, ewsStatus: null });
   // When both exist, take MAX of the two component-wise so we don't
   // double-count — EWS status is the worst-case saying.
   if (opts.ews && opts.rain) {
@@ -184,7 +158,7 @@ export function mergedFfpi(opts: {
       ews: Math.max(r.components.ews, e.components.ews),
     };
     const bonus = opts.channelFullnessPct != null && opts.channelFullnessPct >= 95 ? 1 : 0;
-    const score = clamp(merged.rain24h + merged.rain1h + merged.soil + merged.ews + bonus, 0, 10);
+    const score = Math.max(base.score, clamp(merged.rain24h + merged.rain1h + merged.soil + merged.ews + bonus, 0, 10));
     void base; // keep base live for the explicit take-max pattern above
     return { score, band: bandFromScore(score), components: merged };
   }
@@ -198,6 +172,7 @@ export function mergedFfpi(opts: {
 
 /** A station + tambon + scope. Used to build the table rows. */
 export interface FfpiRow {
+  observedAt: string;
   /** Stable id (rain id, ews id, or composite `${amphoe}/${tambon}`). */
   id: string;
   amphoe: string;
@@ -231,94 +206,27 @@ export function rankFfpi(opts: {
   limit?: number;
 }): FfpiRow[] {
   const limit = opts.limit ?? 50;
-  const rainByAmphoe = groupBy(opts.rain ?? [], (r) => normAmphoe(r.amphoe));
-  const ewsByAmphoe = groupBy(opts.ews ?? [], (e) => normAmphoe(e.amphoe));
-  const keys = new Set<string>([...rainByAmphoe.keys(), ...ewsByAmphoe.keys()]);
-  const rows: FfpiRow[] = [];
-  for (const key of keys) {
-    const amphoe = key;
-    const rains = rainByAmphoe.get(key) ?? [];
-    const ewses = ewsByAmphoe.get(key) ?? [];
-    // Pick the worst-case rain + ews in this amphoe (not just first).
-    const worstRain = rains.reduce<{ r: RainfallStation; score: number } | null>((acc, r) => {
-      const ffpi = rainStationToFfpi(r);
-      if (!acc || ffpi.score > acc.score) return { r, score: ffpi.score };
-      return acc;
-    }, null);
-    const worstEws = ewses.reduce<{ e: EwsStation; score: number } | null>((acc, e) => {
-      const ffpi = ewsStationToFfpi(e);
-      if (!acc || ffpi.score > acc.score) return { e, score: ffpi.score };
-      return acc;
-    }, null);
-    // Sub-district: prefer tambon from EWS (richer metadata), else use
-    // station id + amphoe.
-    const ewsPrimary = worstEws?.e ?? null;
-    const rainPrimary = worstRain?.r ?? null;
-    const tambon = ewsPrimary?.tambon ?? rainPrimary?.name ?? "—";
-    const rainList = rains.map((r) => r.rain24h ?? 0);
-    const peak24 = rainList.length > 0 ? Math.max(...rainList) : null;
-    const peak1h = rains.reduce<number | null>(
-      (acc, r) => (acc == null ? r.rain1h ?? null : Math.max(acc, r.rain1h ?? 0)),
-      null,
-    );
-    const gauges = opts.gaugesByAmphoe?.get(amphoe) ?? [];
-    const fullness = gauges.reduce<number | null>(
-      (acc, g) => {
-        const v = g.fullnessPct;
-        if (v == null) return acc;
-        return acc == null ? v : Math.max(acc, v);
-      },
-      null,
-    );
-    const ffpi = mergedFfpi({
-      rain: rainPrimary,
-      ews: ewsPrimary,
-      channelFullnessPct: fullness,
-    });
-    rows.push({
-      id: ewsPrimary?.id ?? rainPrimary?.id ?? `${amphoe}/${tambon}`,
-      amphoe,
-      tambon,
-      province: PROVINCE_TH,
-      rain1hMm: peak1h,
-      rain24hMm: peak24,
-      soilPct: ewsPrimary?.soilMoisture ?? null,
-      ewsStatus: ewsPrimary?.status ?? null,
-      ewsName: ewsPrimary?.name ?? null,
-      channelFullnessPct: fullness,
-      ffpi,
-      lat: ewsPrimary?.lat ?? rainPrimary?.lat ?? 0,
-      lng: ewsPrimary?.lng ?? rainPrimary?.lng ?? 0,
-    });
-  }
-  rows.sort((a, b) => {
-    if (b.ffpi.score !== a.ffpi.score) return b.ffpi.score - a.ffpi.score;
-    // Tiebreaker: EWS entry ranks higher than rain-only.
-    if ((b.ewsStatus ?? -1) !== (a.ewsStatus ?? -1)) return (b.ewsStatus ?? -1) - (a.ewsStatus ?? -1);
-    return a.amphoe.localeCompare(b.amphoe);
-  });
+  // One score per actual station. Administrative co-location does not prove
+  // rainfall, soil and a channel share a catchment or represent one tambon.
+  const rows: FfpiRow[] = [
+    ...(opts.ews ?? []).map(e => ({
+      observedAt: e.observedAt, id: `ews:${e.id}`, amphoe: e.amphoe, tambon: e.name,
+      province: PROVINCE_TH, rain1hMm: null, rain24hMm: null,
+      soilPct: e.soilMoisture, ewsStatus: e.status, ewsName: e.name,
+      channelFullnessPct: null, ffpi: ewsStationToFfpi(e), lat: e.lat, lng: e.lng,
+    })),
+    ...(opts.rain ?? []).map(r => ({
+      observedAt: r.observedAt, id: `rain:${r.id}`, amphoe: r.amphoe, tambon: r.name,
+      province: PROVINCE_TH, rain1hMm: r.rain1h, rain24hMm: r.rain24h,
+      soilPct: null, ewsStatus: null, ewsName: null,
+      channelFullnessPct: null, ffpi: rainStationToFfpi(r), lat: r.lat, lng: r.lng,
+    })),
+  ];
+  rows.sort((a, b) => (b.ewsStatus && b.ewsStatus > 0 ? b.ewsStatus : 0) - (a.ewsStatus && a.ewsStatus > 0 ? a.ewsStatus : 0) || b.ffpi.score - a.ffpi.score);
   return rows.slice(0, limit);
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
-
-function groupBy<T, K extends string>(arr: T[], key: (t: T) => K): Map<K, T[]> {
-  const m = new Map<K, T[]>();
-  for (const t of arr) {
-    const k = key(t);
-    let l = m.get(k);
-    if (!l) { l = []; m.set(k, l); }
-    l.push(t);
-  }
-  return m;
-}
-
-/** Normalize amphoe — sometimes EWS reports "เมือง", rain reports "Mueang";
- *  we lowercase + collapse whitespace so matching is deterministic. */
-function normAmphoe(s: string | null | undefined): string {
-  if (!s) return "";
-  return s.toLowerCase().replace(/\s+/g, " ").trim();
-}
 
 // ─── Re-exports for the UI layer ───────────────────────────────────────────
 
@@ -333,6 +241,7 @@ export type StationStatus = StatusLevel;
 /** Convert FFPI band to our app-wide StatusLevel vocabulary so it can
  *  be styled with the same tokens used elsewhere. */
 export function ffpiBandToStatusLevel(band: FfpiBand): StatusLevel {
+  if (band === "unknown") return "unknown";
   if (band === "critical") return "critical";
   if (band === "prepare") return "warning";
   if (band === "watch") return "watch";

@@ -4726,6 +4726,7 @@ import { FfpiRow, ffpiBandToStatusLevel } from "../lib/flashFlood";
 import type { FfpiBand } from "../lib/flashFlood";
 
 const FFPI_PIN_RGB: Record<FfpiBand, [number, number, number]> = {
+  unknown: [140, 140, 140],
   normal:  [76, 194, 122],
   watch:   [240, 180, 41],
   prepare: [255, 154, 61],

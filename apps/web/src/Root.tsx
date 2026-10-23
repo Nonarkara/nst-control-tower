@@ -24,14 +24,68 @@ function isDataRoute(): boolean {
   return /^\/data(\/|$)/.test(window.location.pathname);
 }
 
+/**
+ * What a route shows while its chunk is still arriving.
+ *
+ * This used to be a bare full-bleed rectangle in --paper (and, on /flood-ops,
+ * a lone <p> with no way out). Both were a region with no job: the reader was
+ * told nothing about where they were or what was happening, and a cold load can
+ * sit here for 20 s+ because /api/water/gauges is slow on its first request.
+ *
+ * Three jobs, no more: name the place, name what is arriving, and — where the
+ * URL is deep enough that the loaded route might not be what the reader wanted
+ * — offer the way back. No progress bar: we have no honest percentage, and an
+ * invented one would be a claim the code cannot support.
+ */
+function RouteFallback({
+  place,
+  what,
+  backHref,
+  backLabel,
+}: {
+  place: string;
+  what: string;
+  backHref?: string;
+  backLabel?: string;
+}) {
+  return (
+    <div className="route-fallback" role="status" aria-live="polite">
+      <p className="route-fallback__place">{place}</p>
+      <p className="route-fallback__what">{what}</p>
+      {backHref && backLabel ? (
+        <a className="route-fallback__back" href={backHref}>
+          {backLabel}
+        </a>
+      ) : null}
+    </div>
+  );
+}
+
 export function Root() {
   if (/^\/flood-ops(\/|$)/.test(window.location.pathname)) {
-    return <Suspense fallback={<p lang="th">กำลังโหลดศูนย์เฝ้าระวังน้ำท่วม…</p>}><FloodWatchPage /></Suspense>;
+    return (
+      <LocaleProvider>
+        <Suspense
+          fallback={
+            <RouteFallback
+              place="เทศบาลนครนครศรีธรรมราช · Flood watch"
+              what="Loading the flood watch centre…"
+              backHref="/"
+              backLabel="← Back to the map"
+            />
+          }
+        >
+          <FloodWatchPage />
+        </Suspense>
+      </LocaleProvider>
+    );
   }
   if (isDataRoute()) {
     return (
       <LocaleProvider>
-        <Suspense fallback={<div style={{ position: "fixed", inset: 0, background: "var(--paper)" }} />}>
+        <Suspense
+          fallback={<RouteFallback place="Nakhon Si Thammarat City Municipality · Open data" what="Loading the open-data workbench…" />}
+        >
           <DataWorkbenchPage />
         </Suspense>
       </LocaleProvider>
@@ -49,11 +103,20 @@ function Dashboard() {
   // Locale is app-wide (EN/TH/CN) so it wraps both systems — a language choice
   // made in the geo control-tower carries into the Watch Terminal too.
   const content = mode === "terminal" ? (
-    <Suspense fallback={<div style={{ position: "fixed", inset: 0, background: "var(--paper)" }} />}>
+    <Suspense
+      fallback={<RouteFallback place="Nakhon Si Thammarat City Municipality · Watch Terminal" what="Loading the watch terminal…" />}
+    >
       <TerminalDashboard onFlip={() => setMode("geo")} />
     </Suspense>
   ) : (
-    <Suspense fallback={<div style={{ position: "fixed", inset: 0, background: "var(--paper)" }} />}>
+    <Suspense
+      fallback={
+        <RouteFallback
+          place="Nakhon Si Thammarat City Municipality · Control Tower"
+          what="Loading the map and its layers…"
+        />
+      }
+    >
       <App onFlip={() => setMode("terminal")} />
     </Suspense>
   );

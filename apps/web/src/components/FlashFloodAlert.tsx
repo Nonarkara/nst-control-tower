@@ -1,16 +1,5 @@
-/**
- * FlashFloodAlert — ONWR-style popup panel.
- *
- * Mirrors the structure of the Office of National Water Resources (ONWR)
- * public alert popup:
- *   - Title bar with overall band chip + close
- *   - Top-N rows sorted by FFPI desc, same column shape as the agency
- *     page (จังหวัด / อำเภอ / ตำบล · FFPI · ฝน 1 วัน · สถานีติดตาม)
- *   - Footer with the FFPI formula verbatim (so a reader sees how the
- *     number was built, not just the number)
- *
- * Renders as: a modal that auto-opens when any row crosses the
- * `prepare` threshold (≥ 4), and as a click-to-open panel otherwise.
+/** Station evidence popup. Official DWR severity precedes the experimental
+ * screening score; no rain window, catchment relationship or order is inferred.
  */
 
 import { useEffect, useMemo, useState } from "react";
@@ -23,7 +12,7 @@ import {
   type FfpiBand,
   type FfpiRow,
 } from "../lib/flashFlood";
-import { statusRgba, type StatusLevel } from "../lib/status";
+import { statusRgba } from "../lib/status";
 import { Dialog } from "./Dialog";
 
 // Helper that turns a 4-tuple into CSS rgba string. `statusRgba` returns
@@ -33,7 +22,6 @@ function rgbaString(c: [number, number, number, number]): string {
   return `rgba(${c[0]},${c[1]},${c[2]},${(c[3] / 255).toFixed(3)})`;
 }
 
-void rgbaString;
 
 interface Props {
   /** Rain telemetry (130 stations in NST). */
@@ -89,29 +77,25 @@ export function FlashFloodAlert({
     return rankFfpi({ rain, ews, gaugesByAmphoe: gaugeBuckets, limit });
   }, [rain, ews, gauges, limit]);
 
-  // Modal auto-open latch: if any row is in `prepare` or `critical`, the
-  // modal opens automatically. User can close; we don't auto-reopen in
-  // the same session.
+  // Acknowledgements apply to a station/severity set. New or escalated
+  // warnings can reopen; remounting the same lens does not repeat them.
   const [autoShown, setAutoShown] = useState(false);
   const [userOpened, setUserOpened] = useState(false);
-  const topBand = rows[0]?.ffpi.band ?? "normal";
-  const shouldAuto = autoOpenOnAlert && (topBand === "prepare" || topBand === "critical");
+  const topBand = rows[0]?.ffpi.band ?? "unknown";
+  const shouldAuto = autoOpenOnAlert && rows.some(r => r.ffpi.band === "prepare" || r.ffpi.band === "critical");
+  const alertKey = rows.filter(r => r.ffpi.band === "prepare" || r.ffpi.band === "critical").map(r => `${r.id}:${r.ffpi.band}`).sort().join("|");
 
-  // Once per browser session, not once per lens switch. Every FLOOD / ENV /
-  // INT entry used to re-mount this component and re-fire the auto-open,
-  // so during an active alert the operator got a modal in the face — and a
-  // click-blocking overlay — every time they changed lens. The trigger
-  // button stays for "show me the worst right now".
+  // Persist the acknowledged station/severity set across lens remounts.
   useEffect(() => {
     if (!shouldAuto) return;
     try {
-      if (sessionStorage.getItem(AUTO_OPEN_LATCH_KEY) === "1") return;
-      sessionStorage.setItem(AUTO_OPEN_LATCH_KEY, "1");
+      if (sessionStorage.getItem(AUTO_OPEN_LATCH_KEY) === alertKey) return;
+      sessionStorage.setItem(AUTO_OPEN_LATCH_KEY, alertKey);
     } catch {
       /* storage blocked — fall through and behave as before (auto-open) */
     }
     setAutoShown(true);
-  }, [shouldAuto]);
+  }, [shouldAuto, alertKey]);
 
   if (rows.length === 0) return null;
 
@@ -128,30 +112,7 @@ export function FlashFloodAlert({
   const criticalCount = rows.filter((r) => r.ffpi.band === "critical").length;
   const headerBand: FfpiBand = criticalCount > 0 ? "critical" : prepareCount > 0 ? "prepare" : topBand;
 
-  const header = (
-    <header className="ffa__hdr">
-      <div>
-        <p className="ffa__eyebrow">แจ้งเตือนสถานการณ์ · LIVE FLASH-FLOOD ALERT</p>
-        <h2 className="ffa__title">
-          <span lang="th">คาดการณ์น้ำท่วมฉับพลัน</span>
-          <span aria-hidden="true"> · </span>
-          <span>FFPI · ดัชนีความเสี่ยงน้ำท่วมฉับพลัน</span>
-        </h2>
-        <p className="ffa__sub">
-          Top {rows.length} sub-districts · sorted by FFPI desc · นครศรีธรรมราช
-        </p>
-      </div>
-      <span
-        className="ffa__chip"
-        style={{
-          color: bandColor(headerBand),
-          borderColor: bandColor(headerBand),
-        }}
-      >
-        {fmtBand(headerBand).en} · {fmtBand(headerBand).th}
-      </span>
-    </header>
-  );
+  const header = <div className="ffa__hdr"><p className="ffa__sub">{rows.length} stations · official DWR alerts first · นครศรีธรรมราช</p><span className="ffa__chip" style={{color:bandColor(headerBand),borderColor:bandColor(headerBand)}}>{fmtBand(headerBand).en} · {fmtBand(headerBand).th}</span></div>;
 
   return (
     <>
@@ -173,87 +134,25 @@ export function FlashFloodAlert({
       <Dialog
         open={open}
         onClose={() => setOpen(false)}
-        title="FLASH FLOOD ALERT · น้ำท่วมฉับพลัน"
+        title="FLOOD STATION EVIDENCE · ข้อมูลสถานี"
         size="lg"
         className="ffa__dlg"
       >
         {header}
-        <table className="ffa__tbl">
-          <thead>
-            <tr>
-              <th>จังหวัด</th>
-              <th>อำเภอ</th>
-              <th>ตำบล</th>
-              <th className="ffa__num">FFPI</th>
-              <th className="ffa__num">ฝน 1 วัน (mm)</th>
-              <th className="ffa__num">ฝน 1 ชม. (mm/h)</th>
-              <th className="ffa__num">EWS</th>
-              <th>สถานีติดตาม</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r) => (
-              <tr key={r.id} data-band={r.ffpi.band}>
-                <td><span lang="th">{r.province}</span></td>
-                <td><span lang="th">{r.amphoe}</span></td>
-                <td><span lang="th">{r.tambon}</span></td>
-                <td className="ffa__num">
-                  <span
-                    className="ffa__pill"
-                    style={{
-                      color: bandColor(r.ffpi.band),
-                      borderColor: bandColor(r.ffpi.band),
-                    }}
-                    title={`Score ${r.ffpi.score.toFixed(2)} / 10`}
-                  >
-                    {r.ffpi.score.toFixed(1)}
-                  </span>
-                </td>
-                <td className="ffa__num num">{fmt(r.rain24hMm, 1)}</td>
-                <td className="ffa__num num">{fmt(r.rain1hMm, 1)}</td>
-                <td className="ffa__num">
-                  {r.ewsStatus != null && (
-                    <span
-                      className="ffa__ews"
-                      style={{
-                        background: bandColor(ewsStatusToBand(r.ewsStatus)),
-                      }}
-                      title={`DWR EWS status ${r.ewsStatus}`}
-                    >
-                      {r.ewsStatus}
-                    </span>
-                  )}
-                </td>
-                <td className="ffa__station">
-                  {r.ewsName ? (
-                    <span lang="th">{r.ewsName}</span>
-                  ) : (
-                    <span className="ffa__station--no">—</span>
-                  )}
-                  {r.channelFullnessPct != null && r.channelFullnessPct >= 95 && (
-                    <span className="ffa__full" title={`Channel at ${r.channelFullnessPct.toFixed(0)}% bank`}>
-                      +BANK
-                    </span>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        {(criticalCount > 0 || prepareCount > 0) && <p>แจ้งเจ้าหน้าที่เวรทันที ยืนยันสถานีและสภาพพื้นที่ · Contact the duty officer now; verify the named station and local conditions through the <a href="https://ews.dwr.go.th/" target="_blank" rel="noreferrer">official DWR channel</a> and field team.</p>}
+        <ul className="ffa__stations">
+          {rows.map(r => <li className="ffa__station-row" key={r.id}>
+            <p><strong>{r.tambon}</strong> · {r.amphoe}</p>
+            <p>{r.ewsStatus != null ? <strong style={{color:bandColor(ewsStatusToBand(r.ewsStatus))}}>DWR {r.ewsStatus} · {fmtBand(ewsStatusToBand(r.ewsStatus)).en} · {fmtBand(ewsStatusToBand(r.ewsStatus)).th}</strong> : "DWR status unavailable · ไม่มีสถานะ DWR"}</p>
+            <p>Rain ฝน: 24 h {fmt(r.rain24hMm)} mm · 1 h {fmt(r.rain1hMm)} mm · Soil ดิน {fmt(r.soilPct)}%</p>
+            <p className="ffa__meta">Observed วัดเมื่อ <time dateTime={r.observedAt}>{new Date(r.observedAt).toLocaleString("en-GB", {timeZone:"Asia/Bangkok", hour12:false})} ICT</time></p>
+            <a className="btn" href={`https://www.google.com/maps?q=${r.lat},${r.lng}`} target="_blank" rel="noreferrer">Station map · แผนที่สถานี</a>
+            <p className="ffa__meta">Experimental score: {r.ffpi.band === "unknown" ? "Unknown" : `${r.ffpi.score.toFixed(1)}/10`} · — = unknown, never zero</p>
+          </li>)}
+        </ul>
         <footer className="ffa__foot">
-          <p>
-            <span className="ffa__formula-title">FFPI ·</span>
-            <code className="ffa__formula">
-              rain24h(0..35..90..150) + rain1h(0..15..35) + soil(50..70..85%) + ews(0..3) → clamp 0..10
-            </code>
-          </p>
-          <p className="ffa__legend">
-            Bands: <b>0–2</b> น้อย · <b>2–4</b> ปานกลาง · <b>4–6</b> เตรียมพร้อม · <b>6+</b> วิกฤติ ·
-            "+BANK" = channel fullness ≥ 95% (bonus +1).
-          </p>
-          <p className="ffa__meta num">
-            Source: HII ThaiWater (rain) · DWR EWS (soil/status) · RID (gauges)
-          </p>
+          <p>Experimental screening, not ONWR FFPI or an official order. Missing inputs limit interpretation. DWR severity is never downgraded. Stations are not merged across an amphoe.</p>
+          <details><summary>Scoring method · วิธีคำนวณ</summary><p>Rain 24 h bands: 1/35/90/150 mm → 0.5/1/2/3 points; rain 1 h: 1/15/35 mm → 0.5/1.5/2.5 points; soil 50/70/85% → 1/2/3 points. DWR status contributes 0–3. Total capped at 10; DWR 1/2/3 enforces a floor of 2/4/6. Bands: 0–&lt;2 normal, 2–&lt;4 watch, 4–&lt;6 prepare, ≥6 critical. This is an uncalibrated screening heuristic, not a probability.</p><p>DWR rain since 07:00 and rain of unverified duration are excluded from hourly/24 h scoring. Source: HII ThaiWater (rain), DWR EWS (soil/status).</p></details>
         </footer>
       </Dialog>,
       document.body,
@@ -273,4 +172,3 @@ function ewsStatusToBand(status: number): FfpiBand {
 // (The classNames above are styled in panels-city.css under the
 // `.ffa__*` prefix — kept here for documentation. Tokens come from the
 //  CSS variables defined in system.css, never hardcoded RGB.)
-void ("" as unknown as StatusLevel);

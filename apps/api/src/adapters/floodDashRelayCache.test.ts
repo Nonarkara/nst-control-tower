@@ -56,3 +56,15 @@ describe("FloodDash relay — shared edge cache + patient timeout", () => {
     warn.mockRestore();
   });
 });
+
+it("a hung cache read cannot indefinitely block live relay fallback", async () => {
+  vi.useFakeTimers();
+  vi.stubGlobal("caches", {default:{match: () => new Promise(() => {}), put: async () => {}}});
+  vi.stubGlobal("fetch", vi.fn(async () => Response.json(payload)));
+  try {
+    const work = fetchRelay();
+    await vi.advanceTimersByTimeAsync(1_001);
+    expect(await work).toEqual(payload);
+    expect(fetch).toHaveBeenCalledTimes(1);
+  } finally { vi.useRealTimers(); vi.unstubAllGlobals(); }
+});

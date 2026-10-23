@@ -95,8 +95,11 @@ class UpstreamHttpError extends Error {}
 // relying on it. It must actually reject so a rejected compute() triggers that fallback.
 export async function fetchJsonOrThrow<T>(url: string, init?: RequestInit, timeoutMs = DEFAULT_TIMEOUT_MS): Promise<T> {
   let attempt = 0;
+  const deadline = Date.now() + timeoutMs;
   while (attempt < 3) {
     try {
+      const remaining = deadline - Date.now();
+      if (remaining <= 0) throw new Error(`Upstream timed out after ${timeoutMs}ms`);
       const result = await fetchWithTimeout<{ ok: true; data: T } | { ok: false }>(url, {
         ...init,
         headers: mergeHeaders(getDefaultHeaders(), init),
@@ -104,11 +107,13 @@ export async function fetchJsonOrThrow<T>(url: string, init?: RequestInit, timeo
         if (res.ok) return { ok: true, data: await res.json() as T };
         if (res.status === 429) return { ok: false };
         throw new UpstreamHttpError(`fetchJsonOrThrow non-OK ${res.status} ${redactUrl(url)}`);
-      }, timeoutMs);
+      }, remaining);
       if (result.ok) return result.data;
       if (!result.ok) {
         attempt++;
-        await new Promise(r => setTimeout(r, 1000 * Math.pow(2, attempt)));
+        const delay = 1000 * Math.pow(2, attempt);
+        if (attempt >= 3 || Date.now() + delay >= deadline) break;
+        await new Promise(r => setTimeout(r, delay));
         continue;
       }
     } catch (err) {

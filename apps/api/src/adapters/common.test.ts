@@ -221,3 +221,16 @@ it("supports a shorter source-specific failover deadline", async () => {
     await check;
   } finally { vi.useRealTimers(); vi.unstubAllGlobals(); }
 });
+
+it("rate-limit backoff shares the source deadline instead of multiplying it", async () => {
+  vi.restoreAllMocks();
+  vi.useFakeTimers();
+  vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("limited", {status:429}));
+  try {
+    const work = fetchJsonOrThrow("https://upstream.example/limited", undefined, 3_000);
+    const check = expect(work).rejects.toThrow(/rate-limited/);
+    await vi.advanceTimersByTimeAsync(3_001); await check;
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(vi.getTimerCount()).toBe(0);
+  } finally { vi.useRealTimers(); vi.restoreAllMocks(); }
+});

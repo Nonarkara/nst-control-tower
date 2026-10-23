@@ -47,13 +47,13 @@ export function SituationHeadline({ gauges, basins, cameras, ageMinutes, tier, o
           <span className="situation-headline__label">{th ? "ช่วยคนก่อน" : "People first"}</span>
           {th
             ? <>
-                {evac.moveNow > 0 ? `ต้องอพยพทันที ${evac.moveNow} หมู่บ้าน — มีผู้ป่วยติดเตียงหรือผู้ที่ช่วยตัวเองไม่ได้ราว ${evac.needHelpMoveNow.toLocaleString()} คนที่ต้องมีคนช่วยย้าย ` : ""}
+                {evac.moveNow > 0 ? `ต้องตรวจสอบเร่งด่วน ${evac.moveNow} หมู่บ้าน — มีผู้ป่วยติดเตียงหรือผู้ที่ช่วยตัวเองไม่ได้ราว ${evac.needHelpMoveNow.toLocaleString()} คนที่ต้องมีคนช่วยย้าย ` : ""}
                 {evac.getReady > 0 ? `เตรียมพร้อม ${evac.getReady} หมู่บ้าน ` : ""}
                 ดูรายละเอียดที่ “ช่วยคนก่อน” ด้านล่าง
               </>
             : <>
                 {evac.moveNow > 0
-                  ? `${evac.moveNow} village${evac.moveNow === 1 ? "" : "s"} to move now — about ${evac.needHelpMoveNow.toLocaleString()} bedridden or homebound residents need help to leave. `
+                  ? `${evac.moveNow} village${evac.moveNow === 1 ? "" : "s"} for urgent local assessment — about ${evac.needHelpMoveNow.toLocaleString()} bedridden or homebound residents need help to leave. `
                   : ""}
                 {evac.getReady > 0 ? `${evac.getReady} village${evac.getReady === 1 ? "" : "s"} to get ready. ` : ""}
                 See "People First" below.
