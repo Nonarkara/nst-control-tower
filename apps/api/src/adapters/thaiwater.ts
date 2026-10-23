@@ -14,7 +14,7 @@ import { cacheAgeMinutes, cachedWithStale as cached } from "../lib/cache.js";
 import { ageOperationalFeed } from "../lib/operationalFeed.js";
 import { recordGaugeSample } from "../lib/gaugeHistory.js";
 import { fetchJsonOrThrow } from "./common.js";
-import { RELAY_SOURCE_NOTE, SILENT_AFTER_H, bangkokIso, fetchRelay, relaySnapshotMeta, mapRelayRain, mapRelayWater } from "./floodDashRelay.js";
+import { RELAY_SOURCE_NOTE, SILENT_AFTER_H, bangkokIso, fetchRelay, fetchRelayDirect, relaySnapshotMeta, mapRelayRain, mapRelayWater } from "./floodDashRelay.js";
 
 const BASE = "https://api-v3.thaiwater.net/api/v1/thaiwater30/public";
 const PROVINCE = "80"; // Nakhon Si Thammarat
@@ -178,14 +178,14 @@ export function __resetDirectBreaker(): void { directDownUntil = 0; }
 
 // ---- fetchWaterGauges ----
 
-const computeWaterGauges = async (): Promise<NormalizedFeed<WaterGauge>> => {
+const computeWaterGauges = async (direct = false): Promise<NormalizedFeed<WaterGauge>> => {
     const fetchedAt = new Date().toISOString();
 
     // fetchJsonOrThrow throws on non-OK / network / DNS failure. On a cold start
     // (no stale cache), cachedWithStale re-throws, so catch here to return a calm
     // unavailable feed instead of a 500 through safeFeed.
     let resp: TWResponse<TWWaterLevelEntry[]> | null = null;
-    if (!directThaiWaterAllowed()) return gaugesViaRelay();
+    if (!directThaiWaterAllowed()) return gaugesViaRelay(direct);
     try {
       resp = await fetchJsonOrThrow<TWResponse<TWWaterLevelEntry[]>>(
         `${BASE}/waterlevel?province_code=${PROVINCE}`, undefined, DIRECT_TIMEOUT_MS
@@ -193,7 +193,7 @@ const computeWaterGauges = async (): Promise<NormalizedFeed<WaterGauge>> => {
       directThaiWaterWorked();
     } catch {
       directThaiWaterFailed();
-      return gaugesViaRelay();
+      return gaugesViaRelay(direct);
     }
     const raw: TWWaterLevelEntry[] = resp?.data ?? [];
 
@@ -293,16 +293,35 @@ export async function fetchWaterGauges(): Promise<NormalizedFeed<WaterGauge>> {
   }
 }
 
+/**
+ * An active probe: ask the origin now, with the adapter's own cache not in
+ * front of it.
+ *
+ * The readiness endpoint exists to answer "is the origin answering?", so it
+ * must measure the origin. Read through the cache it measured the cache's
+ * patience instead: `cachedWithStale` serves an expired snapshot and
+ * refreshes in the background, so the endpoint's verdict depended on whether
+ * that refresh had landed — four probes six seconds apart returned
+ * 503, 503, 503, 200 against identical data, with the reported snapshot age
+ * swinging between 104 and 4 minutes.
+ *
+ * This path deliberately does NOT catch: a probe that cannot reach the
+ * origin is a failed probe, and the caller says so.
+ */
+export async function probeWaterGauges(): Promise<NormalizedFeed<WaterGauge>> {
+  return trueAge(await computeWaterGauges(true));
+}
+
 // ---- fetchRainfall ----
 
-const computeRainfall = async (): Promise<NormalizedFeed<RainfallStation>> => {
+const computeRainfall = async (direct = false): Promise<NormalizedFeed<RainfallStation>> => {
     const fetchedAt = new Date().toISOString();
 
     // fetchJsonOrThrow throws on non-OK / network / DNS failure. On a cold start
     // (no stale cache), cachedWithStale re-throws, so catch here to return a calm
     // unavailable feed instead of a 500 through safeFeed.
     let resp: TWResponse<TWRainEntry[]> | null = null;
-    if (!directThaiWaterAllowed()) return rainViaRelay();
+    if (!directThaiWaterAllowed()) return rainViaRelay(direct);
     try {
       resp = await fetchJsonOrThrow<TWResponse<TWRainEntry[]>>(
         `${BASE}/rain_24h?province_code=${PROVINCE}`, undefined, DIRECT_TIMEOUT_MS
@@ -310,7 +329,7 @@ const computeRainfall = async (): Promise<NormalizedFeed<RainfallStation>> => {
       directThaiWaterWorked();
     } catch {
       directThaiWaterFailed();
-      return rainViaRelay();
+      return rainViaRelay(direct);
     }
     const raw: TWRainEntry[] = resp?.data ?? [];
 
@@ -362,6 +381,11 @@ export async function fetchRainfall(): Promise<NormalizedFeed<RainfallStation>> 
   }
 }
 
+/** An active probe for the rain feed — see {@link probeWaterGauges}. */
+export async function probeRainfall(): Promise<NormalizedFeed<RainfallStation>> {
+  return trueAge(await computeRainfall(true));
+}
+
 // ---- sensor honesty + FloodDash relay ----
 
 /** Drop readings older than SILENT_AFTER_H. A gauge that stopped reporting
@@ -393,9 +417,9 @@ function relayDown<T>(kind: string, source: string): NormalizedFeed<T> {
   };
 }
 
-async function gaugesViaRelay(): Promise<NormalizedFeed<WaterGauge>> {
+async function gaugesViaRelay(direct = false): Promise<NormalizedFeed<WaterGauge>> {
   try {
-    const relay = await fetchRelay();
+    const relay = direct ? await fetchRelayDirect() : await fetchRelay();
     const { gauges, silent } = mapRelayWater(relay.water);
     if (!gauges.length) throw new Error("No reporting river stations in relay snapshot");
     for (const g of gauges) recordGaugeSample(g.stationCode ?? g.id, g.observedAt, g.levelMsl);
@@ -415,9 +439,9 @@ async function gaugesViaRelay(): Promise<NormalizedFeed<WaterGauge>> {
   }
 }
 
-async function rainViaRelay(): Promise<NormalizedFeed<RainfallStation>> {
+async function rainViaRelay(direct = false): Promise<NormalizedFeed<RainfallStation>> {
   try {
-    const relay = await fetchRelay();
+    const relay = direct ? await fetchRelayDirect() : await fetchRelay();
     const { stations, silent } = mapRelayRain(relay.rain);
     if (!stations.length) throw new Error("No reporting rain stations in relay snapshot");
     stations.sort((a, b) => (b.rain24h ?? 0) - (a.rain24h ?? 0));

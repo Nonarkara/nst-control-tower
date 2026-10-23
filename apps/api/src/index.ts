@@ -38,13 +38,13 @@ import { validateCvEvent, recordCvEvent, listCvEvents, cvEventStats, CvValidatio
 import { isValidLatLng } from "./lib/bbox.js";
 import { fetchFloodGauges, fetchDamStatus } from "./adapters/flood.js";
 import { fetchSouthernFloodRisk, fetchSouthernRiverCascade } from "./adapters/flooddash.js";
-import { fetchWaterGauges, fetchRainfall } from "./adapters/thaiwater.js";
+import { fetchWaterGauges, fetchRainfall, probeWaterGauges, probeRainfall } from "./adapters/thaiwater.js";
 import { fetchWaterBalance } from "./adapters/waterBalance.js";
 import { fetchNationalWaterways } from "./adapters/waterways.js";
 import { fetchHistoricalRainfall } from "./adapters/historicalRain.js";
 import { fetchNationalFloodProne } from "./adapters/floodProne.js";
 import { fetchUnosit2021Exposure } from "./adapters/unosatExposure.js";
-import { fetchEwsStations } from "./adapters/dwrEws.js";
+import { fetchEwsStations, probeEwsStations } from "./adapters/dwrEws.js";
 import { fetchRidReservoirs } from "./adapters/rid.js";
 import { fetchFlights } from "./adapters/flights.js";
 import { fetchDatagoPoints, fetchDatagoDatasets, fetchReservoirs, fetchDisasterStats, fetchFahfon, fetchProvincialKPIs } from "./adapters/datago.js";
@@ -216,14 +216,29 @@ app.get("/api/health", (c) =>
 );
 
 // Active probes: unlike the per-isolate adapter log, this checks actual data.
+//
+// "Actual data" means the origin. The probe deliberately bypasses the
+// adapters' stale-serving caches: `cachedWithStale` serves an expired
+// snapshot and refreshes in the background, so a probe that read through the
+// cache measured the cache's patience rather than the origin — its verdict
+// depended on whether a background refresh had landed. Four probes six
+// seconds apart returned 503, 503, 503, 200 against identical data, with the
+// reported snapshot age swinging between 104 and 4 minutes. A sign-off
+// endpoint that flips on a timer cannot be signed off against.
 app.get("/api/health/flood-readiness", async (c) => {
   c.header("Cache-Control", "no-store");
   const probes = await Promise.allSettled([
-    withinOperationsDeadline(fetchWaterGauges().then(f => assessFloodFeed(f, g => Number.isFinite(g.levelMsl) || Number.isFinite(g.situationLevel))), 22_000),
-    withinOperationsDeadline(fetchRainfall().then(f => assessFloodFeed(f, r => Number.isFinite(r.rain24h) || Number.isFinite(r.rain1h))), 22_000),
-    withinOperationsDeadline(fetchEwsStations().then(f => assessFloodFeed(f, e => !e.stale && Number.isInteger(e.status) && e.status >= 0 && e.status <= 3)), 22_000),
+    withinOperationsDeadline(probeWaterGauges().then(f => assessFloodFeed(f, g => Number.isFinite(g.levelMsl) || Number.isFinite(g.situationLevel))), 22_000),
+    withinOperationsDeadline(probeRainfall().then(f => assessFloodFeed(f, r => Number.isFinite(r.rain24h) || Number.isFinite(r.rain1h))), 22_000),
+    withinOperationsDeadline(probeEwsStations().then(f => assessFloodFeed(f, e => !e.stale && Number.isInteger(e.status) && e.status >= 0 && e.status <= 3)), 22_000),
   ]);
-  const feeds = Object.fromEntries(probes.map((probe, i) => [["water", "rain", "ews"][i], probe.status === "fulfilled" ? probe.value : { available: false, error: "Feed probe failed or exceeded deadline" }]));
+  const feeds = Object.fromEntries(probes.map((probe, i) => {
+    const name = ["water", "rain", "ews"][i];
+    if (probe.status === "fulfilled") return [name, probe.value];
+    // Say why. "Feed probe failed" with no reason is not an answer an
+    // operator can act on at 3 a.m.
+    return [name, { available: false, error: probe.reason instanceof Error ? probe.reason.message : String(probe.reason) }];
+  }));
   const available = probes.every(probe => probe.status === "fulfilled" && probe.value.available);
   return c.json({ available, scope: "feed availability only; incomplete station coverage is not an all-clear or operational certification", observationMaxMinutes: 120, feeds, at: new Date().toISOString(), version: c.env.GIT_SHA ?? "local" }, available ? 200 : 503);
 });

@@ -1,6 +1,6 @@
 import { withCacheLifetime } from "../lib/cache";
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { fetchRelay, relaySnapshotMeta, RELAY_URL, RELAY_TIMEOUT_MS } from "./floodDashRelay";
+import { fetchRelay, fetchRelayDirect, relaySnapshotMeta, RELAY_URL, RELAY_TIMEOUT_MS } from "./floodDashRelay";
 
 const payload = { generated_at: "2026-10-21T00:00:00Z", water: [{key:"test",wl_msl:1,name_th:"test",lat:8.4,lng:99.9,obs_time:new Date().toISOString(),age_min:0}], rain: [{key:"rain",name_th:"rain",lat:8.4,lng:99.9,obs_time:new Date().toISOString(),age_min:0,rain_1h:1}] };
 
@@ -63,7 +63,23 @@ describe("FloodDash relay — shared edge cache + patient timeout", () => {
     warn.mockRestore();
   });
 
-  it("a timed-out cold-cache read still leaves a repair attempt running", async () => {
+  it("a direct fetch bypasses the edge cache and asks the origin", async () => {
+    // The edge cache answers with the last-good snapshot, carrying the clock
+    // of the fetch that populated it — up to two hours old. A probe has to
+    // measure the origin, not that clock.
+    const c = fakeCaches();
+    const storedAt = new Date(Date.now() - 90 * 60_000).toISOString();
+    c.store.set(RELAY_URL, Response.json({ ...payload, relayFetchedAt: storedAt }));
+    vi.stubGlobal("caches", c);
+    const f = vi.fn(async () => Response.json(payload));
+    vi.stubGlobal("fetch", f);
+    const direct = await fetchRelayDirect();
+    expect(f).toHaveBeenCalledTimes(1);
+    // The fresh answer, not the 90-minute-old cached one.
+    expect(Date.parse(direct.relayFetchedAt ?? direct.generated_at)).toBeGreaterThan(Date.now() - 60_000);
+  });
+
+  it("a failed cold-cache read still leaves a repair attempt running", async () => {
     // The shared cache is written only after a successful fetch, so a cold
     // read that times out leaves it empty and the next request repeats the
     // same timeout. One more attempt must survive the failed read.

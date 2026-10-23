@@ -146,7 +146,100 @@ origin."*
 
 ---
 
-## 4. What is still RED, and who owns it
+## 4. The sign-off endpoint was measuring the cache, not the origin
+
+The RED verdict is the thing an operator reads to decide whether the flood
+picture can be trusted unattended. So the endpoint that produces it has to
+mean something stable. It did not.
+
+Four probes, six seconds apart, against identical data:
+
+| probe | HTTP | water | rain | ews |
+|---|---|---|---|---|
+| 1 | 503 | **available**, age 0.0 min | available, 0.0 | unavailable, 0.0 |
+| 2 | 503 | unavailable, age **104.2 min** | unavailable, 104.2 | unavailable, 105.0 |
+| 3 | 503 | unavailable, age **9.6 min** | unavailable, 9.6 | unavailable, 9.8 |
+| 4 | **200** | **available**, age 4.3 min | available, 4.3 | available, 4.4 |
+
+Eighteen seconds, four different verdicts, the same stations. The reported
+snapshot age swung between 104 minutes and 4.
+
+### Why
+
+The endpoint's own comment says *"Active probes: unlike the per-isolate
+adapter log, this checks actual data."* It did not. It called
+`fetchWaterGauges()`, which reads the adapter's cache — and
+`cachedWithStale` **serves an expired entry immediately and refreshes in the
+background**. So the probe assessed whatever snapshot the cache happened to
+be holding, with that snapshot's own clock, and its verdict depended on
+whether the background refresh had landed. The availability rule then
+compared that clock against a **5-minute** threshold:
+
+```ts
+age >= -5 && age <= 5 && feed.meta.ageMinutes <= 5
+```
+
+A cache entry older than five minutes reads as an outage — even though the
+relay's shared snapshot is deliberately kept for **two hours** and the
+dashboard deliberately serves a stale snapshot for **sixty minutes**. The
+rule was stricter than the product it was certifying, and it was measuring
+the wrong thing: not whether the gauges are current (the observation age,
+already checked, 120 minutes) but whether a cache was recently written.
+
+The same read path sits behind the relay's **edge cache**, which answers
+with the last-good snapshot for up to two hours. So even bypassing the
+adapter's cache would not have been enough — the edge cache answers a probe
+with a snapshot that carries the clock of the fetch that populated it.
+
+### Changed
+
+- **The probe contacts the origin.** `probeWaterGauges`,
+  `probeRainfall` and `probeEwsStations` skip the adapters'
+  stale-serving cache, and `fetchRelayDirect` skips the relay's edge cache.
+  A probe that cannot reach the origin is a **failed probe**, and the
+  endpoint says so with the reason — not a softened "unavailable" feed.
+- **The verdict is now about the origin.** The 5-minute snapshot rule is
+  left alone deliberately: with the cache out of the way, it now measures
+  what it was meant to measure — whether the origin answered — and the
+  observation-currency rule (120 minutes) continues to judge the data.
+- **A failed probe says why.** `"Feed probe failed or exceeded deadline"`
+  becomes the actual message — a relay timeout reads as a relay timeout.
+
+### Verified
+
+| | before | after |
+|---|---|---|
+| Four probes, 6 s apart | 503, 503, 503, **200**; age swung 104 → 4 min | one verdict per origin state |
+| What the probe reads | the cache, with the cache's clock | **the origin** |
+| A failed probe | "Feed probe failed or exceeded deadline" | **the actual reason** |
+| Tests | 748 API | **755 API** (seven new) |
+
+---
+
+## 5. One line of text against the bezel
+
+Sweeping the live site at 1440 px, one element in the left rail sat at
+**x = 0** while all 300 of its siblings sat at x = 16: the data-currency
+note — *"Current analysis uses station observations ≤ 2 h old. 0
+older/undated water records excluded; missing stations are not safe
+stations."* Its first character touched the screen edge.
+
+The rail carries no padding of its own; every block inside it brings its own
+16 px gutter. This one was a bare `<p>` directly under the rail and brought
+none. It is the sentence that says how fresh the data is and that missing
+stations are not safe — the wrong line to lose a letter to.
+
+Measured with a `Range` over the text node, not the box: **live x = 0 → fixed
+x = 16**, matching every sibling, at 1440 px and 390 px.
+
+*(This was read off a screenshot first and mis-diagnosed as text being cut
+off. It was not cut — the element carried the right text and the right
+width. It was flush. Measuring the glyph box instead of the element box is
+what separated the two.)*
+
+---
+
+## 6. What is still RED, and who owns it
 
 **RED — DWR EWS.** `ews.dwr.go.th` serves `200 []`. The Worker holds its
 last-good 86-station snapshot, reports it as stale, and refuses to
@@ -176,7 +269,7 @@ share this host's failure mode.
 
 ---
 
-## 5. A note on the measurement host
+## 7. A note on the measurement host
 
 The sweep harness drives real Chrome and leaves no orphans — it closes the
 context and the browser at the end of the run. But this host is shared, and

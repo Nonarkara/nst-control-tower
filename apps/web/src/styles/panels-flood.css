@@ -19,6 +19,15 @@
   line-height: 1.3;
 }
 .flood-meta { margin: 0; font-size: var(--text-xs); color: var(--ink-3); line-height: 1.45; }
+/* The left rail carries no padding of its own — every block inside it
+   brings its own 16px gutter. This note is a bare <p> sitting directly
+   under the rail, so it was the one line of text in the whole rail with no
+   gutter: it started at x = 0, its first character touching the bezel. It
+   is also the sentence that says how fresh the data is and that missing
+   stations are not safe stations, which is the wrong line to lose a letter
+   to. Measured at 1440px and 390px: it was the only text element in the
+   rail within 8px of the screen edge. */
+.left-bar > .flood-meta { padding: 0 var(--s-4); }
 /*
  * The disclaimer under the GloFAS fallback gauge. This branch only renders when
  * real telemetry is offline, so the reader is already in the worst case; the

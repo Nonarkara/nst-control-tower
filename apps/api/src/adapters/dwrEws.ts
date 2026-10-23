@@ -167,6 +167,15 @@ export async function fetchEwsStations(): Promise<NormalizedFeed<EwsStation>> {
   }
 }
 
+/**
+ * An active probe: contact the origin now, without the shared last-good
+ * snapshot in front of it — see the note on `probeWaterGauges`.
+ */
+export async function probeEwsStations(): Promise<NormalizedFeed<EwsStation>> {
+  const cache = (globalThis as {caches?: {default?: DwrCache}}).caches?.default;
+  return ageOperationalFeed(await loadEwsSnapshot(cache, new Request(DWR_SNAPSHOT_KEY)));
+}
+
 // Throws on any failure so cachedWithStale serves the last good snapshot.
 // ews.dwr.go.th intermittently answers HTTP 522 (its origin times out) or an
 // empty list; before, that result was cached for the full TTL and the map

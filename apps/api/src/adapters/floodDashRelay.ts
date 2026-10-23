@@ -271,6 +271,25 @@ async function refreshRelay(cache: EdgeCache | null, key: Request): Promise<Rela
   return snapshot;
 }
 
+/**
+ * Fetch the relay now, bypassing the shared edge cache.
+ *
+ * The edge cache exists so a dashboard is fast and survives a brief origin
+ * outage — it answers with the last-good snapshot. That is the right
+ * behaviour for a read and the wrong behaviour for a probe: a probe has to
+ * measure the origin, and an edge-served snapshot carries the clock of the
+ * fetch that populated it, up to two hours old. Judged against the
+ * availability rule, that is what made the readiness endpoint's verdict
+ * depend on cache timing rather than on the origin.
+ *
+ * The cache is still written, so the probe leaves the cache warm.
+ */
+export async function fetchRelayDirect(): Promise<RelayResponse> {
+  const cache = edgeCache();
+  const key = new Request(RELAY_URL);
+  return refreshRelay(cache, key);
+}
+
 export async function fetchRelay(): Promise<RelayResponse> {
   const cache = edgeCache();
   const key = new Request(RELAY_URL);
