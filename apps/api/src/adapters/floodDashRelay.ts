@@ -185,8 +185,22 @@ export function mapRelayRain(rows: RelayRain[]): { stations: RainfallStation[]; 
 /** FloodDash computes this route from a 6.8 GB database on a busy Mac: measured
  *  10 s cold (its own log: "slow request … ms:10129"), and the Worker used to
  *  give up at exactly 10 s — so the relay failed every time the 60 s server
- *  cache had expired, which is every time a 10-minute cache asks. */
-export const RELAY_TIMEOUT_MS = 16_000;
+ *  cache had expired, which is every time a 10-minute cache asks.
+ *
+ *  That cold compute has since grown. Measured 23 Oct 2026 against the live
+ *  origin: 13.7 s and 14.8 s on cache misses, 0.005–1.3 s when it is warm.
+ *  A 16 s budget left a 6 % margin on that, and the margin is what was spent:
+ *  the 23 Oct outage logged "all six concurrent gauge requests returned zero
+ *  features … around 16.2–16.4 s" — requests that aborted on this timeout,
+ *  not requests the upstream was slow to answer.
+ *
+ *  The budget must outlast a cold rebuild with room to spare, because a
+ *  timeout here is not a slow page: the cache is written only after a
+ *  successful fetch, so every request that times out leaves the cache empty
+ *  and the next one pays the same timeout and fails the same way. 25 s
+ *  covers the measured worst case and still fits Cloudflare's ~30 s
+ *  post-response window for a background refresh. */
+export const RELAY_TIMEOUT_MS = 25_000;
 /** Last-good retention in each data centre. Refresh cadence is separate. */
 export const RELAY_EDGE_TTL_S = 2 * 60 * 60;
 export const RELAY_FRESH_MS = 60_000;
@@ -223,6 +237,16 @@ export function relaySnapshotMeta(relay: RelayResponse) {
   const fetchedAt = Number.isFinite(Date.parse(candidate)) ? candidate : new Date().toISOString();
   return { fetchedAt, ageMinutes: Math.max(0, Math.floor((Date.now() - Date.parse(fetchedAt)) / 60_000)),
     fallbackTier: relay.relayFromCache ? "cache" as const : "live" as const };
+}
+
+/** A timeout is the failure that strands the shared cache: the read is
+ *  abandoned, nothing is written, and the next request pays the same
+ *  timeout. An empty or malformed reply is a *stable* condition — a retry
+ *  will not change it, and doubling the origin's load while it is already
+ *  struggling helps nobody. Only the first kind earns another attempt. */
+function isTimeoutFailure(err: unknown): boolean {
+  const message = err instanceof Error ? err.message : String(err);
+  return /timed out|timeout|abort/i.test(message);
 }
 
 async function refreshRelay(cache: EdgeCache | null, key: Request): Promise<RelayResponse> {
@@ -269,8 +293,21 @@ export async function fetchRelay(): Promise<RelayResponse> {
       console.warn("floodDashRelay edge-cache read failed", (err as Error).message);
     }
   }
+  // Cold cache. The origin may need 13–15 s to regenerate a province
+  // snapshot, and the read below has the budget for it. If it still fails,
+  // the cache is still empty — and the cache is only written after a
+  // successful fetch — so every later request would pay the same timeout and
+  // fail the same way, and the cache could never fill. Leave one more
+  // attempt running in the background: the next request finds a filled cache
+  // instead of another timeout.
   try { return await refreshRelay(cache, key); }
-  catch (err) { console.warn("floodDashRelay fetch failed", (err as Error).message); throw err; }
+  catch (err) {
+    console.warn("floodDashRelay fetch failed", (err as Error).message);
+    if (isTimeoutFailure(err)) {
+      await finishBackgroundWork(refreshRelay(cache, key).catch(() => {}));
+    }
+    throw err;
+  }
 }
 
 export const RELAY_SOURCE_NOTE = "ThaiWater unreachable from Cloudflare — HII readings relayed by FloodDash (flood.nonarkara.org)";

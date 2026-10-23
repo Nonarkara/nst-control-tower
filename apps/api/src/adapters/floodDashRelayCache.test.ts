@@ -18,8 +18,14 @@ function fakeCaches() {
 describe("FloodDash relay — shared edge cache + patient timeout", () => {
   afterEach(() => { vi.unstubAllGlobals(); });
 
-  it("waits longer than FloodDash's measured 10 s cold compute", () => {
-    expect(RELAY_TIMEOUT_MS).toBeGreaterThan(15_000);
+  it("waits longer than FloodDash's measured cold compute", () => {
+    // Measured 23 Oct 2026 against the live origin: 13.7 s and 14.8 s on
+    // cache misses. The budget must outlast that with room to spare — a
+    // timeout here leaves the shared cache empty, so the next request pays
+    // the same timeout and fails the same way. The 16 s budget that was
+    // here until then left a 6 % margin on it, and the margin is what was
+    // spent: the 23 Oct outage logged requests failing "around 16.2–16.4 s".
+    expect(RELAY_TIMEOUT_MS).toBeGreaterThan(20_000);
   });
 
   it("asks FloodDash once, then serves later callers from the edge cache", async () => {
@@ -54,6 +60,49 @@ describe("FloodDash relay — shared edge cache + patient timeout", () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     await expect(fetchRelay()).rejects.toThrow();
     expect(warn).toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
+  it("a timed-out cold-cache read still leaves a repair attempt running", async () => {
+    // The shared cache is written only after a successful fetch, so a cold
+    // read that times out leaves it empty and the next request repeats the
+    // same timeout. One more attempt must survive the failed read.
+    const c = fakeCaches();
+    vi.stubGlobal("caches", c);
+    let calls = 0;
+    vi.stubGlobal("fetch", vi.fn(async () => {
+      calls++;
+      if (calls === 1) throw new Error("Upstream timed out after 25000ms");
+      return Response.json(payload);
+    }));
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const work: Promise<unknown>[] = [];
+    await withCacheLifetime(p => { work.push(p); }, async () => {
+      await expect(fetchRelay()).rejects.toThrow();
+    });
+    await Promise.all(work);
+    expect(calls).toBe(2);
+    expect(c.store.has(RELAY_URL)).toBe(true);
+    warn.mockRestore();
+  });
+
+  it("an empty reply is a stable condition — it is not retried", async () => {
+    // The origin answered; it simply had nothing. Another attempt would
+    // double the load on an origin that is already struggling.
+    const c = fakeCaches();
+    vi.stubGlobal("caches", c);
+    let calls = 0;
+    vi.stubGlobal("fetch", vi.fn(async () => {
+      calls++;
+      return Response.json({ generated_at: new Date().toISOString(), water: [], rain: [] });
+    }));
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const work: Promise<unknown>[] = [];
+    await withCacheLifetime(p => { work.push(p); }, async () => {
+      await expect(fetchRelay()).rejects.toThrow();
+    });
+    await Promise.all(work);
+    expect(calls).toBe(1);
     warn.mockRestore();
   });
 });

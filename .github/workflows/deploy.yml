@@ -140,3 +140,22 @@ jobs:
           done
           echo "::error::API reports version '$GOT', expected $WANT — worker deploy did not take"
           exit 1
+
+      - name: Warm the flood feed's shared cache
+        run: |
+          # A fresh Worker isolate starts with an empty cache, and the flood
+          # feed's cache is written only after a successful upstream fetch.
+          # Without this, the first operator to open the dashboard pays the
+          # relay's cold-regeneration cost (13–15 s measured) and may get
+          # nothing — the exact failure recorded on 23 Oct, when a cold
+          # data-centre cache could not provide continuity. Warm it here,
+          # while nothing is depending on it yet. A failure here is a
+          # warning, not a deploy failure: the upstream may be down, and the
+          # API is honest about that either way.
+          OUT=$(curl -s --max-time 45 "https://nst-control-tower-api.drnon.workers.dev/api/water/gauges?cb=$RANDOM" || true)
+          COUNT=$(printf '%s' "$OUT" | sed -n 's/.*"features":\[\([^]]*\)\].*/\1/p' | grep -o '"id"' | wc -l | tr -d ' ')
+          if [ "${COUNT:-0}" -gt 0 ]; then
+            echo "✅ flood feed warm — $COUNT gauges cached"
+          else
+            echo "::warning::flood feed cold — the relay did not answer during the warm-up. The API reports this honestly; it does not fake an all-clear."
+          fi
