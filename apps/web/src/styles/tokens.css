@@ -47,6 +47,36 @@
   --info:   var(--ink-2);
   --on-status: #111111; /* glyph on a filled status chip (dark theme)        */
 
+  /* ── Severity ramp — the mayor's desk ────────────────────────────────
+   *
+   * A closed system, borrowed whole from the Chiang Mai operations war
+   * room (cnx.nonarkara.org), which owns the same cockpit rule: SIGNAL is
+   * frozen in meaning and never borrows from a decorative palette, because
+   * a recoloured warning is a lie.
+   *
+   *   --sev-good      no signal — and even this is never painted green on
+   *                   the desk: a green chip reads as an all-clear, and
+   *                   nothing on a flood desk can certify one. "Good" is a
+   *                   neutral outline.
+   *   --sev-watch     worth watching
+   *   --sev-alert     act
+   *   --sev-critical  act now
+   *   --sev-unknown   could not be established. A true neutral: no data can
+   *                   never look like good.
+   *
+   * Colour is never the only carrier — every level also prints its word
+   * (เฝ้าระวัง / เตือน / วิกฤติ), which is what keeps a 17° gap between
+   * watch and alert legible. Ratios are measured on this product's own
+   * grounds (--panel #151515), not copied from the sibling's: see
+   * audits/2026-10-24-mayor-desk.md.
+   */
+  --sev-good:     #4ade80;
+  --sev-watch:    #facc15;
+  --sev-alert:    #fb7f4b;
+  --sev-critical: #ff6b6b;
+  --sev-unknown:  #a6a6a6;
+  --sev-ink:      var(--paper); /* the text on a filled severity chip      */
+
   /* Neutral fills for stacked bars */
   --fill-1: #8f8f8f;
   --fill-2: #5c5c5c;
@@ -201,6 +231,15 @@
   --bad:    #c4281c;
   --crit:   #9b1c13;
   --on-status: #ffffff;
+
+  /* Severity ramp — the mayor's desk. Light values from the same closed
+   * system; measured on this product's light grounds (--panel #ffffff). */
+  --sev-good:     #15803d;
+  --sev-watch:    #7f6300;
+  --sev-alert:    #b53c0a;
+  --sev-critical: #b91c1c;
+  --sev-unknown:  #636363;
+  --sev-ink:      var(--paper); /* the text on a filled severity chip      */
 
   --fill-1: #6b6b6b;
   --fill-2: #a3a3a3;

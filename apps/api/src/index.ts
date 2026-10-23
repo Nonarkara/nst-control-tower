@@ -1,6 +1,7 @@
 import { assessFloodFeed } from "./lib/floodReadiness.js";
 import { withinOperationsDeadline } from "./adapters/floodOperations.js";
 import { fetchFloodOperations } from "./adapters/floodOperations.js";
+import { fetchMayorDesk } from "./adapters/mayorDesk.js";
 import { Hono } from "hono";
 import { bearerAuth } from "hono/bearer-auth";
 import { bodyLimit } from "hono/body-limit";
@@ -150,6 +151,7 @@ app.get("/", (c) =>
       "/api/news/archive",
       "/api/news/digest",
       "/api/news/stats",
+      "/api/mayor-desk",
       "/api/weather",
       "/api/precip-nowcast",
       "/api/precip-nowcast/zones",
@@ -408,6 +410,11 @@ app.get("/api/water/ews", async (c) => safeFeed(c, fetchEwsStations, "dwr-ews"))
 app.get("/api/water/reservoirs-rid", async (c) => safeFeed(c, fetchRidReservoirs, "rid-reservoirs"));
 app.get("/api/water/national-waterways", async (c) => safeFeed(c, fetchNationalWaterways, "national-waterways"));
 app.get("/api/flood/operations", async (c) => safeFeed(c, fetchFloodOperations, "flood-operations"));
+// The mayor's desk: one screen, most important first, with the day's news
+// translated into plain Thai. It needs the model key for the translation —
+// without it the desk still answers, and says which headlines it could not
+// translate.
+app.get("/api/mayor-desk", async (c) => safeFeed(c, () => fetchMayorDesk({ GEMINI_API_KEY: c.env.GEMINI_API_KEY }), "mayor-desk"));
 app.get("/api/water/balance", async (c) => safeFeed(c, fetchWaterBalance, "water-balance"));
 app.get("/api/rainfall/historical", async (c) => {
   const qLat = parseFloat(c.req.query("lat") ?? "");

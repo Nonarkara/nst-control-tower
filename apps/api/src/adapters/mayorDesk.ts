@@ -1,0 +1,589 @@
+/**
+ * The mayor's desk — one screen, most important first.
+ *
+ * The desk answers "what is the situation, and what does he need to know
+ * today". It is not the flood briefing (/flood-ops), which is the full
+ * evidence: tables, camera comparison and the copy-paste record for the
+ * file. The desk is the espresso — the answer first, then the parts that
+ * make it, then the day's news in plain Thai.
+ *
+ * The rules come from the Chiang Mai operations war room
+ * (cnx.nonarkara.org), which owns the same cockpit doctrine:
+ *
+ *   • The answer names the worst signal. If there is no signal and any part
+ *     is missing, the answer says it is incomplete — it never says "all
+ *     clear" by omission.
+ *   • Every part keeps its own provenance and age. Nothing is merged into
+ *     one "flood" number, because a river gauge and a forecast model do not
+ *     answer the same question.
+ *   • A part that failed to load, or answered "unavailable", is a line that
+ *     says so, with its reason. It is never dropped and never painted calm.
+ *   • "Below threshold" is never green. A green chip reads as an all-clear,
+ *     and nothing on a flood desk can certify one.
+ *
+ * The one thing this desk does that the briefing does not: it translates.
+ * A story filed in English reaches the mayor as a plain-Thai headline, with
+ * the original kept underneath so the reader can check it. A translation
+ * that fails leaves the original headline in place and says so — a missing
+ * translation is never a missing story.
+ */
+
+import {
+  detectNewsLanguage,
+  isNstNewsText,
+  type DeskLevel,
+  type DeskNewsItem,
+  type DeskNewsLanguage,
+  type DeskPart,
+  type IntelligenceItem,
+  type MayorDesk,
+  type NormalizedFeed,
+} from "@nst/shared";
+import { cachedWithStale } from "../lib/cache.js";
+import { fetchFloodOperations } from "./floodOperations.js";
+import { fetchEwsStations } from "./dwrEws.js";
+import { fetchNews } from "./news.js";
+
+const HOUR = 3_600_000;
+/** The product's own current-observation line (OPERATIONAL_OBSERVATION_MAX_MIN). */
+const CURRENT_MS = 120 * 60_000;
+
+// ─── The parts ───────────────────────────────────────────────────────────
+
+const RIVER: Omit<DeskPart, "level" | "th" | "en" | "evidence" | "observedAt" | "coverageIncomplete"> = {
+  key: "river",
+  kind: "measured",
+  titleTh: "ระดับน้ำที่สถานีวัด",
+  titleEn: "River levels at gauges",
+  sourceTh: "HII ThaiWater ผ่าน FloodDash",
+  sourceEn: "HII ThaiWater via FloodDash",
+  staleAfterMs: 2 * HOUR,
+};
+
+const OFFICIAL: Omit<DeskPart, "level" | "th" | "en" | "evidence" | "observedAt" | "coverageIncomplete"> = {
+  key: "official",
+  kind: "official",
+  titleTh: "ประกาศเตือน อต.",
+  titleEn: "DWR official warning",
+  sourceTh: "กรมทรัพย์ทรัพย์ธรรมชาติ — ระบบเตือนภัยชุมชน",
+  sourceEn: "Department of Water Resources — community early warning",
+  staleAfterMs: 2 * HOUR,
+};
+
+const RAIN: Omit<DeskPart, "level" | "th" | "en" | "evidence" | "observedAt" | "coverageIncomplete"> = {
+  key: "rain",
+  kind: "measured",
+  titleTh: "ฝนที่วัดได้ 24 ชม.",
+  titleEn: "Measured rain, 24 h",
+  sourceTh: "HII ThaiWater ผ่าน FloodDash",
+  sourceEn: "HII ThaiWater via FloodDash",
+  staleAfterMs: 2 * HOUR,
+};
+
+const FORECAST: Omit<DeskPart, "level" | "th" | "en" | "evidence" | "observedAt" | "coverageIncomplete"> = {
+  key: "forecast",
+  kind: "model",
+  titleTh: "พยากรณ์ฝน 24 ชม.",
+  titleEn: "Rain forecast, 24 h",
+  sourceTh: "Open-Meteo (แบบจำลอง)",
+  sourceEn: "Open-Meteo (model)",
+  staleAfterMs: 6 * HOUR,
+};
+
+/** TMD's own rain bands: 35 mm in 24 h is "heavy", 90 mm is "very heavy". */
+const RAIN_HEAVY = 35;
+const RAIN_VERY_HEAVY = 90;
+
+/** Fixed decimals: a distance to the bank reads "0.10 m", not "0.1 m". */
+const fmt = (n: number, digits = 1): string => n.toFixed(digits);
+
+function unavailable(
+  meta: Omit<DeskPart, "level" | "th" | "en" | "evidence" | "observedAt" | "coverageIncomplete">,
+  th: string,
+  en: string,
+): DeskPart {
+  return { ...meta, level: "unknown", th, en, evidence: [], observedAt: null };
+}
+
+/** Metres of rise still available before the bank, from the HII bank datum. */
+export function freeboardM(gauge: { diffFromBank: number | null }): number | null {
+  return gauge.diffFromBank != null ? -gauge.diffFromBank : null;
+}
+
+/**
+ * How close a gauge is to the bank, in the product's own review bands:
+ * at or over the bank is critical, inside 30 cm is the near-bank review
+ * line, and 60 cm is the early watch.
+ */
+export function riverLevel(freeboard: number | null): DeskLevel {
+  if (freeboard == null) return "unknown";
+  if (freeboard <= 0) return "critical";
+  if (freeboard <= 0.3) return "alert";
+  if (freeboard <= 0.6) return "watch";
+  return "good";
+}
+
+export function riverPart(
+  gauges: Array<{ id: string; name: string; stationCode?: string | null; diffFromBank: number | null; trend: string; observedAt: string }>,
+  now: number,
+): DeskPart {
+  if (!gauges.length) {
+    return unavailable(RIVER, "ไม่มีข้อมูลสถานีระดับน้ำ — ไม่ใช่หลักฐานว่าแม่น้ำปกติ", "No river-gauge data — not evidence that the rivers are normal.");
+  }
+  const current = gauges.filter(g => {
+    const t = Date.parse(g.observedAt);
+    return Number.isFinite(t) && t <= now + 5 * 60_000 && now - t <= CURRENT_MS;
+  });
+  if (!current.length) {
+    return unavailable(RIVER, "ไม่มีค่าระดับน้ำภายใน 2 ชม. — สภาพน้ำปัจจุบันยังไม่ทราบ", "No gauge reading within 2 h — current river conditions are unknown.");
+  }
+  const graded = current
+    .map(g => ({ g, freeboard: freeboardM(g) }))
+    .filter(x => x.freeboard != null)
+    .sort((a, b) => (a.freeboard as number) - (b.freeboard as number));
+  const ungraded = current.length - graded.length;
+  const coverage = `${graded.length}/${current.length} สถานีปัจจุบันมีเกณฑ์ระยะถึงตลิ่ง`;
+  const coverageEn = `${graded.length}/${current.length} current gauges carry a bank datum`;
+  const ungradedNote = ungraded ? ` · อีก ${ungraded} สถานีไม่มีเกณฑ์ จึงประเมินไม่ได้` : "";
+  const ungradedNoteEn = ungraded ? ` · ${ungraded} gauge(s) have no bank datum and cannot be graded` : "";
+  if (!graded.length) {
+    return { ...RIVER, level: "unknown", coverageIncomplete: true, th: `${coverage}${ungradedNote} — ประเมินไม่ได้`, en: `${coverageEn}${ungradedNoteEn} — cannot be graded.`, evidence: [], observedAt: current[0].observedAt };
+  }
+  const top = graded[0];
+  const near = graded.filter(x => x.freeboard! <= 0.3);
+  const name = `${top.g.name}${top.g.stationCode ? ` (${top.g.stationCode})` : ""}`;
+  const level = riverLevel(top.freeboard);
+  const trend = top.g.trend === "rising" ? "กำลังขึ้น" : top.g.trend === "falling" ? "กำลังลด" : "ทรงตัว";
+  const distance = top.freeboard! <= 0
+    ? `เหนือ/ถึงตลิ่ง ${fmt(-top.freeboard!, 2)} ม.`
+    : `เหลือถึงตลิ่ง ${fmt(top.freeboard!, 2)} ม.`;
+  // The wording has to agree with the chip. A part chipped "watch" while its
+  // line says "nothing near the bank" is the reader being told two things
+  // that cannot both be true.
+  const lead = near.length
+    ? `${near.length} สถานีถึง/ใกล้ตลิ่ง — ${name} ${distance}`
+    : level === "watch"
+      ? `ยังไม่ถึงเกณฑ์ 30 ซม. แต่ใกล้ที่สุด ${name} ${distance} — เฝ้าระวัง`
+      : `ไม่มีสถานีใกล้ตลิ่ง · ใกล้ที่สุด ${name} ${distance}`;
+  return {
+    ...RIVER,
+    level,
+    coverageIncomplete: ungraded > 0,
+    th: `${lead} · ${trend} · ${coverage}${ungradedNote}`,
+    evidence: graded.slice(0, 3).map(x =>
+      `${x.g.name}${x.g.stationCode ? ` (${x.g.stationCode})` : ""} — ${x.freeboard! <= 0 ? `เหนือ/ถึงตลิ่ง ${fmt(-x.freeboard!, 2)} ม.` : `เหลือถึงตลิ่ง ${fmt(x.freeboard!, 2)} ม.`} · ${x.g.trend === "rising" ? "กำลังขึ้น" : x.g.trend === "falling" ? "กำลังลด" : "ทรงตัว"}`),
+    en: `${near.length ? `${near.length} gauge(s) at/near the bank — ` : level === "watch" ? "Inside 30 cm of the bank is not reached, but closest " : "No gauge near the bank · closest "}${name} ${top.freeboard! <= 0 ? `${fmt(-top.freeboard!, 2)} m above bank` : `${fmt(top.freeboard!, 2)} m below bank`} · ${coverageEn}${ungradedNoteEn}`,
+    observedAt: top.g.observedAt,
+  };
+}
+
+/**
+ * The official layer: the authority's own alert tier, and the water's
+ * distance from the authority's own per-station alert level.
+ */
+export function officialPart(
+  stations: Array<{ id: string; name: string; amphoe: string; type: string; status: number; waterLevel: number | null; alertMax: number | null; observedAt: string; stale: boolean }>,
+  now: number,
+): DeskPart {
+  if (!stations.length) {
+    return unavailable(OFFICIAL, "ยังยืนยันสถานะเตือน อต. ไม่ได้ — แหล่งข้อมูลไม่ตอบ (ไม่ใช่การไม่มีประกาศ)", "DWR warning state cannot be confirmed — the source did not answer (this is not the same as no warning being in force).");
+  }
+  const alerting = stations.filter(s => s.status >= 1);
+  if (alerting.length) {
+    const top = alerting[0];
+    const tier = top.status === 3 ? "วิกฤติ" : top.status === 2 ? "เตรียมพร้อม" : "เฝ้าระวัง";
+    const level: DeskLevel = top.status === 3 ? "critical" : top.status === 2 ? "alert" : "watch";
+    return {
+      ...OFFICIAL,
+      level,
+      th: `อต. ประกาศเตือน ${alerting.length} สถานี — ระดับ${tier} · ${top.name} (${top.amphoe})`,
+      evidence: alerting.slice(0, 3).map(a => `${a.name} (${a.amphoe}) — ระดับ${a.status === 3 ? "วิกฤติ" : a.status === 2 ? "เตรียมพร้อม" : "เฝ้าระวัง"}`),
+      en: `DWR has declared an alert on ${alerting.length} station(s) — tier ${tier} · ${top.name} (${top.amphoe})`,
+      observedAt: top.observedAt,
+    };
+  }
+  // No alert in force. The next useful question is how close the water is
+  // to the level at which DWR would raise one.
+  const rows = stations
+    .filter(s => s.type === "water" && s.alertMax != null && s.waterLevel != null)
+    .map(s => ({ s, margin: (s.alertMax as number) - (s.waterLevel as number) }))
+    .sort((a, b) => a.margin - b.margin);
+  const fresh = rows.filter(r => {
+    const t = Date.parse(r.s.observedAt);
+    return !r.s.stale && Number.isFinite(t) && t <= now + 5 * 60_000 && now - t <= CURRENT_MS;
+  });
+  const closest = (fresh[0] ?? rows[0])?.s;
+  const margin = closest && closest.alertMax != null && closest.waterLevel != null
+    ? (closest.alertMax as number) - (closest.waterLevel as number)
+    : null;
+  const level: DeskLevel = margin == null ? "unknown" : margin <= 0 ? "alert" : margin <= 0.5 ? "watch" : "good";
+  const measured = fresh.length;
+  const total = rows.length;
+  const coverage = total ? ` · ${measured}/${total} สถานีที่มีเกณฑ์รายงานภายใน 2 ชม.` : "";
+  const line = closest && margin != null
+    ? `ไม่มีประกาศเตือนจาก อต. · ใกล้เกณฑ์ของ อต. ที่สุด ${closest.name} (${closest.amphoe}) ${margin <= 0 ? "ถึง/เกินเกณฑ์แล้ว" : `เหลือ ${fmt(margin, 2)} ม.`}${coverage}`
+    : `ไม่มีประกาศเตือนจาก อต. · ไม่มีสถานีที่มีเกณฑ์ของ อต. ให้เทียบ${coverage}`;
+  return {
+    ...OFFICIAL,
+    level,
+    coverageIncomplete: measured < total,
+    th: line,
+    evidence: rows.slice(0, 3).map(r =>
+      `${r.s.name} (${r.s.amphoe}) — ${r.margin <= 0 ? `ถึง/เกินเกณฑ์ ${fmt(Math.abs(r.margin), 2)} ม.` : `เหลือ ${fmt(r.margin, 2)} ม.`}${r.s.stale ? " · ล้าสมัย" : ""}`),
+    en: closest && margin != null
+      ? `No DWR alert in force · closest to DWR's own alert level: ${closest.name} (${closest.amphoe}) ${margin <= 0 ? "at or over its level" : `${fmt(margin, 2)} m to go`}${coverage}`
+      : `No DWR alert in force · no station publishes a DWR alert level to compare against${coverage}`,
+    observedAt: closest?.observedAt ?? null,
+  };
+}
+
+export function rainPart(
+  stations: Array<{ id: string; name: string; amphoe: string; rain24h: number | null; observedAt: string }>,
+  now: number,
+): DeskPart {
+  if (!stations.length) {
+    return unavailable(RAIN, "ไม่มีข้อมูลฝนที่วัดได้ — ไม่ใช่หลักฐานว่าฝนไม่ตก", "No measured rain — not evidence that rain has stopped.");
+  }
+  const current = stations.filter(s => {
+    const t = Date.parse(s.observedAt);
+    return Number.isFinite(t) && t <= now + 5 * 60_000 && now - t <= CURRENT_MS;
+  });
+  if (!current.length) {
+    return unavailable(RAIN, "ไม่มีค่าฝนภายใน 2 ชม. — ฝนตกอยู่หรือไม่ยังไม่ทราบ", "No rain reading within 2 h — whether it is raining is unknown.");
+  }
+  const withRain = current.filter(s => s.rain24h != null && s.rain24h >= 0);
+  if (!withRain.length) {
+    return unavailable(RAIN, "สถานีฝนรายงานแต่ไม่มีค่าสะสม 24 ชม. — ปริมาณฝนยังไม่ทราบ", "Rain stations reported but no 24 h total — the amount is unknown.");
+  }
+  const wettest = [...withRain].sort((a, b) => (b.rain24h as number) - (a.rain24h as number))[0];
+  const veryHeavy = withRain.filter(s => (s.rain24h as number) >= RAIN_VERY_HEAVY).length;
+  const heavy = withRain.filter(s => (s.rain24h as number) >= RAIN_HEAVY).length;
+  const level: DeskLevel = veryHeavy ? "alert" : heavy ? "watch" : "good";
+  return {
+    ...RAIN,
+    level,
+    evidence: [...withRain].sort((a, b) => (b.rain24h as number) - (a.rain24h as number)).slice(0, 3)
+      .map(r => `${r.name} (${r.amphoe}) — ${fmt(r.rain24h as number)} มม./24 ชม.`),
+    th: `มากสุด ${fmt(wettest.rain24h as number)} มม./24 ชม. ที่ ${wettest.name} (${wettest.amphoe}) · ฝนหนัก ${heavy} สถานี${veryHeavy ? ` (หนักมาก ${veryHeavy})` : ""} · ${withRain.length}/${current.length} สถานีรายงาน`,
+    en: `Wettest ${fmt(wettest.rain24h as number)} mm/24 h at ${wettest.name} (${wettest.amphoe}) · heavy rain at ${heavy} station(s)${veryHeavy ? ` (very heavy ${veryHeavy})` : ""} · ${withRain.length}/${current.length} reporting`,
+    observedAt: wettest.observedAt,
+  };
+}
+
+export function forecastPart(
+  points: Array<{ key: string; nameTh: string; rain24hMm: number | null; peakAt: string | null }>,
+  fetchedAt: string | null,
+  now: number,
+): DeskPart {
+  if (!points.length || !fetchedAt) {
+    return unavailable(FORECAST, "ยังไม่มีแบบจำลองพยากรณ์ฝน — ไม่ใช่การพยากรณ์ว่าฝนไม่ตก", "No rain forecast yet — not a dry forecast.");
+  }
+  const t = Date.parse(fetchedAt);
+  if (!Number.isFinite(t) || t > now + 5 * 60_000 || now - t > 6 * HOUR) {
+    return unavailable(FORECAST, "แบบจำลองพยากรณ์ล้าหลัง/ขาด — อย่าใช้ตัวเลขเดิมเป็นพยากรณ์ปัจจุบัน", "The forecast model is stale or missing — do not use the old numbers as a current forecast.");
+  }
+  const usable = points.filter(p => p.rain24hMm != null && p.rain24hMm >= 0);
+  if (!usable.length) {
+    return unavailable(FORECAST, "แบบจำลองไม่มีค่าฝน 24 ชม. ที่ใช้ได้", "The model has no usable 24 h rain values.");
+  }
+  const wettest = [...usable].sort((a, b) => (b.rain24hMm as number) - (a.rain24hMm as number))[0];
+  const level: DeskLevel = (wettest.rain24hMm as number) >= RAIN_VERY_HEAVY ? "alert" : (wettest.rain24hMm as number) >= RAIN_HEAVY ? "watch" : "good";
+  return {
+    ...FORECAST,
+    level,
+    evidence: [...usable].sort((a, b) => (b.rain24hMm as number) - (a.rain24hMm as number)).slice(0, 3)
+      .map(p => `${p.nameTh} — ${fmt(p.rain24hMm as number, 0)} มม./24 ชม.`),
+    th: `คาดมากสุด ${fmt(wettest.rain24hMm as number, 0)} มม./24 ชม. ที่ ${wettest.nameTh} — แบบจำลอง ไม่ใช่ฝนที่วัดและไม่ใช่การพยากรณ์น้ำท่วมรายถนน`,
+    en: `Forecast up to ${fmt(wettest.rain24hMm as number, 0)} mm/24 h at ${wettest.nameTh} — a model, not measured rain and not a street flood forecast`,
+    observedAt: fetchedAt,
+  };
+}
+
+// ─── The answer ──────────────────────────────────────────────────────────
+
+export interface DeskAnswer {
+  level: DeskLevel;
+  th: string;
+  en: string;
+  missing: number;
+}
+
+export function buildDeskAnswer(parts: DeskPart[]): DeskAnswer {
+  const missing = parts.filter(p => p.level === "unknown" || p.coverageIncomplete).length;
+  const signals = parts.filter(p => p.level !== "unknown" && p.level !== "good")
+    .sort((a, b) => levelRank(b.level) - levelRank(a.level));
+  if (signals.length) {
+    const top = signals[0];
+    const others = signals.length - 1;
+    return {
+      level: top.level,
+      th: `${top.titleTh}: ${top.th}${others ? ` · และอีก ${others} สัญญาณ` : ""}`,
+      en: `${top.titleEn}: ${top.en}${others ? ` · and ${others} more signal${others > 1 ? "s" : ""}` : ""}`,
+      missing,
+    };
+  }
+  if (missing) {
+    return {
+      level: "unknown",
+      th: `ยังตอบไม่ครบ — ${missing} แหล่งข้อมูลไม่พร้อมหรือครอบคลุมไม่เต็ม ส่วนที่มีไม่พบสัญญาณ ซึ่งไม่ใช่การยืนยันว่าปลอดภัย`,
+      en: `Incomplete — ${missing} source(s) unavailable or incomplete. What did answer shows no signal, which is not confirmation of safety.`,
+      missing,
+    };
+  }
+  return {
+    level: "good",
+    th: "ไม่พบสัญญาณน้ำท่วมจากทุกแหล่งขณะนี้ — ไม่ใช่การรับประกันความปลอดภัย",
+    en: "No flood signal from any source right now — not a guarantee of safety.",
+    missing,
+  };
+}
+
+const levelRank = (level: DeskLevel): number =>
+  ({ good: 0, unknown: 1, watch: 2, alert: 3, critical: 4 })[level];
+
+// ─── The news ────────────────────────────────────────────────────────────
+
+/** How long a story stays relevant to "this morning". */
+const NEWS_FRESH_MS = 36 * HOUR;
+
+/** Operational tags first: a mayor's morning is not a festival list. */
+const TAG_WEIGHT: Record<string, number> = {
+  FL: 30, EM: 24, SEC: 18, IN: 12, PU: 8, PO: 6, FU: 0, HO: 0, FE: 0,
+};
+
+export interface RankedNews {
+  item: IntelligenceItem;
+  rank: number;
+  language: DeskNewsLanguage;
+  whyTh: string;
+  whyEn: string;
+  /** The headline without the trailing " - source" the feed appends. The
+   *  source is shown on its own line; repeating it inside the headline
+   *  wraps the line and says the same thing twice. */
+  headline: string;
+}
+
+/** "Headline - source" → "Headline". The feed's own source name, dropped. */
+export function deskHeadline(title: string, source: string): string {
+  const suffix = ` - ${source}`;
+  return title.endsWith(suffix) ? title.slice(0, -suffix.length).trim() : title;
+}
+
+/**
+ * Most important first, for a mayor reading at 7 a.m.
+ *
+ * Recency dominates: the espresso is of the day, and a three-day-old story
+ * with a higher feed score does not belong ahead of this morning's. After
+ * recency comes what the story is about — a flood or an incident beats a
+ * national story about a ceremony.
+ *
+ * The feed's own score is used only as a small tie-breaker. It already mixes
+ * trust with locality, and counting locality again on top of it let a
+ * ceremony outrank a flood: a story that merely mentioned the province was
+ * scoring twice for the same reason.
+ */
+export function rankDeskNews(items: IntelligenceItem[], now: number): RankedNews[] {
+  const ranked = items.map(item => {
+    const published = Date.parse(item.publishedAt);
+    const ageMs = Number.isFinite(published) ? now - published : Number.POSITIVE_INFINITY;
+    let rank = 0;
+    if (ageMs <= 3 * HOUR) rank += 40;
+    else if (ageMs <= 8 * HOUR) rank += 30;
+    else if (ageMs <= 24 * HOUR) rank += 16;
+    else if (ageMs <= 48 * HOUR) rank += 6;
+    for (const tag of item.tags) rank += TAG_WEIGHT[tag] ?? 0;
+    if (item.placeName) rank += 18;
+    if (isNstNewsText(`${item.title} ${item.summary}`)) rank += 8;
+    rank += Math.min(6, (item.score / 100) * 6);
+    const language = detectNewsLanguage(item.title);
+    const headline = deskHeadline(item.title, item.source);
+    return { item, rank, language, headline, whyTh: whyTh(item, language), whyEn: whyEn(item) };
+  });
+  return ranked
+    .filter(r => {
+      const published = Date.parse(r.item.publishedAt);
+      return Number.isFinite(published) && now - published <= NEWS_FRESH_MS;
+    })
+    .sort((a, b) => b.rank - a.rank || b.item.publishedAt.localeCompare(a.item.publishedAt));
+}
+
+function whyTh(item: IntelligenceItem, language: DeskNewsLanguage): string {
+  if (item.tags.includes("FL")) return "เรื่องน้ำท่วม";
+  if (item.tags.includes("EM")) return "เหตุฉุกเฉิน";
+  if (item.tags.includes("SEC")) return "เรื่องความมั่นคง";
+  if (item.tags.includes("IN")) return "เรื่องบริการประชาชน";
+  if (item.placeName) return `พาด ${item.placeName}`;
+  if (isNstNewsText(`${item.title} ${item.summary}`)) return "เรื่องจังหวัดนครศรีธรรมราช";
+  if (language !== "th") return "ข่าวต่างประเทศ";
+  return "ข่าวทั่วประเทศ";
+}
+
+function whyEn(item: IntelligenceItem): string {
+  if (item.tags.includes("FL")) return "Flooding";
+  if (item.tags.includes("EM")) return "Incident";
+  if (item.tags.includes("SEC")) return "Security";
+  if (item.tags.includes("IN")) return "Public services";
+  if (item.placeName) return `In ${item.placeName}`;
+  if (isNstNewsText(`${item.title} ${item.summary}`)) return "Nakhon Si Thammarat";
+  return "National";
+}
+
+// ─── Translation ─────────────────────────────────────────────────────────
+
+/**
+ * The headlines, in plain Thai.
+ *
+ * The translator is the key-free public endpoint, not the model. Measured
+ * on 2026-10-24: the owner's Gemini key is on the free tier's 20-requests-
+ * a-day limit, shared across five products, and a desk that wanted a
+ * translation call an hour would exhaust that quota by itself — so the desk
+ * would show "not translated" for most of the day. This endpoint needs no
+ * key, has no quota, works from a Worker, and on the live headlines it
+ * produced exactly the plain-Thai headlines the desk needs:
+ *
+ *   "Floods persist in 16 provinces, two districts of Bangkok"
+ *     → "น้ำท่วมต่อเนื่อง 16 จังหวัด 2 เขต กทม"
+ *   "PM urges southern provinces to prepare for floodwaters in 3-4 days"
+ *     → "นายกฯ วอนจังหวัดภาคใต้เตรียมรับน้ำท่วมใน 3-4 วัน"
+ *
+ * A failure here is not a failure of the desk: the original headline stays
+ * and says it was not translated. A missing translation is never a missing
+ * story.
+ */
+const TRANSLATE_ENDPOINT = "https://translate.googleapis.com/translate_a/single";
+const TRANSLATE_TIMEOUT_MS = 8_000;
+
+/** One headline per request, cached by its text — a headline is translated
+ *  once, not once per desk refresh. */
+const translationCache = new Map<string, string>();
+const TRANSLATION_CACHE_MAX = 500;
+
+/** Does this look like Thai? A translation with no Thai in it is a failure,
+ *  not a translation. */
+export const hasThai = (s: string): boolean => /[฀-๿]/.test(s);
+
+export async function translateOne(text: string, timeoutMs = TRANSLATE_TIMEOUT_MS): Promise<string | null> {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    const url = `${TRANSLATE_ENDPOINT}?client=gtx&sl=auto&tl=th&dt=t&q=${encodeURIComponent(text)}`;
+    const res = await fetch(url, { signal: ctrl.signal });
+    if (!res.ok) return null;
+    const json = (await res.json()) as unknown;
+    const segments = Array.isArray(json) ? json[0] : null;
+    if (!Array.isArray(segments)) return null;
+    const out = segments
+      .map(seg => (Array.isArray(seg) && typeof seg[0] === "string" ? seg[0] : ""))
+      .join("")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (!out || !hasThai(out)) return null;
+    // A translation that grew far beyond its source is a paragraph, not a
+    // headline — the desk wants a headline.
+    if (out.length > Math.max(80, text.length * 2)) return null;
+    return out;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+export async function translateHeadlines(headlines: string[]): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
+  await Promise.all(headlines.map(async h => {
+    const cached = translationCache.get(h);
+    if (cached) {
+      out.set(h, cached);
+      return;
+    }
+    const translated = await translateOne(h);
+    if (translated) {
+      if (translationCache.size >= TRANSLATION_CACHE_MAX) translationCache.clear();
+      translationCache.set(h, translated);
+      out.set(h, translated);
+    }
+  }));
+  return out;
+}
+
+// ─── The adapter ─────────────────────────────────────────────────────────
+
+export interface MayorDeskEnv {
+  /** Unused today: the desk's translation is key-free. Kept so the route can
+   *  pass the environment through if a model is ever wanted here. */
+  GEMINI_API_KEY?: string;
+}
+
+const DESK_NEWS_LIMIT = 5;
+
+export async function fetchMayorDesk(_env: MayorDeskEnv = {}): Promise<NormalizedFeed<MayorDesk>> {
+  return cachedWithStale("mayor-desk", 60, async () => {
+    const now = Date.now();
+    const [ops, ews, news] = await Promise.allSettled([
+      fetchFloodOperations(),
+      fetchEwsStations(),
+      fetchNews(),
+    ]);
+
+    const gaps: string[] = [];
+    const opsFeature = ops.status === "fulfilled" ? ops.value.features[0] : undefined;
+    if (ops.status === "rejected" || !opsFeature) gaps.push("Flood operations synthesis unavailable");
+
+    const river = riverPart(opsFeature?.gauges ?? [], now);
+    const official = officialPart(ews.status === "fulfilled" ? ews.value.features : [], now);
+    const rain = rainPart(opsFeature?.rain ?? [], now);
+    const forecast = forecastPart(opsFeature?.weather ?? [], opsFeature?.weatherFetchedAt ?? null, now);
+    const parts = [river, official, rain, forecast];
+
+    const newsItems = news.status === "fulfilled" ? news.value.features : [];
+    const ranked = rankDeskNews(newsItems, now).slice(0, DESK_NEWS_LIMIT);
+    const toTranslate = ranked.filter(r => r.language !== "th");
+    const translated = await translateHeadlines(toTranslate.map(r => r.headline));
+
+    const deskNews: DeskNewsItem[] = ranked.map(r => {
+      const th = translated.get(r.headline);
+      return {
+        id: r.item.id,
+        titleTh: th ?? r.headline,
+        originalTitle: r.headline,
+        language: r.language,
+        translated: typeof th === "string" && th.length > 0,
+        source: r.item.source,
+        url: r.item.sourceUrl,
+        publishedAt: r.item.publishedAt,
+        placeName: r.item.placeName,
+        whyTh: r.whyTh,
+        whyEn: r.whyEn,
+      };
+    });
+
+    const answer = buildDeskAnswer(parts);
+    if (ews.status === "rejected") gaps.push("DWR EWS unavailable");
+    if (news.status === "rejected") gaps.push("News feed unavailable");
+    if (!newsItems.length) gaps.push("No news stories in the last 36 h");
+    const feature: MayorDesk = {
+      generatedAt: new Date(now).toISOString(),
+      level: answer.level,
+      answerTh: answer.th,
+      answerEn: answer.en,
+      parts,
+      news: deskNews,
+      notice: null,
+      missing: answer.missing,
+      gaps,
+      translationIncomplete: toTranslate.some(r => !translated.has(r.headline)),
+    };
+
+    return {
+      features: [feature],
+      meta: {
+        source: "HII via FloodDash · DWR EWS · Open-Meteo · Google News",
+        fetchedAt: feature.generatedAt,
+        ageMinutes: 0,
+        fallbackTier: "scenario",
+        note: "Operational synthesis for the mayor's desk — not an official warning and not a calibrated inundation prediction",
+      },
+    };
+  }, 900, true);
+}

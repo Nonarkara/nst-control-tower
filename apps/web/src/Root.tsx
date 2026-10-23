@@ -17,6 +17,9 @@ const TerminalDashboard = lazy(() =>
 const DataWorkbenchPage = lazy(() => import("./components/data/DataWorkbenchPage"));
 
 const FloodWatchPage = lazy(() => import("./components/FloodWatchPage"));
+// The mayor's desk — this morning's situation, warnings and news in one
+// screen. Its own lazy chunk, like every full surface here.
+const MayorDesk = lazy(() => import("./components/MayorDesk"));
 
 type Mode = "geo" | "terminal";
 
@@ -62,6 +65,24 @@ function RouteFallback({
 }
 
 export function Root() {
+  if (/^\/mayor-desk(\/|$)/.test(window.location.pathname)) {
+    return (
+      <LocaleProvider>
+        <Suspense
+          fallback={
+            <RouteFallback
+              place="เทศบาลนครนครศรีธรรมราช · โต๊ะทำงานนายกฯ"
+              what="Loading the mayor's desk…"
+              backHref="/"
+              backLabel="← Back to the map"
+            />
+          }
+        >
+          <MayorDesk />
+        </Suspense>
+      </LocaleProvider>
+    );
+  }
   if (/^\/flood-ops(\/|$)/.test(window.location.pathname)) {
     return (
       <LocaleProvider>

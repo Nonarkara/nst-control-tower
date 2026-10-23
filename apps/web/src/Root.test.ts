@@ -29,6 +29,25 @@ const rootSource = readFileSync(
   "utf8",
 );
 
+/**
+ * The source of one route branch — from the route's own condition to the
+ * end of the Suspense boundary it opens.
+ *
+ * Anchoring on the condition rather than the first mention of the path
+ * matters: a comment that names a route would otherwise capture the slice,
+ * and the branch under test would be a different one entirely. The
+ * condition is the only place the path is followed by the regex tail
+ * "(\/|$)/", so it is the only unambiguous anchor.
+ */
+function routeBranch(path: string): string {
+  const at = rootSource.indexOf(`${path}(`);
+  expect(at, `no route condition for ${path}`).toBeGreaterThan(-1);
+  const start = rootSource.lastIndexOf("if (", at);
+  const end = rootSource.indexOf("</Suspense>", at);
+  expect(end, `no Suspense boundary for ${path}`).toBeGreaterThan(-1);
+  return rootSource.slice(start, end);
+}
+
 describe("route loading states", () => {
   it("paints no empty full-bleed rectangle while a chunk loads", () => {
     // The defect, verbatim. If this string returns, the blank page is back.
@@ -60,21 +79,32 @@ describe("route loading states", () => {
   it("keeps an escape hatch on the deep link (/flood-ops)", () => {
     // A deep link whose chunk fails leaves the reader with no way home,
     // because the header that carries the nav is inside the chunk that failed.
-    const floodOps = rootSource.slice(rootSource.indexOf("/flood-ops"));
-    const branch = floodOps.slice(0, floodOps.indexOf("</Suspense>"));
+    const branch = routeBranch("/flood-ops");
 
     expect(branch).toMatch(/backHref="\/"/);
     expect(branch).toMatch(/backLabel=/);
   });
 
   it("wraps /flood-ops in LocaleProvider — useLocale() throws without one", () => {
-    const start = rootSource.indexOf("/flood-ops");
-    const branch = rootSource.slice(start, rootSource.indexOf("</Suspense>", start));
+    const branch = routeBranch("/flood-ops");
 
     expect(branch).toMatch(/<LocaleProvider>/);
     // And it must open before FloodWatchPage, not after it.
     expect(branch.indexOf("<LocaleProvider>")).toBeLessThan(
       branch.indexOf("<FloodWatchPage"),
     );
+  });
+
+  it("wraps /mayor-desk the same way — it is a lazy route like any other", () => {
+    const branch = routeBranch("/mayor-desk");
+
+    expect(branch).toMatch(/<LocaleProvider>/);
+    expect(branch).toMatch(/<MayorDesk/);
+    expect(branch.indexOf("<LocaleProvider>")).toBeLessThan(
+      branch.indexOf("<MayorDesk"),
+    );
+    // And it must paint a fallback, so a deep link is never a blank screen.
+    expect(branch).toMatch(/<RouteFallback/);
+    expect(branch).toMatch(/backHref="\/"/);
   });
 });

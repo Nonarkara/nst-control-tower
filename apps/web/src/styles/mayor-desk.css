@@ -1,0 +1,255 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   The mayor's desk — a bento, not a buffet.
+
+   Four compartments, sized by what they hold, and the answer across the
+   top. The geometry is explicit rather than auto-placed: a bento only
+   looks like a bento when the compartments are chosen, not when a grid
+   happens to fall out.
+
+     row A  the answer ........................................... 12
+     row B  rivers (5)  |  official (3)  |  news (4, two rows)
+     row C  rain (5)    |  official (cont)|  news (cont)
+
+   Every chip prints its level in words. Colour is never the only carrier,
+   because a green "no signal" chip reads as an all-clear and nothing on a
+   flood desk can certify one — so "good" and "unknown" are neutral
+   outlines, and only watch / alert / critical carry a filled severity
+   colour.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.desk {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: var(--s-4);
+  color: var(--ink);
+  background: var(--paper);
+  font-family: var(--font-sans);
+  line-height: 1.5;
+}
+
+/* ── Header ─────────────────────────────────────────────────────────── */
+
+.desk-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--s-3);
+  justify-content: space-between;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: var(--s-3);
+}
+.desk-head__back { color: var(--accent); }
+.desk-head__place { color: var(--ink-2); font-size: var(--text-sm); }
+.desk-head__actions { display: flex; gap: var(--s-2); }
+.desk-btn {
+  font: inherit;
+  color: var(--ink);
+  background: var(--panel);
+  border: 1px solid var(--line-2);
+  padding: var(--s-2) var(--s-3);
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+  text-decoration: none;
+}
+.desk-btn:hover { background: var(--ground); }
+.desk-btn:disabled { opacity: .6; cursor: default; }
+.desk-btn:focus-visible, .desk a:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+/* ── The answer ─────────────────────────────────────────────────────── */
+
+.desk-answer {
+  border-bottom: 2px solid var(--line-2);
+  padding-block: var(--s-3);
+  margin-bottom: var(--s-3);
+}
+.desk-answer__head { display: flex; align-items: center; gap: var(--s-2); }
+/* The answer's chip belongs to the answer, so it sits beside the label
+   rather than 1,200 px away in the corner of the page. */
+.desk-answer__head .desk-chip { margin-left: 0; }
+.desk-answer__label {
+  font-size: max(var(--text-xs), 13px);
+  font-weight: 700;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.desk-answer__text {
+  margin: var(--s-2) 0 0;
+  font-size: clamp(1.05rem, 1.6vw, 1.45rem);
+  font-weight: 600;
+  line-height: 1.3;
+  max-width: 90ch;
+}
+.desk-answer__meta { margin: var(--s-2) 0 0; font-size: max(var(--text-xs), 13px); color: var(--ink-3); }
+.desk-answer__meta a { color: var(--accent); }
+
+.desk-error {
+  border-left: 3px solid var(--sev-alert);
+  padding: var(--s-2) var(--s-3);
+  margin: 0 0 var(--s-3);
+  color: var(--ink);
+  background: var(--panel);
+  font-size: var(--text-sm);
+}
+
+/* ── The bento ──────────────────────────────────────────────────────── */
+
+.desk-bento {
+  display: grid;
+  gap: var(--s-3);
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  grid-template-areas:
+    "rivers rivers rivers rivers rivers official official official news news news news"
+    "rain   rain   rain   rain   rain   official official official news news news news";
+}
+.desk-cell--rivers { grid-area: rivers; }
+.desk-cell--official { grid-area: official; }
+.desk-cell--rain { grid-area: rain; }
+.desk-cell--news { grid-area: news; }
+
+.desk-cell {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  padding: var(--s-3);
+  min-width: 0;
+}
+
+/* ── A part inside a compartment ────────────────────────────────────── */
+
+.desk-part + .desk-part {
+  border-top: 1px solid var(--line);
+  margin-top: var(--s-3);
+  padding-top: var(--s-3);
+}
+.desk-part__head { display: flex; align-items: baseline; gap: var(--s-2); flex-wrap: wrap; }
+.desk-part__title { font-size: var(--text-sm); font-weight: 700; color: var(--ink); }
+.desk-part__kind {
+  font-size: max(var(--text-xs), 13px);
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.desk-part__line { margin: var(--s-2) 0 0; font-size: var(--text-sm); color: var(--ink); }
+.desk-part__line--muted { color: var(--ink-2); }
+/* The text of the notice itself — what was actually declared. */
+.desk-part__note { margin: var(--s-2) 0 0; font-size: max(var(--text-xs), 13px); color: var(--ink-2); }
+.desk-part__source { margin: var(--s-1) 0 0; font-size: max(var(--text-xs), 13px); color: var(--ink-3); }
+.desk-part__source a { color: var(--accent); }
+.desk-stale { color: var(--sev-watch); }
+
+/* The evidence under a claim. A compartment with room must hold content:
+   the stations that produced the number, most relevant first — never
+   padding to fill the box. */
+.desk-evidence {
+  list-style: none;
+  margin: var(--s-2) 0 0;
+  padding: 0;
+  font-size: max(var(--text-xs), 13px);
+  color: var(--ink-2);
+}
+.desk-evidence li {
+  padding-block: 3px;
+  border-top: 1px solid var(--line);
+}
+
+/* ── Chips ──────────────────────────────────────────────────────────── */
+
+.desk-chip {
+  margin-left: auto;
+  flex-shrink: 0;
+  font-size: max(var(--text-xs), 13px);
+  font-weight: 700;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  padding: 2px var(--s-2);
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+/* "No signal" and "not established" are neutral outlines on purpose: a
+   filled green chip would read as an all-clear, and neither state is one. */
+.desk-chip--good,
+.desk-chip--unknown { border-color: var(--line-2); color: var(--ink-2); }
+.desk-chip--watch { background: var(--sev-watch); color: var(--sev-ink); }
+.desk-chip--alert { background: var(--sev-alert); color: var(--sev-ink); }
+.desk-chip--critical { background: var(--sev-critical); color: var(--sev-ink); }
+
+/* ── News ───────────────────────────────────────────────────────────── */
+
+.desk-news { list-style: none; margin: var(--s-2) 0 0; padding: 0; }
+.desk-news__item { padding-block: var(--s-2); border-top: 1px solid var(--line); }
+.desk-news__item:first-child { border-top: 0; padding-top: 0; }
+.desk-news__headline {
+  display: block;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--ink);
+  text-decoration: none;
+  min-height: 44px;   /* a touch target, not a decoration */
+}
+.desk-news__headline:hover { text-decoration: underline; }
+.desk-news__original {
+  display: block;
+  margin-top: 2px;
+  font-size: max(var(--text-xs), 13px);
+  color: var(--ink-3);
+}
+.desk-news__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  margin-top: var(--s-1);
+  font-size: max(var(--text-xs), 13px);
+  color: var(--ink-3);
+}
+.desk-news__why { color: var(--ink-2); font-weight: 600; }
+
+/* ── Gaps and footer ────────────────────────────────────────────────── */
+
+.desk-gaps { margin-top: var(--s-3); border-top: 1px solid var(--line); padding-top: var(--s-3); }
+.desk-gaps h2 { margin: 0 0 var(--s-2); font-size: var(--text-sm); color: var(--ink-2); }
+.desk-gaps ul { margin: 0; padding-inline-start: var(--s-4); font-size: var(--text-sm); color: var(--ink-2); }
+
+.desk-foot {
+  margin-top: var(--s-4);
+  padding-top: var(--s-3);
+  border-top: 1px solid var(--line);
+  font-size: max(var(--text-xs), 13px);
+  color: var(--ink-3);
+}
+.desk-foot a { color: var(--accent); }
+
+/* ── Narrow ─────────────────────────────────────────────────────────── */
+
+@media (max-width: 1100px) {
+  .desk-bento {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    grid-template-areas:
+      "rivers rivers rivers official official official"
+      "rain   rain   rain   news    news    news"
+      "rain   rain   rain   news    news    news";
+  }
+}
+/* Touch: this is opened one-handed, outdoors, in the rain. The header
+   control is a control; the rest are words inside sentences, and the
+   product's own briefing treats those the same way. */
+.desk-head__back { display: inline-flex; align-items: center; min-height: 44px; }
+@media (max-width: 900px) {
+  .desk a:not(.desk-head__back) { display: inline-block; padding-block: 14px; }
+}
+@media (max-width: 720px) {
+  .desk { padding: var(--s-3); }
+  .desk-bento {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "rivers" "official" "rain" "news";
+  }
+  .desk-chip { margin-left: 0; }
+}
+
+@media print {
+  .desk { max-width: none; color: #111; background: white; font-size: 10pt; }
+  .desk-head__actions { display: none; }
+  .desk-cell { border-color: #ccc; break-inside: avoid; }
+}

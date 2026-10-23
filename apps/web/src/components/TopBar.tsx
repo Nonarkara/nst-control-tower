@@ -267,10 +267,18 @@ export function TopBar({
           CCTV
         </button>
         <a href="/flood-ops" className="btn" aria-label="Open flood operations briefing">FLOOD WATCH</a>
+        <a
+          href="/mayor-desk"
+          className="btn topbar-desk"
+          aria-label="Open the mayor's desk — this morning's situation, warnings and news in one screen"
+        >
+          DESK
+        </a>
         <MoreMenu
           items={[
             // Phones hide the header buttons; the mayor still needs the flood briefing.
             { label: "Flood watch / เฝ้าระวังน้ำท่วม", group: "Operations", mobileOnly: true, onSelect: () => window.location.assign("/flood-ops") },
+            { label: "Mayor's desk / โต๊ะทำงานนายกฯ", group: "Operations", mobileOnly: true, ariaLabel: "Open the mayor's desk — this morning's situation, warnings and news in one screen", onSelect: () => window.location.assign("/mayor-desk") },
             // Below ~380px the header cannot carry the identity, the feed-health
             // word and three display buttons at once. Rather than clip the
             // identity to "N…" or squeeze the health word out of its button,
