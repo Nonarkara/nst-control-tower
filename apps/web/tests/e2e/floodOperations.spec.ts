@@ -69,3 +69,12 @@ test("known near-bank observations survive missing rain and invalid synthesis ti
   await expect(summary).toContainText("invalid timestamp");
   await expect(page.locator(".flood-watch-layout")).not.toBeVisible();
 });
+
+test("last-good observations remain visible but are never presented as a live source", async ({page}) => {
+  const cachedMeta={...meta,fetchedAt:new Date(Date.now()-120_000).toISOString(),ageMinutes:2,fallbackTier:"cache",note:"last-good snapshot; refreshing — not live"};
+  await page.route("**/api/flood/operations?**",r=>r.fulfill({json:{features:[{...observation,waterMeta:cachedMeta,rainMeta:cachedMeta,gaps:["HII last-good snapshot; source refresh pending"]}],meta}}));
+  await page.goto("/flood-ops");
+  await expect(page.locator(".flood-watch-status strong")).toContainText("1 สถานีใกล้/ถึงตลิ่ง");
+  await expect(page.locator(".flood-watch-status")).toContainText("Incomplete coverage");
+  await expect(page.locator(".flood-watch")).toContainText("last-good snapshot");
+});

@@ -14,7 +14,7 @@
  *    its last value — a dead gauge must never read as a calm river.
  *  - The note says how many were dropped, so "no data" is visible.
  */
-import { finishCacheWrite } from "../lib/cache.js";
+import { finishBackgroundWork } from "../lib/cache.js";
 import type { RainfallStation, WaterGauge } from "@nst/shared";
 import { fetchJsonOrThrow } from "./common.js";
 import { AMPHOE_NAMES, AMPHOE_POINTS } from "../data/amphoePoints.js";
@@ -57,6 +57,9 @@ export interface RelayRain {
 
 export interface RelayResponse {
   generated_at: string;
+  /** Retrieval clock survives shared-cache reads; reading the cache never renews it. */
+  relayFetchedAt?: string;
+  relayFromCache?: boolean;
   water: RelayWater[];
   rain: RelayRain[];
 }
@@ -184,9 +187,9 @@ export function mapRelayRain(rows: RelayRain[]): { stations: RainfallStation[]; 
  *  give up at exactly 10 s — so the relay failed every time the 60 s server
  *  cache had expired, which is every time a 10-minute cache asks. */
 export const RELAY_TIMEOUT_MS = 16_000;
-/** Shared across every Worker instance in a data centre, so FloodDash is asked
- *  about once per window, not once per cold instance. */
-export const RELAY_EDGE_TTL_S = 60;
+/** Last-good retention in each data centre. Refresh cadence is separate. */
+export const RELAY_EDGE_TTL_S = 2 * 60 * 60;
+export const RELAY_FRESH_MS = 60_000;
 
 interface EdgeCache {
   match(req: Request): Promise<Response | undefined>;
@@ -212,6 +215,38 @@ async function cacheDeadline<T>(work: Promise<T>): Promise<T> {
   } finally { clearTimeout(timer!); }
 }
 
+/** A last-good snapshot is shared across cold isolates in the same data centre.
+ * It remains useful evidence during a brief origin outage, with original source
+ * and observation clocks. It never becomes a new live reading by being served. */
+export function relaySnapshotMeta(relay: RelayResponse) {
+  const candidate = relay.relayFetchedAt ?? relay.generated_at;
+  const fetchedAt = Number.isFinite(Date.parse(candidate)) ? candidate : new Date().toISOString();
+  return { fetchedAt, ageMinutes: Math.max(0, Math.floor((Date.now() - Date.parse(fetchedAt)) / 60_000)),
+    fallbackTier: relay.relayFromCache ? "cache" as const : "live" as const };
+}
+
+async function refreshRelay(cache: EdgeCache | null, key: Request): Promise<RelayResponse> {
+  const body = await fetchJsonOrThrow<RelayResponse>(RELAY_URL, undefined, RELAY_TIMEOUT_MS);
+  if (!validShape(body) || (!body.water.length && !body.rain.length)) throw new Error("FloodDash relay returned no station snapshot");
+  const snapshot: RelayResponse = {...body, relayFetchedAt: new Date().toISOString(), relayFromCache: false};
+  // The combined cache is transactional: a partial/invalid source reply may
+  // serve its usable subset now, but cannot erase the other last-good feed.
+  const recent = (row: {lat: number; lng: number; observedAt: string}) => {
+    const age = Date.now() - Date.parse(row.observedAt);
+    return Number.isFinite(row.lat) && Math.abs(row.lat) <= 90 && Number.isFinite(row.lng) && Math.abs(row.lng) <= 180
+      && Number.isFinite(age) && age >= -5 * 60_000 && age <= 2 * 3600_000;
+  };
+  const usableWater = mapRelayWater(body.water).gauges.some(row => recent(row) && row.levelMsl != null && Number.isFinite(row.levelMsl));
+  const usableRain = mapRelayRain(body.rain).stations.some(row => recent(row) && [row.rain1h, row.rain24h].some(value => value != null && Number.isFinite(value)));
+  if (!usableWater && !usableRain) throw new Error("FloodDash relay returned no usable observations");
+  if (cache && usableWater && usableRain) {
+    await finishBackgroundWork(cacheDeadline(cache.put(key, new Response(JSON.stringify(snapshot), {
+      headers: { "content-type": "application/json", "cache-control": `public, max-age=${RELAY_EDGE_TTL_S}` },
+    }))).catch(err => { console.warn("floodDashRelay edge-cache write failed", (err as Error).message); }));
+  }
+  return snapshot;
+}
+
 export async function fetchRelay(): Promise<RelayResponse> {
   const cache = edgeCache();
   const key = new Request(RELAY_URL);
@@ -219,29 +254,23 @@ export async function fetchRelay(): Promise<RelayResponse> {
     try {
       const hit = await cacheDeadline(cache.match(key));
       if (hit) {
-        const cached = (await cacheDeadline(hit.json())) as RelayResponse;
-        if (validShape(cached)) return cached;
+        const snapshot = await cacheDeadline(hit.json()) as RelayResponse;
+        const age = Date.now() - Date.parse(snapshot.relayFetchedAt ?? snapshot.generated_at);
+        if (validShape(snapshot) && (snapshot.water.length || snapshot.rain.length) && Number.isFinite(age) && age >= -5 * 60_000 && age <= RELAY_EDGE_TTL_S * 1000) {
+          if (age <= RELAY_FRESH_MS) return snapshot;
+          // Keep the old snapshot if refresh fails, including an empty HTTP200.
+          await finishBackgroundWork(refreshRelay(cache, key).catch(err => {
+            console.warn("floodDashRelay background refresh failed", (err as Error).message);
+          }));
+          return {...snapshot, relayFromCache: true};
+        }
       }
     } catch (err) {
       console.warn("floodDashRelay edge-cache read failed", (err as Error).message);
     }
   }
-
-  let body: RelayResponse;
-  try {
-    body = await fetchJsonOrThrow<RelayResponse>(RELAY_URL, undefined, RELAY_TIMEOUT_MS);
-  } catch (err) {
-    console.warn("floodDashRelay fetch failed", (err as Error).message);
-    throw err;
-  }
-  if (!validShape(body)) throw new Error("FloodDash relay returned an unexpected shape");
-
-  if (cache) {
-    await finishCacheWrite(cacheDeadline(cache.put(key, new Response(JSON.stringify(body), {
-      headers: { "content-type": "application/json", "cache-control": `public, max-age=${RELAY_EDGE_TTL_S}` },
-    }))).catch(err => { console.warn("floodDashRelay edge-cache write failed", (err as Error).message); }));
-  }
-  return body;
+  try { return await refreshRelay(cache, key); }
+  catch (err) { console.warn("floodDashRelay fetch failed", (err as Error).message); throw err; }
 }
 
 export const RELAY_SOURCE_NOTE = "ThaiWater unreachable from Cloudflare — HII readings relayed by FloodDash (flood.nonarkara.org)";

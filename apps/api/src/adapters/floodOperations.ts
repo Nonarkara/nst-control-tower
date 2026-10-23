@@ -1,7 +1,7 @@
 import type { FloodOperations, NormalizedFeed, RainWindPoint } from "@nst/shared";
 import { cachedWithStale } from "../lib/cache.js";
 import { fetchJsonOrThrow } from "./common.js";
-import { fetchRelay, mapRelayWater, mapRelayRain } from "./floodDashRelay.js";
+import { fetchRelay, relaySnapshotMeta, mapRelayWater, mapRelayRain } from "./floodDashRelay.js";
 import { fetchNstCctv } from "./cctvNst.js";
 import { fetchFloodContext } from "./floodContext.js";
 
@@ -68,12 +68,11 @@ export async function fetchFloodOperations(): Promise<NormalizedFeed<FloodOperat
     // followed by duplicate relay reads. Keep initial fan-out within Workers'
     // six outgoing connections (relay + forecast + tide + three context reads).
     const observedWork = withinOperationsDeadline(fetchRelay().then(relay => {
-      const fetchedAt = new Date().toISOString();
       const { gauges } = mapRelayWater(relay.water); const { stations } = mapRelayRain(relay.rain);
-      const meta = { source: "HII via FloodDash", fetchedAt, ageMinutes: 0, fallbackTier: "live" as const, note: "Observation times are retained per station; FloodDash relays HII readings" };
+      const meta = { source: "HII via FloodDash", ...relaySnapshotMeta(relay), note: "Observation times are retained per station; FloodDash relays HII readings" };
       return {
-        water: { features: gauges, meta: { ...meta, fallbackTier: gauges.length ? "live" as const : "unavailable" as const } },
-        rain: { features: stations, meta: { ...meta, fallbackTier: stations.length ? "live" as const : "unavailable" as const } },
+        water: { features: gauges, meta: { ...meta, fallbackTier: gauges.length ? meta.fallbackTier : "unavailable" as const } },
+        rain: { features: stations, meta: { ...meta, fallbackTier: stations.length ? meta.fallbackTier : "unavailable" as const } },
       };
     }));
     const weatherWork = withinOperationsDeadline(fetchTransect());
@@ -91,6 +90,7 @@ export async function fetchFloodOperations(): Promise<NormalizedFeed<FloodOperat
     const c = result(context, "FloodDash context unavailable"); const cams = result(cameras, "Municipal camera inventory unavailable")?.features.filter(c => c.category === "water") ?? [];
     if (!w?.features.length) gaps.push("No usable river-gauge observations");
     if (!r?.features.length) gaps.push("No usable rain-gauge observations");
+    if (w?.meta.fallbackTier === "cache" || r?.meta.fallbackTier === "cache") gaps.push("HII observations from last-good cache; source refresh pending or unavailable — verify station timestamps");
     const now = new Date().toISOString();
     const feature: FloodOperations = { generatedAt: now, gauges: w?.features ?? [], rain: r?.features ?? [], waterMeta: w?.meta ?? unavailable("thaiwater"), rainMeta: r?.meta ?? unavailable("thaiwater"), weather: f?.points ?? [], weatherFetchedAt: f?.fetchedAt ?? null, tide: t, context: c ?? { fetchedAt: now, wetness: null, rainTrend: null, tmd: null, errors: ["FloodDash context unavailable"] }, cameraCounts: { total: cams.length, online: cams.filter(c => c.status === "online").length, unknown: cams.filter(c => c.status !== "online" && c.status !== "offline").length }, gaps: [...gaps, ...(c?.errors ?? [])] };
     return { features: [feature], meta: { source: "HII via FloodDash; TMD via FloodDash; Open-Meteo models", fetchedAt: now, ageMinutes: 0, fallbackTier: "scenario", note: "Operational synthesis, not an official warning or calibrated inundation prediction" } };

@@ -62,8 +62,8 @@ function ageWords(min: number): string {
 
 function freshnessOf(ageMinutes: number | null, tier: FallbackTier | "loading" | undefined): string {
   if (tier === "loading") return "Loading gauge data…";
-  if (ageMinutes == null || !Number.isFinite(ageMinutes)) return "Gauge data age unknown";
-  const age = `Gauges updated ${ageWords(ageMinutes)}`;
+  if (ageMinutes == null || !Number.isFinite(ageMinutes)) return "Feed retrieval time unknown";
+  const age = `Feed retrieved ${ageWords(ageMinutes)}`;
   if (tier && tier !== "live") return `${age} · not live (${tier}) — treat as a snapshot`;
   return age;
 }
@@ -94,7 +94,11 @@ export function buildSituationHeadline(opts: {
   const gauges = opts.tier === "scenario" ? [] : opts.gauges.filter(g => isCurrentObservation(g.observedAt));
   const basins = opts.basins ?? [];
   const cameras = opts.cameras ?? [];
-  const freshness = th ? freshnessTh(opts.ageMinutes, opts.tier) : freshnessOf(opts.ageMinutes, opts.tier);
+  const feedFreshness = th ? freshnessTh(opts.ageMinutes, opts.tier) : freshnessOf(opts.ageMinutes, opts.tier);
+  const observationAges = gauges.map(g => Math.max(0, Math.round((Date.now() - Date.parse(g.observedAt)) / 60_000)));
+  const lo = Math.min(...observationAges); const hi = Math.max(...observationAges);
+  const range = lo === hi ? `${lo}` : `${lo}–${hi}`;
+  const freshness = observationAges.length ? `${th ? `ข้อมูลตรวจวัดอายุ ${range} นาที` : `Readings ${range} min old`} · ${feedFreshness}` : feedFreshness;
 
   if (gauges.length === 0) {
     return {
@@ -208,20 +212,20 @@ export function buildSituationHeadline(opts: {
         detail: `ระดับน้ำ ${top.levelM != null ? `${top.levelM.toFixed(2)} ม.` : "—"}${top.refM != null ? ` · ${top.refKind === "critical" ? "ระดับวิกฤต" : "ตลิ่ง"} ${top.refM.toFixed(2)} ม.` : ""}${soonest ? ` · ค่าประมาณที่มีเกิน ${OVERTOP_WARNING_H} ชม. สถานีอื่นอาจไม่มีค่าประมาณ` : " · ยังประเมินเวลาล้นตลิ่งไม่ได้"}`,
         action: level === "watch"
           ? "ตรวจสอบในพื้นที่และเฝ้าระวังต่อ สถานีนี้ใกล้ระดับสูงสุดมากที่สุด"
-          : "ตรวจสอบกล้องที่ใกล้ที่สุด และตรวจซ้ำใน 1 ชั่วโมง",
+          : "ตรวจสอบกล้องที่ใกล้ที่สุดและยืนยันสภาพพื้นที่กับเจ้าหน้าที่เวรทันที",
         freshness,
         gauge: { name: top.name, lat: top.lat, lng: top.lng },
         camera: top.camera,
       };
     }
-    const trend = top.trend === "rising" ? "and rising" : top.trend === "falling" ? "and falling" : "and holding steady";
+    const trend = top.trend === "rising" ? "and rising" : top.trend === "falling" ? "and falling" : "with no rise/fall signal reported";
     return {
       level,
       headline: `${nameWithRiver}: ${plainReason(top.reason)}, ${trend}`,
       detail: `Water level ${top.levelM != null ? `${top.levelM.toFixed(2)} m` : "—"}${top.refM != null ? ` · ${top.refKind === "critical" ? "critical" : "bank"} ${top.refM.toFixed(2)} m` : ""}${soonest ? ` · available estimate exceeds ${OVERTOP_WARNING_H} h; other stations may lack estimates` : " · overtopping time is not established"}`,
       action: level === "watch"
         ? "Verify locally and keep watching; this gauge is closest to its limit."
-        : "Check the nearest camera and re-check in 1 hour.",
+        : "Check the nearest camera and confirm conditions with the duty officer now.",
       freshness,
       gauge: { name: top.name, lat: top.lat, lng: top.lng },
       camera: top.camera,
@@ -254,7 +258,7 @@ export function plainReason(reason: string): string {
 // ── Thai ────────────────────────────────────────────────────────────────────
 
 function trendTh(trend: string): string {
-  return trend === "rising" ? "และกำลังสูงขึ้น" : trend === "falling" ? "และกำลังลดลง" : "และทรงตัว";
+  return trend === "rising" ? "และกำลังสูงขึ้น" : trend === "falling" ? "และกำลังลดลง" : "ไม่มีรายงานแนวโน้มขึ้น/ลง";
 }
 
 function hoursTh(h: number): string {
@@ -283,8 +287,8 @@ function ageWordsTh(min: number): string {
 
 function freshnessTh(ageMinutes: number | null, tier: FallbackTier | "loading" | undefined): string {
   if (tier === "loading") return "กำลังโหลดข้อมูลสถานี…";
-  if (ageMinutes == null || !Number.isFinite(ageMinutes)) return "ไม่ทราบอายุของข้อมูลสถานี";
-  const age = `อัปเดตข้อมูลสถานี${ageWordsTh(ageMinutes)}`;
+  if (ageMinutes == null || !Number.isFinite(ageMinutes)) return "ไม่ทราบเวลาดึงข้อมูลแหล่ง";
+  const age = `ดึงข้อมูลแหล่ง${ageWordsTh(ageMinutes)}`;
   if (tier && tier !== "live") return `${age} · ไม่ใช่ข้อมูลสด (${tier}) — ถือเป็นภาพ ณ เวลาหนึ่ง`;
   return age;
 }

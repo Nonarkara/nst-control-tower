@@ -7,8 +7,8 @@ export function withCacheLifetime<T>(waitUntil: (promise: Promise<unknown>) => v
   return refreshLifetime.run(waitUntil, work);
 }
 
-/** Attach optional cache writes to this request's lifetime, never another request. */
-export async function finishCacheWrite(work: Promise<unknown>): Promise<void> {
+/** Attach optional refresh/cache work to this request's lifetime, never another request. */
+export async function finishBackgroundWork(work: Promise<unknown>): Promise<void> {
   const waitUntil = refreshLifetime.getStore();
   if (waitUntil) waitUntil(work);
   else await work;

@@ -11,9 +11,10 @@
 
 import type { NormalizedFeed, WaterGauge, RainfallStation } from "@nst/shared";
 import { cacheAgeMinutes, cachedWithStale as cached } from "../lib/cache.js";
+import { ageOperationalFeed } from "../lib/operationalFeed.js";
 import { recordGaugeSample } from "../lib/gaugeHistory.js";
 import { fetchJsonOrThrow } from "./common.js";
-import { RELAY_SOURCE_NOTE, SILENT_AFTER_H, bangkokIso, fetchRelay, mapRelayRain, mapRelayWater } from "./floodDashRelay.js";
+import { RELAY_SOURCE_NOTE, SILENT_AFTER_H, bangkokIso, fetchRelay, relaySnapshotMeta, mapRelayRain, mapRelayWater } from "./floodDashRelay.js";
 
 const BASE = "https://api-v3.thaiwater.net/api/v1/thaiwater30/public";
 const PROVINCE = "80"; // Nakhon Si Thammarat
@@ -184,7 +185,7 @@ const computeWaterGauges = async (): Promise<NormalizedFeed<WaterGauge>> => {
     // (no stale cache), cachedWithStale re-throws, so catch here to return a calm
     // unavailable feed instead of a 500 through safeFeed.
     let resp: TWResponse<TWWaterLevelEntry[]> | null = null;
-    if (!directThaiWaterAllowed()) return gaugesViaRelay(fetchedAt);
+    if (!directThaiWaterAllowed()) return gaugesViaRelay();
     try {
       resp = await fetchJsonOrThrow<TWResponse<TWWaterLevelEntry[]>>(
         `${BASE}/waterlevel?province_code=${PROVINCE}`, undefined, DIRECT_TIMEOUT_MS
@@ -192,7 +193,7 @@ const computeWaterGauges = async (): Promise<NormalizedFeed<WaterGauge>> => {
       directThaiWaterWorked();
     } catch {
       directThaiWaterFailed();
-      return gaugesViaRelay(fetchedAt);
+      return gaugesViaRelay();
     }
     const raw: TWWaterLevelEntry[] = resp?.data ?? [];
 
@@ -263,9 +264,7 @@ const computeWaterGauges = async (): Promise<NormalizedFeed<WaterGauge>> => {
  * number that must never lie is how old the number is.
  */
 function trueAge<T>(feed: NormalizedFeed<T>): NormalizedFeed<T> {
-  const age = cacheAgeMinutes(feed.meta.fetchedAt);
-  if (age === feed.meta.ageMinutes) return feed;
-  return { ...feed, meta: { ...feed.meta, ageMinutes: age } };
+  return ageOperationalFeed(feed);
 }
 
 /**
@@ -303,7 +302,7 @@ const computeRainfall = async (): Promise<NormalizedFeed<RainfallStation>> => {
     // (no stale cache), cachedWithStale re-throws, so catch here to return a calm
     // unavailable feed instead of a 500 through safeFeed.
     let resp: TWResponse<TWRainEntry[]> | null = null;
-    if (!directThaiWaterAllowed()) return rainViaRelay(fetchedAt);
+    if (!directThaiWaterAllowed()) return rainViaRelay();
     try {
       resp = await fetchJsonOrThrow<TWResponse<TWRainEntry[]>>(
         `${BASE}/rain_24h?province_code=${PROVINCE}`, undefined, DIRECT_TIMEOUT_MS
@@ -311,7 +310,7 @@ const computeRainfall = async (): Promise<NormalizedFeed<RainfallStation>> => {
       directThaiWaterWorked();
     } catch {
       directThaiWaterFailed();
-      return rainViaRelay(fetchedAt);
+      return rainViaRelay();
     }
     const raw: TWRainEntry[] = resp?.data ?? [];
 
@@ -394,20 +393,19 @@ function relayDown<T>(kind: string, source: string): NormalizedFeed<T> {
   };
 }
 
-async function gaugesViaRelay(fetchedAt: string): Promise<NormalizedFeed<WaterGauge>> {
+async function gaugesViaRelay(): Promise<NormalizedFeed<WaterGauge>> {
   try {
     const relay = await fetchRelay();
     const { gauges, silent } = mapRelayWater(relay.water);
+    if (!gauges.length) throw new Error("No reporting river stations in relay snapshot");
     for (const g of gauges) recordGaugeSample(g.stationCode ?? g.id, g.observedAt, g.levelMsl);
     gauges.sort((a, b) => (b.situationLevel ?? 0) - (a.situationLevel ?? 0) || a.name.localeCompare(b.name));
     return {
       features: gauges,
       meta: {
         source: "thaiwater-waterlevel via flooddash",
-        fetchedAt,
-        ageMinutes: 0,
-        fallbackTier: gauges.length > 0 ? "live" : "unavailable",
-        note: `${RELAY_SOURCE_NOTE} · ${gauges.length} reporting · ${silent} silent >${SILENT_AFTER_H} h not shown`,
+        ...relaySnapshotMeta(relay),
+        note: `${RELAY_SOURCE_NOTE}${relay.relayFromCache ? " · last-good snapshot; refreshing — not live" : ""} · ${gauges.length} reporting · ${silent} silent >${SILENT_AFTER_H} h not shown`,
       },
     };
   } catch (err) {
@@ -417,19 +415,18 @@ async function gaugesViaRelay(fetchedAt: string): Promise<NormalizedFeed<WaterGa
   }
 }
 
-async function rainViaRelay(fetchedAt: string): Promise<NormalizedFeed<RainfallStation>> {
+async function rainViaRelay(): Promise<NormalizedFeed<RainfallStation>> {
   try {
     const relay = await fetchRelay();
     const { stations, silent } = mapRelayRain(relay.rain);
+    if (!stations.length) throw new Error("No reporting rain stations in relay snapshot");
     stations.sort((a, b) => (b.rain24h ?? 0) - (a.rain24h ?? 0));
     return {
       features: stations,
       meta: {
         source: "thaiwater-rain via flooddash",
-        fetchedAt,
-        ageMinutes: 0,
-        fallbackTier: stations.length > 0 ? "live" : "unavailable",
-        note: `${RELAY_SOURCE_NOTE} · ${stations.length} reporting · ${silent} silent >${SILENT_AFTER_H} h not shown`,
+        ...relaySnapshotMeta(relay),
+        note: `${RELAY_SOURCE_NOTE}${relay.relayFromCache ? " · last-good snapshot; refreshing — not live" : ""} · ${stations.length} reporting · ${silent} silent >${SILENT_AFTER_H} h not shown`,
       },
     };
   } catch (err) {

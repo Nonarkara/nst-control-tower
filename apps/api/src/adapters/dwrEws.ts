@@ -3,9 +3,8 @@
  *
  * Department of Water Resources community flash-flood / landslide network.
  * No auth. A single POST returns ~2,275 stations nationwide; we filter to
- * Nakhon Si Thammarat (~86 stations), most of them in the Khao Luang upland
- * districts (ลานสกา, นบพิตำ, พิปูน, พรหมคีรี, สิชล) where flash floods
- * originate hours before the city floods.
+ * Nakhon Si Thammarat (~86 stations), across separate catchments. District
+ * membership does not establish whether runoff reaches the municipal area.
  *
  * Why this matters for NST: unlike the HII river gauges, EWS carries
  *   • an official 0-3 alert status (watch / prepare / critical), and
@@ -16,12 +15,13 @@
  */
 
 import type { NormalizedFeed, EwsStation } from "@nst/shared";
-import { cacheAgeMinutes, cachedWithStale as cached } from "../lib/cache.js";
+import { cacheAgeMinutes, finishBackgroundWork, cachedWithStale as cached } from "../lib/cache.js";
+import { ageOperationalFeed } from "../lib/operationalFeed.js";
 import { fetchJsonOrThrow } from "./common.js";
 
 const URL = "https://ews.dwr.go.th/ews/web-service/stn";
 const PROVINCE_TH = "นครศรีธรรมราช";
-const TTL = 15 * 60; // 15 min — flash floods move fast; the network updates ~15-min
+const TTL = 60; // shared snapshot coalesces source refreshes across cold isolates
 
 interface EwsRaw {
   stn?: string;
@@ -107,9 +107,50 @@ function status(raw: number | string | null | undefined): EwsStation["status"] {
  *  still carries its own `stale` flag from its own timestamp. */
 const STALE_SERVE_S = 2 * 3600;
 
+export const DWR_SNAPSHOT_KEY = "https://nst-control-tower-api.drnon.workers.dev/__snapshot/dwr-ews";
+interface DwrCache {
+  match(request: Request): Promise<Response | undefined>;
+  put(request: Request, response: Response): Promise<void>;
+}
+async function dwrCacheDeadline<T>(work: Promise<T>): Promise<T> {
+  let timer: ReturnType<typeof setTimeout>;
+  try { return await Promise.race([work, new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error("DWR snapshot cache deadline")), 1000);
+  })]); } finally { clearTimeout(timer!); }
+}
+async function loadEwsSnapshot(cache: DwrCache | undefined, key: Request): Promise<NormalizedFeed<EwsStation>> {
+  const feed = await fetchEwsInner();
+  if (!feed.features.length || feed.meta.fallbackTier !== "live") throw new Error("DWR EWS returned no NST stations");
+  if (cache) await finishBackgroundWork(dwrCacheDeadline(cache.put(key, Response.json(feed, {
+    headers: {"cache-control": `public, max-age=${STALE_SERVE_S}`},
+  }))).catch(err => {console.warn("DWR snapshot write failed", (err as Error).message);}));
+  return feed;
+}
+/** A cold Worker can use the last-good shared snapshot through a DWR522.
+ * Cache reads retain source/observation clocks and explicitly identify cache. */
+async function fetchEwsShared(): Promise<NormalizedFeed<EwsStation>> {
+  const cache = (globalThis as {caches?: {default?: DwrCache}}).caches?.default;
+  const key = new Request(DWR_SNAPSHOT_KEY);
+  if (cache) {
+    try {
+      const hit = await dwrCacheDeadline(cache.match(key));
+      if (hit) {
+        const feed = await dwrCacheDeadline(hit.json()) as NormalizedFeed<EwsStation>;
+        const age = Date.now() - Date.parse(feed.meta?.fetchedAt ?? "");
+        if (Array.isArray(feed.features) && feed.features.length && feed.meta?.source === "dwr-ews" && Number.isFinite(age) && age >= -5*60_000 && age <= STALE_SERVE_S*1000) {
+          if (age <= TTL*1000) return {...feed,meta:{...feed.meta,ageMinutes:cacheAgeMinutes(feed.meta.fetchedAt)}};
+          await finishBackgroundWork(loadEwsSnapshot(cache,key).catch(err => {console.warn("DWR background refresh failed", (err as Error).message);}));
+          return {...feed,meta:{...feed.meta,ageMinutes:cacheAgeMinutes(feed.meta.fetchedAt),fallbackTier:"cache",note:"DWR last-good snapshot; refreshing — not live. Verify station observation times."}};
+        }
+      }
+    } catch(err) {console.warn("DWR snapshot read failed", (err as Error).message);}
+  }
+  return loadEwsSnapshot(cache,key);
+}
+
 export async function fetchEwsStations(): Promise<NormalizedFeed<EwsStation>> {
   try {
-    return await cached("dwr-ews", TTL, fetchEwsInner, STALE_SERVE_S);
+    return ageOperationalFeed(await cached("dwr-ews", TTL, fetchEwsShared, STALE_SERVE_S, true));
   } catch (err) {
     // Nothing good cached: an honest outage, not a cached empty "feed".
     const fetchedAt = new Date().toISOString();

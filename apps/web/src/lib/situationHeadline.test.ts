@@ -53,14 +53,15 @@ describe("buildSituationHeadline", () => {
     expect(h.level).toBe("critical");
     expect(h.headline).toMatch(/Lan Saka.*may overtop in about 3\.5 h/);
     expect(h.detail).toMatch(/0\.70 m below bank · rising 20 cm\/h/);
-    expect(h.freshness).toBe("Gauges updated 12 min ago");
+    expect(h.freshness).toContain("Feed retrieved 12 min ago");
+    expect(h.freshness).toContain("Readings 0 min old");
   });
 
   it("an ETA between 6 and 24 h is a warning with a standby action", () => {
     const h = buildSituationHeadline({ gauges: [gauge()], basins: [basinWith([{ etaOvertopH: 14 }])], ageMinutes: 90, tier: "live" });
     expect(h.level).toBe("warning");
     expect(h.action).toMatch(/standby/);
-    expect(h.freshness).toBe("Gauges updated 2 h ago");
+    expect(h.freshness).toContain("Feed retrieved 2 h ago");
   });
 
   it("falls back to the fullness ranking when nothing is rising", () => {
@@ -110,7 +111,8 @@ describe("Thai headline", () => {
     const h = th();
     expect(h.headline).toContain("น้ำอยู่ที่ 97% ของระดับตลิ่ง");
     expect(h.headline).toContain("และกำลังสูงขึ้น");
-    expect(h.freshness).toBe("อัปเดตข้อมูลสถานีเมื่อสักครู่".replace("เมื่อสักครู่", "5 นาทีที่แล้ว"));
+    expect(h.freshness).toContain("ดึงข้อมูลแหล่ง5 นาทีที่แล้ว");
+    expect(h.freshness).toContain("ข้อมูลตรวจวัดอายุ 0 นาที");
   });
   it("over-bank is critical and in Thai", () => {
     const h = th({ situationLevel: 5, diffFromBank: 0.2 });
@@ -137,4 +139,11 @@ it("a recent retrieval cannot renew a stale or future observation", () => {
   for (const observedAt of ["invalid", new Date(Date.now()-121*60_000).toISOString(), new Date(Date.now()+6*60_000).toISOString()]) {
     expect(buildSituationHeadline({gauges:[gauge({observedAt})], ageMinutes:0, tier:"live"}).level).toBe("unknown");
   }
+});
+
+it("a fresh retrieval never relabels an hour-old measurement or missing motion as live/steady", () => {
+  const h=buildSituationHeadline({gauges:[gauge({observedAt:new Date(Date.now()-65*60_000).toISOString(),fullnessPct:95,trend:"stable",levelPrev:null})],ageMinutes:0,tier:"live"});
+  expect(h.freshness).toContain("Readings 65 min old");
+  expect(h.freshness).toContain("Feed retrieved just now");
+  expect(h.headline).toContain("no rise/fall signal reported");
 });

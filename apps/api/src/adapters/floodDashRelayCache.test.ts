@@ -1,7 +1,8 @@
+import { withCacheLifetime } from "../lib/cache";
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { fetchRelay, RELAY_TIMEOUT_MS } from "./floodDashRelay";
+import { fetchRelay, relaySnapshotMeta, RELAY_URL, RELAY_TIMEOUT_MS } from "./floodDashRelay";
 
-const payload = { generated_at: "2026-10-21T00:00:00Z", water: [], rain: [] };
+const payload = { generated_at: "2026-10-21T00:00:00Z", water: [{key:"test",wl_msl:1,name_th:"test",lat:8.4,lng:99.9,obs_time:new Date().toISOString(),age_min:0}], rain: [{key:"rain",name_th:"rain",lat:8.4,lng:99.9,obs_time:new Date().toISOString(),age_min:0,rain_1h:1}] };
 
 function fakeCaches() {
   const store = new Map<string, Response>();
@@ -38,7 +39,7 @@ describe("FloodDash relay — shared edge cache + patient timeout", () => {
     const f = vi.fn(async () => new Response(JSON.stringify(payload), { status: 200 }));
     vi.stubGlobal("fetch", f);
     const out = await fetchRelay();
-    expect(out.water).toEqual([]);
+    expect(out.water).toEqual(payload.water);
     expect(f).toHaveBeenCalledTimes(1);
   });
 
@@ -64,7 +65,56 @@ it("a hung cache read cannot indefinitely block live relay fallback", async () =
   try {
     const work = fetchRelay();
     await vi.advanceTimersByTimeAsync(1_001);
-    expect(await work).toEqual(payload);
+    expect(await work).toMatchObject(payload);
     expect(fetch).toHaveBeenCalledTimes(1);
   } finally { vi.useRealTimers(); vi.unstubAllGlobals(); }
+});
+
+
+describe("shared last-good snapshot survives cold-isolate source outages", () => {
+  afterEach(() => {vi.unstubAllGlobals(); vi.restoreAllMocks();});
+  it("returns the aged snapshot immediately while failed refresh stays attached to its request", async () => {
+    const c = fakeCaches(); const storedAt = new Date(Date.now()-120_000).toISOString();
+    c.store.set(RELAY_URL, Response.json({...payload,relayFetchedAt:storedAt}));
+    vi.stubGlobal("caches", c);
+    let rejectFetch!: (err: Error) => void;
+    vi.stubGlobal("fetch", vi.fn(() => new Promise<Response>((_resolve,reject) => {rejectFetch=reject;})));
+    const work: Promise<unknown>[] = [];
+    const snapshot = await withCacheLifetime(p => {work.push(p);}, () => fetchRelay());
+    expect(snapshot.relayFromCache).toBe(true);
+    expect(relaySnapshotMeta(snapshot)).toMatchObject({fetchedAt:storedAt,ageMinutes:2,fallbackTier:"cache"});
+    expect(snapshot.water).toEqual(payload.water);
+    rejectFetch(new Error("origin unavailable")); await Promise.all(work);
+    expect((await c.store.get(RELAY_URL)!.clone().json() as {relayFetchedAt:string}).relayFetchedAt).toBe(storedAt);
+  });
+  it("an empty HTTP200 refresh cannot replace a useful snapshot", async () => {
+    const c = fakeCaches();const storedAt = new Date(Date.now()-120_000).toISOString();
+    c.store.set(RELAY_URL,Response.json({...payload,relayFetchedAt:storedAt}));
+    vi.stubGlobal("caches",c);vi.stubGlobal("fetch",vi.fn(async()=>Response.json({generated_at:new Date().toISOString(),water:[],rain:[]})));
+    const work:Promise<unknown>[]=[];
+    const old = await withCacheLifetime(p=>{work.push(p);},()=>fetchRelay()); await Promise.all(work);
+    expect(old.relayFromCache).toBe(true);
+    expect((await c.store.get(RELAY_URL)!.clone().json() as {relayFetchedAt:string}).relayFetchedAt).toBe(storedAt);
+  });
+  it("rejects expired and future snapshots rather than renewing their clocks", async () => {
+    for (const offset of [-121*60_000,6*60_000]) {
+      const c=fakeCaches();c.store.set(RELAY_URL,Response.json({...payload,relayFetchedAt:new Date(Date.now()+offset).toISOString()}));
+      vi.stubGlobal("caches",c);vi.stubGlobal("fetch",vi.fn(async()=>{throw new Error("down");}));
+      await expect(fetchRelay()).rejects.toThrow();
+    }
+  });
+});
+
+it("partial or invalid refresh cannot erase either shared last-good feed", async () => {
+  const c = fakeCaches(); const storedAt = new Date(Date.now()-120_000).toISOString();
+  vi.stubGlobal("caches", c);
+  try {
+    for (const water of [[], [{...payload.water[0],obs_time:"invalid"}]]) {
+      c.store.set(RELAY_URL,Response.json({...payload,relayFetchedAt:storedAt}));
+      vi.stubGlobal("fetch",vi.fn(async()=>Response.json({...payload,water})));
+      const work:Promise<unknown>[]=[];
+      await withCacheLifetime(p=>{work.push(p);},()=>fetchRelay()); await Promise.all(work);
+      expect(await c.store.get(RELAY_URL)!.clone().json()).toMatchObject({water:payload.water,rain:payload.rain,relayFetchedAt:storedAt});
+    }
+  } finally {vi.unstubAllGlobals();}
 });

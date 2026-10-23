@@ -224,8 +224,9 @@ describe("a snapshot served through an outage must not lie about its age", () =>
     }, -1);
 
     const out = await fetchWaterGauges();
-    expect(out.features).toHaveLength(2);
-    // 120 min is the "stale" threshold: past it the chip must go red, not green.
+    expect(out.features).toHaveLength(0);
+    expect(out.meta.fallbackTier).toBe("unavailable");
+    // The original clock remains visible, but expired evidence cannot be reused.
     expect(out.meta.ageMinutes).toBeGreaterThanOrEqual(180);
     expect(out.meta.ageMinutes).toBeLessThanOrEqual(181);
   });
