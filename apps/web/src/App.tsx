@@ -1429,8 +1429,9 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
   // Stale EWS remains on the map as historical evidence, never in current analysis.
   const ewsCurrent = useMemo(() => ewsStations.fallbackTier === "scenario" ? [] : ewsStations.data.filter(st => !st.stale && isCurrentObservation(st.observedAt, observationNow)), [ewsStations.data, ewsStations.fallbackTier, observationNow]);
   const ewsMap = useMemo(() => ewsStations.data.map(st => ({...st, stale: st.stale || !isCurrentObservation(st.observedAt, observationNow)})), [ewsStations.data, observationNow]);
-  const currentBasins = useMemo(() => {
-    if (waterBalance.fallbackTier !== "live" || waterBalance.ageMinutes > 10) return [];
+  const modelBasins = useMemo(() => {
+    const fetchedAge = (observationNow - Date.parse(waterBalance.loadedAt ?? "")) / 60_000;
+    if (!["live", "scenario"].includes(waterBalance.fallbackTier) || waterBalance.ageMinutes > 10 || !Number.isFinite(fetchedAge) || fetchedAge < -5 || fetchedAge > 10) return [];
     const ids = new Set(waterGauges.data.map(g => g.id));
     return waterBalance.data.map(b => {
       const gauges = b.gauges.filter(g => ids.has(g.id));
@@ -1438,7 +1439,11 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
       return {...b, gauges, worstEtaOvertopH: etas.length ? Math.min(...etas) : null,
         suggestedScenarioM: gauges.length === b.gauges.length ? b.suggestedScenarioM : null};
     });
-  }, [waterBalance.data, waterBalance.fallbackTier, waterBalance.ageMinutes, waterGauges.data]);
+  }, [waterBalance.data, waterBalance.loadedAt, waterBalance.fallbackTier, waterBalance.ageMinutes, waterGauges.data, observationNow]);
+  // The adapter labels its derived ledger as scenario even with live inputs.
+  // Preserve that explicitly labelled model view, but never promote a scenario
+  // into current warnings, village priorities or map hazard decisions.
+  const currentBasins = useMemo(() => waterBalance.fallbackTier === "live" ? modelBasins : [], [waterBalance.fallbackTier, modelBasins]);
   // Who to move first: the provincial flood-risk village register joined with
   // population + district bedridden/homebound/disabled counts
   // (scripts/buildEvacData.py), ranked live against the gauges below.
@@ -2587,7 +2592,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
 
         <RailSection sectionKey="water-balance" lens={lens} title="Water Balance">
           <WaterBalancePanel
-            basins={currentBasins}
+            basins={modelBasins}
             ageMinutes={waterBalance.ageMinutes}
             fallbackTier={waterBalance.fallbackTier === "loading" ? undefined : waterBalance.fallbackTier}
             note={waterBalance.note}
@@ -3053,7 +3058,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
       <Suspense fallback={null}>
         {opsOpen && (
           <FloodOpsBoard
-            basins={currentBasins}
+            basins={modelBasins}
             ageMinutes={waterBalance.ageMinutes}
             note={waterBalance.note}
             wrfOutlook={wrfOutlook.data}

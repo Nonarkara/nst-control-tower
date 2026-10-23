@@ -53,6 +53,16 @@ for (const width of [390, 1024, 1440]) {
     await expect(headline).toContainText("No water-gauge data", {timeout:30_000});
     await expect(headline).not.toContainText("No action needed");
     await shot("missing");
+    if (width <= 1100) await page.getByRole("tab", {name:/^LAYERS/}).click();
+    await page.getByRole("combobox", {name:"Advanced map views",exact:true}).selectOption("flood");
+    if (width <= 1100) await page.getByRole("tab", {name:/^BRIEF/}).click();
+    await page.getByRole("button", {name:/OPS BOARD/}).click();
+    const board = page.getByRole("dialog", {name:/Flood operations board/});
+    await expect(board).toContainText("No current model ledger");
+    await expect(board).not.toContainText("overtop ~1h");
+    await shot("missing-model-board");
+    await page.keyboard.press("Escape");
+    await expect(board).toHaveCount(0);
     async function shot(state: string) {
       if (!process.env.AUDIT_SCREENSHOTS) return;
       const dir = resolve("../../var/emergency-audit-2026-10-23"); mkdirSync(dir, {recursive:true});

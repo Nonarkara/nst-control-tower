@@ -72,8 +72,8 @@ export function WaterBalancePanel({ basins, ageMinutes, fallbackTier, note, onOp
   if (basins.length === 0) {
     return (
       <section className="panel" aria-label="Water balance">
-        <PanelHeader title="WATER BALANCE" ageMinutes={ageMinutes} fallbackTier={fallbackTier} source="thaiwater·rid·wrf" />
-        <p className="flood-empty">{note ?? "LOADING LEDGER …"}</p>
+        <PanelHeader title="WATER BALANCE" ageMinutes={ageMinutes} fallbackTier={fallbackTier} source="thaiwater·rid·wrf" actions={<button type="button" className="btn" onClick={onOpenOps}>OPS BOARD →</button>} />
+        <p className="flood-empty">No current model ledger. Old or unavailable estimates are excluded; verify measured bank levels. {note}</p>
       </section>
     );
   }
@@ -95,7 +95,7 @@ export function WaterBalancePanel({ basins, ageMinutes, fallbackTier, note, onOp
       />
 
       <p className="flood-meta">
-        <span lang="th">น้ำเข้า (ฝน×พื้นที่รับน้ำ) เทียบ ความจุระบาย+อ่างเก็บ · 24 ชม.</span> · MODELLED
+        <span lang="th">น้ำเข้า (ฝน×พื้นที่รับน้ำ) เทียบ ความจุระบาย+อ่างเก็บ · 24 ชม.</span> · MODELLED SCENARIO — not an observed flood forecast or an official alert.
       </p>
 
       <div>

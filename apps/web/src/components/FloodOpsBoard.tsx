@@ -192,8 +192,9 @@ export function FloodOpsBoard({ basins, ageMinutes, note, wrfOutlook, onApplySce
         </button>
       </header>
 
-      <div className="ops-body">
+      <div className={`ops-body${basins.length ? "" : " ops-body--empty"}`}>
         <div className="ops-grid">
+          {!basins.length && <p className="flood-empty">No current model ledger. Missing or old estimates cannot establish safety; verify measured bank levels with duty staff.</p>}
           {basins.map((b) => (
             <BasinCard key={b.basinId} b={b} onApplyScenario={onApplyScenario} />
           ))}

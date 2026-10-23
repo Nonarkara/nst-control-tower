@@ -132,7 +132,7 @@ test.describe("PEOPLE FIRST — who to move first", () => {
     const panel = page.getByRole("region", { name: "Who to move first" });
     await expect(panel).toBeVisible({ timeout: 15_000 });
     // The register is a static file, so the summary renders even with no backend.
-    await expect(panel.getByText(/villages to move now/)).toBeVisible({ timeout: 15_000 });
+    await expect(panel.getByText(/villages needing urgent local assessment/)).toBeVisible({ timeout: 15_000 });
     // Honesty contract: estimates are labelled and names stay with the health office.
     await expect(panel.getByText(/so they are estimates/)).toBeVisible();
     await expect(panel.getByText(/held by the local health office/)).toBeVisible();

@@ -5231,3 +5231,7 @@ input:focus-visible,
   font-size: 0.58rem;
   color: var(--ink-3);
 }
+
+/* With no ledger, the board is a short evidence-gap briefing, not empty tracks. */
+.ops-body--empty { display: block; max-width: 72ch; }
+.ops-body--empty .ops-grid { display: block; margin-bottom: var(--s-4); }
