@@ -209,10 +209,39 @@ with a snapshot that carries the clock of the fetch that populated it.
 
 | | before | after |
 |---|---|---|
-| Four probes, 6 s apart | 503, 503, 503, **200**; age swung 104 → 4 min | one verdict per origin state |
+| Four probes, 6 s apart | 503, 503, 503, **200**; age swung 104 → 4 min | ages **0 / 0 / 0.16 / 0.02 min** — the probe is talking to the origin |
 | What the probe reads | the cache, with the cache's clock | **the origin** |
-| A failed probe | "Feed probe failed or exceeded deadline" | **the actual reason** |
+| A failed probe | "Feed probe failed or exceeded deadline" | **the actual reason** — e.g. `fetchJsonOrThrow non-OK 522 https://ews.dwr.go.th/…`, `Operational source deadline exceeded` |
 | Tests | 748 API | **755 API** (seven new) |
+
+### Verified in production
+
+Deployed as `13d12fa`. The four probes above now read, in the same shape:
+
+```
+probe 1: http=200 overall=True  | water True age=0 | rain True age=0 | ews True  age=0.157
+probe 2: http=503 overall=False | water True age=0 | rain True age=0 | ews False err=fetchJsonOrThrow non-OK 522 https://ews.dwr…
+probe 3: http=503 overall=False | water False err=Operational source deadline exceeded | rain False err=Operational source deadline exceeded | ews True age=0.023
+probe 4: http=200 overall=True  | water True age=0 | rain True age=0 | ews True  age=0.024
+```
+
+Two things are now true that were not:
+
+- **The ages are zero**, because the probe contacts the origin. The 104-minute
+  clock is gone.
+- **The failures name themselves.** Before: "Feed probe failed or exceeded
+  deadline" for every cause. Now: DWR's own **HTTP 522**, and the relay
+  exceeding the probe deadline. The RED that remains is the upstream's, not
+  an artefact of when a background refresh landed.
+
+The remaining variability is genuine: `ews.dwr.go.th` answers HTTP 522 on some
+attempts and an empty `[]` on others, and the relay occasionally takes longer
+than the 22-second probe deadline under this host's load. **A sign-off
+endpoint that flips because the origin is genuinely flapping is correct; one
+that flips because a cache was written at a different moment is not.**
+
+The deploy also reported: **"✅ flood feed warm — 22 gauges cached"** — the
+release now warms the shared cache while nothing depends on it.
 
 ---
 
@@ -241,10 +270,11 @@ what separated the two.)*
 
 ## 6. What is still RED, and who owns it
 
-**RED — DWR EWS.** `ews.dwr.go.th` serves `200 []`. The Worker holds its
-last-good 86-station snapshot, reports it as stale, and refuses to
-certify. Owner: the upstream. Nothing in this repository can make an empty
-upstream answer.
+**RED — DWR EWS.** `ews.dwr.go.th` serves `200 []` on some attempts and
+**HTTP 522** on others — the adapter's own comment records the 522 as
+intermittent. The Worker holds its last-good 86-station snapshot and will
+not let an empty or failed reply replace it. Owner: the upstream. Nothing in
+this repository can make an empty upstream answer.
 
 **RED — unattended flood decisions.** The readiness endpoint returns 503
 while any feed is stale, and that is correct. The release cannot be signed
