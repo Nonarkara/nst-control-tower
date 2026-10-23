@@ -34,7 +34,13 @@ const MOCK_STATIONS = [
   {
     stn: "STN0067",
     name: "สิชล",
-    stn_type: "WL",
+    // The upstream sends the type in LOWER case. Measured 2026-10-23 against
+    // the live endpoint: "RF" 1,819 · "wl" 455 · "RF " 1 (trailing space).
+    // The case-sensitive comparison against "WL" never matched, so every NST
+    // water-level station was typed "unknown" and the province had no "water"
+    // station at all. The mock carries the real spelling so that regression
+    // cannot come back.
+    stn_type: "wl",
     tambon: "ทุ่งปรัง",
     amphoe: "สิชล",
     province: "นครศรีธรรมราช",
@@ -48,6 +54,8 @@ const MOCK_STATIONS = [
     wl: "2.42",
     soil: "N/A",
     soil07h: "N/A",
+    alert_min: "55",
+    alert_max: "4.00",
     date: "2026-06-21 08:00:00",
   },
   {
@@ -92,9 +100,56 @@ describe("dwrEws adapter — happy path (isolated)", () => {
     expect(top.waterLevel).toBeNull(); // "N/A" → null
 
     const wl = feed.features[1];
-    expect(wl.type).toBe("water");
+    expect(wl.type).toBe("water"); // lowercase "wl" upstream
     expect(wl.waterLevel).toBeCloseTo(2.42);
     expect(wl.soilMoisture).toBeNull(); // "N/A" → null
+    expect(wl.alertMax).toBeCloseTo(4); // DWR's own alert level, in metres
+    vi.restoreAllMocks();
+  });
+
+  /**
+   * The upstream's threshold conventions, measured 2026-10-23 on the live
+   * endpoint (2,275 stations nationwide, 86 in NST):
+   *
+   *  • `alert_max` is 0 for a station with no threshold configured. 0 is not
+   *    a level: two NST stations carry it (บ้านพระเลียบ 1.84 m, บ้านไม้เสียบ
+   *    1.16 m) and both hold an official status of 0, so reading 0 as a
+   *    threshold calls them "at alert level" when the authority has raised
+   *    nothing.
+   *  • `alert_min` is the constant 55 on every water-level station (455/455)
+   *    — not a per-station value, so it is not carried.
+   */
+  it("normalises the upstream's alert thresholds — 0 is unset, not a level", async () => {
+    vi.resetModules();
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify([
+        {
+          stn: "STN1796", name: "บ้านพระเลียบ", stn_type: "wl", province: "นครศรีธรรมราช",
+          amphoe: "สิชล", latitude: "9.00", longitude: "99.90", status: "0", wl: "1.84",
+          alert_min: "55", alert_max: "0", date: "23/10/69 22:00 น.",
+        },
+        {
+          stn: "STN0503", name: "บ้านนางเอื้อย", stn_type: "wl", province: "นครศรีธรรมราช",
+          amphoe: "สิชล", latitude: "9.00", longitude: "99.90", status: "0", wl: "2.94",
+          alert_min: "55", alert_max: "4.00", date: "23/10/69 22:00 น.",
+        },
+        {
+          // A rain station whose type arrived with a trailing space.
+          stn: "STN0001", name: "บ้านทดสอบ", stn_type: "RF ", province: "นครศรีธรรมราช",
+          amphoe: "สิชล", latitude: "9.00", longitude: "99.90", status: "0", wl: "0.0",
+          rain12h: "0.0", date: "23/10/69 22:00 น.",
+        },
+      ]), { status: 200 }),
+    );
+    const { fetchEwsStations: fresh } = (await import("./dwrEws.js")) as unknown as {
+      fetchEwsStations: typeof fetchEwsStations;
+    };
+    const feed = await fresh();
+    const byId = new Map(feed.features.map(f => [f.id, f]));
+
+    expect(byId.get("STN1796")?.alertMax).toBeNull(); // 0 → unset, not a threshold
+    expect(byId.get("STN0503")?.alertMax).toBeCloseTo(4);
+    expect(byId.get("STN0001")?.type).toBe("rain"); // "RF " → trimmed
     vi.restoreAllMocks();
   });
 

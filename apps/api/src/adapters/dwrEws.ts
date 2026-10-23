@@ -59,9 +59,34 @@ function num(v: number | string | null | undefined): number | null {
 }
 
 function stationType(raw: string | undefined): EwsStation["type"] {
-  if (raw === "RF") return "rain";
-  if (raw === "WL") return "water";
+  // The upstream sends the type in lower case — measured 2026-10-23 against
+  // the live endpoint: 2,275 stations nationwide carry "RF" 1,819 times,
+  // "wl" 455 times and "RF " once, with a trailing space. A case-sensitive
+  // comparison against "WL" therefore never matched, and every NST
+  // water-level station was typed "unknown": the province had 61 "rain",
+  // 25 "unknown" and ZERO "water" stations.
+  const type = String(raw ?? "").trim().toUpperCase();
+  if (type === "RF") return "rain";
+  if (type === "WL") return "water";
   return "unknown";
+}
+
+/**
+ * DWR's own per-station alert level, in metres.
+ *
+ * Two upstream conventions, measured 2026-10-23:
+ *   • `alert_max` is 0 for a station with no threshold configured. 0 is not a
+ *     level — two NST stations carry it (บ้านพระเลียบ 1.84 m, บ้านไม้เสียบ
+ *     1.16 m) and both hold an official status of 0, so reading 0 as a
+ *     threshold calls them "at alert level" when the authority has raised
+ *     nothing.
+ *   • `alert_min` is the constant 55 on every water-level station nationwide
+ *     (455 of 455) and 0 on every rain station. It is not a per-station
+ *     threshold at all, so it is not carried — see the shared type.
+ */
+function alertLevel(raw: number | string | null | undefined): number | null {
+  const value = num(raw);
+  return value != null && value > 0 ? value : null;
 }
 
 /**
@@ -211,8 +236,7 @@ async function fetchEwsInner(): Promise<NormalizedFeed<EwsStation>> {
         waterLevel: num(s.wl),
         soilMoisture: num(s.soil),
         soil07h: num(s.soil07h),
-        alertMin: num(s.alert_min),
-        alertMax: num(s.alert_max),
+        alertMax: alertLevel(s.alert_max),
         warn: s.warn ?? null,
         observedAt: parseDwrDate(s.date) ?? fetchedAt,
         stale: (() => {

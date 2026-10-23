@@ -30,7 +30,12 @@ test("mobile watch remains readable and missing observations never become an all
   await page.setViewportSize({ width: 390, height: 844 });
   await page.route("**/api/flood/operations?**", r => r.fulfill({ json: { features: [{ ...observation, gauges: [], rain: [], gaps: ["No observations"] }], meta } }));
   await page.goto("/flood-ops");
-  await expect(page.getByText("ไม่มีสถานีน้ำอายุไม่เกิน 90 นาที — ห้ามอ่านว่าแม่น้ำปกติ")).toBeVisible();
+  // Missing observations must read as "cannot summarise", never as an all-clear
+  // and never as "the river is normal". The copy changed when the table stopped
+  // filtering to fresh-only; the rule it guards did not.
+  await expect(page.locator(".flood-watch-status strong")).toContainText("ยังสรุปสถานการณ์ไม่ได้");
+  await expect(page.getByText("ไม่มีข้อมูลสถานีน้ำเลย — ห้ามอ่านว่าแม่น้ำปกติ")).toBeVisible();
+  await expect(page.locator(".flood-watch-status")).not.toContainText("ไม่มีสัญญาณไม่เท่ากับปลอดภัย");
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 
@@ -77,4 +82,45 @@ test("last-good observations remain visible but are never presented as a live so
   await expect(page.locator(".flood-watch-status strong")).toContainText("1 สถานีใกล้/ถึงตลิ่ง");
   await expect(page.locator(".flood-watch-status")).toContainText("Incomplete coverage");
   await expect(page.locator(".flood-watch")).toContainText("last-good snapshot");
+});
+
+/**
+ * The official DWR layer. Until 23 Oct 2026 it reached the map lens but never
+ * this briefing, so a DWR alert in force was invisible on the page the mayor
+ * reads. These two tests pin the difference between the three states the
+ * briefing must never confuse: an alert in force, nothing declared, and a
+ * source that could not be reached.
+ */
+const ewsStation = {
+  id: "STN0503", name: "บ้านนางเอื้อย", lat: 8.4, lng: 99.9, type: "water", tambon: "ทุ่งปรัง",
+  amphoe: "สิชล", basin: "ภาคใต้ฝั่งตะวันออก", status: 2, rain: 0, rain12h: 0, rain07h: 0,
+  waterLevel: 3.94, soilMoisture: null, soil07h: null, alertMax: 4, warn: null,
+  observedAt: stamp, stale: false,
+};
+
+test("an official DWR alert in force leads the briefing and names the tier", async ({ page }) => {
+  await page.route("**/api/flood/operations?**", r => r.fulfill({ json: { features: [observation], meta } }));
+  await page.route("**/api/water/ews?**", r => r.fulfill({ json: { features: [ewsStation], meta } }));
+  await page.goto("/flood-ops");
+  await expect(page.locator(".flood-watch-status strong")).toContainText("อต. ประกาศเตือน 1 สถานี");
+  await expect(page.locator(".flood-watch-status")).toContainText("ระดับเตรียมพร้อม");
+  // The station's own threshold, and how much water is left before it.
+  await expect(page.locator(".flood-watch-main")).toContainText("บ้านนางเอื้อย");
+  await expect(page.locator(".flood-watch-main")).toContainText("เหลือ 0.06 ม.");
+  // The near-bank line is still there — the official alert does not replace it.
+  await expect(page.locator(".flood-watch-status")).toContainText("สถานีใกล้/ถึงตลิ่ง");
+});
+
+test("a source that cannot be reached is not printed as no alert", async ({ page }) => {
+  await page.route("**/api/water/ews?**", r => r.fulfill({ json: { features: [], meta: { ...meta, fallbackTier: "unavailable" } } }));
+  await page.goto("/flood-ops");
+  await expect(page.locator(".flood-watch-status")).toContainText("ยังยืนยันสถานะเตือน อต. ไม่ได้");
+  await expect(page.locator(".flood-watch-status")).not.toContainText("ไม่มีประกาศเตือนจาก อต.");
+});
+
+test("nothing declared is stated as a checked result, not as silence", async ({ page }) => {
+  await page.route("**/api/water/ews?**", r => r.fulfill({ json: { features: [{ ...ewsStation, status: 0, waterLevel: 2.94 }], meta } }));
+  await page.goto("/flood-ops");
+  await expect(page.locator(".flood-watch-status")).toContainText("ไม่มีประกาศเตือนจาก อต. ขณะนี้ (ตรวจ 1 สถานี)");
+  await expect(page.locator(".flood-watch-main")).toContainText("เหลือ 1.06 ม.");
 });

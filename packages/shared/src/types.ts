@@ -373,7 +373,8 @@ export interface EwsStation {
   name: string;
   lat: number;
   lng: number;
-  /** RF = rainfall/soil station, WL = water-level station. */
+  /** RF = rainfall/soil station, WL = water-level station. The upstream sends
+   *  the type in lower case ("wl"); the adapter folds case and trims. */
   type: "rain" | "water" | "unknown";
   tambon: string;
   amphoe: string;
@@ -392,8 +393,11 @@ export interface EwsStation {
   soilMoisture: number | null;
   /** Soil moisture at 07:00 today (%), for trend. */
   soil07h: number | null;
-  /** Station alert thresholds, where reported. */
-  alertMin: number | null;
+  /** DWR's own alert level for this station (m) — the level at which the
+   *  authority raises its alert. Null when the upstream has none configured
+   *  (it sends 0, which is not a level). The upstream's `alert_min` is the
+   *  constant 55 on every water-level station and is not a per-station
+   *  threshold, so it is not carried. */
   alertMax: number | null;
   /** Warning text (null if none). */
   warn: string | null;

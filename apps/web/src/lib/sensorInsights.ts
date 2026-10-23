@@ -43,7 +43,9 @@ export interface SensorInsight {
 const RAIN_HEAVY_24H = 35; // TMD "heavy"
 const RAIN_VERY_HEAVY_24H = 90; // TMD "very heavy"
 const RAIN_FLASH_1H = 30;
-const SOIL_PRIMED = 85;
+/** Soil saturation line, in %. One definition — the map lens and the briefing
+ *  must not drift apart on what "primed" means. */
+export const SOIL_PRIMED = 85;
 const RISE_SIGNIFICANT_M_PER_H = 0.025; // FloodDash 0.15 m / 6 h
 const FULLNESS_WARN = 85;
 const RESERVOIR_WARN_PCT = 85;

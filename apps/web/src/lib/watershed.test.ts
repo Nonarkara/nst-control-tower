@@ -74,7 +74,6 @@ function ews(o: Partial<EwsStation> = {}): EwsStation {
     waterLevel: null,
     soilMoisture: 50,
     soil07h: 50,
-    alertMin: null,
     alertMax: null,
     warn: null,
     observedAt: "2026-06-21T08:00:00+07:00",

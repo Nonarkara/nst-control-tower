@@ -30,6 +30,13 @@
 .flood-watch-image span { position: absolute; color: var(--warn); font-size: 2rem; transform: translate(-50%, -50%); pointer-events: none; }
 .flood-watch figcaption { font-size: var(--text-xs); margin-top: var(--s-2); }
 .flood-watch-gap { color: var(--warn); }
+/* An official DWR alert in force, or a station sitting at DWR's own alert
+   level. The authority's own threshold is not a data gap, so it does not wear
+   the gap's name — but it is the same class of thing to act on. */
+.flood-watch-alert { color: var(--warn); font-weight: 600; }
+/* The official alert state when nothing is in force: a real answer, so it is
+   stated — but it is not an alarm, and it must not be dressed as one. */
+.flood-watch-official { color: var(--ink-2); }
 .flood-watch footer { padding-block: var(--s-4); font-size: var(--text-sm); }
 @media (max-width: 900px) { .flood-watch-layout { grid-template-columns: 1fr; } .flood-watch { padding: var(--s-3); } }
 @media print { .flood-watch { max-width: none; color: #111; background: white; font-size: 10pt; } .flood-watch button, .flood-watch select, .flood-watch-head .flood-watch-actions { display: none; } .flood-watch-layout { display: block; } .flood-watch section { break-inside: avoid; } .flood-watch a { color: inherit; } .flood-watch h1 { font-size: 22pt; } .flood-watch h2 { font-size: 14pt; } .flood-watch small { color: #333; } .flood-watch-table { overflow: visible; } }
