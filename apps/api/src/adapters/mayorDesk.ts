@@ -614,7 +614,8 @@ async function translateViaMyMemory(text: string, language: string, signal: Abor
  * Cloudflare's own translation model — the first-party path.
  *
  * Measured on 2026-10-26: the deployed Worker could not reach the public
- * translate endpoint at all, and the owner's requirement ("headlines in other
+ * translate endpoint at all (HTTP 429 — Google rate-limits Cloudflare's
+ * shared egress), and the owner's requirement ("headlines in other
  * languages translated for him") was failing in production while the code
  * looked perfectly correct. A third-party endpoint's reachability is not
  * something this product can control; **Cloudflare's own edge model is**.
@@ -624,38 +625,92 @@ async function translateViaMyMemory(text: string, language: string, signal: Abor
  */
 const WORKERS_AI_MODEL = "@cf/meta/m2m100-1.2b";
 
+/** How long the model may take before the headline is left untranslated.
+ *  A model call that hangs must not hang the desk. */
+const WORKERS_AI_TIMEOUT_MS = 15_000;
+
 /** The Workers AI binding, structurally typed so the package needs no
  *  dependency on the Cloudflare type packages. */
 export interface AiBinding {
   run(model: string, input: Record<string, unknown>): Promise<unknown>;
 }
 
+/** The model names its languages in words. It is not given the same names
+ *  twice: the first pair is the documented one, the second is the code. */
+const AI_LANGUAGE_NAMES: Record<string, string[]> = {
+  en: ["english", "en"],
+  zh: ["chinese", "zh-cn", "zh"],
+};
+const AI_TARGET_NAMES = ["thai", "th"];
+
+/** Pull the translation out of whatever shape the model answered with, and
+ *  the reason out of whatever shape the refusal came in. */
+function readAiReply(raw: unknown): { text: string; error: string | null } {
+  if (typeof raw === "string") return { text: raw.trim(), error: null };
+  if (!raw || typeof raw !== "object") return { text: "", error: "the model answered with nothing" };
+  const reply = raw as {
+    result?: unknown;
+    success?: boolean;
+    errors?: Array<{ code?: number; message?: string }>;
+    messages?: Array<{ code?: number; message?: string }>;
+  };
+  const result = reply.result;
+  if (typeof result === "string") return { text: result.trim(), error: null };
+  if (result && typeof result === "object") {
+    const inner = result as { text?: unknown; answer?: unknown; translation?: unknown };
+    for (const value of [inner.text, inner.answer, inner.translation]) {
+      if (typeof value === "string" && value.trim()) return { text: value.trim(), error: null };
+    }
+  }
+  const firstError = reply.errors?.[0] ?? reply.messages?.[0];
+  const error = firstError?.message
+    ? `${firstError.message}${firstError.code ? ` (${firstError.code})` : ""}`
+    : reply.success === false ? "the model refused the request" : "no translation in the reply";
+  return { text: "", error };
+}
+
 async function translateViaWorkersAi(text: string, language: string, ai: AiBinding): Promise<string | null> {
-  const source = language === "zh" ? "chinese" : "english";
-  let raw: unknown;
-  try {
-    raw = await ai.run(WORKERS_AI_MODEL, { text, source_lang: source, target_lang: "thai" });
-  } catch (err) {
-    markProviderDown("workers-ai", err instanceof Error ? err.message : "the model call failed");
-    return null;
+  const sources = AI_LANGUAGE_NAMES[language] ?? AI_LANGUAGE_NAMES.en;
+  let lastError = "the model did not answer";
+  for (const source of sources) {
+    for (const target of AI_TARGET_NAMES) {
+      let raw: unknown;
+      try {
+        raw = await Promise.race([
+          ai.run(WORKERS_AI_MODEL, { text, source_lang: source, target_lang: target }),
+          new Promise<null>((resolve) => setTimeout(() => resolve(null), WORKERS_AI_TIMEOUT_MS)),
+        ]);
+      } catch (err) {
+        lastError = err instanceof Error ? err.message : "the model call failed";
+        markProviderDown("workers-ai", lastError);
+        return null;
+      }
+      if (raw === null) {
+        lastError = `the model took longer than ${WORKERS_AI_TIMEOUT_MS / 1000} s`;
+        break;
+      }
+      const { text: out, error } = readAiReply(raw);
+      if (!out) {
+        lastError = error ?? "no translation in the reply";
+        // A refusal about the language names is worth one more try; any
+        // other refusal is the same refusal every time.
+        if (!/language|lang|target|source|unsupported|not found/i.test(lastError)) {
+          providerFailures.set("workers-ai", lastError);
+          return null;
+        }
+        continue;
+      }
+      const clean = out.replace(/\s+/g, " ").trim();
+      if (!hasThai(clean)) {
+        providerFailures.set("workers-ai", "no Thai in the reply");
+        return null;
+      }
+      providerFailures.delete("workers-ai");
+      return clean;
+    }
   }
-  const result = (raw as { result?: unknown })?.result;
-  const out = typeof result === "string"
-    ? result
-    : typeof (result as { text?: unknown })?.text === "string" ? (result as { text: string }).text
-    : typeof (result as { answer?: unknown })?.answer === "string" ? (result as { answer: string }).answer
-    : "";
-  if (!out.trim()) {
-    providerFailures.set("workers-ai", "no translation in the reply");
-    return null;
-  }
-  const clean = out.replace(/\s+/g, " ").trim();
-  if (!hasThai(clean)) {
-    providerFailures.set("workers-ai", "no Thai in the reply");
-    return null;
-  }
-  providerFailures.delete("workers-ai");
-  return clean;
+  providerFailures.set("workers-ai", lastError);
+  return null;
 }
 
 /**
