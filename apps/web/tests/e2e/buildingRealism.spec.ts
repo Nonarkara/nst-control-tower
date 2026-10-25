@@ -1,6 +1,7 @@
 import { test, expect } from "./fixtures";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
+import { openMore } from "./floodSmokeHelpers";
 
 for (const width of [1440, 1024, 390]) {
   test(`3D buildings render grounded roofs without WebGL errors at${width}px`, async ({ page }) => {
@@ -14,8 +15,18 @@ for (const width of [1440, 1024, 390]) {
     await expect(page.locator(".map-host")).toBeVisible({ timeout: 20_000 });
     if (width <= 1100) await page.getByRole("tab", { name: /^MAP/ }).click();
     await page.getByRole("button", { name: "Show Wat Mahathat in 3D", exact: true }).click();
-    await expect(page.getByRole("button", { name: "Switch to 2D view", exact: true })).toBeVisible();
     await expect.poll(async () => page.evaluate(() => (window as unknown as { __mapCam?: { latitude: number } }).__mapCam?.latitude)).toBeCloseTo(8.4109925, 5);
+    // The way back to 2D has to exist at every width. Below 1100px the shell
+    // is the mobile form: the display preferences — the 2D/3D switch among
+    // them — live in the More menu, so the way back is one menu away. It is
+    // not gone, and it must not be.
+    if (width <= 1100) {
+      await openMore(page);
+      await expect(page.getByRole("button", { name: "Switch to 2D view", exact: true })).toBeVisible();
+      await page.keyboard.press("Escape");
+    } else {
+      await expect(page.getByRole("button", { name: "Switch to 2D view", exact: true })).toBeVisible();
+    }
     const search = page.getByRole("combobox", { name: "Search buildings by name" });
     await page.waitForTimeout(1800);
     expect(errors).toEqual([]);
