@@ -225,6 +225,12 @@ export function officialPart(
   const measured = fresh.length;
   const total = rows.length;
   const coverage = total ? ` · ${measured}/${total} สถานีที่มีเกณฑ์รายงานภายใน 2 ชม.` : "";
+  // The evidence list leads with the stations whose reading is current. A
+  // station 27 days silent can be the closest to the threshold and must
+  // still not come first: the reader's first line of evidence has to be a
+  // reading from today. The silent ones follow, marked.
+  const silent = rows.filter(r => !fresh.includes(r));
+  const evidence = [...fresh, ...silent].slice(0, 6);
   // The sentence leads with the fact that earns the chip. When the water is
   // at or over DWR's own alert level, that is the worst fact on the page
   // and it comes first; the fact that DWR has declared nothing comes
@@ -243,7 +249,7 @@ export function officialPart(
     // Six stations, not three: the compartment has the room, and the
     // stations closest to DWR's own threshold are the evidence the mayor
     // needs. Three left a measured hole in the middle of the bento.
-    evidence: rows.slice(0, 6).map(r =>
+    evidence: evidence.map(r =>
       `${r.s.name} (${r.s.amphoe}) — ${r.margin <= 0 ? `ถึง/เกินเกณฑ์ ${fmt(Math.abs(r.margin), 2)} ม.` : `เหลือ ${fmt(r.margin, 2)} ม.`}${r.s.stale ? " · ล้าสมัย" : ""}`),
     en: closest && margin != null
       ? margin <= 0

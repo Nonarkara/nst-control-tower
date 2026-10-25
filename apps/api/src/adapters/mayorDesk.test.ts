@@ -136,6 +136,22 @@ describe("the official part", () => {
     expect(p.th).toContain("บ้านนางเอื้อย");
     expect(p.th).not.toContain("บ้านบางตะเภา");
   });
+
+  it("a stale station never leads the evidence list", () => {
+    // The stale station is closer to DWR's own threshold, so sorting by
+    // margin alone puts it first. The reader's first line of evidence has
+    // to be a reading from today; the silent one follows, marked.
+    const p = officialPart([
+      ews({ id: "old", name: "บ้านบางตะเภา", waterLevel: 3.9, alertMax: 4, observedAt: minutesAgo(60 * 24 * 25), stale: true }),
+      ews({ id: "fresh", name: "บ้านนางเอื้อย" }),
+    ], NOW);
+    expect(p.evidence[0]).toContain("บ้านนางเอื้อย");
+    expect(p.evidence[0]).not.toContain("ล้าสมัย");
+    const staleLine = p.evidence.find(e => e.includes("บ้านบางตะเภา"));
+    expect(staleLine).toBeDefined();
+    expect(staleLine).toContain("ล้าสมัย");
+    expect(p.evidence.indexOf(staleLine!)).toBeGreaterThan(0);
+  });
 });
 
 describe("the rain part", () => {
