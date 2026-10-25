@@ -137,12 +137,53 @@ interface DwrCache {
   match(request: Request): Promise<Response | undefined>;
   put(request: Request, response: Response): Promise<void>;
 }
-async function dwrCacheDeadline<T>(work: Promise<T>): Promise<T> {
+async function dwrCacheDeadline<T>(work: Promise<T>, ms = 1000): Promise<T> {
   let timer: ReturnType<typeof setTimeout>;
   try { return await Promise.race([work, new Promise<never>((_, reject) => {
-    timer = setTimeout(() => reject(new Error("DWR snapshot cache deadline")), 1000);
+    timer = setTimeout(() => reject(new Error("DWR snapshot cache deadline")), ms);
   })]); } finally { clearTimeout(timer!); }
 }
+
+/**
+ * How long a shared-snapshot read may take.
+ *
+ * Measured 2026-10-24: at 02:11:40 the upstream answered HTTP 522 and the
+ * desk and the briefing came back with NO DWR stations at all — while a
+ * last-good 86-station snapshot existed and was being served on the very
+ * next requests. The read had a one-second deadline, a cold isolate on a
+ * host at load 119+ missed it, the code fell through to the origin, the
+ * origin 522'd, and the whole official layer went blank. A deadline is
+ * there to stop a hang, not to throw away a good snapshot.
+ */
+const SNAPSHOT_READ_MS = 4000;
+
+/**
+ * The shared last-good snapshot, read on its own — separate from the live
+ * fetch, so it can also be the last resort when the origin is down.
+ */
+async function readEwsSnapshot(
+  cache: DwrCache | undefined,
+  key: Request,
+): Promise<{ feed: NormalizedFeed<EwsStation>; age: number } | null> {
+  if (!cache) return null;
+  try {
+    const hit = await dwrCacheDeadline(cache.match(key), SNAPSHOT_READ_MS);
+    if (!hit) return null;
+    const feed = (await dwrCacheDeadline(hit.json(), SNAPSHOT_READ_MS)) as NormalizedFeed<EwsStation>;
+    const age = Date.now() - Date.parse(feed.meta?.fetchedAt ?? "");
+    if (Array.isArray(feed.features) && feed.features.length && feed.meta?.source === "dwr-ews" && Number.isFinite(age) && age >= -5*60_000 && age <= STALE_SERVE_S*1000) {
+      return { feed, age };
+    }
+    return null;
+  } catch (err) { console.warn("DWR snapshot read failed", (err as Error).message); return null; }
+}
+
+/** The snapshot, marked as exactly what it is: the last good reading, not a
+ *  live one. */
+function asSnapshot(feed: NormalizedFeed<EwsStation>): NormalizedFeed<EwsStation> {
+  return { ...feed, meta: { ...feed.meta, ageMinutes: cacheAgeMinutes(feed.meta.fetchedAt), fallbackTier: "cache", note: "DWR last-good snapshot; refreshing — not live. Verify station observation times." } };
+}
+
 async function loadEwsSnapshot(cache: DwrCache | undefined, key: Request): Promise<NormalizedFeed<EwsStation>> {
   const feed = await fetchEwsInner();
   if (!feed.features.length || feed.meta.fallbackTier !== "live") throw new Error("DWR EWS returned no NST stations");
@@ -156,19 +197,12 @@ async function loadEwsSnapshot(cache: DwrCache | undefined, key: Request): Promi
 async function fetchEwsShared(): Promise<NormalizedFeed<EwsStation>> {
   const cache = (globalThis as {caches?: {default?: DwrCache}}).caches?.default;
   const key = new Request(DWR_SNAPSHOT_KEY);
-  if (cache) {
-    try {
-      const hit = await dwrCacheDeadline(cache.match(key));
-      if (hit) {
-        const feed = await dwrCacheDeadline(hit.json()) as NormalizedFeed<EwsStation>;
-        const age = Date.now() - Date.parse(feed.meta?.fetchedAt ?? "");
-        if (Array.isArray(feed.features) && feed.features.length && feed.meta?.source === "dwr-ews" && Number.isFinite(age) && age >= -5*60_000 && age <= STALE_SERVE_S*1000) {
-          if (age <= TTL*1000) return {...feed,meta:{...feed.meta,ageMinutes:cacheAgeMinutes(feed.meta.fetchedAt)}};
-          await finishBackgroundWork(loadEwsSnapshot(cache,key).catch(err => {console.warn("DWR background refresh failed", (err as Error).message);}));
-          return {...feed,meta:{...feed.meta,ageMinutes:cacheAgeMinutes(feed.meta.fetchedAt),fallbackTier:"cache",note:"DWR last-good snapshot; refreshing — not live. Verify station observation times."}};
-        }
-      }
-    } catch(err) {console.warn("DWR snapshot read failed", (err as Error).message);}
+  const snapshot = await readEwsSnapshot(cache, key);
+  if (snapshot) {
+    if (snapshot.age <= TTL*1000) return snapshot.feed;
+    // Older than the live window: serve it now, refresh in the background.
+    await finishBackgroundWork(loadEwsSnapshot(cache,key).catch(err => {console.warn("DWR background refresh failed", (err as Error).message);}));
+    return asSnapshot(snapshot.feed);
   }
   return loadEwsSnapshot(cache,key);
 }
@@ -177,6 +211,14 @@ export async function fetchEwsStations(): Promise<NormalizedFeed<EwsStation>> {
   try {
     return ageOperationalFeed(await cached("dwr-ews", TTL, fetchEwsShared, STALE_SERVE_S, true));
   } catch (err) {
+    // The origin is down. If a last-good snapshot exists, serve it — an
+    // outage must not blank the official layer while its own last reading is
+    // still in hand. It is marked as a snapshot, never as live.
+    const cache = (globalThis as {caches?: {default?: DwrCache}}).caches?.default;
+    const snapshot = await readEwsSnapshot(cache, new Request(DWR_SNAPSHOT_KEY));
+    if (snapshot) {
+      return ageOperationalFeed(asSnapshot(snapshot.feed));
+    }
     // Nothing good cached: an honest outage, not a cached empty "feed".
     const fetchedAt = new Date().toISOString();
     return {

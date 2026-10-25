@@ -266,3 +266,77 @@ describe("dwrEws — Thai BE timestamps and stale stations", () => {
     vi.restoreAllMocks();
   });
 });
+
+describe("dwrEws — the official layer must not blank on an upstream outage", () => {
+  /**
+   * Measured 2026-10-24 at 02:11:40 ICT: the upstream answered HTTP 522 and
+   * the feed came back with NO DWR stations — while a last-good 86-station
+   * snapshot existed and was being served on the very next requests. A cold
+   * isolate on a loaded host missed the one-second snapshot-read deadline,
+   * the code fell through to the origin, the origin 522'd, and the whole
+   * official layer went blank — the one layer a mayor must not lose.
+   *
+   * This reproduces that exact sequence: the first snapshot read fails, the
+   * origin is down, and the second read finds the snapshot that was there
+   * all along.
+   */
+  it("serves the last-good snapshot when the origin is down", async () => {
+    vi.resetModules();
+    const snapshot = {
+      features: [{
+        id: "STN0503", name: "บ้านนางเอื้อย", lat: 8.4, lng: 99.9, type: "water",
+        tambon: "ทุ่งปรัง", amphoe: "สิชล", basin: "ภาคใต้ฝั่งตะวันออก", status: 0,
+        rain: 0, rain12h: 0, rain07h: 0, waterLevel: 2.94, soilMoisture: null,
+        soil07h: null, alertMax: 4, warn: null,
+        observedAt: new Date(Date.now() - 30 * 60_000).toISOString(), stale: false,
+      }],
+      meta: {
+        source: "dwr-ews", fetchedAt: new Date(Date.now() - 30 * 60_000).toISOString(),
+        ageMinutes: 30, fallbackTier: "live",
+      },
+    };
+    let reads = 0;
+    vi.stubGlobal("caches", {
+      default: {
+        match: async () => {
+          reads += 1;
+          // The first read misses its deadline — the cold-isolate case.
+          if (reads === 1) throw new Error("DWR snapshot cache deadline");
+          return Response.json(snapshot);
+        },
+        put: async () => {},
+      },
+    });
+    vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("non-OK 522"));
+
+    const { fetchEwsStations: fresh } = (await import("./dwrEws.js")) as unknown as {
+      fetchEwsStations: typeof fetchEwsStations;
+    };
+    const feed = await fresh();
+
+    expect(feed.features).toHaveLength(1);
+    expect(feed.features[0].id).toBe("STN0503");
+    // And it is marked as what it is: a last-good snapshot, never live.
+    expect(feed.meta.fallbackTier).toBe("cache");
+    expect(feed.meta.note).toContain("last-good snapshot");
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it("an outage with no snapshot at all is an honest outage, not a calm feed", async () => {
+    vi.resetModules();
+    vi.stubGlobal("caches", { default: { match: async () => undefined, put: async () => {} } });
+    vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("non-OK 522"));
+
+    const { fetchEwsStations: fresh } = (await import("./dwrEws.js")) as unknown as {
+      fetchEwsStations: typeof fetchEwsStations;
+    };
+    const feed = await fresh();
+
+    expect(feed.features).toHaveLength(0);
+    expect(feed.meta.fallbackTier).toBe("unavailable");
+    expect(feed.meta.note).toContain("522");
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+});
