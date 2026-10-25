@@ -460,9 +460,9 @@ function whyEn(item: IntelligenceItem): string {
  * on 2026-10-24: the owner's Gemini key is on the free tier's 20-requests-
  * a-day limit, shared across five products, and a desk that wanted a
  * translation call an hour would exhaust that quota by itself — so the desk
- * would show "not translated" for most of the day. This endpoint needs no
- * key, has no quota, works from a Worker, and on the live headlines it
- * produced exactly the plain-Thai headlines the desk needs:
+ * would show "not translated" for most of the day. The key-free endpoint
+ * needs no key and has no quota, and on the live headlines it produced
+ * exactly the plain-Thai headlines the desk needs:
  *
  *   "Floods persist in 16 provinces, two districts of Bangkok"
  *     → "น้ำท่วมต่อเนื่อง 16 จังหวัด 2 เขต กทม"
@@ -472,8 +472,22 @@ function whyEn(item: IntelligenceItem): string {
  * A failure here is not a failure of the desk: the original headline stays
  * and says it was not translated. A missing translation is never a missing
  * story.
+ *
+ * ── Why there is more than one provider now ─────────────────────────────
+ * Measured on 2026-10-26: the **deployed Worker translated nothing** — 7 of
+ * 8 headlines came back untranslated — while the *same code on this host*
+ * translated every one of them in 0.1 s. The endpoint answers 200 to a
+ * plain `curl` from this machine and to a request with no User-Agent at all,
+ * so the code was never the problem: **Cloudflare's egress cannot reach that
+ * endpoint.** A single provider that silently returned nothing turned the
+ * owner's requirement — "headlines in other languages translated for him" —
+ * into a page of English.
+ *
+ * So the desk now walks a **chain** of key-free providers and says which one
+ * answered. A failure with no name is a failure nobody can act on.
  */
 const TRANSLATE_ENDPOINT = "https://translate.googleapis.com/translate_a/single";
+const MYMEMORY_ENDPOINT = "https://api.mymemory.translated.net/get";
 const TRANSLATE_TIMEOUT_MS = 8_000;
 
 /** One headline per request, cached by its text — a headline is translated
@@ -481,53 +495,281 @@ const TRANSLATE_TIMEOUT_MS = 8_000;
 const translationCache = new Map<string, string>();
 const TRANSLATION_CACHE_MAX = 500;
 
+/** Why each provider last failed, per isolate. The reason has to be nameable:
+ *  "the translation did not happen" is not something anyone can fix. */
+const providerFailures = new Map<string, string>();
+
+/**
+ * A provider that failed hard is skipped for a while.
+ *
+ * The chain is walked for every headline, so one dead endpoint must not cost
+ * every headline its timeout — with three providers and an 8 s budget each, a
+ * single dead provider would push the desk past the request deadline. Only a
+ * *hard* failure trips this (the endpoint answered with an error, or did not
+ * answer at all). A reply that simply carried no Thai is a content problem,
+ * not a dead provider, and must not take the provider out of the chain.
+ */
+const providerDownUntil = new Map<string, number>();
+const PROVIDER_COOLDOWN_MS = 10 * 60_000;
+
+function markProviderDown(provider: string, reason: string): void {
+  providerFailures.set(provider, reason);
+  providerDownUntil.set(provider, Date.now() + PROVIDER_COOLDOWN_MS);
+}
+
+function providerIsDown(provider: string): boolean {
+  return (providerDownUntil.get(provider) ?? 0) > Date.now();
+}
+
+/**
+ * Forget the per-isolate provider state: the breaker, the last failure
+ * reasons and the translation cache.
+ *
+ * The state is per-isolate on purpose — it is what stops a dead endpoint
+ * costing every headline its timeout — and that makes it shared between the
+ * headlines of one desk build. A test (or a cold start) needs it gone.
+ */
+export function resetTranslateProviders(): void {
+  providerDownUntil.clear();
+  providerFailures.clear();
+  translationCache.clear();
+}
+
 /** Does this look like Thai? A translation with no Thai in it is a failure,
  *  not a translation. */
 export const hasThai = (s: string): boolean => /[฀-๿]/.test(s);
 
-export async function translateOne(text: string, timeoutMs = TRANSLATE_TIMEOUT_MS): Promise<string | null> {
+/** Decode the HTML entities a translation service may hand back. */
+function decodeEntities(s: string): string {
+  return s
+    .replace(/&#39;/g, "'")
+    .replace(/&quot;/g, '"')
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&nbsp;/g, " ");
+}
+
+/** MyMemory needs an explicit source language; the desk only ever meets
+ *  English, Chinese and Thai. Anything else is treated as English, which is
+ *  what the detector says it is. */
+function myMemoryPair(language: string): string {
+  return language === "zh" ? "zh-CN|th" : "en|th";
+}
+
+async function translateViaGoogle(text: string, signal: AbortSignal): Promise<string | null> {
+  const url = `${TRANSLATE_ENDPOINT}?client=gtx&sl=auto&tl=th&dt=t&q=${encodeURIComponent(text)}`;
+  const res = await fetch(url, { signal });
+  if (!res.ok) {
+    markProviderDown("google", `HTTP ${res.status}`);
+    return null;
+  }
+  const json = (await res.json()) as unknown;
+  const segments = Array.isArray(json) ? json[0] : null;
+  if (!Array.isArray(segments)) {
+    providerFailures.set("google", "unexpected response shape");
+    return null;
+  }
+  const out = segments
+    .map(seg => (Array.isArray(seg) && typeof seg[0] === "string" ? seg[0] : ""))
+    .join("")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!out || !hasThai(out)) {
+    providerFailures.set("google", out ? "no Thai in the reply" : "empty reply");
+    return null;
+  }
+  providerFailures.delete("google");
+  return out;
+}
+
+async function translateViaMyMemory(text: string, language: string, signal: AbortSignal): Promise<string | null> {
+  const url = `${MYMEMORY_ENDPOINT}?q=${encodeURIComponent(text)}&langpair=${encodeURIComponent(myMemoryPair(language))}`;
+  const res = await fetch(url, { signal });
+  if (!res.ok) {
+    markProviderDown("mymemory", `HTTP ${res.status}`);
+    return null;
+  }
+  const json = (await res.json()) as { responseData?: { translatedText?: string }; responseStatus?: number; responseDetails?: string };
+  const status = json.responseStatus;
+  if (typeof status === "number" && status !== 200) {
+    providerFailures.set("mymemory", json.responseDetails || `status ${status}`);
+    return null;
+  }
+  const raw = json.responseData?.translatedText;
+  if (!raw) {
+    providerFailures.set("mymemory", "no translation in the reply");
+    return null;
+  }
+  const out = decodeEntities(raw).replace(/\s+/g, " ").trim();
+  if (!out || !hasThai(out)) {
+    providerFailures.set("mymemory", out ? "no Thai in the reply" : "empty reply");
+    return null;
+  }
+  providerFailures.delete("mymemory");
+  return out;
+}
+
+/**
+ * Cloudflare's own translation model — the first-party path.
+ *
+ * Measured on 2026-10-26: the deployed Worker could not reach the public
+ * translate endpoint at all, and the owner's requirement ("headlines in other
+ * languages translated for him") was failing in production while the code
+ * looked perfectly correct. A third-party endpoint's reachability is not
+ * something this product can control; **Cloudflare's own edge model is**.
+ *
+ * The binding is optional: a deployment without `[ai]` simply skips this
+ * provider, and the chain continues.
+ */
+const WORKERS_AI_MODEL = "@cf/meta/m2m100-1.2b";
+
+/** The Workers AI binding, structurally typed so the package needs no
+ *  dependency on the Cloudflare type packages. */
+export interface AiBinding {
+  run(model: string, input: Record<string, unknown>): Promise<unknown>;
+}
+
+async function translateViaWorkersAi(text: string, language: string, ai: AiBinding): Promise<string | null> {
+  const source = language === "zh" ? "chinese" : "english";
+  let raw: unknown;
+  try {
+    raw = await ai.run(WORKERS_AI_MODEL, { text, source_lang: source, target_lang: "thai" });
+  } catch (err) {
+    markProviderDown("workers-ai", err instanceof Error ? err.message : "the model call failed");
+    return null;
+  }
+  const result = (raw as { result?: unknown })?.result;
+  const out = typeof result === "string"
+    ? result
+    : typeof (result as { text?: unknown })?.text === "string" ? (result as { text: string }).text
+    : typeof (result as { answer?: unknown })?.answer === "string" ? (result as { answer: string }).answer
+    : "";
+  if (!out.trim()) {
+    providerFailures.set("workers-ai", "no translation in the reply");
+    return null;
+  }
+  const clean = out.replace(/\s+/g, " ").trim();
+  if (!hasThai(clean)) {
+    providerFailures.set("workers-ai", "no Thai in the reply");
+    return null;
+  }
+  providerFailures.delete("workers-ai");
+  return clean;
+}
+
+/**
+ * Translate one headline, walking the provider chain until one answers.
+ *
+ * The Thai check and the length check apply to every provider: a reply with
+ * no Thai in it is a failure, not a translation, and a translation that grew
+ * into a paragraph is a paragraph, not a headline.
+ *
+ * The reason comes back with the answer. A failure with no name is a failure
+ * nobody can act on.
+ */
+export async function translateOneDetailed(
+  text: string,
+  timeoutMs = TRANSLATE_TIMEOUT_MS,
+  language = "en",
+  ai?: AiBinding,
+): Promise<{ text: string | null; reason: string | null }> {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+  const reasons: string[] = [];
   try {
-    const url = `${TRANSLATE_ENDPOINT}?client=gtx&sl=auto&tl=th&dt=t&q=${encodeURIComponent(text)}`;
-    const res = await fetch(url, { signal: ctrl.signal });
-    if (!res.ok) return null;
-    const json = (await res.json()) as unknown;
-    const segments = Array.isArray(json) ? json[0] : null;
-    if (!Array.isArray(segments)) return null;
-    const out = segments
-      .map(seg => (Array.isArray(seg) && typeof seg[0] === "string" ? seg[0] : ""))
-      .join("")
-      .replace(/\s+/g, " ")
-      .trim();
-    if (!out || !hasThai(out)) return null;
-    // A translation that grew far beyond its source is a paragraph, not a
-    // headline — the desk wants a headline.
-    if (out.length > Math.max(80, text.length * 2)) return null;
-    return out;
+    // The order is measured, not preferred: Google's plain Thai is the best,
+    // Cloudflare's own model is the one the Worker can always reach, and
+    // MyMemory is the last resort. A provider that is known to be down is
+    // skipped rather than retried for every headline.
+    const chain = ai
+      ? (["google", "workers-ai", "mymemory"] as const)
+      : (["google", "mymemory"] as const);
+    for (const provider of chain) {
+      if (providerIsDown(provider)) {
+        reasons.push(`${provider}: ${providerFailures.get(provider) ?? "unavailable"} (skipped)`);
+        continue;
+      }
+      const out = provider === "google"
+        ? await translateViaGoogle(text, ctrl.signal)
+        : provider === "workers-ai"
+          ? await translateViaWorkersAi(text, language, ai!)
+          : await translateViaMyMemory(text, language, ctrl.signal);
+      if (!out) {
+        const why = providerFailures.get(provider);
+        reasons.push(`${provider}: ${why ?? "no reply"}`);
+        continue;
+      }
+      if (out.length > Math.max(80, text.length * 2)) {
+        providerFailures.set(provider, "the reply grew into a paragraph");
+        reasons.push(`${provider}: the reply grew into a paragraph`);
+        continue;
+      }
+      return { text: out, reason: null };
+    }
+    return { text: null, reason: reasons.join(" · ") };
   } catch {
-    return null;
+    reasons.push("the request failed");
+    return { text: null, reason: reasons.join(" · ") };
   } finally {
     clearTimeout(timer);
   }
 }
 
-export async function translateHeadlines(headlines: string[]): Promise<Map<string, string>> {
+export async function translateOne(
+  text: string,
+  timeoutMs = TRANSLATE_TIMEOUT_MS,
+  language = "en",
+  ai?: AiBinding,
+): Promise<string | null> {
+  return (await translateOneDetailed(text, timeoutMs, language, ai)).text;
+}
+
+/**
+ * The line that says why a headline is still in English.
+ *
+ * Measured on 2026-10-26: the deployed Worker translated nothing and said
+ * nothing about why — a page of English with no explanation. The headline
+ * stays; the reason is what the reader is owed.
+ */
+export function translationNote(untranslated: number, reasons: string[]): string | null {
+  if (untranslated <= 0) return null;
+  return `แปลอัตโนมัติไม่สำเร็จ ${untranslated} พาดหัว — ${reasons[0] ?? "แหล่งข้อมูลแปลไม่ตอบ"}`;
+}
+
+/**
+ * Translate the headlines that need it.
+ *
+ * The language travels with the text: the second provider needs an explicit
+ * source language, and "en" would be a guess.
+ *
+ * The reasons come back too — one line, deduplicated: "why the headline is
+ * still in English" is the same question for every failed headline.
+ */
+export async function translateHeadlines(
+  headlines: Array<{ text: string; language?: string }> | string[],
+  ai?: AiBinding,
+): Promise<{ translated: Map<string, string>; reasons: string[] }> {
   const out = new Map<string, string>();
-  await Promise.all(headlines.map(async h => {
+  const reasons: string[] = [];
+  await Promise.all(headlines.map(async item => {
+    const h = typeof item === "string" ? item : item.text;
+    const language = typeof item === "string" ? "en" : item.language ?? "en";
     const cached = translationCache.get(h);
     if (cached) {
       out.set(h, cached);
       return;
     }
-    const translated = await translateOne(h);
-    if (translated) {
+    const result = await translateOneDetailed(h, TRANSLATE_TIMEOUT_MS, language, ai);
+    if (result.text) {
       if (translationCache.size >= TRANSLATION_CACHE_MAX) translationCache.clear();
-      translationCache.set(h, translated);
-      out.set(h, translated);
+      translationCache.set(h, result.text);
+      out.set(h, result.text);
+    } else if (result.reason && !reasons.includes(result.reason)) {
+      reasons.push(result.reason);
     }
   }));
-  return out;
+  return { translated: out, reasons };
 }
 
 // ─── The adapter ─────────────────────────────────────────────────────────
@@ -536,6 +778,9 @@ export interface MayorDeskEnv {
   /** Unused today: the desk's translation is key-free. Kept so the route can
    *  pass the environment through if a model is ever wanted here. */
   GEMINI_API_KEY?: string;
+  /** Cloudflare's own translation model, when the deployment binds one. This
+   *  is the path the Worker can always reach. */
+  AI?: AiBinding;
 }
 
 /**
@@ -548,7 +793,7 @@ export interface MayorDeskEnv {
  */
 const DESK_NEWS_LIMIT = 8;
 
-export async function fetchMayorDesk(_env: MayorDeskEnv = {}): Promise<NormalizedFeed<MayorDesk>> {
+export async function fetchMayorDesk(env: MayorDeskEnv = {}): Promise<NormalizedFeed<MayorDesk>> {
   return cachedWithStale("mayor-desk", 60, async () => {
     const now = Date.now();
     const [ops, ews, news] = await Promise.allSettled([
@@ -570,7 +815,10 @@ export async function fetchMayorDesk(_env: MayorDeskEnv = {}): Promise<Normalize
     const newsItems = news.status === "fulfilled" ? news.value.features : [];
     const ranked = rankDeskNews(newsItems, now).slice(0, DESK_NEWS_LIMIT);
     const toTranslate = ranked.filter(r => r.language !== "th");
-    const translated = await translateHeadlines(toTranslate.map(r => r.headline));
+    const { translated, reasons } = await translateHeadlines(
+      toTranslate.map(r => ({ text: r.headline, language: r.language })),
+      env.AI,
+    );
 
     const deskNews: DeskNewsItem[] = ranked.map(r => {
       const th = translated.get(r.headline);
@@ -593,6 +841,8 @@ export async function fetchMayorDesk(_env: MayorDeskEnv = {}): Promise<Normalize
     if (ews.status === "rejected") gaps.push("DWR EWS unavailable");
     if (news.status === "rejected") gaps.push("News feed unavailable");
     if (!newsItems.length) gaps.push("No news stories in the last 36 h");
+    const untranslated = toTranslate.filter(r => !translated.has(r.headline)).length;
+    const note = translationNote(untranslated, reasons);
     const feature: MayorDesk = {
       generatedAt: new Date(now).toISOString(),
       level: answer.level,
@@ -603,7 +853,8 @@ export async function fetchMayorDesk(_env: MayorDeskEnv = {}): Promise<Normalize
       notice: null,
       missing: answer.missing,
       gaps,
-      translationIncomplete: toTranslate.some(r => !translated.has(r.headline)),
+      translationIncomplete: untranslated > 0,
+      translationNote: note,
     };
 
     return {

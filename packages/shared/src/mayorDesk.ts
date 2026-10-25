@@ -111,6 +111,9 @@ export interface MayorDesk {
   /** True when a non-Thai headline could not be translated, so the reader
    *  knows the Thai line above it is missing rather than the story. */
   translationIncomplete: boolean;
+  /** Why the translation did not happen, in one line, when it did not. A
+   *  missing measurement is written as missing — never as a calm line. */
+  translationNote?: string | null;
 }
 
 export const DESK_LEVEL_RANK: Record<DeskLevel, number> = {

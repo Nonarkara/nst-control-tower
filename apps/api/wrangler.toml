@@ -18,3 +18,10 @@ enabled = true
 
 [vars]
 ENVIRONMENT = "production"
+
+# Cloudflare's own translation model. The desk's headlines are translated by
+# it when the public translate endpoint cannot be reached from the Worker's
+# egress — measured on 2026-10-26: it could not, and the desk served a page
+# of English with no explanation.
+[ai]
+binding = "AI"

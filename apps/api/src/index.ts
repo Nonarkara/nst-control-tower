@@ -98,6 +98,10 @@ type Bindings = {
   GEOAPIFY_API_KEY?: string;
   AIRLABS_API_KEY?: string;
   GOOGLE_MAPS_API_KEY?: string;
+  /** Cloudflare's own translation model. The desk's headlines are translated
+   *  by it when the public translate endpoint cannot be reached from the
+   *  Worker's egress — measured on 2026-10-26, it could not. */
+  AI?: import("./adapters/mayorDesk.js").AiBinding;
   /** Shared secret for POST/DELETE /api/twin/*. Unset means those writes stay closed. */
   TWIN_WRITE_TOKEN?: string;
   CV_WRITE_TOKEN?: string;
@@ -414,7 +418,7 @@ app.get("/api/flood/operations", async (c) => safeFeed(c, fetchFloodOperations, 
 // translated into plain Thai. It needs the model key for the translation —
 // without it the desk still answers, and says which headlines it could not
 // translate.
-app.get("/api/mayor-desk", async (c) => safeFeed(c, () => fetchMayorDesk({ GEMINI_API_KEY: c.env.GEMINI_API_KEY }), "mayor-desk"));
+app.get("/api/mayor-desk", async (c) => safeFeed(c, () => fetchMayorDesk({ GEMINI_API_KEY: c.env.GEMINI_API_KEY, AI: c.env.AI }), "mayor-desk"));
 app.get("/api/water/balance", async (c) => safeFeed(c, fetchWaterBalance, "water-balance"));
 app.get("/api/rainfall/historical", async (c) => {
   const qLat = parseFloat(c.req.query("lat") ?? "");

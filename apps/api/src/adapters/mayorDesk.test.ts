@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import {
   buildDeskAnswer,
   deskHeadline,
@@ -9,7 +9,10 @@ import {
   rankDeskNews,
   riverLevel,
   riverPart,
+  resetTranslateProviders,
   translateOne,
+  translateOneDetailed,
+  translationNote,
 } from "./mayorDesk";
 import type { DeskPart, IntelligenceItem } from "@nst/shared";
 
@@ -279,6 +282,11 @@ describe("the news is most important first", () => {
 });
 
 describe("the translation is key-free and it is checked", () => {
+  // The provider breaker is per-isolate on purpose, so it is shared between
+  // the headlines of one build — and between the tests. Each test starts
+  // from a clean provider state.
+  beforeEach(() => resetTranslateProviders());
+
   it("reads the translated segments out of the endpoint's shape", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
       new Response(JSON.stringify([[["น้ำท่วมต่อเนื่อง 16 จังหวัด", "Floods persist", null, null, 3]]]), { status: 200 }),
@@ -321,5 +329,65 @@ describe("the translation is key-free and it is checked", () => {
   it("the Thai check itself", () => {
     expect(hasThai("Floods persist in 16 provinces")).toBe(false);
     expect(hasThai("น้ำท่วมต่อเนื่อง 16 จังหวัด")).toBe(true);
+  });
+
+  it("the second provider answers when the first one cannot be reached", async () => {
+    // Measured on 2026-10-26: the deployed Worker could not reach the
+    // first provider at all and translated nothing — 7 of 8 headlines in
+    // English, with no explanation. The chain must fall through to the
+    // second key-free provider rather than give up.
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.includes("translate.googleapis.com")) return new Response("blocked", { status: 403 });
+      return new Response(JSON.stringify({
+        responseStatus: 200,
+        responseData: { translatedText: "น้ำท่วมต่อเนื่อง 16 จังหวัด 2 เขต กทม" },
+      }), { status: 200 });
+    });
+    await expect(translateOne("Floods persist in 16 provinces")).resolves.toBe("น้ำท่วมต่อเนื่อง 16 จังหวัด 2 เขต กทม");
+    vi.restoreAllMocks();
+  });
+
+  it("a failure names the provider and the reason", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("blocked", { status: 403 }));
+    const result = await translateOneDetailed("Floods persist in 16 provinces");
+    expect(result.text).toBeNull();
+    expect(result.reason).toContain("google: HTTP 403");
+    expect(result.reason).toContain("mymemory: HTTP 403");
+    vi.restoreAllMocks();
+  });
+
+  it("the note says how many headlines are still English and why", () => {
+    expect(translationNote(0, ["google: HTTP 403"])).toBeNull();
+    const note = translationNote(3, ["google: HTTP 403 · mymemory: HTTP 403"]);
+    expect(note).toContain("3");
+    expect(note).toContain("google: HTTP 403");
+    // With no reason at all, the line still says the translation failed.
+    expect(translationNote(2, [])).toContain("2");
+  });
+
+  it("the first-party model answers when the public endpoint cannot be reached", async () => {
+    // The Worker could not reach the public endpoint at all, and the desk
+    // served English with no explanation. Cloudflare's own model is the
+    // path the Worker can always reach.
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      if (String(input).includes("translate.googleapis.com")) return new Response("blocked", { status: 403 });
+      return new Response("{}", { status: 500 });
+    });
+    const ai = {
+      run: vi.fn(async () => ({ result: "น้ำท่วมต่อเนื่อง 16 จังหวัด 2 เขต กทม" })),
+    };
+    await expect(translateOne("Floods persist in 16 provinces", 8_000, "en", ai)).resolves.toBe("น้ำท่วมต่อเนื่อง 16 จังหวัด 2 เขต กทม");
+    expect(ai.run).toHaveBeenCalledWith("@cf/meta/m2m100-1.2b", expect.objectContaining({ target_lang: "thai" }));
+    vi.restoreAllMocks();
+  });
+
+  it("a reply with no Thai from the model is a failure, not a translation", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async () => new Response("blocked", { status: 403 }));
+    const ai = { run: vi.fn(async () => ({ result: "Floods persist in 16 provinces" })) };
+    const result = await translateOneDetailed("Floods persist in 16 provinces", 8_000, "en", ai);
+    expect(result.text).toBeNull();
+    expect(result.reason).toContain("workers-ai");
+    vi.restoreAllMocks();
   });
 });

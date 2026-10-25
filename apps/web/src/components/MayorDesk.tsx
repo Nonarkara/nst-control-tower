@@ -187,7 +187,9 @@ export default function MayorDesk() {
                   <p className="desk-part__line desk-part__line--muted">ไม่มีข่าวใน 36 ชั่วโมงที่ผ่านมา — ไม่ใช่การยืนยันว่าไม่มีเหตุการณ์</p>
                 )}
                 {data.translationIncomplete && (
-                  <p className="desk-part__source desk-stale">บางพาดหัวยังไม่ได้แปลเป็นภาษาไทย — ดูต้นฉบับได้ที่ลิงก์</p>
+                  <p className="desk-part__source desk-stale">
+                    {data.translationNote ?? "บางพาดหัวยังไม่ได้แปลเป็นภาษาไทย — ดูต้นฉบับได้ที่ลิงก์"}
+                  </p>
                 )}
               </div>
             </section>
