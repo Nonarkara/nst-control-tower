@@ -8,6 +8,7 @@ import {
   rainPart,
   rankDeskNews,
   riverLevel,
+  translateHeadlines,
   riverPart,
   resetTranslateProviders,
   translateOne,
@@ -401,6 +402,32 @@ describe("the translation is key-free and it is checked", () => {
     expect(result.text).toBeNull();
     expect(result.reason).toContain("workers-ai");
     expect(result.reason).toContain("Unsupported target language");
+    vi.restoreAllMocks();
+  });
+
+  it("the translation has a deadline — the desk must not wait for it", async () => {
+    // Measured on 2026-10-26: a cold isolate's desk build blew the page's
+    // 25 s budget and the desk rendered its "could not read the desk"
+    // state. The translation is the least urgent thing on the desk; it gets
+    // a deadline, and what has not arrived is shown in the original.
+    vi.spyOn(globalThis, "fetch").mockImplementation(() => new Promise(() => {}));
+    const started = Date.now();
+    const result = await translateHeadlines([{ text: "Floods persist", language: "en" }], undefined, 60);
+    expect(result.pending).toBe(true);
+    expect(result.translated.size).toBe(0);
+    expect(Date.now() - started).toBeLessThan(2_000);
+    vi.restoreAllMocks();
+  });
+
+  it("a translation that arrives inside the deadline is used", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      if (String(input).includes("translate.googleapis.com")) return new Response("blocked", { status: 403 });
+      return new Response("{}", { status: 500 });
+    });
+    const ai = { run: vi.fn(async () => ({ translated_text: "น้ำท่วมต่อเนื่อง" })) };
+    const result = await translateHeadlines([{ text: "Floods persist", language: "en" }], ai, 5_000);
+    expect(result.pending).toBe(false);
+    expect(result.translated.get("Floods persist")).toBe("น้ำท่วมต่อเนื่อง");
     vi.restoreAllMocks();
   });
 

@@ -499,6 +499,23 @@ const TRANSLATE_ENDPOINTS = [
 const MYMEMORY_ENDPOINT = "https://api.mymemory.translated.net/get";
 const TRANSLATE_TIMEOUT_MS = 8_000;
 
+/**
+ * How long the desk may wait for the headlines to be translated.
+ *
+ * Measured on 2026-10-26: six concurrent requests to the deployed desk —
+ * five answered in 0.06 s from a warm isolate, one took 11 s on a cold
+ * isolate, and a browser request on a cold isolate blew the page's 25 s
+ * budget and the desk rendered its "could not read the desk" state.
+ *
+ * The translation is the *least* urgent thing on the desk: the answer and
+ * the four parts are the flood situation, and they must never wait for a
+ * headline to be translated. So the translation gets a hard deadline, and
+ * what has not arrived by then is shown in the original language with the
+ * reason. A desk that shows English headlines is better than a desk that
+ * times out.
+ */
+const TRANSLATION_DEADLINE_MS = 6_000;
+
 /** One headline per request, cached by its text — a headline is translated
  *  once, not once per desk refresh. */
 const translationCache = new Map<string, string>();
@@ -835,10 +852,11 @@ export function translationNote(untranslated: number, reasons: string[]): string
 export async function translateHeadlines(
   headlines: Array<{ text: string; language?: string }> | string[],
   ai?: AiBinding,
-): Promise<{ translated: Map<string, string>; reasons: string[] }> {
+  deadlineMs = TRANSLATION_DEADLINE_MS,
+): Promise<{ translated: Map<string, string>; reasons: string[]; pending: boolean }> {
   const out = new Map<string, string>();
   const reasons: string[] = [];
-  await Promise.all(headlines.map(async item => {
+  const tasks = headlines.map(async (item) => {
     const h = typeof item === "string" ? item : item.text;
     const language = typeof item === "string" ? "en" : item.language ?? "en";
     const cached = translationCache.get(h);
@@ -854,8 +872,15 @@ export async function translateHeadlines(
     } else if (result.reason && !reasons.includes(result.reason)) {
       reasons.push(result.reason);
     }
-  }));
-  return { translated: out, reasons };
+  });
+  // Resolve with whatever has arrived by the deadline. The requests that are
+  // still running are not cancelled — they simply lose the race, and the
+  // next build starts from a warm cache again.
+  const settled = await Promise.race([
+    Promise.allSettled(tasks).then(() => true),
+    new Promise<false>((resolve) => setTimeout(() => resolve(false), deadlineMs)),
+  ]);
+  return { translated: out, reasons, pending: !settled };
 }
 
 // ─── The adapter ─────────────────────────────────────────────────────────
@@ -901,7 +926,7 @@ export async function fetchMayorDesk(env: MayorDeskEnv = {}): Promise<Normalized
     const newsItems = news.status === "fulfilled" ? news.value.features : [];
     const ranked = rankDeskNews(newsItems, now).slice(0, DESK_NEWS_LIMIT);
     const toTranslate = ranked.filter(r => r.language !== "th");
-    const { translated, reasons } = await translateHeadlines(
+    const { translated, reasons, pending } = await translateHeadlines(
       toTranslate.map(r => ({ text: r.headline, language: r.language })),
       env.AI,
     );
@@ -928,7 +953,9 @@ export async function fetchMayorDesk(env: MayorDeskEnv = {}): Promise<Normalized
     if (news.status === "rejected") gaps.push("News feed unavailable");
     if (!newsItems.length) gaps.push("No news stories in the last 36 h");
     const untranslated = toTranslate.filter(r => !translated.has(r.headline)).length;
-    const note = translationNote(untranslated, reasons);
+    const note = pending
+      ? `กำลังแปลพาดหัว ${untranslated} รายการ — ดูต้นฉบับได้ที่ลิงก์ (แปลเสร็จในการเปิดครั้งถัดไป)`
+      : translationNote(untranslated, reasons);
     const feature: MayorDesk = {
       generatedAt: new Date(now).toISOString(),
       level: answer.level,

@@ -159,3 +159,23 @@ jobs:
           else
             echo "::warning::flood feed cold — the relay did not answer during the warm-up. The API reports this honestly; it does not fake an all-clear."
           fi
+
+      - name: Warm the mayor's desk
+        run: |
+          # The desk's synthesis is cached per isolate, and a cold isolate has
+          # to rebuild it — the flood synthesis, the DWR layer, the news and
+          # the translation. Measured on 26 Oct: six concurrent requests to
+          # the deployed desk — five answered in 0.06 s from a warm isolate,
+          # one took 11 s on a cold one, and a browser request on a cold
+          # isolate blew the page's 25 s budget and rendered the desk's
+          # "could not read the desk" state. Warm the desk here, while
+          # nothing is depending on it. A failure here is a warning, not a
+          # deploy failure.
+          OUT=$(curl -s --max-time 60 "https://nst-control-tower-api.drnon.workers.dev/api/mayor-desk?cb=$RANDOM" || true)
+          LEVEL=$(printf '%s' "$OUT" | sed -n 's/.*"level":"\([^"]*\)".*/\1/p' | head -1)
+          NEWS=$(printf '%s' "$OUT" | grep -o '"translated":true' | wc -l | tr -d ' ')
+          if [ -n "${LEVEL:-}" ]; then
+            echo "✅ desk warm — level $LEVEL, $NEWS headlines translated"
+          else
+            echo "::warning::desk cold — the desk did not answer during the warm-up."
+          fi
