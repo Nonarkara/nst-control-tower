@@ -2,7 +2,12 @@
 
 A one-click "mayor's desk" for Nakhon Si Thammarat: the morning espresso —
 the situation, the parts that make it, the day's news in plain Thai, and the
-notice in force — in one screen.
+notice in force — **in one screen**.
+
+*(The page height is a function of how much the compartments carry: the
+answer and the whole first row are always in the first screen; the page
+itself measured 1173 px at 1440 × 900 with live data on 26 October and
+scrolls. §2 carries the corrected numbers.)*
 
 The house system is the Chiang Mai operations war room's
 (`cnx.nonarkara.org`, `/Volumes/Data/Projects/CNX`): the answer names the
@@ -22,7 +27,8 @@ It is **not** the flood briefing. `/flood-ops` is the full evidence: tables
 of every station, camera comparison, and the copy-paste record for the file.
 That surface answers "show me the evidence" and is as long as the evidence
 is. The desk answers "what is the situation and what do I need to know this
-morning", and it fits one screen.
+morning", and **the first screen carries the answer and the whole first
+row** — the page itself scrolls when the compartments are full.
 
 The two overlap on the flood signals, and that overlap is deliberate: the
 desk's flood numbers are the *same* synthesis the briefing reads
@@ -59,15 +65,46 @@ Measured on the rendered page at 1440 × 900 (device scale 2, Chrome):
 | horizontal overflow | **0 px** |
 | compartment overlap | **0** |
 | clipped compartments | **0** |
-| content height | **839 px** in a 900 px viewport — fits one screen |
+| content height | **1173 px** in a 900 px viewport — **the page scrolls** (re-measured 26 Oct, live data — see the correction below) |
 | answer in the first screen | **yes** |
 | smallest type on the surface | **13.0 px** (the 13 px floor) |
-| cells | rivers 580×213 · official 343×541 · rain 580×316 · news 461×541 |
+| cells | rivers 580×213 · official 343×559 · rain 580×404 · news 461×859 |
 
-At **1024** (two columns) the page is 1209 px and at **390** (one column)
-2325 px: both scroll, both with **0 overflow, 0 overlap, 0 clipping**, and
+At **1024** (two columns) the page is **1425 px** and at **390** (one column)
+**2439 px**: both scroll, both with **0 overflow, 0 overlap, 0 clipping**, and
 both carry the answer inside the first screen. The one-screen promise is
 made at desktop width, where the mayor reads it.
+
+#### Correction, 26 October — the page height is data-dependent
+
+This section originally claimed the page "fits one screen" at **839 px** in a
+900 px viewport. That number was real, and it was measured on the *ordinary
+data* moment of 24 October. It was then left standing as a general claim,
+which it is not, and the law does not permit: the desk's height is a
+function of how much content the compartments are carrying.
+
+Re-measured at 1440 × 900 against **live data on 26 October**:
+
+| | 24 Oct (ordinary data) | 26 Oct (live data) |
+|---|---|---|
+| page height | 839 px | **1173 px** |
+| official cell | 343×541 (183 px of it an empty box) | **343×559** (13 px of padding, **no empty box**) |
+| news cell | 461×541 (193 px empty) | **461×859** (13 px of padding, **no empty box**) |
+| rivers / rain cells | 580×213 · 580×316 | 580×213 · 580×404 |
+
+**The honest statement is: the desk's first screen carries the answer and
+the whole first row; the page itself is 1173 px and scrolls.** What changed
+between the two measurements is not a regression — it is the compartments
+filling up. The 839 px figure came from a layout where the official and news
+cells were **183 px and 193 px of empty bordered box** (the empty-box defect
+repaired by `align-items: start` in `494ac45`). With the voids removed, the
+room went back into content: the official cell now carries **six** DWR
+stations closest to their own alert level (was three) and the news cell
+**eight** headlines (was five). The page is taller because it says more, not
+because it pads.
+
+Every cell in every state now measures an **empty box of 13 px** — padding
+only, at 1440, 1024 and 390.
 
 ### The voids, and what filled them
 
@@ -81,15 +118,32 @@ Both were filled with **content that was already measured and thrown away**:
   distance to the bank and their trend. The claim was "the closest gauge is
   0.54 m below the bank"; the reader now sees which three stations produced
   that and where the others sit.
-- **The official cell** now carries the three DWR stations closest to their
-  *own* alert level, and the text of the last official notice rather than
-  only its title.
+- **The official cell** now carries the **six** DWR stations closest to their
+  *own* alert level (raised from three when the empty-box repair freed the
+  room), and the text of the last official notice rather than
+  only its title. The **current** stations lead the list; the silent ones
+  follow, marked `ล้าสมัย` — a station 27 days quiet may be the closest to
+  the threshold, but it must never be the reader's first line of evidence
+  (`8fa2c06`).
 - **The news cells** lost the source name from the headline. The feed appends
   `" - www.topnews.co.th"`; the source is already printed on the line below,
   so the headline was wrapping a line to say the same thing twice. Stripping
-  it is what let the headline fit, and it is pinned by a test.
+  it is what let the headline fit, and it is pinned by a test. The cell now
+  carries **eight** headlines (raised from five when the empty-box repair
+  freed the room), still ranked most important first.
 
 Nothing was added that has no task: no filler card, no badge row, no slogan.
+
+### The empty-box repair, 25 October
+
+Filling the voids with content was the first half of the fix. The second was
+the cause: the official and news compartments span two grid rows, so each
+inherited the rows' *combined* height — and when their data was short, each
+became **an empty bordered panel, 183 px and 193 px at 1440 px**, with the
+cell it landed in changing with the feed state. `align-items: start` on
+`.desk-bento` makes every compartment exactly its content. Measured after:
+**empty box 13 px — padding only — in every cell, in every state, at 1440,
+1024 and 390.**
 
 ---
 
