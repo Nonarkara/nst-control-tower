@@ -375,16 +375,38 @@ describe("the translation is key-free and it is checked", () => {
       return new Response("{}", { status: 500 });
     });
     const ai = {
-      run: vi.fn(async () => ({ result: "น้ำท่วมต่อเนื่อง 16 จังหวัด 2 เขต กทม" })),
+      run: vi.fn(async () => ({ translated_text: "น้ำท่วมต่อเนื่อง 16 จังหวัด 2 เขต กทม" })),
     };
     await expect(translateOne("Floods persist in 16 provinces", 8_000, "en", ai)).resolves.toBe("น้ำท่วมต่อเนื่อง 16 จังหวัด 2 เขต กทม");
     expect(ai.run).toHaveBeenCalledWith("@cf/meta/m2m100-1.2b", expect.objectContaining({ target_lang: "thai" }));
     vi.restoreAllMocks();
   });
 
+  it("the model's own answer key is read", async () => {
+    // Measured in production: the model answers `{"translated_text": "…"}`,
+    // not `{"result": "…"}`. A parser that expects the wrong key turns a
+    // working model into a silent failure.
+    vi.spyOn(globalThis, "fetch").mockImplementation(async () => new Response("blocked", { status: 403 }));
+    const ai = { run: vi.fn(async () => ({ translated_text: "น้ำท่วมต่อเนื่อง 16 จังหวัด" })) };
+    await expect(translateOne("Floods persist in 16 provinces", 8_000, "en", ai)).resolves.toBe("น้ำท่วมต่อเนื่อง 16 จังหวัด");
+    vi.restoreAllMocks();
+  });
+
+  it("the model's own refusal is the reason", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async () => new Response("blocked", { status: 403 }));
+    const ai = {
+      run: vi.fn(async () => ({ success: false, errors: [{ code: 7001, message: "Unsupported target language" }] })),
+    };
+    const result = await translateOneDetailed("Floods persist in 16 provinces", 8_000, "en", ai);
+    expect(result.text).toBeNull();
+    expect(result.reason).toContain("workers-ai");
+    expect(result.reason).toContain("Unsupported target language");
+    vi.restoreAllMocks();
+  });
+
   it("a reply with no Thai from the model is a failure, not a translation", async () => {
     vi.spyOn(globalThis, "fetch").mockImplementation(async () => new Response("blocked", { status: 403 }));
-    const ai = { run: vi.fn(async () => ({ result: "Floods persist in 16 provinces" })) };
+    const ai = { run: vi.fn(async () => ({ translated_text: "Floods persist in 16 provinces" })) };
     const result = await translateOneDetailed("Floods persist in 16 provinces", 8_000, "en", ai);
     expect(result.text).toBeNull();
     expect(result.reason).toContain("workers-ai");

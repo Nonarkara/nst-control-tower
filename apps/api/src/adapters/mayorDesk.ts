@@ -650,12 +650,18 @@ function readAiReply(raw: unknown): { text: string; error: string | null } {
   if (!raw || typeof raw !== "object") return { text: "", error: "the model answered with nothing" };
   const reply = raw as {
     result?: unknown;
+    // The model's own answer key — measured in production on 2026-10-26:
+    // `{"translated_text": "…", "usage": {…}}`, not `result`.
+    translated_text?: unknown;
     success?: boolean;
     errors?: Array<{ code?: number; message?: string }>;
     messages?: Array<{ code?: number; message?: string }>;
   };
   const result = reply.result;
   if (typeof result === "string") return { text: result.trim(), error: null };
+  if (typeof reply.translated_text === "string" && reply.translated_text.trim()) {
+    return { text: reply.translated_text.trim(), error: null };
+  }
   if (result && typeof result === "object") {
     const inner = result as { text?: unknown; answer?: unknown; translation?: unknown };
     for (const value of [inner.text, inner.answer, inner.translation]) {
