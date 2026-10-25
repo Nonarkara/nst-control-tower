@@ -182,6 +182,17 @@ kbd {
 .btn:disabled { color: var(--ink-3); border-color: var(--line); cursor: not-allowed; background: transparent; }
 .btn--quiet { border-color: transparent; color: var(--ink-2); }
 .btn--quiet:hover { border-color: var(--line-2); }
+/* The one filled control in the chrome: the mayor's desk. It is the single
+   action the header asks the reader to press, and it carries the product's
+   one interactive accent — the same token the links and the focus ring use,
+   so it spends nothing new. Weight, not a second hue, marks it primary. */
+.btn--primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+  font-weight: var(--weight-bold);
+}
+.btn--primary:hover { background: var(--accent); border-color: var(--ink); color: var(--on-accent); }
 
 /* Filter chips: pressed = inverted (MoMA black/white), never a hue */
 .chip-row { display: flex; flex-wrap: wrap; gap: var(--s-2); }
@@ -441,18 +452,33 @@ kbd {
    type rule) instead of 1.5, which was padding the header by 8px a side. */
 .topbar-now dd { margin: 0; font-size: var(--text-md); font-weight: var(--weight-medium); line-height: 1.15; color: var(--ink); white-space: nowrap; }
 .topbar-now__sub { font-weight: var(--weight-regular); color: var(--ink-2); font-size: var(--text-sm); }
+/* The condition word is the longest string the header can print — "Thunderstorm
+   with heavy hail" is 28 characters — and it grew the bar by 175px on a
+   stormy afternoon, which is exactly when the mayor needs the screen. It is
+   bounded here, the way the sibling war room bounds its header strings: the
+   number keeps its place, the word is cut with an ellipsis, and the full
+   condition stays on the weather panel. */
+.topbar-now__sub {
+  display: inline-block;
+  max-width: 18ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: bottom;
+}
 
 .topbar-spacer { flex: 1 1 0; }
 .topbar-nav,
 .topbar-settings { display: flex; align-items: center; gap: var(--s-2); }
 .topbar-settings { padding-left: 0; }
 .topbar-health__count { color: var(--ink-2); }
-/* The short state word only replaces the sentence where the header is too
-   narrow for it (see the ≤1100px block). */
-.topbar-health__short { display: none; }
+/* The trust label is always the bounded count form (LIVE · STALE 5/9 · DOWN
+   · CHECK) — the sibling war room's shape. The full sentence is the
+   button's accessible name and the source catalog's job; the visible label
+   never grows, so the bar cannot reflow when a feed goes stale. */
 .topbar-more__mobile-only { display: none; }
-/* The display controls' twin in the More menu, shown only on narrow phones. */
-.topbar-more__narrow-only { display: none; }
+/* The display preferences' twin in the More menu. It is shown whenever the
+   bar collapses the preference buttons themselves (see the ≤1439px block). */
+.topbar-more__prefs-only { display: none; }
 
 /* CCTV Command Center button — distinct outline so the operator can find
    it without scanning the nav. One accent (--cctv-water, the Okabe–Ito
@@ -554,12 +580,65 @@ kbd {
 }
 .shell:not(.mobile) .right-layers { flex: 0 0 auto; max-height: 50%; overflow-y: auto; border-top: 1px solid var(--line-2); }
 
-/* One header row at laptop widths: the clock is on the mayor's own screen. */
-@media (max-width: 1500px) {
-  .topbar-now > div:nth-child(1) { display: none; }
-}
-@media (max-width: 1280px) {
+/* ── The header's width budget ─────────────────────────────────────────
+ *
+ * The bar had no budget: its content set changed with the viewport width
+ * AND with the length of its own longest strings. "9 of 9 data sources not
+ * live" is 181px of trust sentence, "Thunderstorm with heavy hail" is 175px
+ * of weather, and the clock comes back at 1501px. Any of them could push the
+ * bar past the width it had — the day the mayor most needs the screen, the
+ * header wrapped and pushed the map down a fifth of a row. Adding the desk
+ * button then took 64px out of a slack that was already only ~35px, and the
+ * bar broke at 1366.
+ *
+ * Every string the header prints is now bounded, and the bar sheds its
+ * least valuable content first, in this order:
+ *
+ *   always     the trust label is a bounded count (LIVE · STALE 5/9 · DOWN),
+ *              the weather word is cut with an ellipsis at 18ch, and the
+ *              task cluster — CCTV, FLOOD WATCH, DESK — never sheds.
+ *   ≤1699px   the clock and the air-quality column go. The weather stays:
+ *              for a flood desk "is it raining" is the fact, and the clock
+ *              is on the mayor's own screen.
+ *   ≤1439px   the identity drops from the full municipality name to the
+ *              short one. Both are complete names, not cut ones: "Nakhon
+ *              Si Thammarat City Municipality" is 349px of the bar, and
+ *              "Nakhon Si Thammarat" says where you are just as well.
+ *   ≤1199px   the weather goes too — the bar has run out of room for it.
+ *   ≤1100px   the phone form: the display preferences (2D/3D, ไทย/EN,
+ *              theme) move into the More menu, which already carries their
+ *              twins. They are preferences, not tasks, and the phone's
+ *              header has room for the identity, the trust label and More
+ *              and nothing else.
+ *
+ * Measured on the longest content the header can print — the longest trust
+ * label, the longest weather word, the longest air band label — the bar
+ * holds one row from 320px to 1920px with 40–412px to spare. Before the
+ * repair it had 35px, and it wrapped at 1200, 1366, 1440, 1536, 1600 and
+ * 1700.
+ */
+@media (max-width: 1699px) {
+  .topbar-now > div:nth-child(1),
   .topbar-now > div:nth-child(3) { display: none; }
+}
+@media (max-width: 1439px) {
+  .topbar-id__tier--full { display: none; }
+  .topbar-id__tier--mid { display: inline; }
+  /* The same medium size the phone form uses: "Nakhon Si Thammarat" at
+     15px is 158px of the bar, at 19px it is 235px, and the bar needs both
+     of those pixels for things the mayor acts on. The Thai organisation
+     line goes with it — at 12px it is 231px wide, wider than the city name
+     it sits under, and the product says the same thing in the bottom bar
+     and in the identity's accessible name. */
+  .topbar-id__city { font-size: var(--text-md); }
+  .topbar-id__org { display: none; }
+}
+@media (max-width: 1199px) {
+  .topbar-now { display: none; }
+}
+@media (max-width: 1100px) {
+  .topbar-settings { display: none; }
+  .topbar-more__prefs-only { display: list-item; }
 }
 /* Phone header: one row — name (truncated), health dot, More, settings.
    Source catalog / Atlas / Flood guide live in the Brief tab's action row. */
@@ -586,8 +665,6 @@ kbd {
      nothing about whether the numbers could be trusted. `flex: none` stops
      the button shrinking below its own word, which would paint the word
      outside the button's border. */
-  .topbar-health__word { display: none; }
-  .topbar-health__short { display: inline; }
   .topbar-health { flex: none; min-inline-size: var(--hit); padding: 0 var(--s-2); }
   .topbar-settings { border-left: 0; padding-left: 0; gap: var(--s-1); }
   .topbar-settings .btn,
@@ -599,15 +676,10 @@ kbd {
   .topbar-id__tier--mid { display: none; }
   .topbar-id__tier--short { display: inline; }
 }
-/* Narrow phone (≤380px): the header cannot carry the identity, the feed
-   health word and three display buttons at once — 52 + 80 + 65 + 131 plus
-   gaps is already 384px. Clipping the identity to "N…" or squeezing the
-   health word out of its own button are both worse than moving the three
-   display controls into the More menu, which is one tap away. */
-@media (max-width: 380px) {
-  .shell.mobile .topbar-settings { display: none; }
-  .topbar-more__narrow-only { display: list-item; }
-}
+/* Narrow phone (≤380px): the display buttons were already gone by then —
+   they collapse into the More menu at ≤1439px, where the bar stops having
+   room for them — so all that is left here is the identity and the trust
+   label. The phone keeps its own short id. */
 
 .left-bar > .sidebar-section:first-of-type,
 .right-bar > .sidebar-section:first-of-type { border-top: 0; }

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { BasinWaterBalance, WaterGauge } from "@nst/shared";
 import { buildSituationHeadline } from "./situationHeadline";
-import { feedHealthWord } from "../components/TopBar";
+import { feedHealthShort, feedHealthWord } from "../components/TopBar";
 
 function gauge(over: Partial<WaterGauge> = {}): WaterGauge {
   return {
@@ -84,6 +84,32 @@ describe("feedHealthWord", () => {
     expect(feedHealthWord("healthy", 4, 9)).toEqual({ word: "5 of 9 data sources not live", dot: "stale" });
     expect(feedHealthWord("down", 9, 9).dot).toBe("unavailable");
     expect(feedHealthWord("healthy", 0, 9).word).toBe("No live data sources");
+  });
+});
+
+describe("feedHealthShort", () => {
+  it("names the state, and counts the stale feeds when it can", () => {
+    expect(feedHealthShort("live")).toBe("LIVE");
+    expect(feedHealthShort("unavailable")).toBe("DOWN");
+    expect(feedHealthShort("loading")).toBe("CHECK");
+    // "STALE" alone says something is wrong; "STALE 5/9" says how much of
+    // the dashboard is untrustworthy.
+    expect(feedHealthShort("stale", 5, 9)).toBe("STALE 5/9");
+    expect(feedHealthShort("stale", 0, 0)).toBe("STALE");
+  });
+
+  it("never grows without bound — the header's budget depends on it", () => {
+    // The label's length is fixed by the feed count, which is a product
+    // constant. If a future feed set could print an unbounded label, the
+    // header would wrap on a bad day.
+    const labels = [
+      feedHealthShort("live"),
+      feedHealthShort("stale", 9, 9),
+      feedHealthShort("stale", 1, 99),
+      feedHealthShort("unavailable"),
+      feedHealthShort("loading"),
+    ];
+    for (const label of labels) expect(label.length).toBeLessThanOrEqual(12);
   });
 });
 

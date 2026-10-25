@@ -46,6 +46,11 @@
   --neg:    var(--bad);
   --info:   var(--ink-2);
   --on-status: #111111; /* glyph on a filled status chip (dark theme)        */
+  /* Ink on a filled --accent control (the mayor's desk button in the
+     header). The one interactive accent, used as a fill exactly once: on
+     the control the mayor is asked to press. Measured on this product's own
+     grounds: #111111 on #8ab4ff = 9.0:1. */
+  --on-accent: #111111;
 
   /* ── Severity ramp — the mayor's desk ────────────────────────────────
    *
@@ -231,6 +236,7 @@
   --bad:    #c4281c;
   --crit:   #9b1c13;
   --on-status: #ffffff;
+  --on-accent: #ffffff;  /* #ffffff on #1a56db = 6.1:1 */
 
   /* Severity ramp — the mayor's desk. Light values from the same closed
    * system; measured on this product's light grounds (--panel #ffffff). */

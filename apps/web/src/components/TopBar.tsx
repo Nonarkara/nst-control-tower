@@ -84,11 +84,22 @@ export function feedHealthWord(
  * sentence. A bare status dot says nothing — the mayor cannot tell whether
  * the numbers can be trusted — so the narrow header keeps the state word and
  * drops the sentence. The long form stays the accessible name.
+ *
+ * When some feeds are stale the short form carries the count too, in the
+ * sibling war room's shape ("ฟีด 14/17"): "STALE 5/9" tells the mayor how
+ * much of the dashboard is untrustworthy, where a bare "STALE" only tells him
+ * that something is wrong. The count is bounded — the product has a fixed
+ * number of feeds — so the label cannot grow with the news and reflow the
+ * bar on the morning the mayor needs it most.
  */
-export function feedHealthShort(dot: "live" | "stale" | "unavailable" | "loading"): string {
+export function feedHealthShort(
+  dot: "live" | "stale" | "unavailable" | "loading",
+  notLive = 0,
+  total = 0,
+): string {
   switch (dot) {
     case "live": return "LIVE";
-    case "stale": return "STALE";
+    case "stale": return total > 0 && notLive > 0 ? `STALE ${notLive}/${total}` : "STALE";
     case "unavailable": return "DOWN";
     case "loading": return "CHECK";
   }
@@ -104,7 +115,7 @@ const CITY_FULL = NST.name.en;                     // desktop
 const CITY_MID = "Nakhon Si Thammarat";            // tablet
 const CITY_SHORT = "NST-01";                       // phone
 
-function MoreMenu({ items }: { items: Array<{ label: string; ariaLabel?: string; mobileOnly?: boolean; narrowOnly?: boolean; group?: string; onSelect: () => void }> }) {
+function MoreMenu({ items }: { items: Array<{ label: string; ariaLabel?: string; mobileOnly?: boolean; prefsOnly?: boolean; group?: string; onSelect: () => void }> }) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -147,7 +158,7 @@ function MoreMenu({ items }: { items: Array<{ label: string; ariaLabel?: string;
               key={item.label}
               className={
                 item.mobileOnly ? "topbar-more__mobile-only"
-                : item.narrowOnly ? "topbar-more__narrow-only"
+                : item.prefsOnly ? "topbar-more__prefs-only"
                 : undefined
               }
             >
@@ -194,6 +205,8 @@ export function TopBar({
   const { locale, toggle: toggleLocale } = useLocale();
   const liveCount = feeds.filter((f) => f.tier === "live").length;
   const health = feedHealthWord(systemStatus, liveCount, feeds.length);
+  const notLive = feeds.length - liveCount;
+  const healthLabel = feedHealthShort(health.dot, notLive, feeds.length);
   const air = aqiBand(conditions?.aqi ?? null);
   const nextView = viewMode === "2D" ? "3D" : "2D";
   const nextTheme = theme === "dark" ? "light" : "dark";
@@ -249,12 +262,11 @@ export function TopBar({
         type="button"
         className="btn topbar-health"
         onClick={onOpenCatalog}
-        aria-label={`${feedHealthShort(health.dot)} — ${health.word}. Open source details.`}
+        aria-label={`${healthLabel} — ${health.word}. Open source details.`}
         title="Which data feeds are live, stale or down — opens the source catalog"
       >
         <span className={`dot ${health.dot}`} aria-hidden="true" />
-        <span className="topbar-health__word">{health.word}</span>
-        <span className="topbar-health__short" aria-hidden="true">{feedHealthShort(health.dot)}</span>
+        <span className="topbar-health__short">{healthLabel}</span>
       </button>
 
       <nav className="topbar-nav" aria-label="Tools">
@@ -269,7 +281,7 @@ export function TopBar({
         <a href="/flood-ops" className="btn" aria-label="Open flood operations briefing">FLOOD WATCH</a>
         <a
           href="/mayor-desk"
-          className="btn topbar-desk"
+          className="btn btn--primary topbar-desk"
           aria-label="Open the mayor's desk — this morning's situation, warnings and news in one screen"
         >
           DESK
@@ -279,14 +291,13 @@ export function TopBar({
             // Phones hide the header buttons; the mayor still needs the flood briefing.
             { label: "Flood watch / เฝ้าระวังน้ำท่วม", group: "Operations", mobileOnly: true, onSelect: () => window.location.assign("/flood-ops") },
             { label: "Mayor's desk / โต๊ะทำงานนายกฯ", group: "Operations", mobileOnly: true, ariaLabel: "Open the mayor's desk — this morning's situation, warnings and news in one screen", onSelect: () => window.location.assign("/mayor-desk") },
-            // Below ~380px the header cannot carry the identity, the feed-health
-            // word and three display buttons at once. Rather than clip the
-            // identity to "N…" or squeeze the health word out of its button,
-            // the display controls move into this menu — a deliberate
-            // arrangement change, not a squeezed one.
-            { label: nextView === "2D" ? "3D view" : "2D view", group: "Display", narrowOnly: true, ariaLabel: `Switch to ${nextView} view`, onSelect: onCycleViewMode },
-            { label: locale === "en" ? "ภาษาไทย / Thai" : "English", group: "Display", narrowOnly: true, ariaLabel: `Switch to ${locale === "en" ? "Thai" : "English"} interface`, onSelect: toggleLocale },
-            { label: nextTheme === "light" ? "Light theme" : "Dark theme", group: "Display", narrowOnly: true, ariaLabel: `Switch to ${nextTheme === "light" ? "light" : "dark"} theme`, onSelect: toggle },
+            // The display preferences are preferences, not tasks. Below 1440px
+            // the bar has no room for them, so they move into this menu —
+            // a deliberate arrangement change, not a squeezed one. The task
+            // cluster (CCTV, FLOOD WATCH, DESK) keeps its one-click place.
+            { label: nextView === "2D" ? "3D view" : "2D view", group: "Display", prefsOnly: true, ariaLabel: `Switch to ${nextView} view`, onSelect: onCycleViewMode },
+            { label: locale === "en" ? "ภาษาไทย / Thai" : "English", group: "Display", prefsOnly: true, ariaLabel: `Switch to ${locale === "en" ? "Thai" : "English"} interface`, onSelect: toggleLocale },
+            { label: nextTheme === "light" ? "Light theme" : "Dark theme", group: "Display", prefsOnly: true, ariaLabel: `Switch to ${nextTheme === "light" ? "light" : "dark"} theme`, onSelect: toggle },
             { label: "Flood guide", group: "Help", ariaLabel: "Open flood guide — how flooding works and what this dashboard monitors", onSelect: onOpenFloodGuide },
             { label: "Source catalog", group: "Data", ariaLabel: "Open source catalog", onSelect: onOpenCatalog },
             { label: "Data tables", group: "Data", ariaLabel: "Open data — every data.go.th dataset for Nakhon Si Thammarat as searchable tables", onSelect: () => window.location.assign("/data") },

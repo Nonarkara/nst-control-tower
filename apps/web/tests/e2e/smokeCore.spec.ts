@@ -235,6 +235,83 @@ test.describe("Phone — first screen", () => {
   });
 });
 
+/**
+ * The header's width budget.
+ *
+ * The bar had no budget: its content set changed with the viewport width AND
+ * with the length of its own longest strings, so it wrapped on the day the
+ * feeds went stale and stole a fifth of the map. The desk button then took
+ * 64px out of a slack that was already 35px and broke it at 1366.
+ *
+ * These tests pin the repair: one row at every desktop width, the desk one
+ * click away at every one of them, and the preferences that the bar drops
+ * still reachable in the More menu.
+ */
+test.describe("Header — budget, one row, one click", () => {
+  const DESKTOP_WIDTHS = [1101, 1200, 1366, 1440, 1536, 1600, 1920];
+
+  test("the bar stays one row at every desktop width", async ({ page }) => {
+    await page.goto("/");
+    await expect(page.locator(".map-host")).toBeVisible({ timeout: 20_000 });
+    for (const width of DESKTOP_WIDTHS) {
+      await page.setViewportSize({ width, height: 900 });
+      await page.waitForTimeout(250);
+      const m = await page.locator(".topbar").evaluate((el) => {
+        const box = el.getBoundingClientRect();
+        const spacer = el.querySelector(".topbar-spacer");
+        return {
+          h: Math.round(box.height),
+          free: Math.round(spacer?.getBoundingClientRect().width ?? -1),
+        };
+      });
+      // One row is 56px. A wrapped bar is 88–90px and pushes the map down.
+      expect(m.h, `bar wrapped at ${width}px`).toBeLessThan(85);
+      // The spacer is the bar's free space: it only has width if every
+      // control fitted on the row.
+      expect(m.free, `no room left at ${width}px`).toBeGreaterThan(40);
+    }
+  });
+
+  test("the mayor's desk is one click away at every desktop width", async ({ page }) => {
+    await page.goto("/");
+    await expect(page.locator(".map-host")).toBeVisible({ timeout: 20_000 });
+    for (const width of DESKTOP_WIDTHS) {
+      await page.setViewportSize({ width, height: 900 });
+      await page.waitForTimeout(250);
+      const desk = page.locator(".topbar-desk");
+      await expect(desk, `desk button missing at ${width}px`).toBeVisible();
+      await expect(desk).toHaveAttribute("href", "/mayor-desk");
+    }
+  });
+
+  test("the desk is reachable from the More menu on a phone", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/");
+    await expect(page.locator(".map-host")).toBeVisible({ timeout: 20_000 });
+    await openMore(page);
+    const entry = page.getByRole("button", { name: /mayor's desk/i });
+    await expect(entry).toBeVisible();
+    await entry.click();
+    await expect(page).toHaveURL(/\/mayor-desk$/);
+  });
+
+  test("the display preferences stay reachable when the bar drops them", async ({ page }) => {
+    // On a desktop they stay in the bar — they are one click there.
+    await page.setViewportSize({ width: 1366, height: 768 });
+    await page.goto("/");
+    await expect(page.locator(".map-host")).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByRole("button", { name: /Switch to Thai interface/ })).toBeVisible();
+
+    // On the phone the bar has no room for them, so they move into the More
+    // menu, which is where a phone keeps everything else.
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.waitForTimeout(300);
+    await expect(page.locator(".topbar-settings")).toBeHidden();
+    await openMore(page);
+    await expect(page.getByRole("button", { name: /Switch to Thai interface/ })).toBeVisible();
+  });
+});
+
 test.describe("Review fixes — phone and sticky mode", () => {
   test("Show on map actually takes a phone to the map", async ({ page }) => {
     const gauge = {
@@ -268,7 +345,11 @@ test.describe("Review fixes — phone and sticky mode", () => {
     await expect(page.getByRole("region", { name: "Right now" })).toBeVisible({ timeout: 20_000 });
     const heights = await page.locator(".topbar .btn, .topbar button").evaluateAll((els) =>
       els.filter((el) => (el as HTMLElement).offsetParent !== null).map((el) => el.getBoundingClientRect().height));
-    expect(heights.length).toBeGreaterThanOrEqual(4);
+    // The phone header carries the identity, the trust label and the More
+    // button — the display preferences live in the More menu, which is where
+    // a phone keeps everything else. Two controls is the guard against a
+    // vacuous pass; both must clear the 44px touch target.
+    expect(heights.length).toBeGreaterThanOrEqual(2);
     for (const h of heights) expect(h).toBeGreaterThanOrEqual(43.5);
   });
 
