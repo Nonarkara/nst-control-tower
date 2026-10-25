@@ -486,7 +486,16 @@ function whyEn(item: IntelligenceItem): string {
  * So the desk now walks a **chain** of key-free providers and says which one
  * answered. A failure with no name is a failure nobody can act on.
  */
-const TRANSLATE_ENDPOINT = "https://translate.googleapis.com/translate_a/single";
+/**
+ * Google's key-free translate endpoint. Two hosts: the Worker is rate-limited
+ * (HTTP 429) on one of them, and a second host is a second chance at the
+ * better Thai — the model's Thai is serviceable but turns "city pond plan"
+ * into "แผนเมืองธง".
+ */
+const TRANSLATE_ENDPOINTS = [
+  "https://translate.googleapis.com/translate_a/single",
+  "https://translate.google.com/translate_a/single",
+];
 const MYMEMORY_ENDPOINT = "https://api.mymemory.translated.net/get";
 const TRANSLATE_TIMEOUT_MS = 8_000;
 
@@ -558,29 +567,45 @@ function myMemoryPair(language: string): string {
 }
 
 async function translateViaGoogle(text: string, signal: AbortSignal): Promise<string | null> {
-  const url = `${TRANSLATE_ENDPOINT}?client=gtx&sl=auto&tl=th&dt=t&q=${encodeURIComponent(text)}`;
-  const res = await fetch(url, { signal });
-  if (!res.ok) {
-    markProviderDown("google", `HTTP ${res.status}`);
-    return null;
+  let lastReason = "no reply";
+  for (const endpoint of TRANSLATE_ENDPOINTS) {
+    const url = `${endpoint}?client=gtx&sl=auto&tl=th&dt=t&q=${encodeURIComponent(text)}`;
+    let res: Response;
+    try {
+      res = await fetch(url, { signal });
+    } catch {
+      lastReason = "the request failed";
+      continue;
+    }
+    if (!res.ok) {
+      lastReason = `HTTP ${res.status}`;
+      continue;
+    }
+    const json = (await res.json()) as unknown;
+    const segments = Array.isArray(json) ? json[0] : null;
+    if (!Array.isArray(segments)) {
+      lastReason = "unexpected response shape";
+      continue;
+    }
+    const out = segments
+      .map(seg => (Array.isArray(seg) && typeof seg[0] === "string" ? seg[0] : ""))
+      .join("")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (!out) {
+      lastReason = "empty reply";
+      continue;
+    }
+    if (!hasThai(out)) {
+      lastReason = "no Thai in the reply";
+      continue;
+    }
+    providerFailures.delete("google");
+    return out;
   }
-  const json = (await res.json()) as unknown;
-  const segments = Array.isArray(json) ? json[0] : null;
-  if (!Array.isArray(segments)) {
-    providerFailures.set("google", "unexpected response shape");
-    return null;
-  }
-  const out = segments
-    .map(seg => (Array.isArray(seg) && typeof seg[0] === "string" ? seg[0] : ""))
-    .join("")
-    .replace(/\s+/g, " ")
-    .trim();
-  if (!out || !hasThai(out)) {
-    providerFailures.set("google", out ? "no Thai in the reply" : "empty reply");
-    return null;
-  }
-  providerFailures.delete("google");
-  return out;
+  // Every host failed: the provider is down for now, not for one headline.
+  markProviderDown("google", lastReason);
+  return null;
 }
 
 async function translateViaMyMemory(text: string, language: string, signal: AbortSignal): Promise<string | null> {
