@@ -28,6 +28,12 @@ const part = (over: Partial<DeskPart> = {}): DeskPart => ({
   observedAt: minutesAgo(10), staleAfterMs: 7200_000, ...over,
 });
 
+/** One DWR station, as the upstream sends it. */
+const ews = (over: Record<string, unknown> = {}) => ({
+  id: "STN0503", name: "บ้านนางเอื้อย", amphoe: "สิชล", type: "water", status: 0,
+  waterLevel: 2.94, alertMax: 4, observedAt: minutesAgo(42), stale: false, ...over,
+});
+
 describe("the river part", () => {
   const gauge = (over: Record<string, unknown> = {}) => ({
     id: "g1", name: "ปากนคร", stationCode: "PTTEP3", diffFromBank: -1.5,
@@ -75,11 +81,6 @@ describe("the river part", () => {
 });
 
 describe("the official part", () => {
-  const ews = (over: Record<string, unknown> = {}) => ({
-    id: "STN0503", name: "บ้านนางเอื้อย", amphoe: "สิชล", type: "water", status: 0,
-    waterLevel: 2.94, alertMax: 4, observedAt: minutesAgo(42), stale: false, ...over,
-  });
-
   it("an unreadable source is NOT the same sentence as no alert", () => {
     const p = officialPart([], NOW);
     expect(p.level).toBe("unknown");
@@ -110,7 +111,21 @@ describe("the official part", () => {
   it("a station at DWR's own alert level is an alert even with no alert declared", () => {
     const p = officialPart([ews({ waterLevel: 4.2, alertMax: 4 })], NOW);
     expect(p.level).toBe("alert");
-    expect(p.th).toContain("ถึง/เกินเกณฑ์แล้ว");
+    // The fact that earns the chip comes first; the absence of a
+    // declaration is the qualifier after it. Printing "no DWR alert"
+    // first, under a heading that says "DWR warning", is a contradiction
+    // on the page's most prominent line.
+    expect(p.th.indexOf("ถึง/เกินเกณฑ์")).toBeGreaterThanOrEqual(0);
+    expect(p.th.indexOf("ถึง/เกินเกณฑ์")).toBeLessThan(p.th.indexOf("ยังไม่มีประกาศเตือน"));
+  });
+
+  it("the official heading never contradicts its own sentence", () => {
+    const declared = officialPart([ews({ status: 2 })], NOW);
+    const notDeclared = officialPart([ews({ waterLevel: 4.2, alertMax: 4 })], NOW);
+    // "DWR warning" as a heading in front of "no DWR warning" reads as a
+    // contradiction; the heading has to be true in both branches.
+    expect(declared.titleTh).toBe(notDeclared.titleTh);
+    expect(notDeclared.titleTh).not.toContain("ประกาศเตือน");
   });
 
   it("a stale station does not lead the comparison", () => {
@@ -173,6 +188,17 @@ describe("the answer", () => {
     expect(answer.level).toBe("critical");
     expect(answer.th).toContain("ระดับน้ำ");
     expect(answer.th).toContain("และอีก 1 สัญญาณ");
+  });
+
+  it("never prints a heading that its own sentence contradicts", () => {
+    // The answer prints the worst part's heading in front of its sentence.
+    // "DWR warning: no DWR warning from DWR" is a contradiction on the
+    // most prominent line of the page, so the heading has to be one that
+    // is true whether or not the authority declared anything.
+    const answer = buildDeskAnswer([officialPart([ews({ waterLevel: 4.2, alertMax: 4 })], NOW)]);
+    expect(answer.th).not.toContain("ประกาศเตือน อต.:");
+    expect(answer.th).toContain("สถานะเตือน อต.:");
+    expect(answer.th).not.toMatch(/ประกาศเตือน อต\.:\s*ไม่มีประกาศเตือน/);
   });
 
   it("no signal plus a missing source is an incomplete answer, never an all-clear", () => {

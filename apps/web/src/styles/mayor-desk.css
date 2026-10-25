@@ -100,6 +100,16 @@
   display: grid;
   gap: var(--s-3);
   grid-template-columns: repeat(12, minmax(0, 1fr));
+  /* Every compartment is as tall as its own content. A compartment that
+     spans two rows inherits their combined height, and when the data in
+     that row is shorter than the row, the box that stretches is an empty
+     bordered panel with no task in it — the spatial-hallucination law's
+     clearest failure, and it changed with the state of the feeds (it
+     landed in the news cell on a busy day and in the official cell on a
+     day the authority's feed was down). The bento's compartments differ in
+     size because their contents differ; the leftover is the lunchbox's
+     own shape, not a padded box. */
+  align-items: start;
   grid-template-areas:
     "rivers rivers rivers rivers rivers official official official news news news news"
     "rain   rain   rain   rain   rain   official official official news news news news";

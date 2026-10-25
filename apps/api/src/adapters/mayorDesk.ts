@@ -63,8 +63,13 @@ const RIVER: Omit<DeskPart, "level" | "th" | "en" | "evidence" | "observedAt" | 
 const OFFICIAL: Omit<DeskPart, "level" | "th" | "en" | "evidence" | "observedAt" | "coverageIncomplete"> = {
   key: "official",
   kind: "official",
-  titleTh: "ประกาศเตือน อต.",
-  titleEn: "DWR official warning",
+  // "DWR alert status", not "DWR warning". The heading is printed in front of
+  // this part's own sentence on the desk's first line, and when the
+  // authority has declared nothing that sentence says so — "DWR warning: no
+  // DWR warning" is a contradiction on the most prominent line of the
+  // page, and it was the title, not the sentence, that was wrong.
+  titleTh: "สถานะเตือน อต.",
+  titleEn: "DWR alert status",
   sourceTh: "กรมทรัพย์ทรัพย์ธรรมชาติ — ระบบเตือนภัยชุมชน",
   sourceEn: "Department of Water Resources — community early warning",
   staleAfterMs: 2 * HOUR,
@@ -220,18 +225,30 @@ export function officialPart(
   const measured = fresh.length;
   const total = rows.length;
   const coverage = total ? ` · ${measured}/${total} สถานีที่มีเกณฑ์รายงานภายใน 2 ชม.` : "";
+  // The sentence leads with the fact that earns the chip. When the water is
+  // at or over DWR's own alert level, that is the worst fact on the page
+  // and it comes first; the fact that DWR has declared nothing comes
+  // after it, as a qualifier — never before it, which read as a
+  // contradiction.
   const line = closest && margin != null
-    ? `ไม่มีประกาศเตือนจาก อต. · ใกล้เกณฑ์ของ อต. ที่สุด ${closest.name} (${closest.amphoe}) ${margin <= 0 ? "ถึง/เกินเกณฑ์แล้ว" : `เหลือ ${fmt(margin, 2)} ม.`}${coverage}`
+    ? margin <= 0
+      ? `น้ำถึง/เกินเกณฑ์เตือนของ อต. ที่ ${closest.name} (${closest.amphoe}) — ยังไม่มีประกาศเตือนจาก อต.${coverage}`
+      : `ใกล้เกณฑ์เตือนของ อต. ที่สุด ${closest.name} (${closest.amphoe}) เหลือ ${fmt(margin, 2)} ม. — ไม่มีประกาศเตือนจาก อต.${coverage}`
     : `ไม่มีประกาศเตือนจาก อต. · ไม่มีสถานีที่มีเกณฑ์ของ อต. ให้เทียบ${coverage}`;
   return {
     ...OFFICIAL,
     level,
     coverageIncomplete: measured < total,
     th: line,
-    evidence: rows.slice(0, 3).map(r =>
+    // Six stations, not three: the compartment has the room, and the
+    // stations closest to DWR's own threshold are the evidence the mayor
+    // needs. Three left a measured hole in the middle of the bento.
+    evidence: rows.slice(0, 6).map(r =>
       `${r.s.name} (${r.s.amphoe}) — ${r.margin <= 0 ? `ถึง/เกินเกณฑ์ ${fmt(Math.abs(r.margin), 2)} ม.` : `เหลือ ${fmt(r.margin, 2)} ม.`}${r.s.stale ? " · ล้าสมัย" : ""}`),
     en: closest && margin != null
-      ? `No DWR alert in force · closest to DWR's own alert level: ${closest.name} (${closest.amphoe}) ${margin <= 0 ? "at or over its level" : `${fmt(margin, 2)} m to go`}${coverage}`
+      ? margin <= 0
+        ? `Water is at or over DWR's own alert level at ${closest.name} (${closest.amphoe}) — no DWR alert has been declared${coverage}`
+        : `Closest to DWR's own alert level: ${closest.name} (${closest.amphoe}), ${fmt(margin, 2)} m to go — no DWR alert in force${coverage}`
       : `No DWR alert in force · no station publishes a DWR alert level to compare against${coverage}`,
     observedAt: closest?.observedAt ?? null,
   };
@@ -515,7 +532,15 @@ export interface MayorDeskEnv {
   GEMINI_API_KEY?: string;
 }
 
-const DESK_NEWS_LIMIT = 5;
+/**
+ * How many headlines the desk carries.
+ *
+ * Five left the news compartment 193px of empty box at 1440px — a bordered
+ * region with no task in it, which is exactly what the spatial-hallucination
+ * law forbids. Eight is what the compartment holds, still ranked most
+ * important first: the espresso is the ordering, not the length.
+ */
+const DESK_NEWS_LIMIT = 8;
 
 export async function fetchMayorDesk(_env: MayorDeskEnv = {}): Promise<NormalizedFeed<MayorDesk>> {
   return cachedWithStale("mayor-desk", 60, async () => {
