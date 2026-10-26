@@ -890,13 +890,27 @@ export interface MayorDeskEnv {
  * available on demand. The limit is a reading choice, not a panel-height fill. */
 const DESK_NEWS_LIMIT = 8;
 
+/** Core evidence gets14s, then translation gets at most6s: a cold failure
+ * must still leave headroom inside the browser's25s request deadline. */
+export async function withinDeskBudget<T>(work: Promise<T>, timeoutMs = 14_000): Promise<T> {
+  // A deadline stops waiting, not I/O: any late cache fill still belongs
+  // to this request's Worker lifetime, never a later request's context.
+  await finishBackgroundWork(work.catch(() => undefined), false);
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([work, new Promise<never>((_, reject) => {
+      timer = setTimeout(() => reject(new Error("Mayor desk source deadline exceeded")), timeoutMs);
+    })]);
+  } finally { clearTimeout(timer); }
+}
+
 export async function fetchMayorDesk(env: MayorDeskEnv = {}): Promise<NormalizedFeed<MayorDesk>> {
   const feed = await cachedWithStale<NormalizedFeed<MayorDesk>>("mayor-desk", 60, async () => {
     const now = Date.now();
     const [ops, ews, news] = await Promise.allSettled([
-      fetchFloodOperations(),
-      fetchEwsStations(),
-      fetchNews(),
+      withinDeskBudget(fetchFloodOperations()),
+      withinDeskBudget(fetchEwsStations()),
+      withinDeskBudget(fetchNews()),
     ]);
 
     const gaps: string[] = [];

@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import {
+  withinDeskBudget,
   buildDeskAnswer,
   deskHeadline,
   forecastPart,
@@ -503,4 +504,13 @@ it("late translation work is attached to its originating Worker request",async()
   release(Response.json([[["น้ำท่วม","Unique late flood headline"]]]));
   await Promise.all(lifetime);
  } finally {spy.mockRestore();resetTranslateProviders();}
+});
+
+it("a stalled source cannot consume the browser's whole brief budget",async()=>{
+ const {withCacheLifetime}=await import("../lib/cache");
+ let release!:(value:string)=>void;const work=new Promise<string>(resolve=>{release=resolve;});
+ const lifetime:Promise<unknown>[]=[];const started=Date.now();
+ await expect(withCacheLifetime(p=>{lifetime.push(p);},()=>withinDeskBudget(work,20))).rejects.toThrow("source deadline");
+ expect(Date.now()-started).toBeLessThan(1000);expect(lifetime).toHaveLength(1);
+ release("late cache fill");await Promise.all(lifetime);
 });

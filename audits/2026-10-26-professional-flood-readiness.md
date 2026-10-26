@@ -21,6 +21,8 @@ Independent review also found a232px tablet gap where the neighboring official p
 
 8. **Machine translations materially mistranslated two headlines.** Retained originals and marked every automatic translation as unverified. This is a limitation, not a claim that the underlying model's translation quality was repaired. Late translation work is attached to the originating Worker request while the response retains its hard deadline; completed races clear their deadline timer.
 
+9. **Real cold-source brief exceeded the browser timeout after release.** Production returned one mayor-desk response in26.6s while the browser allows25s. The source fan-out now has a14s deadline per source, followed by at most6s for translation. Slow sources become explicit gaps; completed sources remain usable. Late I/O is attached to the same Worker request. This is a failure-path budget, not a claim about upstream speed.
+
 ## Verification and evidence
 
 Baseline: shared43, API804 and web1,151 tests passed; type checks passed. After repair: shared46, API810 and web1,152 tests passed (2,008 total); type checks and production dependency audit passed. The17 affected browser checks passed, followed by9 mayor-desk checks after the tablet repair. New regressions cover expired/future/invalid DWR clocks, tier ordering, stale soil observations, missing trend, partial rainfall, fixed forecast horizon, stalled browser/copy clocks and Worker translation lifetime. Browser checks exercise copy, print invocation, retry and detailed flood briefing. Final release checks and production observations are recorded under `var/audit-2026-10-26/` and in GitHub CI for the released commit.
