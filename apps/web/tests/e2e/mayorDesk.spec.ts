@@ -13,19 +13,19 @@ const part = (over: Record<string, unknown> = {}) => ({
   titleEn: "River levels at gauges", th: "ยังไม่ถึงเกณฑ์ 30 ซม. แต่ใกล้ที่สุด PTTEP3 เหลือถึงตลิ่ง 0.52 ม.",
   en: "Closest gauge 0.52 m below bank", evidence: ["PTTEP3 — เหลือถึงตลิ่ง 0.52 ม. · กำลังลด"],
   sourceTh: "HII ThaiWater ผ่าน FloodDash", sourceEn: "HII via FloodDash",
-  observedAt: stamp, staleAfterMs: 7200000, ...over,
+  observedAt: new Date().toISOString(), staleAfterMs: 7200000, ...over,
 });
 
 const desk = (over: Record<string, unknown> = {}) => ({
   features: [{
-    generatedAt: stamp,
+    generatedAt: new Date().toISOString(),
     level: "watch",
     answerTh: "ระดับน้ำที่สถานีวัด: ยังไม่ถึงเกณฑ์ 30 ซม. แต่ใกล้ที่สุด PTTEP3 เหลือถึงตลิ่ง 0.52 ม.",
     answerEn: "River levels at gauges: closest gauge 0.52 m below bank",
     parts: [
       part(),
-      part({ key: "official", level: "good", kind: "official", titleTh: "ประกาศเตือน อต.", th: "ไม่มีประกาศเตือนจาก อต. · ใกล้เกณฑ์ที่สุด บ้านนางเอื้อย เหลือ 1.06 ม.", evidence: [] }),
-      part({ key: "rain", level: "alert", kind: "measured", titleTh: "ฝนที่วัดได้ 24 ชม.", th: "มากสุด 88.0 มม./24 ชม. ที่ ลานสกา", evidence: [] }),
+      part({ key: "official", level: "good", kind: "official", titleTh: "ประกาศเตือน DWR", th: "ไม่มีประกาศเตือนจาก DWR · ใกล้เกณฑ์ที่สุด บ้านนางเอื้อย เหลือ 1.06 ม.", evidence: [] }),
+      part({ key: "rain", level: "watch", kind: "measured", titleTh: "ฝนที่วัดได้ 24 ชม.", th: "มากสุด 88.0 มม./24 ชม. ที่ ลานสกา", evidence: [] }),
       part({ key: "forecast", level: "unknown", kind: "model", titleTh: "พยากรณ์ฝน 24 ชม.", th: "ยังไม่มีแบบจำลองพยากรณ์ฝน", evidence: [] }),
     ],
     news: [
@@ -49,7 +49,7 @@ test("the desk answers first, in Thai, with the evidence under it", async ({ pag
   // the four compartments, each with the content it was built for
   await expect(page.locator(".desk-cell")).toHaveCount(4);
   await expect(page.locator(".desk-cell--rivers")).toContainText("0.52 ม.");
-  await expect(page.locator(".desk-cell--official")).toContainText("ไม่มีประกาศเตือนจาก อต.");
+  await expect(page.locator(".desk-cell--official")).toContainText("ไม่มีประกาศเตือนจาก DWR");
   await expect(page.locator(".desk-cell--rain")).toContainText("88.0 มม.");
   await expect(page.locator(".desk-cell--news")).toContainText("น้ำท่วมต่อเนื่อง 16 จังหวัด");
 });
@@ -93,4 +93,38 @@ test("the desk fits a phone without sideways scroll", async ({ page }) => {
   // the answer is in the first screen
   const bottom = await page.locator(".desk-answer").evaluate(el => el.getBoundingClientRect().bottom);
   expect(bottom).toBeLessThanOrEqual(844);
+});
+
+test("the mayor can copy a timestamped Thai brief and print it", async ({page,context})=>{
+ await context.grantPermissions(["clipboard-read","clipboard-write"]);
+ await page.route("**/api/mayor-desk?**",r=>r.fulfill({json:desk()}));
+ await page.goto("/mayor-desk");await expect(page.locator(".desk-answer__action")).toContainText("ตรวจสอบต่อ");
+ await page.getByRole("button",{name:"คัดลอกส่ง LINE"}).click();
+ await expect(page.getByRole("status")).toContainText("คัดลอกแล้ว");
+ const copied=await page.evaluate(()=>navigator.clipboard.readText());
+ expect(copied).toContain("ไม่ใช่ประกาศราชการหรือคำสั่งอพยพ");expect(copied).toContain("ประมวลผล");
+ await page.evaluate(()=>{window.print=()=>{document.body.dataset.printed="yes";};});
+ await page.getByRole("button",{name:"พิมพ์สรุป"}).click();expect(await page.locator("body").getAttribute("data-printed")).toBe("yes");
+});
+test("a long-open stalled desk cannot keep its current headline",async({page})=>{
+ await page.clock.install({time:new Date()});const payload=desk();
+ await page.route("**/api/mayor-desk?**",r=>r.fulfill({json:payload}));
+ await page.goto("/mayor-desk");await expect(page.locator(".desk-answer__text")).toContainText("PTTEP3");
+ await page.clock.fastForward(6*60_000);
+ await expect(page.locator(".desk-answer__text")).toContainText("ยังตอบไม่ครบ");
+ await expect(page.locator(".desk-cell--rivers")).toContainText("ข้อมูลเดิม");
+});
+test("initial failure still allows the mayor to retry",async({page})=>{
+ await page.route("**/api/mayor-desk?**",r=>r.abort());await page.goto("/mayor-desk");
+ await expect(page.getByRole("button",{name:"ปรับปรุง",exact:true})).toBeEnabled({timeout:35000});
+});
+
+test("tablet rain follows river evidence without inheriting the official panel height",async({page})=>{
+ await page.setViewportSize({width:1024,height:900});const payload=desk();
+ payload.features[0].parts.find(p=>p.key==="official")!.evidence=Array.from({length:12},(_,i)=>`สถานี ${i} — ระดับน้ำเทียบเกณฑ์หน่วยงาน`);
+ await page.route("**/api/mayor-desk?**",r=>r.fulfill({json:payload}));await page.goto("/mayor-desk");
+ await expect(page.locator(".desk-answer")).toBeVisible();
+ const gap=await page.evaluate(()=>document.querySelector('.desk-cell--rain')!.getBoundingClientRect().top-document.querySelector('.desk-cell--rivers')!.getBoundingClientRect().bottom);
+ expect(gap).toBeGreaterThanOrEqual(0);expect(gap).toBeLessThanOrEqual(20);
+ await expect(page.locator('.desk-news__translation')).toContainText('ยังไม่ยืนยัน');
 });

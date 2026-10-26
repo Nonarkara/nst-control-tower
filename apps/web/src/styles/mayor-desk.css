@@ -111,8 +111,7 @@
      own shape, not a padded box. */
   align-items: start;
   grid-template-areas:
-    "rivers rivers rivers rivers rivers official official official news news news news"
-    "rain   rain   rain   rain   rain   official official official news news news news";
+    "measurements measurements measurements measurements measurements official official official news news news news";
 }
 .desk-cell--rivers { grid-area: rivers; }
 .desk-cell--official { grid-area: official; }
@@ -236,10 +235,7 @@
 @media (max-width: 1100px) {
   .desk-bento {
     grid-template-columns: repeat(6, minmax(0, 1fr));
-    grid-template-areas:
-      "rivers rivers rivers official official official"
-      "rain   rain   rain   news    news    news"
-      "rain   rain   rain   news    news    news";
+    grid-template-areas: "measurements measurements measurements context context context";
   }
 }
 /* Touch: this is opened one-handed, outdoors, in the rain. The header
@@ -247,13 +243,17 @@
    product's own briefing treats those the same way. */
 .desk-head__back { display: inline-flex; align-items: center; min-height: 44px; }
 @media (max-width: 900px) {
-  .desk a:not(.desk-head__back) { display: inline-block; padding-block: 14px; }
+  .desk-head { display:grid; grid-template-columns:auto 1fr; gap:var(--s-1) var(--s-2); }
+  .desk-head__place { text-align:right; }
+  .desk-head__actions { grid-column:1 / -1; flex-wrap:wrap; }
+  .desk-part__source a, .desk-foot a { display:inline-flex; align-items:center; min-height:44px; }
+  .desk-head .desk-btn { padding:6px 10px; min-height:44px; }
 }
 @media (max-width: 720px) {
   .desk { padding: var(--s-3); }
   .desk-bento {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-areas: "rivers" "official" "rain" "news";
+    grid-template-areas: "rivers" "rain" "official" "news";
   }
   .desk-chip { margin-left: 0; }
 }
@@ -263,3 +263,25 @@
   .desk-head__actions { display: none; }
   .desk-cell { border-color: #ccc; break-inside: avoid; }
 }
+
+.desk-answer__action { max-width:72ch; margin:var(--s-2) 0 0; font-size:var(--text-sm); }
+.desk-copy-status { margin:var(--s-1) 0; }
+.desk summary { box-sizing:border-box; cursor:pointer; min-height:44px; padding-block:10px; font-size:var(--text-sm); }
+.desk summary:focus-visible { outline:2px solid var(--focus); outline-offset:2px; }
+.desk-news-more { margin-top:var(--s-2); }
+@media print {
+  .desk-head__back, .desk-cell--news, .desk-part--notice, .desk-copy-status { display:none; }
+  .desk-bento { display:block; }
+  .desk-cell { margin-bottom:8px; padding:8px; }
+  .desk-answer, .desk-answer__action { break-inside:avoid; }
+}
+
+.desk-news__translation { display:block; font-size:max(var(--text-xs),13px); color:var(--ink-2); }
+@media (max-width:720px) { .desk-bento--official-first { grid-template-areas:"official" "rivers" "rain" "news"; } }
+
+.desk-column--measurements { grid-area:measurements; display:flex; flex-direction:column; gap:var(--s-3); min-width:0; }
+.desk-column--context { display:contents; }
+@media (min-width:721px) and (max-width:1100px) {
+ .desk-column--context { grid-area:context; display:flex; flex-direction:column; gap:var(--s-3); min-width:0; }
+}
+@media (max-width:720px) { .desk-column { display:contents; } }

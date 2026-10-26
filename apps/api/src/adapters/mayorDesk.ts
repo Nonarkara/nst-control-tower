@@ -29,6 +29,8 @@
  */
 
 import {
+  ageMayorDesk,
+  buildDeskAnswer,
   detectNewsLanguage,
   isNstNewsText,
   type DeskLevel,
@@ -38,8 +40,9 @@ import {
   type IntelligenceItem,
   type MayorDesk,
   type NormalizedFeed,
+  type SourceMeta,
 } from "@nst/shared";
-import { cachedWithStale } from "../lib/cache.js";
+import { cachedWithStale, finishBackgroundWork } from "../lib/cache.js";
 import { fetchFloodOperations } from "./floodOperations.js";
 import { fetchEwsStations } from "./dwrEws.js";
 import { fetchNews } from "./news.js";
@@ -68,9 +71,9 @@ const OFFICIAL: Omit<DeskPart, "level" | "th" | "en" | "evidence" | "observedAt"
   // authority has declared nothing that sentence says so — "DWR warning: no
   // DWR warning" is a contradiction on the most prominent line of the
   // page, and it was the title, not the sentence, that was wrong.
-  titleTh: "สถานะเตือน อต.",
+  titleTh: "สถานะเตือน DWR",
   titleEn: "DWR alert status",
-  sourceTh: "กรมทรัพย์ทรัพย์ธรรมชาติ — ระบบเตือนภัยชุมชน",
+  sourceTh: "กรมทรัพยากรน้ำ (DWR) — ระบบเตือนภัยชุมชน",
   sourceEn: "Department of Water Resources — community early warning",
   staleAfterMs: 2 * HOUR,
 };
@@ -92,12 +95,12 @@ const FORECAST: Omit<DeskPart, "level" | "th" | "en" | "evidence" | "observedAt"
   titleEn: "Rain forecast, 24 h",
   sourceTh: "Open-Meteo (แบบจำลอง)",
   sourceEn: "Open-Meteo (model)",
-  staleAfterMs: 6 * HOUR,
+  staleAfterMs: 30 * 60_000,
 };
 
 /** TMD's own rain bands: 35 mm in 24 h is "heavy", 90 mm is "very heavy". */
-const RAIN_HEAVY = 35;
-const RAIN_VERY_HEAVY = 90;
+const RAIN_HEAVY = 35.1;
+const RAIN_VERY_HEAVY = 90.1;
 
 /** Fixed decimals: a distance to the bank reads "0.10 m", not "0.1 m". */
 const fmt = (n: number, digits = 1): string => n.toFixed(digits);
@@ -112,7 +115,7 @@ function unavailable(
 
 /** Metres of rise still available before the bank, from the HII bank datum. */
 export function freeboardM(gauge: { diffFromBank: number | null }): number | null {
-  return gauge.diffFromBank != null ? -gauge.diffFromBank : null;
+  return gauge.diffFromBank != null && Number.isFinite(gauge.diffFromBank) ? -gauge.diffFromBank : null;
 }
 
 /**
@@ -128,8 +131,14 @@ export function riverLevel(freeboard: number | null): DeskLevel {
   return "good";
 }
 
+function trendTh(gauge: { trend: string; levelPrev?: number | null }): string {
+  if (gauge.trend === "rising") return "กำลังขึ้น";
+  if (gauge.trend === "falling") return "กำลังลด";
+  return gauge.trend === "stable" && gauge.levelPrev != null && Number.isFinite(gauge.levelPrev) ? "ทรงตัว" : "ไม่ยืนยันแนวโน้ม (ไม่มีค่าก่อนหน้า)";
+}
+
 export function riverPart(
-  gauges: Array<{ id: string; name: string; stationCode?: string | null; diffFromBank: number | null; trend: string; observedAt: string }>,
+  gauges: Array<{ id: string; name: string; stationCode?: string | null; diffFromBank: number | null; trend: string; levelPrev?: number | null; observedAt: string }>,
   now: number,
 ): DeskPart {
   if (!gauges.length) {
@@ -158,7 +167,7 @@ export function riverPart(
   const near = graded.filter(x => x.freeboard! <= 0.3);
   const name = `${top.g.name}${top.g.stationCode ? ` (${top.g.stationCode})` : ""}`;
   const level = riverLevel(top.freeboard);
-  const trend = top.g.trend === "rising" ? "กำลังขึ้น" : top.g.trend === "falling" ? "กำลังลด" : "ทรงตัว";
+  const trend = trendTh(top.g);
   const distance = top.freeboard! <= 0
     ? `เหนือ/ถึงตลิ่ง ${fmt(-top.freeboard!, 2)} ม.`
     : `เหลือถึงตลิ่ง ${fmt(top.freeboard!, 2)} ม.`;
@@ -173,10 +182,11 @@ export function riverPart(
   return {
     ...RIVER,
     level,
-    coverageIncomplete: ungraded > 0,
+    coverageIncomplete: ungraded > 0 || current.length < gauges.length,
+    headlineTh: `${name} ${distance} · ${trend}`,
     th: `${lead} · ${trend} · ${coverage}${ungradedNote}`,
     evidence: graded.slice(0, 3).map(x =>
-      `${x.g.name}${x.g.stationCode ? ` (${x.g.stationCode})` : ""} — ${x.freeboard! <= 0 ? `เหนือ/ถึงตลิ่ง ${fmt(-x.freeboard!, 2)} ม.` : `เหลือถึงตลิ่ง ${fmt(x.freeboard!, 2)} ม.`} · ${x.g.trend === "rising" ? "กำลังขึ้น" : x.g.trend === "falling" ? "กำลังลด" : "ทรงตัว"}`),
+      `${x.g.name}${x.g.stationCode ? ` (${x.g.stationCode})` : ""} — ${x.freeboard! <= 0 ? `เหนือ/ถึงตลิ่ง ${fmt(-x.freeboard!, 2)} ม.` : `เหลือถึงตลิ่ง ${fmt(x.freeboard!, 2)} ม.`} · ${trendTh(x.g)}`),
     en: `${near.length ? `${near.length} gauge(s) at/near the bank — ` : level === "watch" ? "Inside 30 cm of the bank is not reached, but closest " : "No gauge near the bank · closest "}${name} ${top.freeboard! <= 0 ? `${fmt(-top.freeboard!, 2)} m above bank` : `${fmt(top.freeboard!, 2)} m below bank`} · ${coverageEn}${ungradedNoteEn}`,
     observedAt: top.g.observedAt,
   };
@@ -191,9 +201,13 @@ export function officialPart(
   now: number,
 ): DeskPart {
   if (!stations.length) {
-    return unavailable(OFFICIAL, "ยังยืนยันสถานะเตือน อต. ไม่ได้ — แหล่งข้อมูลไม่ตอบ (ไม่ใช่การไม่มีประกาศ)", "DWR warning state cannot be confirmed — the source did not answer (this is not the same as no warning being in force).");
+    return unavailable(OFFICIAL, "ยังยืนยันสถานะเตือน DWR ไม่ได้ — แหล่งข้อมูลไม่ตอบ (ไม่ใช่การไม่มีประกาศ)", "DWR warning state cannot be confirmed — the source did not answer (this is not the same as no warning being in force).");
   }
-  const alerting = stations.filter(s => s.status >= 1);
+  const current = stations.filter(s => !s.stale && Number.isFinite(Date.parse(s.observedAt))
+    && Date.parse(s.observedAt) <= now + 5 * 60_000 && now - Date.parse(s.observedAt) <= CURRENT_MS);
+  if (!current.length) return unavailable(OFFICIAL,
+    "ไม่มีรายงาน DWR ภายใน 2 ชม. — ยืนยันสถานะเตือนปัจจุบันไม่ได้", "No current DWR reports within 2 h — current alert status is unknown.");
+  const alerting = current.filter(s => s.status >= 1 && s.status <= 3).sort((a,b) => b.status-a.status);
   if (alerting.length) {
     const top = alerting[0];
     const tier = top.status === 3 ? "วิกฤติ" : top.status === 2 ? "เตรียมพร้อม" : "เฝ้าระวัง";
@@ -202,7 +216,8 @@ export function officialPart(
       ...OFFICIAL,
       level,
       declared: true,
-      th: `อต. ประกาศเตือน ${alerting.length} สถานี — ระดับ${tier} · ${top.name} (${top.amphoe})`,
+      coverageIncomplete: current.length < stations.length,
+      th: `DWR ประกาศเตือน ${alerting.length} สถานี — ระดับ${tier} · ${top.name} (${top.amphoe})`,
       evidence: alerting.slice(0, 3).map(a => `${a.name} (${a.amphoe}) — ระดับ${a.status === 3 ? "วิกฤติ" : a.status === 2 ? "เตรียมพร้อม" : "เฝ้าระวัง"}`),
       en: `DWR has declared an alert on ${alerting.length} station(s) — tier ${tier} · ${top.name} (${top.amphoe})`,
       observedAt: top.observedAt,
@@ -211,14 +226,14 @@ export function officialPart(
   // No alert in force. The next useful question is how close the water is
   // to the level at which DWR would raise one.
   const rows = stations
-    .filter(s => s.type === "water" && s.alertMax != null && s.waterLevel != null)
+    .filter(s => s.type === "water" && s.alertMax != null && Number.isFinite(s.alertMax) && s.waterLevel != null && Number.isFinite(s.waterLevel))
     .map(s => ({ s, margin: (s.alertMax as number) - (s.waterLevel as number) }))
     .sort((a, b) => a.margin - b.margin);
   const fresh = rows.filter(r => {
     const t = Date.parse(r.s.observedAt);
     return !r.s.stale && Number.isFinite(t) && t <= now + 5 * 60_000 && now - t <= CURRENT_MS;
   });
-  const closest = (fresh[0] ?? rows[0])?.s;
+  const closest = fresh[0]?.s;
   const margin = closest && closest.alertMax != null && closest.waterLevel != null
     ? (closest.alertMax as number) - (closest.waterLevel as number)
     : null;
@@ -239,19 +254,18 @@ export function officialPart(
   // contradiction.
   const line = closest && margin != null
     ? margin <= 0
-      ? `น้ำถึง/เกินเกณฑ์เตือนของ อต. ที่ ${closest.name} (${closest.amphoe}) — ยังไม่มีประกาศเตือนจาก อต.${coverage}`
-      : `ใกล้เกณฑ์เตือนของ อต. ที่สุด ${closest.name} (${closest.amphoe}) เหลือ ${fmt(margin, 2)} ม. — ไม่มีประกาศเตือนจาก อต.${coverage}`
-    : `ไม่มีประกาศเตือนจาก อต. · ไม่มีสถานีที่มีเกณฑ์ของ อต. ให้เทียบ${coverage}`;
+      ? `น้ำถึง/เกินเกณฑ์เตือนของ DWR ที่ ${closest.name} (${closest.amphoe}) — ยังไม่มีประกาศเตือนจาก DWR ในสถานีที่รายงานปัจจุบัน${coverage}`
+      : `ใกล้เกณฑ์เตือนของ DWR ที่สุด ${closest.name} (${closest.amphoe}) เหลือ ${fmt(margin, 2)} ม. — ไม่มีประกาศเตือนจาก DWR ในสถานีที่รายงานปัจจุบัน${coverage}`
+    : `ไม่มีประกาศเตือนจาก DWR ในสถานีที่รายงานปัจจุบัน · ไม่มีสถานีที่มีเกณฑ์ของ DWR ให้เทียบ${coverage}`;
   return {
     ...OFFICIAL,
     level,
-    coverageIncomplete: measured < total,
+    coverageIncomplete: measured < total || current.length < stations.length,
     th: line,
-    // Six stations, not three: the compartment has the room, and the
-    // stations closest to DWR's own threshold are the evidence the mayor
-    // needs. Three left a measured hole in the middle of the bento.
+    // Keep a bounded comparison of nearest thresholds, current reports
+    // first; historical rows stay labeled and cannot drive the headline.
     evidence: evidence.map(r =>
-      `${r.s.name} (${r.s.amphoe}) — ${r.margin <= 0 ? `ถึง/เกินเกณฑ์ ${fmt(Math.abs(r.margin), 2)} ม.` : `เหลือ ${fmt(r.margin, 2)} ม.`}${r.s.stale ? " · ล้าสมัย" : ""}`),
+      `${r.s.name} (${r.s.amphoe}) — ${r.margin <= 0 ? `ถึง/เกินเกณฑ์ ${fmt(Math.abs(r.margin), 2)} ม.` : `เหลือ ${fmt(r.margin, 2)} ม.`}${!fresh.includes(r) ? " · ล้าสมัย/เวลาไม่พร้อม" : ""}`),
     en: closest && margin != null
       ? margin <= 0
         ? `Water is at or over DWR's own alert level at ${closest.name} (${closest.amphoe}) — no DWR alert has been declared${coverage}`
@@ -275,7 +289,7 @@ export function rainPart(
   if (!current.length) {
     return unavailable(RAIN, "ไม่มีค่าฝนภายใน 2 ชม. — ฝนตกอยู่หรือไม่ยังไม่ทราบ", "No rain reading within 2 h — whether it is raining is unknown.");
   }
-  const withRain = current.filter(s => s.rain24h != null && s.rain24h >= 0);
+  const withRain = current.filter(s => s.rain24h != null && Number.isFinite(s.rain24h) && s.rain24h >= 0);
   if (!withRain.length) {
     return unavailable(RAIN, "สถานีฝนรายงานแต่ไม่มีค่าสะสม 24 ชม. — ปริมาณฝนยังไม่ทราบ", "Rain stations reported but no 24 h total — the amount is unknown.");
   }
@@ -286,6 +300,7 @@ export function rainPart(
   return {
     ...RAIN,
     level,
+    coverageIncomplete: withRain.length < stations.length,
     evidence: [...withRain].sort((a, b) => (b.rain24h as number) - (a.rain24h as number)).slice(0, 3)
       .map(r => `${r.name} (${r.amphoe}) — ${fmt(r.rain24h as number)} มม./24 ชม.`),
     th: `มากสุด ${fmt(wettest.rain24h as number)} มม./24 ชม. ที่ ${wettest.name} (${wettest.amphoe}) · ฝนหนัก ${heavy} สถานี${veryHeavy ? ` (หนักมาก ${veryHeavy})` : ""} · ${withRain.length}/${current.length} สถานีรายงาน`,
@@ -303,10 +318,10 @@ export function forecastPart(
     return unavailable(FORECAST, "ยังไม่มีแบบจำลองพยากรณ์ฝน — ไม่ใช่การพยากรณ์ว่าฝนไม่ตก", "No rain forecast yet — not a dry forecast.");
   }
   const t = Date.parse(fetchedAt);
-  if (!Number.isFinite(t) || t > now + 5 * 60_000 || now - t > 6 * HOUR) {
+  if (!Number.isFinite(t) || t > now + 5 * 60_000 || now - t > 30 * 60_000) {
     return unavailable(FORECAST, "แบบจำลองพยากรณ์ล้าหลัง/ขาด — อย่าใช้ตัวเลขเดิมเป็นพยากรณ์ปัจจุบัน", "The forecast model is stale or missing — do not use the old numbers as a current forecast.");
   }
-  const usable = points.filter(p => p.rain24hMm != null && p.rain24hMm >= 0);
+  const usable = points.filter(p => p.rain24hMm != null && Number.isFinite(p.rain24hMm) && p.rain24hMm >= 0);
   if (!usable.length) {
     return unavailable(FORECAST, "แบบจำลองไม่มีค่าฝน 24 ชม. ที่ใช้ได้", "The model has no usable 24 h rain values.");
   }
@@ -315,6 +330,7 @@ export function forecastPart(
   return {
     ...FORECAST,
     level,
+    coverageIncomplete: usable.length < points.length,
     evidence: [...usable].sort((a, b) => (b.rain24hMm as number) - (a.rain24hMm as number)).slice(0, 3)
       .map(p => `${p.nameTh} — ${fmt(p.rain24hMm as number, 0)} มม./24 ชม.`),
     th: `คาดมากสุด ${fmt(wettest.rain24hMm as number, 0)} มม./24 ชม. ที่ ${wettest.nameTh} — แบบจำลอง ไม่ใช่ฝนที่วัดและไม่ใช่การพยากรณ์น้ำท่วมรายถนน`,
@@ -325,50 +341,7 @@ export function forecastPart(
 
 // ─── The answer ──────────────────────────────────────────────────────────
 
-export interface DeskAnswer {
-  level: DeskLevel;
-  th: string;
-  en: string;
-  missing: number;
-}
-
-export function buildDeskAnswer(parts: DeskPart[]): DeskAnswer {
-  const missing = parts.filter(p => p.level === "unknown" || p.coverageIncomplete).length;
-  // The worst signal names the answer. Within one level, a DECLARED alert
-  // wins: the authority's own call about its own station outranks our
-  // reading of a threshold at another one. Measured on 2026-10-26, with
-  // DWR's alert in force at บ้านบางจันสี, the answer led with the nearest
-  // gauge — the declaration was the second signal.
-  const signals = parts.filter(p => p.level !== "unknown" && p.level !== "good")
-    .sort((a, b) => levelRank(b.level) - levelRank(a.level) || Number(b.declared ?? false) - Number(a.declared ?? false));
-  if (signals.length) {
-    const top = signals[0];
-    const others = signals.length - 1;
-    return {
-      level: top.level,
-      th: `${top.titleTh}: ${top.th}${others ? ` · และอีก ${others} สัญญาณ` : ""}`,
-      en: `${top.titleEn}: ${top.en}${others ? ` · and ${others} more signal${others > 1 ? "s" : ""}` : ""}`,
-      missing,
-    };
-  }
-  if (missing) {
-    return {
-      level: "unknown",
-      th: `ยังตอบไม่ครบ — ${missing} แหล่งข้อมูลไม่พร้อมหรือครอบคลุมไม่เต็ม ส่วนที่มีไม่พบสัญญาณ ซึ่งไม่ใช่การยืนยันว่าปลอดภัย`,
-      en: `Incomplete — ${missing} source(s) unavailable or incomplete. What did answer shows no signal, which is not confirmation of safety.`,
-      missing,
-    };
-  }
-  return {
-    level: "good",
-    th: "ไม่พบสัญญาณน้ำท่วมจากทุกแหล่งขณะนี้ — ไม่ใช่การรับประกันความปลอดภัย",
-    en: "No flood signal from any source right now — not a guarantee of safety.",
-    missing,
-  };
-}
-
-const levelRank = (level: DeskLevel): number =>
-  ({ good: 0, unknown: 1, watch: 2, alert: 3, critical: 4 })[level];
+export { buildDeskAnswer } from "@nst/shared";
 
 // ─── The news ────────────────────────────────────────────────────────────
 
@@ -431,7 +404,7 @@ export function rankDeskNews(items: IntelligenceItem[], now: number): RankedNews
   return ranked
     .filter(r => {
       const published = Date.parse(r.item.publishedAt);
-      return Number.isFinite(published) && now - published <= NEWS_FRESH_MS;
+      return Number.isFinite(published) && now - published >= -300_000 && now - published <= NEWS_FRESH_MS;
     })
     .sort((a, b) => b.rank - a.rank || b.item.publishedAt.localeCompare(a.item.publishedAt));
 }
@@ -882,11 +855,24 @@ export async function translateHeadlines(
   // Resolve with whatever has arrived by the deadline. The requests that are
   // still running are not cancelled — they simply lose the race, and the
   // next build starts from a warm cache again.
-  const settled = await Promise.race([
-    Promise.allSettled(tasks).then(() => true),
-    new Promise<false>((resolve) => setTimeout(() => resolve(false), deadlineMs)),
-  ]);
+  const completed = Promise.allSettled(tasks);
+  let deadline: ReturnType<typeof setTimeout> | undefined;
+  let settled: boolean;
+  try {
+    settled = await Promise.race([
+      completed.then(() => true),
+      new Promise<false>((resolve) => { deadline = setTimeout(() => resolve(false), deadlineMs); }),
+    ]);
+  } finally { clearTimeout(deadline); }
+  // Late translations must belong to the Worker request, not a future visitor.
+  if (!settled) await finishBackgroundWork(completed, false);
   return { translated: out, reasons, pending: !settled };
+}
+
+function withSource(part: DeskPart, meta?: SourceMeta): DeskPart {
+  if (!meta) return {...part, coverageIncomplete:true};
+  return {...part, sourceFetchedAt:meta.fetchedAt, sourceTier:meta.fallbackTier, sourceNote:meta.note,
+    coverageIncomplete:part.coverageIncomplete || meta.fallbackTier !== "live"};
 }
 
 // ─── The adapter ─────────────────────────────────────────────────────────
@@ -900,18 +886,12 @@ export interface MayorDeskEnv {
   AI?: AiBinding;
 }
 
-/**
- * How many headlines the desk carries.
- *
- * Five left the news compartment 193px of empty box at 1440px — a bordered
- * region with no task in it, which is exactly what the spatial-hallucination
- * law forbids. Eight is what the compartment holds, still ranked most
- * important first: the espresso is the ordering, not the length.
- */
+/** Bounded morning-news queue: three initial priorities, with the rest
+ * available on demand. The limit is a reading choice, not a panel-height fill. */
 const DESK_NEWS_LIMIT = 8;
 
 export async function fetchMayorDesk(env: MayorDeskEnv = {}): Promise<NormalizedFeed<MayorDesk>> {
-  return cachedWithStale("mayor-desk", 60, async () => {
+  const feed = await cachedWithStale<NormalizedFeed<MayorDesk>>("mayor-desk", 60, async () => {
     const now = Date.now();
     const [ops, ews, news] = await Promise.allSettled([
       fetchFloodOperations(),
@@ -923,9 +903,9 @@ export async function fetchMayorDesk(env: MayorDeskEnv = {}): Promise<Normalized
     const opsFeature = ops.status === "fulfilled" ? ops.value.features[0] : undefined;
     if (ops.status === "rejected" || !opsFeature) gaps.push("Flood operations synthesis unavailable");
 
-    const river = riverPart(opsFeature?.gauges ?? [], now);
-    const official = officialPart(ews.status === "fulfilled" ? ews.value.features : [], now);
-    const rain = rainPart(opsFeature?.rain ?? [], now);
+    const river = withSource(riverPart(opsFeature?.gauges ?? [], now), opsFeature?.waterMeta);
+    const official = withSource(officialPart(ews.status === "fulfilled" ? ews.value.features : [], now), ews.status === "fulfilled" ? ews.value.meta : undefined);
+    const rain = withSource(rainPart(opsFeature?.rain ?? [], now), opsFeature?.rainMeta);
     const forecast = forecastPart(opsFeature?.weather ?? [], opsFeature?.weatherFetchedAt ?? null, now);
     const parts = [river, official, rain, forecast];
 
@@ -987,4 +967,5 @@ export async function fetchMayorDesk(env: MayorDeskEnv = {}): Promise<Normalized
       },
     };
   }, 900, true);
+  return {...feed, features: feed.features.map(desk => ageMayorDesk(desk, Date.now()))};
 }

@@ -102,7 +102,7 @@ test("an official DWR alert in force leads the briefing and names the tier", asy
   await page.route("**/api/flood/operations?**", r => r.fulfill({ json: { features: [observation], meta } }));
   await page.route("**/api/water/ews?**", r => r.fulfill({ json: { features: [ewsStation], meta } }));
   await page.goto("/flood-ops");
-  await expect(page.locator(".flood-watch-status strong")).toContainText("อต. ประกาศเตือน 1 สถานี");
+  await expect(page.locator(".flood-watch-status strong")).toContainText("DWR ประกาศเตือน 1 สถานี");
   await expect(page.locator(".flood-watch-status")).toContainText("ระดับเตรียมพร้อม");
   // The station's own threshold, and how much water is left before it.
   await expect(page.locator(".flood-watch-main")).toContainText("บ้านนางเอื้อย");
@@ -114,13 +114,13 @@ test("an official DWR alert in force leads the briefing and names the tier", asy
 test("a source that cannot be reached is not printed as no alert", async ({ page }) => {
   await page.route("**/api/water/ews?**", r => r.fulfill({ json: { features: [], meta: { ...meta, fallbackTier: "unavailable" } } }));
   await page.goto("/flood-ops");
-  await expect(page.locator(".flood-watch-status")).toContainText("ยังยืนยันสถานะเตือน อต. ไม่ได้");
-  await expect(page.locator(".flood-watch-status")).not.toContainText("ไม่มีประกาศเตือนจาก อต.");
+  await expect(page.locator(".flood-watch-status")).toContainText("ยังยืนยันสถานะเตือน DWR ไม่ได้");
+  await expect(page.locator(".flood-watch-status")).not.toContainText("ไม่มีประกาศเตือนจาก DWR");
 });
 
 test("nothing declared is stated as a checked result, not as silence", async ({ page }) => {
   await page.route("**/api/water/ews?**", r => r.fulfill({ json: { features: [{ ...ewsStation, status: 0, waterLevel: 2.94 }], meta } }));
   await page.goto("/flood-ops");
-  await expect(page.locator(".flood-watch-status")).toContainText("ไม่มีประกาศเตือนจาก อต. ขณะนี้ (ตรวจ 1 สถานี)");
+  await expect(page.locator(".flood-watch-status")).toContainText("ไม่มีประกาศเตือนจาก DWR ขณะนี้ (ตรวจ 1 สถานีที่มีรายงานปัจจุบัน)");
   await expect(page.locator(".flood-watch-main")).toContainText("เหลือ 1.06 ม.");
 });

@@ -41,7 +41,7 @@ const ews = (over: Record<string, unknown> = {}) => ({
 describe("the river part", () => {
   const gauge = (over: Record<string, unknown> = {}) => ({
     id: "g1", name: "ปากนคร", stationCode: "PTTEP3", diffFromBank: -1.5,
-    trend: "stable", observedAt: minutesAgo(10), ...over,
+    trend: "stable", levelPrev: 1.5, observedAt: minutesAgo(10), ...over,
   });
 
   it("a gauge over the bank is critical, inside 30 cm is an alert", () => {
@@ -88,14 +88,14 @@ describe("the official part", () => {
   it("an unreadable source is NOT the same sentence as no alert", () => {
     const p = officialPart([], NOW);
     expect(p.level).toBe("unknown");
-    expect(p.th).toContain("ยังยืนยันสถานะเตือน อต. ไม่ได้");
+    expect(p.th).toContain("ยังยืนยันสถานะเตือน DWR ไม่ได้");
     expect(p.th).toContain("ไม่ใช่การไม่มีประกาศ");
   });
 
   it("an alert in force names the tier and the station", () => {
     const p = officialPart([ews({ status: 2, name: "บ้านหัวโคก" })], NOW);
     expect(p.level).toBe("alert");
-    expect(p.th).toContain("อต. ประกาศเตือน 1 สถานี");
+    expect(p.th).toContain("DWR ประกาศเตือน 1 สถานี");
     expect(p.th).toContain("ระดับเตรียมพร้อม");
     expect(p.th).toContain("บ้านหัวโคก");
   });
@@ -108,7 +108,7 @@ describe("the official part", () => {
   it("nothing declared says so, and says how close the water is to DWR's own level", () => {
     const p = officialPart([ews()], NOW);
     expect(p.level).toBe("good");
-    expect(p.th).toContain("ไม่มีประกาศเตือนจาก อต.");
+    expect(p.th).toContain("ไม่มีประกาศเตือนจาก DWR");
     expect(p.th).toContain("เหลือ 1.06 ม.");
   });
 
@@ -165,7 +165,7 @@ describe("the rain part", () => {
     expect(p.th).toContain("ไม่ใช่หลักฐานว่าฝนไม่ตก");
   });
 
-  it("TMD's own bands: 35 mm is heavy, 90 mm is very heavy", () => {
+  it("TMD rain bands start at35.1 and90.1 mm", () => {
     const heavy = rainPart([{ id: "r1", name: "ลานสกา", amphoe: "ลานสกา", rain24h: 40, observedAt: minutesAgo(30) }], NOW);
     expect(heavy.level).toBe("watch");
     const very = rainPart([{ id: "r1", name: "ลานสกา", amphoe: "ลานสกา", rain24h: 120, observedAt: minutesAgo(30) }], NOW);
@@ -211,7 +211,7 @@ describe("the answer", () => {
       { id: "g1", name: "ปากนคร", stationCode: "PTTEP3", diffFromBank: -0.59, trend: "rising", observedAt: minutesAgo(10) },
     ], NOW);
     const answer = buildDeskAnswer([measured, declared]);
-    expect(answer.th.startsWith("สถานะเตือน อต.:")).toBe(true);
+    expect(answer.th.startsWith("สถานะเตือน DWR:")).toBe(true);
     expect(answer.th).toContain("ประกาศเตือน");
     // The measurement is still there — it moves to a signal, it does not
     // disappear.
@@ -245,8 +245,8 @@ describe("the answer", () => {
     // most prominent line of the page, so the heading has to be one that
     // is true whether or not the authority declared anything.
     const answer = buildDeskAnswer([officialPart([ews({ waterLevel: 4.2, alertMax: 4 })], NOW)]);
-    expect(answer.th).not.toContain("ประกาศเตือน อต.:");
-    expect(answer.th).toContain("สถานะเตือน อต.:");
+    expect(answer.th).not.toContain("ประกาศเตือน DWR:");
+    expect(answer.th).toContain("สถานะเตือน DWR:");
     expect(answer.th).not.toMatch(/ประกาศเตือน อต\.:\s*ไม่มีประกาศเตือน/);
   });
 
@@ -468,4 +468,39 @@ describe("the translation is key-free and it is checked", () => {
     expect(result.reason).toContain("workers-ai");
     vi.restoreAllMocks();
   });
+});
+
+it("does not revive expired/future DWR alerts or grade an old threshold as current", () => {
+  for (const observedAt of [minutesAgo(121),minutesAgo(-6),"invalid"]) {
+    const p=officialPart([ews({status:3,waterLevel:5,observedAt})],NOW);
+    expect(p.level).toBe("unknown"); expect(p.declared).not.toBe(true);
+  }
+  expect(officialPart([ews({status:0,waterLevel:5,observedAt:minutesAgo(121)})],NOW).level).toBe("unknown");
+});
+it("takes the highest current official tier regardless of input ordering",()=>{
+  expect(officialPart([ews({status:1}),ews({status:3}),ews({status:2})],NOW).level).toBe("critical");
+});
+it("rain coverage includes absent totals and stale known stations",()=>{
+  const p=rainPart([{id:"a",name:"a",amphoe:"a",rain24h:100,observedAt:minutesAgo(10)},{id:"b",name:"b",amphoe:"b",rain24h:null,observedAt:minutesAgo(10)},{id:"c",name:"c",amphoe:"c",rain24h:200,observedAt:minutesAgo(200)}],NOW);
+  expect(p.level).toBe("alert"); expect(p.coverageIncomplete).toBe(true);
+});
+it("missing previous level cannot assert steady water",()=>{
+ const p=riverPart([{id:"a",name:"a",diffFromBank:-.1,trend:"stable",levelPrev:null,observedAt:minutesAgo(10)}],NOW);
+ expect(p.th).toContain("ไม่ยืนยันแนวโน้ม");expect(p.th).not.toContain("ทรงตัว");
+});
+it("does not move an old24h model window forward by repeatedly reading it",()=>{
+ expect(forecastPart([{key:"a",nameTh:"a",rain24hMm:100,peakAt:null}],minutesAgo(31),NOW).level).toBe("unknown");
+});
+
+it("late translation work is attached to its originating Worker request",async()=>{
+ const {withCacheLifetime}=await import("../lib/cache");resetTranslateProviders();
+ let release!:(r:Response)=>void;
+ const spy=vi.spyOn(globalThis,"fetch").mockImplementation(()=>new Promise<Response>(resolve=>{release=resolve;}));
+ const lifetime:Promise<unknown>[]=[];
+ try {
+  const result=await withCacheLifetime(p=>{lifetime.push(p);},()=>translateHeadlines(["Unique late flood headline"],undefined,10));
+  expect(result.pending).toBe(true);expect(lifetime).toHaveLength(1);
+  release(Response.json([[["น้ำท่วม","Unique late flood headline"]]]));
+  await Promise.all(lifetime);
+ } finally {spy.mockRestore();resetTranslateProviders();}
 });

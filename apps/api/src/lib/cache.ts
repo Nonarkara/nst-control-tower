@@ -8,10 +8,10 @@ export function withCacheLifetime<T>(waitUntil: (promise: Promise<unknown>) => v
 }
 
 /** Attach optional refresh/cache work to this request's lifetime, never another request. */
-export async function finishBackgroundWork(work: Promise<unknown>): Promise<void> {
+export async function finishBackgroundWork(work: Promise<unknown>, waitWithoutContext = true): Promise<void> {
   const waitUntil = refreshLifetime.getStore();
   if (waitUntil) waitUntil(work);
-  else await work;
+  else if (waitWithoutContext) await work;
 }
 
 // Per-isolate in-memory cache with TTL + promise dedup.

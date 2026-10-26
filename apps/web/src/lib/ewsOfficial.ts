@@ -57,9 +57,9 @@ export interface EwsAlertState {
  * `checked === 0` is not "no alert" — it is "the source could not be read",
  * and the two must never be printed the same way.
  */
-export function ewsAlertState(stations: readonly EwsStation[] | undefined | null): EwsAlertState {
-  const list = stations ?? [];
-  const alerting = list.filter(s => s.status >= 1).sort((a, b) => b.status - a.status);
+export function ewsAlertState(stations: readonly EwsStation[] | undefined | null, now = Date.now()): EwsAlertState {
+  const list = (stations ?? []).filter(s => !s.stale && isCurrentObservation(s.observedAt, now));
+  const alerting = list.filter(s => s.status >= 1 && s.status <= 3).sort((a, b) => b.status - a.status);
   return { checked: list.length, alerting, maxTier: (alerting[0]?.status ?? 0) as EwsTier };
 }
 
@@ -75,13 +75,13 @@ export function ewsStatusLine(
   options: { fromSnapshot?: boolean } = {},
 ): string {
   if (state.checked === 0) {
-    return "ยังยืนยันสถานะเตือน อต. ไม่ได้ — แหล่งข้อมูลไม่ตอบ (ไม่ใช่การไม่มีประกาศ)";
+    return "ยังยืนยันสถานะเตือน DWR ไม่ได้ — แหล่งข้อมูลไม่ตอบ (ไม่ใช่การไม่มีประกาศ)";
   }
   const snapshot = options.fromSnapshot ? " · จากสแนปช็อตล่าสุด ไม่ใช่ข้อมูลสด" : "";
   if (state.maxTier >= 1) {
-    return `อต. ประกาศเตือน ${state.alerting.length} สถานี — ระดับ${EWS_TIER_TH[state.maxTier]}${snapshot}`;
+    return `DWR ประกาศเตือน ${state.alerting.length} สถานี — ระดับ${EWS_TIER_TH[state.maxTier]}${snapshot}`;
   }
-  return `ไม่มีประกาศเตือนจาก อต. ขณะนี้ (ตรวจ ${state.checked} สถานี${snapshot})`;
+  return `ไม่มีประกาศเตือนจาก DWR ขณะนี้ (ตรวจ ${state.checked} สถานีที่มีรายงานปัจจุบัน${snapshot})`;
 }
 
 /** The same statement in English, for the English summary. */
@@ -164,9 +164,10 @@ export interface EwsSoilState {
 export function ewsSoilState(
   stations: readonly EwsStation[] | undefined | null,
   limit = 3,
+  now = Date.now(),
 ): EwsSoilState {
   const measured = (stations ?? []).filter(
-    s => s.soilMoisture != null && Number.isFinite(s.soilMoisture),
+    s => !s.stale && isCurrentObservation(s.observedAt, now) && s.soilMoisture != null && Number.isFinite(s.soilMoisture) && s.soilMoisture >= 0 && s.soilMoisture <= 100,
   );
   const wettest = [...measured]
     .sort((a, b) => (b.soilMoisture as number) - (a.soilMoisture as number))

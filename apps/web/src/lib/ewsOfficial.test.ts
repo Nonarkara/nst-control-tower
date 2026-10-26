@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import {
   ewsAlertState,
   ewsSoilState,
@@ -18,6 +18,8 @@ import type { EwsStation } from "@nst/shared";
  * quietly turn "no alert" into "we could not ask".
  */
 const NOW = Date.parse("2026-10-23T15:00:00Z");
+beforeEach(() => { vi.spyOn(Date, "now").mockReturnValue(NOW); });
+afterEach(() => { vi.restoreAllMocks(); });
 const minutesAgo = (m: number) => new Date(NOW - m * 60_000).toISOString();
 
 function station(over: Partial<EwsStation> & { id: string }): EwsStation {
@@ -35,14 +37,14 @@ describe("the official alert state is never guessed", () => {
     expect(state.checked).toBe(2);
     expect(state.maxTier).toBe(0);
     expect(state.alerting).toHaveLength(0);
-    expect(ewsStatusLine(state)).toBe("ไม่มีประกาศเตือนจาก อต. ขณะนี้ (ตรวจ 2 สถานี)");
+    expect(ewsStatusLine(state)).toBe("ไม่มีประกาศเตือนจาก DWR ขณะนี้ (ตรวจ 2 สถานีที่มีรายงานปัจจุบัน)");
   });
 
   it("an unreadable source is NOT the same sentence as no alert", () => {
     const state = ewsAlertState([]);
     expect(state.checked).toBe(0);
     const line = ewsStatusLine(state);
-    expect(line).toContain("ยังยืนยันสถานะเตือน อต. ไม่ได้");
+    expect(line).toContain("ยังยืนยันสถานะเตือน DWR ไม่ได้");
     expect(line).toContain("ไม่ใช่การไม่มีประกาศ");
     expect(line).not.toContain("ไม่มีประกาศเตือน");
     expect(ewsStatusLineEn(state)).toContain("cannot be confirmed");
@@ -56,7 +58,7 @@ describe("the official alert state is never guessed", () => {
     ]);
     expect(state.maxTier).toBe(2);
     expect(state.alerting.map(s => s.id)).toEqual(["b", "c"]);
-    expect(ewsStatusLine(state)).toBe("อต. ประกาศเตือน 2 สถานี — ระดับเตรียมพร้อม");
+    expect(ewsStatusLine(state)).toBe("DWR ประกาศเตือน 2 สถานี — ระดับเตรียมพร้อม");
     expect(ewsStatusLineEn(state)).toContain("tier prepare");
   });
 
@@ -140,4 +142,11 @@ describe("soil moisture is the measured value, not a proxy", () => {
   it("the primed line is the one the map lens already uses", () => {
     expect(SOIL_PRIMED).toBe(85);
   });
+});
+
+it("expired/future official tiers and soil reports cannot remain current",()=>{
+ const old=station({id:"old",status:3,soilMoisture:99,observedAt:minutesAgo(121)});
+ const future=station({id:"future",status:3,soilMoisture:99,observedAt:minutesAgo(-6)});
+ expect(ewsAlertState([old,future],NOW).checked).toBe(0);
+ expect(ewsSoilState([old,future],3,NOW).measured).toBe(0);
 });
