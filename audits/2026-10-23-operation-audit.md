@@ -17,10 +17,11 @@ was verified.* A failure that cannot be re-measured is not fixed.
 
 ---
 
-## 1. The operation on the night it was measured
+## 1. The operation, as it was measured
 
-Measured **26 October 2026, 05:48 ICT**, against production
-(`nst-control-tower-api.drnon.workers.dev`).
+Measured against production (`nst-control-tower-api.drnon.workers.dev`) on
+**26 October 2026** — the water at **05:48 ICT**, and again at **08:13 ICT**,
+when the authority had declared.
 
 ### The river
 
