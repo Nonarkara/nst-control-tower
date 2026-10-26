@@ -346,6 +346,18 @@ still counted as "answered", and the header said "DOWN" again. The rule
 that survives is the one that asks what the word *claims* rather than what
 the code counts.
 
+### F16 — A snapshot read that failed was reported as "no snapshot stored"
+
+**Looked like:** during a DWR 522 window, the official layer came back with
+**zero stations** and the note *"DWR EWS unreachable — non-OK 522 … and no
+last-good snapshot is stored."* The snapshot was there; the *read* had failed.
+**Cost:** the layer that carries the authority's own judgement went blank,
+and the note pointed at the wrong cause — an operator would have concluded
+the snapshot never existed, which is a different repair from a slow read.
+**Repair:** the snapshot read is tried once more, and its three outcomes are
+told apart — a snapshot, no snapshot stored, or a read that failed. The note
+says which one it was.
+
 ### F15 — A declared alert sat behind a measured signal
 
 **Looked like:** with **DWR's alert in force** at บ้านบางจันสี (บางชัน), the
@@ -365,11 +377,23 @@ others there are.
 
 ## 3. What is still RED, and who owns it
 
-**RED — DWR EWS upstream.** `ews.dwr.go.th` serves `200 []` on some attempts
-and HTTP 522 on others. The Worker holds its last-good 86-station snapshot
-and will not let an empty or failed reply replace it. The snapshot is served
-with the note *"DWR last-good snapshot; refreshing — not live."* Owner: the
-upstream. Nothing in this repository can make an empty upstream answer.
+**RED — DWR EWS upstream.** `ews.dwr.go.th` answers **HTTP 522** on some
+attempts and 200 in ~1 s on others (measured from this host: 200 in 1.08 s,
+2.99 MB). When it fails, the Worker does **not** let an empty reply replace
+the official layer: **22 consecutive polls during a 522 window all returned
+the last-good 86-station snapshot**, marked *"DWR last-good snapshot;
+refreshing — not live. Verify station observation times."* — never dressed up
+as live. Owner: the upstream. Nothing in this repository can make an empty
+upstream answer; what this repository can do is not lose the last good
+reading when it happens, and it no longer does (F5, and F16).
+
+**RED — the translation's reachability.** Google's key-free translate
+endpoint and MyMemory both answer **HTTP 429** from Cloudflare's shared
+egress, while both answer 200 from this host. The desk therefore leans on
+**Cloudflare's own model**, which works and is first-party — but its Thai is
+serviceable rather than elegant, and the better answer (Google's) is only
+taken when the network lets it. The chain names every provider's failure,
+so the reason is on the page rather than in a log.
 
 **RED — unattended flood decisions.** The readiness endpoint returns 503
 while any feed is stale, and that is correct. A release cannot be signed off
