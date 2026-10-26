@@ -160,22 +160,41 @@ const SNAPSHOT_READ_MS = 4000;
 /**
  * The shared last-good snapshot, read on its own — separate from the live
  * fetch, so it can also be the last resort when the origin is down.
+ *
+ * Three outcomes, and they are told apart on purpose. Measured on
+ * 2026-10-26: with the origin 522-ing, a cold isolate's snapshot read hit
+ * its deadline and the official layer came back **empty** — the layer that
+ * carries the authority's own judgement. A read that *failed* is not the
+ * same as a snapshot that does not exist, and the note says which one it
+ * was. A failed read is tried once more before it is given up on.
  */
+type SnapshotRead =
+  | { kind: "hit"; feed: NormalizedFeed<EwsStation>; age: number }
+  | { kind: "miss" }
+  | { kind: "failed"; reason: string };
+
 async function readEwsSnapshot(
   cache: DwrCache | undefined,
   key: Request,
-): Promise<{ feed: NormalizedFeed<EwsStation>; age: number } | null> {
-  if (!cache) return null;
-  try {
-    const hit = await dwrCacheDeadline(cache.match(key), SNAPSHOT_READ_MS);
-    if (!hit) return null;
-    const feed = (await dwrCacheDeadline(hit.json(), SNAPSHOT_READ_MS)) as NormalizedFeed<EwsStation>;
-    const age = Date.now() - Date.parse(feed.meta?.fetchedAt ?? "");
-    if (Array.isArray(feed.features) && feed.features.length && feed.meta?.source === "dwr-ews" && Number.isFinite(age) && age >= -5*60_000 && age <= STALE_SERVE_S*1000) {
-      return { feed, age };
+): Promise<SnapshotRead> {
+  if (!cache) return { kind: "miss" };
+  let lastError = "the snapshot read failed";
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const hit = await dwrCacheDeadline(cache.match(key), SNAPSHOT_READ_MS);
+      if (!hit) return { kind: "miss" };
+      const feed = (await dwrCacheDeadline(hit.json(), SNAPSHOT_READ_MS)) as NormalizedFeed<EwsStation>;
+      const age = Date.now() - Date.parse(feed.meta?.fetchedAt ?? "");
+      if (Array.isArray(feed.features) && feed.features.length && feed.meta?.source === "dwr-ews" && Number.isFinite(age) && age >= -5*60_000 && age <= STALE_SERVE_S*1000) {
+        return { kind: "hit", feed, age };
+      }
+      return { kind: "miss" };
+    } catch (err) {
+      lastError = (err as Error).message;
     }
-    return null;
-  } catch (err) { console.warn("DWR snapshot read failed", (err as Error).message); return null; }
+  }
+  console.warn("DWR snapshot read failed", lastError);
+  return { kind: "failed", reason: lastError };
 }
 
 /** The snapshot, marked as exactly what it is: the last good reading, not a
@@ -198,7 +217,7 @@ async function fetchEwsShared(): Promise<NormalizedFeed<EwsStation>> {
   const cache = (globalThis as {caches?: {default?: DwrCache}}).caches?.default;
   const key = new Request(DWR_SNAPSHOT_KEY);
   const snapshot = await readEwsSnapshot(cache, key);
-  if (snapshot) {
+  if (snapshot.kind === "hit") {
     if (snapshot.age <= TTL*1000) return snapshot.feed;
     // Older than the live window: serve it now, refresh in the background.
     await finishBackgroundWork(loadEwsSnapshot(cache,key).catch(err => {console.warn("DWR background refresh failed", (err as Error).message);}));
@@ -216,11 +235,16 @@ export async function fetchEwsStations(): Promise<NormalizedFeed<EwsStation>> {
     // still in hand. It is marked as a snapshot, never as live.
     const cache = (globalThis as {caches?: {default?: DwrCache}}).caches?.default;
     const snapshot = await readEwsSnapshot(cache, new Request(DWR_SNAPSHOT_KEY));
-    if (snapshot) {
+    if (snapshot.kind === "hit") {
       return ageOperationalFeed(asSnapshot(snapshot.feed));
     }
-    // Nothing good cached: an honest outage, not a cached empty "feed".
+    // Nothing good cached: an honest outage, not a cached empty "feed" —
+    // and the note says WHICH kind of nothing it is, because a read that
+    // timed out is not the same as a snapshot that was never stored.
     const fetchedAt = new Date().toISOString();
+    const snapshotReason = snapshot.kind === "failed"
+      ? ` and the last-good snapshot could not be read (${snapshot.reason})`
+      : " and no last-good snapshot is stored";
     return {
       features: [],
       meta: {
@@ -228,7 +252,7 @@ export async function fetchEwsStations(): Promise<NormalizedFeed<EwsStation>> {
         fetchedAt,
         ageMinutes: 0,
         fallbackTier: "unavailable",
-        note: `DWR EWS unreachable — ${(err as Error).message}. Retries automatically.`,
+        note: `DWR EWS unreachable — ${(err as Error).message}${snapshotReason}. Retries automatically.`,
       },
     };
   }

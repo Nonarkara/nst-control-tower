@@ -64,6 +64,22 @@ Second closest: บ้านนางเอื้อย\* +0.89 m, บ้าน�
 บ้านไสโคกเกาะ\* +1.67 m. **12 of the 86 stations are stale or undated** and
 are excluded from the current comparison rather than counted as calm.
 
+**Two and a half hours later, at 08:13 ICT, the authority declared it.**
+The same station — บ้านบางจันสี (บางชัน) — now carries a DWR alert at tier
+**เฝ้าระวัง (watch)**, and the desk's answer leads with the declaration:
+
+> `สถานะเตือน อต.: อต. ประกาศเตือน 1 สถานี — ระดับเฝ้าระวัง · บ้านบางจันสี* (บางชัน)`
+
+That is the whole operation in one line: the water reached the authority's
+own threshold, the authority noticed, and the product said so — without
+claiming a warning it does not have, and without dropping the near-bank
+gauge that got it there (สะพานนางพระยา-บางหลวง, 0.59 m from the bank and
+rising, 15/15 gauges current).
+
+This is also the moment that exposed F15: the answer had led with that
+gauge, because the declaration and the gauge were both "watch" and the
+array order decided the tie.
+
 This is the situation that exposed the desk's worst defect (§2, F6): the water
 is *at or over* the level at which the authority would raise an alert, and
 the authority has raised none. The product must say both facts, in that order,
@@ -245,6 +261,96 @@ Pages bundle and the Worker all answered, with the flood feeds live and
 **Cost:** the outage was not a production outage, but it hid F10 — the desk
 was already repaired and pushed, and simply had not deployed. **An outage
 does not repair a release; it only shows you which release was waiting.**
+
+### F12 — The headlines were not translated in production, and nothing said so
+
+**Looked like:** the deployed desk served **7 of 8 headlines in English**,
+while the owner's requirement was "headlines in other languages translated
+for him into headlines easy to understand". The page carried a quiet line
+— *"some headlines are not yet translated"* — and no reason.
+**Cost:** the requirement was failing in production behind a screen that
+looked fine. The local API translated every headline in 0.1 s on the same
+code, so the defect was invisible to every local test.
+**Cause:** **Cloudflare's egress cannot use the public translate endpoint.**
+Measured from this host the endpoint answers 200 in 0.1 s, with or without a
+User-Agent; from the Worker it answers **HTTP 429** — Google rate-limits the
+datacentre egress. MyMemory, the fallback, answers **429** from the same
+egress. A single provider that silently returned nothing turned the
+requirement into a page of English.
+**Repair:** the desk now walks a **chain** of key-free providers and says
+which one answered — Google's plain Thai first, then **Cloudflare's own edge
+model** (`@cf/meta/m2m100-1.2b`, a new `[ai]` binding), then MyMemory. A
+third party's reachability is not something this product can control;
+Cloudflare's own model is. Two more things came out of the measurement:
+
+- The model answers `{"translated_text": "…"}`, **not** `{"result": "…"}`.
+  The parser expected the wrong key, so a working model looked like a dead
+  one — the desk swallowed it and wrote "no translation in the reply".
+- A provider that fails **hard** (an error status, or no answer at all) is
+  skipped for ten minutes, so one dead endpoint cannot cost every headline
+  its timeout. A reply that merely carried no Thai is a content problem and
+  does not take the provider out of the chain.
+
+**Verified in production:** 7 of 7 foreign headlines are now in Thai, with
+the original English underneath each one, and the note is gone. The model's
+Thai is serviceable but not elegant — it turns "city pond plan" into
+"แผนเมืองธง" — which is why Google's answer is still tried first.
+
+### F13 — The desk timed out in the browser before it could answer
+
+**Looked like:** the live desk rendered **"อ่านโต๊ะทำงานไม่ได้ — Request timed
+out after 25s"** — the desk's own failure state, on the screen the mayor is
+meant to read first.
+**Cause:** the desk's synthesis is cached **per isolate**, and a cold
+isolate has to rebuild it. Measured: six concurrent requests to the deployed
+desk — five answered in **0.06 s** from a warm isolate, one took **11 s** on
+a cold one, and the browser request that landed on a cold isolate blew the
+page's 25 s budget. The variable cost in that build was the translation
+chain.
+**Repair:** two changes, and the second is the one that matters:
+
+- **The translation has a hard deadline (6 s).** The translation is the
+  *least* urgent thing on the desk — the answer and the four parts are the
+  flood situation, and they must never wait for a headline. What has not
+  arrived by the deadline is shown in the original language with a line that
+  says the translation is still running. *A desk that shows English
+  headlines is better than a desk that times out.*
+- **The deploy warms the desk**, for the same reason it warms the flood
+  feed: a fresh isolate starts with an empty cache, and the first person to
+  open the desk should not be the one who pays for it.
+
+**Verified:** the cold build is now **8.5–9.1 s** (was 11 s, and sometimes
+over 25 s), a warm build is **0.05 s**, and the live page renders the desk
+with the answer in the first screen.
+
+### F14 — The header said the data server was unreachable, while it was serving
+
+**Looked like:** the live header printed **"DOWN — Data server
+unreachable"** at 1440, 1024 and 390 px.
+**Cost:** a lie in the most prominent spot of the header. The mayor's first
+question about the dashboard — *can I trust the numbers?* — was answered
+wrongly, and wrongly in the worst way.
+**Cause:** the header counted its nine feeds as "live" only, and the feeds
+that had **not answered yet** were counted as failures. The API itself
+reported "degraded, 0 down, 22 healthy" at that moment.
+**Repair:** nothing has answered yet is what it is — "CHECK". A feed that has
+failed still says "DOWN"; a feed that has not answered says it is still
+checking.
+
+### F15 — A declared alert sat behind a measured signal
+
+**Looked like:** with **DWR's alert in force** at บ้านบางจันสี (บางชัน), the
+desk's answer led with the nearest gauge — also "watch" — and the
+authority's own declaration was the second signal.
+**Cause:** the answer sorted by severity alone, and a stable sort let the
+array order decide a tie. Our reading of a threshold at one station was
+placed above the authority's declaration about its own.
+**Repair:** a **declared** alert outranks a measured signal **at the same
+level**. A declaration is the authority's call about its own station; our
+inference is ours. A *critical* measurement still leads a declared watch —
+the water over the bank is worse news than a declared tier. The near-bank
+line does not disappear; it moves to a signal and the answer says how many
+others there are.
 
 ---
 

@@ -323,6 +323,35 @@ describe("dwrEws — the official layer must not blank on an upstream outage", (
     vi.restoreAllMocks();
   });
 
+  it("a snapshot read that keeps failing is named, and is not 'no snapshot stored'", async () => {
+    // Measured 2026-10-26: with the origin 522-ing and a cold isolate's
+    // cache read over its deadline, the official layer came back empty with
+    // the note "no last-good snapshot is stored" — which is a different
+    // fact from the truth. The read is retried, and if it still fails the
+    // note says the read failed.
+    vi.resetModules();
+    vi.stubGlobal("caches", {
+      default: {
+        match: async () => { throw new Error("DWR snapshot cache deadline"); },
+        put: async () => {},
+      },
+    });
+    vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("non-OK 522"));
+
+    const { fetchEwsStations: fresh } = (await import("./dwrEws.js")) as unknown as {
+      fetchEwsStations: typeof fetchEwsStations;
+    };
+    const feed = await fresh();
+
+    expect(feed.features).toHaveLength(0);
+    expect(feed.meta.fallbackTier).toBe("unavailable");
+    expect(feed.meta.note).toContain("522");
+    expect(feed.meta.note).toContain("could not be read");
+    expect(feed.meta.note).not.toContain("no last-good snapshot is stored");
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
   it("an outage with no snapshot at all is an honest outage, not a calm feed", async () => {
     vi.resetModules();
     vi.stubGlobal("caches", { default: { match: async () => undefined, put: async () => {} } });
