@@ -333,9 +333,18 @@ wrongly, and wrongly in the worst way.
 **Cause:** the header counted its nine feeds as "live" only, and the feeds
 that had **not answered yet** were counted as failures. The API itself
 reported "degraded, 0 down, 22 healthy" at that moment.
-**Repair:** nothing has answered yet is what it is — "CHECK". A feed that has
-failed still says "DOWN"; a feed that has not answered says it is still
-checking.
+**Repair:** **"DOWN" is a claim about every feed** — it means they all
+answered and none of them is live. The picture is finished only when
+nothing is still loading; until then the word is "CHECK". A feed that
+answered stale is not a loading feed, so once every feed has answered the
+count is the truth ("5 of 9 data sources not live").
+
+This took two repairs, and the second one is the lesson: the first treated
+"all feeds loading" as "not an outage" and left the rest — a feed that has
+answered *stale* is not loading, so four stale feeds and five loading ones
+still counted as "answered", and the header said "DOWN" again. The rule
+that survives is the one that asks what the word *claims* rather than what
+the code counts.
 
 ### F15 — A declared alert sat behind a measured signal
 
