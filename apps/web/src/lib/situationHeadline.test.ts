@@ -94,8 +94,12 @@ describe("feedHealthWord", () => {
     expect(feedHealthWord("degraded", 0, 9, 9)).toEqual({ word: "Checking data sources", dot: "loading" });
     // Once they have answered and none is live, it is an outage.
     expect(feedHealthWord("degraded", 0, 9, 0).word).toBe("No live data sources");
-    // Half of them still loading is not an outage either.
-    expect(feedHealthWord("degraded", 4, 9, 5).dot).toBe("stale");
+    // Half of them still loading is not an outage either — the picture is
+    // not finished.
+    expect(feedHealthWord("degraded", 4, 9, 5).dot).toBe("loading");
+    // A feed that answered stale is not a loading feed: the picture IS
+    // finished, so the count of the ones that are not live is the truth.
+    expect(feedHealthWord("degraded", 4, 9, 0)).toEqual({ word: "5 of 9 data sources not live", dot: "stale" });
   });
 });
 

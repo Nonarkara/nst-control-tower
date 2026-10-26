@@ -74,12 +74,16 @@ export function feedHealthWord(
 ): { word: string; dot: "live" | "stale" | "unavailable" | "loading" } {
   if (systemStatus === "down") return { word: "Data server unreachable", dot: "unavailable" };
   if (total === 0 || systemStatus === "unknown") return { word: "Checking data sources", dot: "loading" };
-  // Nothing has answered yet is not an outage. Measured on 2026-10-26: the
-  // live page printed "DOWN — Data server unreachable" in the header while
-  // its nine feeds were still loading, and the API itself reported
-  // "degraded, 0 down". A missing measurement is written as missing.
-  if (live === 0 && loading >= total) return { word: "Checking data sources", dot: "loading" };
+  // "DOWN" is a claim about every feed: it means they all answered and none
+  // of them is live. A feed that has not answered yet is not a failed feed,
+  // and a feed that answered stale is not a loading feed — so the picture
+  // is finished only when nothing is still loading.
+  // Measured on 2026-10-26: the live page printed "DOWN — Data server
+  // unreachable" in the header while its nine feeds were still loading, and
+  // the API itself reported "degraded, 0 down". A missing measurement is
+  // written as missing.
   if (live >= total) return { word: "All data sources live", dot: "live" };
+  if (loading > 0) return { word: "Checking data sources", dot: "loading" };
   if (live === 0) return { word: "No live data sources", dot: "unavailable" };
   const notLive = total - live;
   return { word: `${notLive} of ${total} data sources not live`, dot: "stale" };
