@@ -21,7 +21,7 @@ Independent review also found a232px tablet gap where the neighboring official p
 
 8. **Machine translations materially mistranslated two headlines.** Retained originals and marked every automatic translation as unverified. This is a limitation, not a claim that the underlying model's translation quality was repaired. Late translation work is attached to the originating Worker request while the response retains its hard deadline; completed races clear their deadline timer.
 
-9. **Real cold-source brief exceeded the browser timeout after release.** Production returned one mayor-desk response in26.6s while the browser allows25s. The source fan-out now has a14s deadline per source, followed by at most6s for translation. Slow sources become explicit gaps; completed sources remain usable. Late I/O is attached to the same Worker request. This is a failure-path budget, not a claim about upstream speed.
+9. **Real cold-source brief exceeded the browser timeout after release.** Production returned one mayor-desk response in26.6s while the browser allows25s. The source fan-out now has a14s deadline per source, followed by at most6s for translation. Water/rain observations are retrieved independently through the same adapters used by the full evidence view; slow camera/context/model work cannot discard a completed near-bank observation. Slow sources become explicit gaps; completed sources remain usable. Late I/O is attached to the same Worker request. This is a failure-path budget, not a claim about upstream speed.
 
 ## Verification and evidence
 

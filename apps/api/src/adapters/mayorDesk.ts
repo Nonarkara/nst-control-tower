@@ -43,7 +43,7 @@ import {
   type SourceMeta,
 } from "@nst/shared";
 import { cachedWithStale, finishBackgroundWork } from "../lib/cache.js";
-import { fetchFloodOperations } from "./floodOperations.js";
+import { fetchFloodObservations, fetchFloodWeather } from "./floodOperations.js";
 import { fetchEwsStations } from "./dwrEws.js";
 import { fetchNews } from "./news.js";
 
@@ -907,20 +907,21 @@ export async function withinDeskBudget<T>(work: Promise<T>, timeoutMs = 14_000):
 export async function fetchMayorDesk(env: MayorDeskEnv = {}): Promise<NormalizedFeed<MayorDesk>> {
   const feed = await cachedWithStale<NormalizedFeed<MayorDesk>>("mayor-desk", 60, async () => {
     const now = Date.now();
-    const [ops, ews, news] = await Promise.allSettled([
-      withinDeskBudget(fetchFloodOperations()),
+    const [observations, weather, ews, news] = await Promise.allSettled([
+      withinDeskBudget(fetchFloodObservations()),
+      withinDeskBudget(fetchFloodWeather()),
       withinDeskBudget(fetchEwsStations()),
       withinDeskBudget(fetchNews()),
     ]);
 
     const gaps: string[] = [];
-    const opsFeature = ops.status === "fulfilled" ? ops.value.features[0] : undefined;
-    if (ops.status === "rejected" || !opsFeature) gaps.push("Flood operations synthesis unavailable");
-
-    const river = withSource(riverPart(opsFeature?.gauges ?? [], now), opsFeature?.waterMeta);
+    const observed = observations.status === "fulfilled" ? observations.value : undefined;
+    if (!observed) gaps.push("HII water/rain observations unavailable or exceeded their deadline");
+    if (weather.status === "rejected") gaps.push("Rain forecast source unavailable or exceeded its deadline");
+    const river = withSource(riverPart(observed?.water.features ?? [], now), observed?.water.meta);
     const official = withSource(officialPart(ews.status === "fulfilled" ? ews.value.features : [], now), ews.status === "fulfilled" ? ews.value.meta : undefined);
-    const rain = withSource(rainPart(opsFeature?.rain ?? [], now), opsFeature?.rainMeta);
-    const forecast = forecastPart(opsFeature?.weather ?? [], opsFeature?.weatherFetchedAt ?? null, now);
+    const rain = withSource(rainPart(observed?.rain.features ?? [], now), observed?.rain.meta);
+    const forecast = forecastPart(weather.status === "fulfilled" ? weather.value.points : [], weather.status === "fulfilled" ? weather.value.fetchedAt : null, now);
     const parts = [river, official, rain, forecast];
 
     const newsItems = news.status === "fulfilled" ? news.value.features : [];
@@ -949,7 +950,7 @@ export async function fetchMayorDesk(env: MayorDeskEnv = {}): Promise<Normalized
     });
 
     const answer = buildDeskAnswer(parts);
-    if (ews.status === "rejected") gaps.push("DWR EWS unavailable");
+    if (ews.status === "rejected") gaps.push("DWR EWS unavailable or exceeded its deadline");
     if (news.status === "rejected") gaps.push("News feed unavailable");
     if (!newsItems.length) gaps.push("No news stories in the last 36 h");
     const untranslated = toTranslate.filter(r => !translated.has(r.headline)).length;

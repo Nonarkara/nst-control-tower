@@ -39,7 +39,7 @@ export function summarizeRainWind(raw: HourlyWeather, now: number): Omit<RainWin
   return { hours, rain6hMm: sum(6), rain12hMm: sum(12), rain24hMm: sum(24), peakHourMm: peak?.rainMm ?? null, peakAt: peak?.at ?? null, windFromDeg: hours[0]?.windFromDeg ?? null, windKmh: hours[0]?.windKmh ?? null };
 }
 
-async function fetchTransect(): Promise<{ points: RainWindPoint[]; fetchedAt: string }> {
+export async function fetchFloodWeather(): Promise<{ points: RainWindPoint[]; fetchedAt: string }> {
   return cachedWithStale("flood-ops-hourly-weather", 600, async () => {
     const url = `https://api.open-meteo.com/v1/forecast?latitude=${RAIN_TRANSECT.map(p => p.lat).join(",")}&longitude=${RAIN_TRANSECT.map(p => p.lng).join(",")}&hourly=precipitation,wind_speed_10m,wind_direction_10m&forecast_days=3&timeformat=unixtime&timezone=UTC`;
     const result = await fetchJsonOrThrow<HourlyWeather[]>(url, undefined, 12_000);
@@ -61,21 +61,26 @@ async function fetchTide(): Promise<FloodOperations["tide"]> {
   }, 1800, true);
 }
 
+/** Critical observations are shared independently of optional context/cameras. */
+export async function fetchFloodObservations() {
+  const relay = await fetchRelay();
+  const { gauges } = mapRelayWater(relay.water);
+  const { stations } = mapRelayRain(relay.rain);
+  const meta = { source: "HII via FloodDash", ...relaySnapshotMeta(relay), note: "Observation times are retained per station; FloodDash relays HII readings" };
+  return {
+    water: { features: gauges, meta: { ...meta, fallbackTier: gauges.length ? meta.fallbackTier : "unavailable" as const } },
+    rain: { features: stations, meta: { ...meta, fallbackTier: stations.length ? meta.fallbackTier : "unavailable" as const } },
+  };
+}
+
 export async function fetchFloodOperations(): Promise<NormalizedFeed<FloodOperations>> {
   return cachedWithStale("flood-operations", 60, async () => {
     // One existing province relay supplies both observations. HII's direct
     // endpoint is blocked from Worker egress; avoid two failed direct requests
     // followed by duplicate relay reads. Keep initial fan-out within Workers'
     // six outgoing connections (relay + forecast + tide + three context reads).
-    const observedWork = withinOperationsDeadline(fetchRelay().then(relay => {
-      const { gauges } = mapRelayWater(relay.water); const { stations } = mapRelayRain(relay.rain);
-      const meta = { source: "HII via FloodDash", ...relaySnapshotMeta(relay), note: "Observation times are retained per station; FloodDash relays HII readings" };
-      return {
-        water: { features: gauges, meta: { ...meta, fallbackTier: gauges.length ? meta.fallbackTier : "unavailable" as const } },
-        rain: { features: stations, meta: { ...meta, fallbackTier: stations.length ? meta.fallbackTier : "unavailable" as const } },
-      };
-    }));
-    const weatherWork = withinOperationsDeadline(fetchTransect());
+    const observedWork = withinOperationsDeadline(fetchFloodObservations());
+    const weatherWork = withinOperationsDeadline(fetchFloodWeather());
     const tideWork = withinOperationsDeadline(fetchTide());
     const cameraWork = withinOperationsDeadline(Promise.allSettled([observedWork, weatherWork, tideWork]).then(() => fetchNstCctv()));
     const [observations, weather, tide, context, cameras] = await Promise.allSettled([
