@@ -200,6 +200,35 @@ describe("the forecast part", () => {
 });
 
 describe("the answer", () => {
+  it("a declared alert leads the answer even when a measurement is at the same level", () => {
+    // Measured on 2026-10-26 with DWR's alert in force at บ้านบางจันสี: the
+    // answer led with the nearest gauge (also "watch") and the authority's
+    // own declaration was the second signal. A declaration is the
+    // authority's call about its own station; it outranks our reading of a
+    // threshold at another one.
+    const declared = officialPart([ews({ status: 1, name: "บ้านบางจันสี" })], NOW);
+    const measured = riverPart([
+      { id: "g1", name: "ปากนคร", stationCode: "PTTEP3", diffFromBank: -0.59, trend: "rising", observedAt: minutesAgo(10) },
+    ], NOW);
+    const answer = buildDeskAnswer([measured, declared]);
+    expect(answer.th.startsWith("สถานะเตือน อต.:")).toBe(true);
+    expect(answer.th).toContain("ประกาศเตือน");
+    // The measurement is still there — it moves to a signal, it does not
+    // disappear.
+    expect(answer.th).toContain("สัญญาณ");
+  });
+
+  it("a critical measurement still leads a declared watch", () => {
+    const declared = officialPart([ews({ status: 1, name: "บ้านบางจันสี" })], NOW);
+    const critical = riverPart([
+      { id: "g1", name: "ปากนคร", stationCode: "PTTEP3", diffFromBank: 0.2, trend: "rising", observedAt: minutesAgo(10) },
+    ], NOW);
+    const answer = buildDeskAnswer([declared, critical]);
+    expect(critical.level).toBe("critical");
+    expect(answer.level).toBe("critical");
+    expect(answer.th.startsWith("ระดับน้ำที่สถานีวัด:")).toBe(true);
+  });
+
   it("names the worst signal", () => {
     const answer = buildDeskAnswer([
       part({ key: "a", level: "watch", titleTh: "ฝน" }),

@@ -201,6 +201,7 @@ export function officialPart(
     return {
       ...OFFICIAL,
       level,
+      declared: true,
       th: `อต. ประกาศเตือน ${alerting.length} สถานี — ระดับ${tier} · ${top.name} (${top.amphoe})`,
       evidence: alerting.slice(0, 3).map(a => `${a.name} (${a.amphoe}) — ระดับ${a.status === 3 ? "วิกฤติ" : a.status === 2 ? "เตรียมพร้อม" : "เฝ้าระวัง"}`),
       en: `DWR has declared an alert on ${alerting.length} station(s) — tier ${tier} · ${top.name} (${top.amphoe})`,
@@ -333,8 +334,13 @@ export interface DeskAnswer {
 
 export function buildDeskAnswer(parts: DeskPart[]): DeskAnswer {
   const missing = parts.filter(p => p.level === "unknown" || p.coverageIncomplete).length;
+  // The worst signal names the answer. Within one level, a DECLARED alert
+  // wins: the authority's own call about its own station outranks our
+  // reading of a threshold at another one. Measured on 2026-10-26, with
+  // DWR's alert in force at บ้านบางจันสี, the answer led with the nearest
+  // gauge — the declaration was the second signal.
   const signals = parts.filter(p => p.level !== "unknown" && p.level !== "good")
-    .sort((a, b) => levelRank(b.level) - levelRank(a.level));
+    .sort((a, b) => levelRank(b.level) - levelRank(a.level) || Number(b.declared ?? false) - Number(a.declared ?? false));
   if (signals.length) {
     const top = signals[0];
     const others = signals.length - 1;

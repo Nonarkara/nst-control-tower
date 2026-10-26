@@ -53,6 +53,10 @@ export interface DeskPart {
   staleAfterMs: number;
   /** True when the part answered but could not cover everything it should. */
   coverageIncomplete?: boolean;
+  /** True when the authority has DECLARED this — an alert in force, not our
+   *  own reading of a threshold. A declaration outranks our measurement at
+   *  the same level: it is the authority's own call about its own station. */
+  declared?: boolean;
 }
 
 export type DeskNewsLanguage = "th" | "en" | "zh" | "other";
