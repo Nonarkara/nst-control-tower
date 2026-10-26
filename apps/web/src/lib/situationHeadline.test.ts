@@ -85,6 +85,18 @@ describe("feedHealthWord", () => {
     expect(feedHealthWord("down", 9, 9).dot).toBe("unavailable");
     expect(feedHealthWord("healthy", 0, 9).word).toBe("No live data sources");
   });
+
+  it("feeds that have not answered yet are not an outage", () => {
+    // Measured on 2026-10-26: the live page printed "DOWN — Data server
+    // unreachable" in the header while its nine feeds were still loading,
+    // and the API reported "degraded, 0 down". A missing measurement is
+    // written as missing.
+    expect(feedHealthWord("degraded", 0, 9, 9)).toEqual({ word: "Checking data sources", dot: "loading" });
+    // Once they have answered and none is live, it is an outage.
+    expect(feedHealthWord("degraded", 0, 9, 0).word).toBe("No live data sources");
+    // Half of them still loading is not an outage either.
+    expect(feedHealthWord("degraded", 4, 9, 5).dot).toBe("stale");
+  });
 });
 
 describe("feedHealthShort", () => {

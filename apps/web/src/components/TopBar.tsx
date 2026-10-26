@@ -70,9 +70,15 @@ export function feedHealthWord(
   systemStatus: NonNullable<Props["systemStatus"]>,
   live: number,
   total: number,
+  loading = 0,
 ): { word: string; dot: "live" | "stale" | "unavailable" | "loading" } {
   if (systemStatus === "down") return { word: "Data server unreachable", dot: "unavailable" };
   if (total === 0 || systemStatus === "unknown") return { word: "Checking data sources", dot: "loading" };
+  // Nothing has answered yet is not an outage. Measured on 2026-10-26: the
+  // live page printed "DOWN — Data server unreachable" in the header while
+  // its nine feeds were still loading, and the API itself reported
+  // "degraded, 0 down". A missing measurement is written as missing.
+  if (live === 0 && loading >= total) return { word: "Checking data sources", dot: "loading" };
   if (live >= total) return { word: "All data sources live", dot: "live" };
   if (live === 0) return { word: "No live data sources", dot: "unavailable" };
   const notLive = total - live;
@@ -204,7 +210,8 @@ export function TopBar({
   const { theme, toggle } = useTheme();
   const { locale, toggle: toggleLocale } = useLocale();
   const liveCount = feeds.filter((f) => f.tier === "live").length;
-  const health = feedHealthWord(systemStatus, liveCount, feeds.length);
+  const loadingCount = feeds.filter((f) => f.tier === "loading").length;
+  const health = feedHealthWord(systemStatus, liveCount, feeds.length, loadingCount);
   const notLive = feeds.length - liveCount;
   const healthLabel = feedHealthShort(health.dot, notLive, feeds.length);
   const air = aqiBand(conditions?.aqi ?? null);
