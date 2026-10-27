@@ -16,6 +16,11 @@ vi.mock("google-trends-api", () => ({
   },
 }));
 
+// Resolve the dynamic-import stub during setup. Under the full CI transform
+// load, resolving it inside the first timed test can consume the test budget
+// before the adapter receives its mocked provider.
+await import("google-trends-api");
+
 // Import the module under test AFTER mocks are registered.
 // We use a dynamic import so vi.resetModules() can clear module-level state
 // (the `trendsModule` singleton).
