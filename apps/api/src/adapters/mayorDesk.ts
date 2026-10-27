@@ -42,7 +42,7 @@ import {
   type NormalizedFeed,
   type SourceMeta,
 } from "@nst/shared";
-import { cachedWithStale, finishBackgroundWork } from "../lib/cache.js";
+import { cachedWithStale, finishBackgroundWork, hasCacheEntry, setCache } from "../lib/cache.js";
 import { fetchFloodObservations, fetchFloodWeather } from "./floodOperations.js";
 import { fetchEwsStations } from "./dwrEws.js";
 import { fetchNews } from "./news.js";
@@ -904,7 +904,52 @@ export async function withinDeskBudget<T>(work: Promise<T>, timeoutMs = 14_000):
   } finally { clearTimeout(timer); }
 }
 
+// ── Shared last desk (Cloudflare edge cache) ────────────────────────────────
+// The in-memory stale-while-revalidate only helps a warm Worker instance; every
+// cold instance paid the full compute (measured 14 s on first open — the mayor
+// looked at "กำลังอ่านข้อมูล…" the whole time). The last desk is also kept in
+// the data centre's edge cache: a cold instance seeds itself from it as an
+// EXPIRED entry, so it answers at once (aged honestly by ageMayorDesk) and
+// refreshes in the background.
+const DESK_EDGE_KEY = "https://nst-control-tower-api.internal/mayor-desk-v1";
+const DESK_EDGE_TTL_S = 30 * 60;
+
+interface EdgeCache {
+  match(req: Request): Promise<Response | undefined>;
+  put(req: Request, res: Response): Promise<void>;
+}
+function edgeCache(): EdgeCache | null {
+  return (globalThis as { caches?: { default?: EdgeCache } }).caches?.default ?? null;
+}
+
+async function seedDeskFromEdge(): Promise<void> {
+  if (hasCacheEntry("mayor-desk")) return;
+  const cache = edgeCache();
+  if (!cache) return;
+  try {
+    const hit = await cache.match(new Request(DESK_EDGE_KEY));
+    if (!hit) return;
+    const feed = (await hit.json()) as NormalizedFeed<MayorDesk>;
+    if (Array.isArray(feed?.features) && feed.features.length > 0) setCache("mayor-desk", feed, -1);
+  } catch (err) {
+    console.warn("mayor-desk edge read failed", (err as Error).message);
+  }
+}
+
+async function storeDeskAtEdge(feed: NormalizedFeed<MayorDesk>): Promise<void> {
+  const cache = edgeCache();
+  if (!cache) return;
+  try {
+    await cache.put(new Request(DESK_EDGE_KEY), new Response(JSON.stringify(feed), {
+      headers: { "content-type": "application/json", "cache-control": `public, max-age=${DESK_EDGE_TTL_S}` },
+    }));
+  } catch (err) {
+    console.warn("mayor-desk edge write failed", (err as Error).message);
+  }
+}
+
 export async function fetchMayorDesk(env: MayorDeskEnv = {}): Promise<NormalizedFeed<MayorDesk>> {
+  await seedDeskFromEdge();
   const feed = await cachedWithStale<NormalizedFeed<MayorDesk>>("mayor-desk", 60, async () => {
     const now = Date.now();
     const [observations, weather, ews, news] = await Promise.allSettled([
@@ -971,7 +1016,7 @@ export async function fetchMayorDesk(env: MayorDeskEnv = {}): Promise<Normalized
       translationNote: note,
     };
 
-    return {
+    const fresh: NormalizedFeed<MayorDesk> = {
       features: [feature],
       meta: {
         source: "HII via FloodDash · DWR EWS · Open-Meteo · Google News",
@@ -981,6 +1026,8 @@ export async function fetchMayorDesk(env: MayorDeskEnv = {}): Promise<Normalized
         note: "Operational synthesis for the mayor's desk — not an official warning and not a calibrated inundation prediction",
       },
     };
+    await storeDeskAtEdge(fresh);
+    return fresh;
   }, 900, true);
   return {...feed, features: feed.features.map(desk => ageMayorDesk(desk, Date.now()))};
 }

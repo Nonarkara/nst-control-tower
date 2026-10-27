@@ -97,26 +97,17 @@
 /* ── The bento ──────────────────────────────────────────────────────── */
 
 .desk-bento {
+  /* Two compartments, because the markup has two: what was MEASURED (rivers,
+     rain, forecast) and what was SAID (the authority, the news). Each column
+     stacks its own cells at their own height. The old 12-track grid named
+     cell areas the cells no longer occupied, so at desktop width the short
+     official notice became a third column standing over a tall empty void. */
   display: grid;
   gap: var(--s-3);
-  grid-template-columns: repeat(12, minmax(0, 1fr));
-  /* Every compartment is as tall as its own content. A compartment that
-     spans two rows inherits their combined height, and when the data in
-     that row is shorter than the row, the box that stretches is an empty
-     bordered panel with no task in it — the spatial-hallucination law's
-     clearest failure, and it changed with the state of the feeds (it
-     landed in the news cell on a busy day and in the official cell on a
-     day the authority's feed was down). The bento's compartments differ in
-     size because their contents differ; the leftover is the lunchbox's
-     own shape, not a padded box. */
   align-items: start;
-  grid-template-areas:
-    "measurements measurements measurements measurements measurements official official official news news news news";
+  grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
 }
-.desk-cell--rivers { grid-area: rivers; }
-.desk-cell--official { grid-area: official; }
-.desk-cell--rain { grid-area: rain; }
-.desk-cell--news { grid-area: news; }
+.desk-column { display: flex; flex-direction: column; gap: var(--s-3); min-width: 0; }
 
 .desk-cell {
   background: var(--panel);
@@ -232,12 +223,6 @@
 
 /* ── Narrow ─────────────────────────────────────────────────────────── */
 
-@media (max-width: 1100px) {
-  .desk-bento {
-    grid-template-columns: repeat(6, minmax(0, 1fr));
-    grid-template-areas: "measurements measurements measurements context context context";
-  }
-}
 /* Touch: this is opened one-handed, outdoors, in the rain. The header
    control is a control; the rest are words inside sentences, and the
    product's own briefing treats those the same way. */
@@ -251,10 +236,8 @@
 }
 @media (max-width: 720px) {
   .desk { padding: var(--s-3); }
-  .desk-bento {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-areas: "rivers" "rain" "official" "news";
-  }
+  .desk-bento { grid-template-columns: minmax(0, 1fr); }
+  .desk-column { display: contents; }
   .desk-chip { margin-left: 0; }
 }
 
@@ -277,11 +260,6 @@
 }
 
 .desk-news__translation { display:block; font-size:max(var(--text-xs),13px); color:var(--ink-2); }
-@media (max-width:720px) { .desk-bento--official-first { grid-template-areas:"official" "rivers" "rain" "news"; } }
+@media (max-width:720px) { .desk-bento--official-first .desk-cell--official { order: -1; } }
 
-.desk-column--measurements { grid-area:measurements; display:flex; flex-direction:column; gap:var(--s-3); min-width:0; }
-.desk-column--context { display:contents; }
-@media (min-width:721px) and (max-width:1100px) {
- .desk-column--context { grid-area:context; display:flex; flex-direction:column; gap:var(--s-3); min-width:0; }
-}
-@media (max-width:720px) { .desk-column { display:contents; } }
+

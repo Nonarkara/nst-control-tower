@@ -115,16 +115,19 @@ kbd {
 .sidebar-section__chevron { color: var(--ink-3); font-size: var(--text-sm); }
 .sidebar-section__body { padding: 0 var(--s-4) var(--s-4); gap: var(--s-3); animation: none; }
 
+/* One line when it fits, wrapping only when it must. Stacking title, age and
+   actions on three rows by default made every panel header three lines tall
+   and orphaned the news refresh control on a line of its own. */
 .panel-hdr {
   display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: var(--s-1);
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--s-1) var(--s-2);
   padding: 0 0 var(--s-2);
   margin-bottom: 0;
   border-bottom: 1px solid var(--line);
 }
-.panel-hdr > .eyebrow { flex: none; color: var(--ink); }
+.panel-hdr > .eyebrow { flex: 1 1 auto; min-width: 0; color: var(--ink); }
 .panel-hdr__meta, .panel-hdr__actions {
   display: flex;
   flex-wrap: wrap;

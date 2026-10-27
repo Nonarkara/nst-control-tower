@@ -333,10 +333,10 @@ test.describe("Review fixes — phone and sticky mode", () => {
     await expect(page.getByRole("region", { name: "Right now" })).toBeHidden({ timeout: 5_000 });
   });
 
-  test("the flood briefing is one tap from the phone Brief", async ({ page }) => {
+  test("the mayor's desk is one tap from the phone Brief", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("/");
-    await expect(page.getByRole("link", { name: /Flood watch briefing/ })).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByRole("link", { name: /Mayor's desk/ })).toHaveAttribute("href", "/mayor-desk", { timeout: 20_000 });
   });
 
   test("phone controls are at least 44 px tall", async ({ page }) => {

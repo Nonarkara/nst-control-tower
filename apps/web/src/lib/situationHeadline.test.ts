@@ -107,7 +107,7 @@ describe("feedHealthShort", () => {
   it("names the state, and counts the stale feeds when it can", () => {
     expect(feedHealthShort("live")).toBe("LIVE");
     expect(feedHealthShort("unavailable")).toBe("DOWN");
-    expect(feedHealthShort("loading")).toBe("CHECK");
+    expect(feedHealthShort("loading")).toBe("LOADING");
     // "STALE" alone says something is wrong; "STALE 5/9" says how much of
     // the dashboard is untrustworthy.
     expect(feedHealthShort("stale", 5, 9)).toBe("STALE 5/9");

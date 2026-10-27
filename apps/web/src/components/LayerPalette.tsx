@@ -78,16 +78,19 @@ export function LayerPalette({ lens, onLensChange, enabled, onToggleLayer, count
           onChange={event => onLensChange(event.target.value as LensId)} aria-describedby="lens-description">
           {LENSES.map(l => <option key={l.id} value={l.id}>{l.label}</option>)}
         </select>
-        <div id="lens-description" className="lens-explainer caption">
-          {LENSES.find((l) => l.id === lens)?.describe}
-        </div>
+        {/* One sentence under the picker. The full paragraph sat in a tinted,
+            ruled box six lines tall — the rail spent more height explaining
+            the control than the control itself took. */}
+        <p id="lens-description" className="lens-explainer caption">
+          {leadSentences(LENSES.find((l) => l.id === lens)?.describe ?? "")}
+        </p>
       </div>
 
       <hr className="divider" />
 
       <div>
         <h2 className="eyebrow palette-eyebrow">Map overlays</h2>
-        <p className="caption palette-intro">Changing a map view replaces custom overlays. Choose what to draw below. A number shows how many items a layer has right now.</p>
+        <p className="caption palette-intro">Picking a map view resets these. The number is how many items a layer has now.</p>
         <div className="layer-groups">
           {GROUP_ORDER.map((g) => {
             const list = grouped.get(g) ?? [];
@@ -178,4 +181,16 @@ export function LayerPalette({ lens, onLensChange, enabled, onToggleLayer, count
       </div>
     </div>
   );
+}
+
+/** Whole sentences up to ~140 characters (at least one) — never cut mid-word. */
+export function leadSentences(text: string, max = 140): string {
+  const sentences = text.match(/[^.!?]+[.!?]+(?=\s|$)/g) ?? [text];
+  let out = "";
+  for (const s of sentences) {
+    const next = out ? `${out} ${s.trim()}` : s.trim();
+    if (out && next.length > max) break;
+    out = next;
+  }
+  return out;
 }

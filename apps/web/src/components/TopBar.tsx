@@ -111,7 +111,7 @@ export function feedHealthShort(
     case "live": return "LIVE";
     case "stale": return total > 0 && notLive > 0 ? `STALE ${notLive}/${total}` : "STALE";
     case "unavailable": return "DOWN";
-    case "loading": return "CHECK";
+    case "loading": return "LOADING"; // "CHECK" read as an instruction, not a state
   }
 }
 

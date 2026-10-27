@@ -18,9 +18,10 @@ for (const width of [1440, 1024, 390]) {
     const headerGeometry = await header.evaluate(el => {
       const title = el.querySelector(":scope > .eyebrow")!.getBoundingClientRect();
       const meta = el.querySelector(".panel-hdr__meta")!.getBoundingClientRect();
-      return { titleBottom: title.bottom, metaTop: meta.top, width: el.clientWidth, content: el.scrollWidth };
+      return { titleBottom: title.bottom, titleRight: title.right, metaTop: meta.top, metaLeft: meta.left, width: el.clientWidth, content: el.scrollWidth };
     });
-    expect(headerGeometry.metaTop).toBeGreaterThanOrEqual(headerGeometry.titleBottom);
+    // Meta sits on the title's line when it fits, below it when it does not — never on top of it.
+    expect(headerGeometry.metaTop >= headerGeometry.titleBottom - 1 || headerGeometry.metaLeft >= headerGeometry.titleRight).toBe(true);
     expect(headerGeometry.content).toBeLessThanOrEqual(headerGeometry.width);
     const water = situation.locator(".reference-gauge").filter({ hasText: "Fullest channel" });
     await expect(water).toContainText("4.4 percentage points below Bank", { timeout: 15_000 });

@@ -93,6 +93,11 @@ function effectiveTtl(value: unknown, ttlSeconds: number): number {
   return isFailedFeed(value) ? Math.min(FAILURE_RETRY_SECONDS, ttlSeconds) : ttlSeconds;
 }
 
+/** True when this isolate holds ANY entry for the key, expired or not. */
+export function hasCacheEntry(key: string): boolean {
+  return store.has(key);
+}
+
 export function setCache<T>(key: string, data: T, ttlSeconds: number): void {
   // A write to an existing key counts as a "use" — drop the old slot first
   // so the re-insert below lands at the MRU end instead of staying put.

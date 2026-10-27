@@ -53,7 +53,8 @@ export function NewsDesk({ items, loading, ageMinutes, onRefresh }: Props) {
   const actionable = rest.filter((it) => it.tags && it.tags.length > 0).slice(0, ACTIONABLE_LIMIT);
   const others = rest.filter((it) => !it.tags || it.tags.length === 0).slice(0, OTHER_LIMIT);
   const visible = [...local, ...actionable, ...others].slice(0, VISIBLE_LIMIT);
-  const title = local.length > 0 ? `NEWS · ${local.length} ABOUT NAKHON SI THAMMARAT` : "NEWS · NATIONAL & WORLD";
+  // Short enough that the refresh control stays on the title line in a 300 px rail.
+  const title = local.length > 0 ? `NEWS · ${local.length} LOCAL` : "NEWS";
 
   return (
     <section className="panel" aria-label="News" aria-busy={loading}>

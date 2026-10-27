@@ -2386,7 +2386,6 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
         {/* ── RIGHT NOW: worst gauge + time to overtop, suggested action, data
             age. First in the rail on every lens so the answer to "is the city
             OK?" is always above the fold. ── */}
-        <p className="flood-meta" role="status">Current analysis uses station observations ≤ 2 h old. {waterGaugesFeed.data.length - waterGauges.data.length} older/undated water records excluded; missing stations are not safe stations.</p>
         <SituationHeadline
           gauges={waterGauges.data}
           basins={currentBasins}
@@ -2397,9 +2396,18 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
           onOpenCamera={(c) => { highlightCamera(c.id); setSelectedCctv(c); }}
           evac={evacData ? evacSummary : null}
         />
+        {/* The freshness rule speaks only when it changed the picture — a
+            grey caveat ABOVE the headline was the first thing anyone read. */}
+        {waterGaugesFeed.data.length > waterGauges.data.length && (
+          <p className="flood-meta" role="status">
+            {waterGaugesFeed.data.length - waterGauges.data.length} gauge readings older than 2 h are left out — a missing station is not a safe one.
+          </p>
+        )}
         {isMobile && (
-          <a className="btn btn--block" href="/flood-ops">
-            Flood watch briefing · <span lang="th">เฝ้าระวังน้ำท่วม</span>
+          // Same "start here" as the desktop header's DESK: the one-screen
+          // summary, which links on to the full evidence at /flood-ops.
+          <a className="btn btn--block" href="/mayor-desk">
+            Mayor's desk · <span lang="th">สรุปสำหรับนายกฯ</span>
           </a>
         )}
         {/* The flash-flood and watershed-metro openers belong to the rail, with
