@@ -30,6 +30,7 @@
 
 import {
   ageMayorDesk,
+  DESK_LEVEL_RANK,
   buildDeskAnswer,
   detectNewsLanguage,
   isNstNewsText,
@@ -922,15 +923,50 @@ function edgeCache(): EdgeCache | null {
   return (globalThis as { caches?: { default?: EdgeCache } }).caches?.default ?? null;
 }
 
+/** Optional CacheAPI I/O must stay inside the browser's response budget. */
+async function deskEdgeDeadline<T>(work: Promise<T>): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([work, new Promise<never>((_, reject) => {
+      timer = setTimeout(() => reject(new Error("Mayor desk edge cache deadline exceeded")), 1_000);
+    })]);
+  } finally { clearTimeout(timer); }
+}
+
+function isDeskEdgeFeed(value: unknown): value is NormalizedFeed<MayorDesk> {
+  const feed = value as Partial<NormalizedFeed<MayorDesk>> | null;
+  const desk = Array.isArray(feed?.features) && feed.features.length === 1 ? feed.features[0] : null;
+  const age = Date.now() - Date.parse(desk?.generatedAt ?? "");
+  const sourceAge = Date.now() - Date.parse(feed?.meta?.fetchedAt ?? "");
+  if (!desk || !Number.isFinite(age) || age < -300_000 || age > DESK_EDGE_TTL_S * 1_000
+    || !Number.isFinite(sourceAge) || sourceAge < -300_000 || sourceAge > DESK_EDGE_TTL_S * 1_000
+    || feed?.meta?.fallbackTier !== "scenario" || !Array.isArray(desk.parts) || desk.parts.length !== 4
+    || !Array.isArray(desk.news) || !Array.isArray(desk.gaps) || !desk.gaps.every(gap => typeof gap === "string")
+    || (desk.translationNote != null && typeof desk.translationNote !== "string")) return false;
+  if (!desk.news.every(item => item && typeof item.id === "string" && typeof item.titleTh === "string"
+    && typeof item.originalTitle === "string" && typeof item.source === "string" && typeof item.url === "string"
+    && typeof item.publishedAt === "string" && typeof item.whyTh === "string" && typeof item.language === "string"
+    && typeof item.translated === "boolean")) return false;
+  return ["river", "official", "rain", "forecast"].every(key => desk.parts.some(part =>
+    part?.key === key && typeof part.level === "string" && Object.hasOwn(DESK_LEVEL_RANK, part.level)
+    && typeof part.th === "string" && typeof part.en === "string"
+    && typeof part.titleTh === "string" && typeof part.titleEn === "string"
+    && typeof part.sourceTh === "string" && typeof part.sourceEn === "string"
+    && Array.isArray(part.evidence) && part.evidence.every(line => typeof line === "string")
+    && Number.isFinite(part.staleAfterMs) && part.staleAfterMs > 0
+    && (part.observedAt === null || typeof part.observedAt === "string")));
+}
+
 async function seedDeskFromEdge(): Promise<void> {
   if (hasCacheEntry("mayor-desk")) return;
   const cache = edgeCache();
   if (!cache) return;
   try {
-    const hit = await cache.match(new Request(DESK_EDGE_KEY));
+    const hit = await deskEdgeDeadline(cache.match(new Request(DESK_EDGE_KEY)));
     if (!hit) return;
-    const feed = (await hit.json()) as NormalizedFeed<MayorDesk>;
-    if (Array.isArray(feed?.features) && feed.features.length > 0) setCache("mayor-desk", feed, -1);
+    const feed: unknown = await deskEdgeDeadline(hit.json());
+    if (isDeskEdgeFeed(feed)) setCache("mayor-desk", feed, -1);
+    else console.warn("mayor-desk edge snapshot invalid or expired");
   } catch (err) {
     console.warn("mayor-desk edge read failed", (err as Error).message);
   }
@@ -940,9 +976,9 @@ async function storeDeskAtEdge(feed: NormalizedFeed<MayorDesk>): Promise<void> {
   const cache = edgeCache();
   if (!cache) return;
   try {
-    await cache.put(new Request(DESK_EDGE_KEY), new Response(JSON.stringify(feed), {
+    await deskEdgeDeadline(cache.put(new Request(DESK_EDGE_KEY), new Response(JSON.stringify(feed), {
       headers: { "content-type": "application/json", "cache-control": `public, max-age=${DESK_EDGE_TTL_S}` },
-    }));
+    })));
   } catch (err) {
     console.warn("mayor-desk edge write failed", (err as Error).message);
   }
@@ -1026,7 +1062,7 @@ export async function fetchMayorDesk(env: MayorDeskEnv = {}): Promise<Normalized
         note: "Operational synthesis for the mayor's desk — not an official warning and not a calibrated inundation prediction",
       },
     };
-    await storeDeskAtEdge(fresh);
+    await finishBackgroundWork(storeDeskAtEdge(fresh), false);
     return fresh;
   }, 900, true);
   return {...feed, features: feed.features.map(desk => ageMayorDesk(desk, Date.now()))};

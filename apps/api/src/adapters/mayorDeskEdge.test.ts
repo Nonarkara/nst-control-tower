@@ -8,7 +8,7 @@ describe("mayor desk — shared last desk", () => {
     vi.resetModules();
     const generatedAt = new Date(Date.now() - 4 * 60_000).toISOString();
     const lastDesk = {
-      features: [{ generatedAt, level: "warning", answerTh: "ฉบับก่อนหน้า", answerEn: "previous", parts: [], news: [], notice: null, missing: 0, gaps: [], translationIncomplete: false, translationNote: null }],
+      features: [{ generatedAt, level: "warning", answerTh: "ฉบับก่อนหน้า", answerEn: "previous", parts: ["river", "official", "rain", "forecast"].map(key => ({key,level:"unknown",kind:"measured",th:"ไม่ทราบ",en:"Unknown",titleTh:"สถานี",titleEn:"Station",sourceTh:"HII",sourceEn:"HII",evidence:[],observedAt:null,staleAfterMs:7200000})), news: [], notice: null, missing: 0, gaps: [], translationIncomplete: false, translationNote: null }],
       meta: { source: "t", fetchedAt: generatedAt, ageMinutes: 0, fallbackTier: "scenario" },
     };
     const store = new Map<string, Response>([["https://nst-control-tower-api.internal/mayor-desk-v1", new Response(JSON.stringify(lastDesk))]]);
