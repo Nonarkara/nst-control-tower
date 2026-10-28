@@ -2036,12 +2036,18 @@ input:focus-visible,
   animation-play-state: paused;
 }
 
-/* ── Map zoom controls (floating bottom-right of the map area) ── */
-.zoom-controls {
+/* Compass and zoom form one content-sized stack on the map edge. */
+.map-navigation {
   position: absolute;
   bottom: var(--s-3);
   right: var(--s-3);
   z-index: 35;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--s-2);
+}
+.zoom-controls {
   display: flex;
   flex-direction: column;
   gap: 1px;
@@ -2049,8 +2055,8 @@ input:focus-visible,
   background: var(--panel);
 }
 .zoom-btn {
-  width: 34px;
-  height: 34px;
+  width: 42px;
+  height: 44px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2068,12 +2074,9 @@ input:focus-visible,
 
 /* ── Map compass — sits just above the zoom stack, bottom-right ── */
 .map-compass {
-  position: absolute;
-  bottom: calc(var(--s-3) + 80px);
-  right: var(--s-3);
-  z-index: 35;
-  width: 36px;
-  height: 36px;
+  width: 44px;
+  height: 44px;
+  box-sizing: border-box;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2429,13 +2432,13 @@ input:focus-visible,
 
   /* Zoom + AQI badge — make sure they stay inside the visible map area. */
   .shell.mobile .aqi-badge { left: 50%; right: auto; transform: translateX(-50%); top: 8px; min-width: 260px; max-width: 84vw; }
-	  .shell.mobile .zoom-controls { bottom: var(--s-4); right: var(--s-3); }
+	  .shell.mobile .map-navigation { bottom: var(--s-4); right: var(--s-3); }
 	  .shell.mobile.mobile-panel-brief .building-search,
 	  .shell.mobile.mobile-panel-brief .map-overlay-controls,
-	  .shell.mobile.mobile-panel-brief .zoom-controls,
+	  .shell.mobile.mobile-panel-brief .map-navigation,
 	  .shell.mobile.mobile-panel-layers .building-search,
 	  .shell.mobile.mobile-panel-layers .map-overlay-controls,
-	  .shell.mobile.mobile-panel-layers .zoom-controls {
+	  .shell.mobile.mobile-panel-layers .map-navigation {
 	    display: none;
 	  }
 	  .shell.mobile.mobile-panel-brief .chatbox-closed,
@@ -2499,8 +2502,11 @@ input:focus-visible,
      all stacked above the bottom nav. */
   .shell.mobile .building-search { top: 8px; }
   .shell.mobile .chatbox-closed { bottom: 72px; }
-  .shell.mobile .zoom-controls { bottom: 128px; right: var(--s-3); }
-  .shell.mobile .map-compass { bottom: 204px; right: var(--s-3); }
+  .shell.mobile .map-navigation {
+    position: fixed;
+    right: 8px;
+    bottom: calc(62px + 8px + 44px + 8px);
+  }
   /* Map-only HUD hides while a Brief/Layers sheet is up. */
   .shell.mobile.mobile-panel-brief .map-compass,
   .shell.mobile.mobile-panel-layers .map-compass,

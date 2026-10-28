@@ -794,3 +794,23 @@ button[aria-pressed="true"] .rt-disc {
   text-decoration: none;
 }
 .route-fallback__back:hover { border-color: var(--ink); }
+
+/* Phone/tablet map actions share an edge above the 62px tab bar.
+   The launcher names its task; a city-description banner must not cover zoom. */
+@media (max-width: 1100px) {
+  .shell.mobile .chatbox-closed {
+    left: auto;
+    right: 8px;
+    bottom: calc(62px + 8px);
+    width: max-content;
+  }
+  .shell.mobile .chat-handle {
+    box-sizing: border-box;
+    min-height: 44px;
+    padding: 0 var(--s-3);
+  }
+  .shell.mobile .chat-handle-label { flex: none; white-space: nowrap; }
+  .shell.mobile .chat-handle-label > :not(strong),
+  .shell.mobile .chat-handle-dot,
+  .shell.mobile .chat-handle-cta { display: none; }
+}

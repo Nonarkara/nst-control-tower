@@ -2886,13 +2886,14 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
             onClearOverlays={clearOverlays}
             onRestoreLens={restoreLens}
           />
-          {/* Map zoom controls — back-up for gesture / trackpad */}
-          <div className="zoom-controls" aria-label="Map zoom controls">
-            <button onClick={() => zoomBy(0.6)} aria-label="Zoom in" className="zoom-btn">+</button>
-            <button onClick={() => zoomBy(-0.6)} aria-label="Zoom out" className="zoom-btn">−</button>
+          <div className="map-navigation">
+            {/* Compass and zoom share one edge and flow without offsets. */}
+            <MapCompass bearing={observed.bearing} onResetNorth={resetNorth} />
+            <div className="zoom-controls" aria-label="Map zoom controls">
+              <button onClick={() => zoomBy(0.6)} aria-label="Zoom in" className="zoom-btn">+</button>
+              <button onClick={() => zoomBy(-0.6)} aria-label="Zoom out" className="zoom-btn">−</button>
+            </div>
           </div>
-          {/* Compass — reflects bearing, click resets to north */}
-          <MapCompass bearing={observed.bearing} onResetNorth={resetNorth} />
           {/* Bottom-left HUD: building-type legend (when buildings are shown) + live coordinate readout */}
           <div className="map-hud-bl">
             <MapLegend enabled={enabledLayers} />
