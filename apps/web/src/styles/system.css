@@ -807,6 +807,8 @@ button[aria-pressed="true"] .rt-disc {
   .shell.mobile .chat-handle {
     box-sizing: border-box;
     min-height: 44px;
+    border: 1px solid var(--line-2);
+    background: var(--paper);
     padding: 0 var(--s-3);
   }
   .shell.mobile .chat-handle-label { flex: none; white-space: nowrap; }
