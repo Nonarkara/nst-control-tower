@@ -341,13 +341,15 @@ export const LENSES: Lens[] = [
 
 /** The map background. Pick exactly one. */
 export const SATELLITE_BASE_LAYERS: LayerId[] = [
+  "google-satellite",
+  "tile3d-buildings", // textured terrain/mesh replaces the ground imagery too
   "satellite-esri",
   "satellite-true-color",
   "satellite-viirs-truecolor",
   "satellite-night",
   "satellite-himawari",
   "satellite-terrain",
-      "terrain-3d",
+  "terrain-3d",
 ];
 
 /** Full-area data overlays that colour the whole map. Pick at most one. */

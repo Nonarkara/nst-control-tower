@@ -375,6 +375,11 @@ describe("LAYER_GROUP_LABEL", () => {
 // ─── Layer exclusivity (the muddy-overlay fix) ───────────────────────────────
 
 describe("enforceLayerExclusivity", () => {
+  it.each(["satellite-esri", "google-satellite", "satellite-terrain", "tile3d-buildings"] as LayerId[])("selecting %s removes terrain and competing imagery", (selected) => {
+    const out = enforceLayerExclusivity(["terrain-3d", "google-satellite", "satellite-esri", "tile3d-buildings", "water-gauges", selected], selected);
+    expect(SATELLITE_BASE_LAYERS.filter(id => out.has(id))).toEqual([selected]);
+    expect(out.has("water-gauges")).toBe(true);
+  });
   it("keeps at most one base satellite", () => {
     const out = enforceLayerExclusivity(["satellite-esri", "satellite-true-color", "satellite-night"] as LayerId[]);
     const bases = SATELLITE_BASE_LAYERS.filter((b) => out.has(b));

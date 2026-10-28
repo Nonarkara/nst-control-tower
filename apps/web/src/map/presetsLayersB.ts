@@ -88,7 +88,7 @@ export const ALL_LAYERS_PART_B: LayerEntry[] = [
   { id: "satellite-terrain", label: "OpenTopoMap (zoom < 14)",  swatch: "#A3E635", group: "imagery",
     describe: "OpenTopoMap with contour lines and hillshade. Useful at regional zoom." },
   { id: "terrain-3d",        label: "3D Terrain (Khao Luang)",  swatch: "#6E7846", group: "imagery",
-    describe: "True 3-D topographic relief — an extruded elevation grid (Open-Meteo ~90 m DEM) of the Khao Luang massif (1,835 m) rising over the coastal lowland, shaded dark green → olive → pale grey by height (lighter = higher). Reads best at province zoom under pitch. Vertical relief is exaggerated ~6× so the mountains are legible at map scale." },
+    describe: "True 3-D topographic relief — an extruded elevation grid (Open-Meteo ~90 m DEM) of the Khao Luang massif (1,835 m) rising over the coastal lowland, shaded dark green → olive → pale grey by height (lighter = higher). Reads best at province zoom under pitch. Elevation is shown at 1:1 scale. This relief replaces satellite basemaps; select Esri HD to see aerial imagery." },
   { id: "precip-radar",      label: "Rain radar (live nowcast)", swatch: "#22D3EE", group: "imagery",
     describe: "RainViewer live weather radar — animated past + short-range forecast frames, the 'where is it raining right now' layer. Complements IMERG (satellite rain-rate estimate) and Himawari (storm clouds). Public, no key." },
   { id: "air-waqi-field",    label: "Air quality field (AirDash)", swatch: "#FB923C", group: "environment",

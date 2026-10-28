@@ -5,6 +5,8 @@ import type { Layer, ControllerProps } from "@deck.gl/core";
 import { FlyToInterpolator, LinearInterpolator, AmbientLight, DirectionalLight, LightingEffect } from "@deck.gl/core";
 import { Map as MapLibreMap } from "react-map-gl/maplibre";
 import * as maplibregl from "maplibre-gl";
+import mapLibreWorkerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
+import { hasGoogleKey } from "./lib/googleKey";
 import type { Feature, FeatureCollection, LineString, MultiLineString, Point, Polygon, MultiPolygon } from "geojson";
 import { NST } from "@nst/shared";
 import type {
@@ -284,6 +286,10 @@ const GIBS_LAYERS: Array<{
   // web-mercator (3857) map, so it's dropped. Flood is covered by the AlphaEarth
   // flood-prone layer + flood-risk polygons + river buffer + IMERG rainfall.
 ];
+
+// Emit the module worker and its imports; MapLibre's relative default points
+// at a nonexistent asset after Vite bundles the main library.
+maplibregl.setWorkerUrl(mapLibreWorkerUrl);
 
 function basemapStyle(theme: "dark" | "light"): maplibregl.StyleSpecification {
   const baseSlug = theme === "dark" ? "World_Dark_Gray_Base" : "World_Light_Gray_Base";
@@ -1141,6 +1147,10 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
   const onToggleLayer = useCallback((id: LayerId) => {
     const fb = layerFeedbackRef.current;
     const turningOn = !fb.enabled.has(id);
+    if (turningOn && !hasGoogleKey() && ["google-satellite", "google-traffic", "tile3d-buildings"].includes(id)) {
+      showToast("Google imagery unavailable — no Google Maps key configured. Current map kept; use Satellite (Esri HD).");
+      return;
+    }
     setEnabledLayers((prev) => {
       const next = new Set(prev);
       if (next.has(id)) { next.delete(id); return next; }
@@ -2220,6 +2230,11 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
   // Feed health per map layer — drives the "needs key" pill in the palette and
   // the toast on toggle. Only layers backed by a live feed appear here.
   const layerStatuses = useMemo<Partial<Record<LayerId, LayerStatus>>>(() => ({
+    ...(!hasGoogleKey() ? {
+      "google-satellite": { tier: "unavailable" as const, note: "Google Maps key not configured; use Esri HD" },
+      "google-traffic": { tier: "unavailable" as const, note: "Google Maps key not configured" },
+      "tile3d-buildings": { tier: "unavailable" as const, note: "Google Maps key not configured; use local 3D buildings" },
+    } : {}),
     "cctv-cameras":           { tier: cctv.fallbackTier, note: cctv.note },
     "cctv-water-level":       { tier: cctv.fallbackTier, note: cctv.note },
     "level-posts":            { tier: levelPosts.fallbackTier, note: levelPosts.note },
