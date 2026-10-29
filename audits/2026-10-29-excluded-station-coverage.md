@@ -1,0 +1,11 @@
+# Excluded-station coverage — 29 October 2026
+
+At07:19ICT, active readiness reported21usable water stations with30silent stations excluded upstream. The mayor's live river part reported21/21current gauges with bank datums and coverageIncomplete:false. fetchFloodObservations discarded the mapper's exclusions before the mayor combined source provenance; a fresh source therefore masked missing stations. Cached tiers had previously masked the bug by independently marking coverage incomplete.
+
+Reproduced with a real mapper and a mocked relay: one fresh below-bank gauge, one silent gauge and one unplaceable gauge produced false complete coverage. The before regression failed at coverageIncomplete:false. No live providers were used by the regression tests.
+
+Correction: SourceMeta carries an optional excludedStationCount. Observation normalization counts raw-minus-usable rows, retains original observation/retrieval clocks and records the exclusions. The mayor marks coverage incomplete and states the number whose conditions remain unconfirmed, while preserving the hazard grade at reporting stations. Below-bank wording now explicitly refers to reporting gauges. The detailed briefing also names the excluded water/rain counts in its existing gaps list. Mayor edge-cache namespace moves tov2 so old synthesized coverage cannot seed the corrected adapter. No new source awaits or response-budget changes.
+
+Verification before release:64focused and821fullAPI tests passed with at most2local workers; API type checking and diff checks passed. Control case with all rows usable remains complete. Incomplete below-bank evidence produces an unknown aggregate instead of an all-clear. Existing measured critical/alert grades and cache-deadline tests pass. No routine production build or load test was run locally.
+
+Baseline real deployment f5564f5 captured main, mayor desk and flood briefing at390×844,1024×900 and1440×900, including expanded/focused mayor disclosures. Runtime errors and horizontal overflow were zero. Evidence: /Volumes/Data/agent-artifacts/NST/2026-10-29-coverage. Source review independently approved the correction; added-text visual review and tested deployment verification follow the CI gate. Prior untracked playwright.tmpport.config.ts was preserved. No service restart, clock renewal, evacuation order or calibrated-camera claim was made.

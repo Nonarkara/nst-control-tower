@@ -179,7 +179,7 @@ export function riverPart(
     ? `${near.length} สถานีถึง/ใกล้ตลิ่ง — ${name} ${distance}`
     : level === "watch"
       ? `ยังไม่ถึงเกณฑ์ 30 ซม. แต่ใกล้ที่สุด ${name} ${distance} — เฝ้าระวัง`
-      : `ไม่มีสถานีใกล้ตลิ่ง · ใกล้ที่สุด ${name} ${distance}`;
+      : `ในสถานีที่มีข้อมูล ไม่พบสถานีใกล้ตลิ่ง · ใกล้ที่สุด ${name} ${distance}`;
   return {
     ...RIVER,
     level,
@@ -188,7 +188,7 @@ export function riverPart(
     th: `${lead} · ${trend} · ${coverage}${ungradedNote}`,
     evidence: graded.slice(0, 3).map(x =>
       `${x.g.name}${x.g.stationCode ? ` (${x.g.stationCode})` : ""} — ${x.freeboard! <= 0 ? `เหนือ/ถึงตลิ่ง ${fmt(-x.freeboard!, 2)} ม.` : `เหลือถึงตลิ่ง ${fmt(x.freeboard!, 2)} ม.`} · ${trendTh(x.g)}`),
-    en: `${near.length ? `${near.length} gauge(s) at/near the bank — ` : level === "watch" ? "Inside 30 cm of the bank is not reached, but closest " : "No gauge near the bank · closest "}${name} ${top.freeboard! <= 0 ? `${fmt(-top.freeboard!, 2)} m above bank` : `${fmt(top.freeboard!, 2)} m below bank`} · ${coverageEn}${ungradedNoteEn}`,
+    en: `${near.length ? `${near.length} gauge(s) at/near the bank — ` : level === "watch" ? "Inside 30 cm of the bank is not reached, but closest " : "No reporting gauge near the bank · closest "}${name} ${top.freeboard! <= 0 ? `${fmt(-top.freeboard!, 2)} m above bank` : `${fmt(top.freeboard!, 2)} m below bank`} · ${coverageEn}${ungradedNoteEn}`,
     observedAt: top.g.observedAt,
   };
 }
@@ -870,10 +870,13 @@ export async function translateHeadlines(
   return { translated: out, reasons, pending: !settled };
 }
 
-function withSource(part: DeskPart, meta?: SourceMeta): DeskPart {
+export function withSource(part: DeskPart, meta?: SourceMeta): DeskPart {
   if (!meta) return {...part, coverageIncomplete:true};
+  const excluded = meta.excludedStationCount ?? 0;
   return {...part, sourceFetchedAt:meta.fetchedAt, sourceTier:meta.fallbackTier, sourceNote:meta.note,
-    coverageIncomplete:part.coverageIncomplete || meta.fallbackTier !== "live"};
+    th: excluded > 0 ? `${part.th} · อีก ${excluded} สถานีไม่มีข้อมูลที่ใช้ได้ จึงยังยืนยันสภาพไม่ได้` : part.th,
+    en: excluded > 0 ? `${part.en} · ${excluded} station(s) excluded; conditions unconfirmed` : part.en,
+    coverageIncomplete:part.coverageIncomplete || meta.fallbackTier !== "live" || excluded > 0};
 }
 
 // ─── The adapter ─────────────────────────────────────────────────────────
@@ -912,7 +915,8 @@ export async function withinDeskBudget<T>(work: Promise<T>, timeoutMs = 14_000):
 // the data centre's edge cache: a cold instance seeds itself from it as an
 // EXPIRED entry, so it answers at once (aged honestly by ageMayorDesk) and
 // refreshes in the background.
-const DESK_EDGE_KEY = "https://nst-control-tower-api.internal/mayor-desk-v1";
+// Do not seed briefs synthesized before excluded-station coverage was retained.
+const DESK_EDGE_KEY = "https://nst-control-tower-api.internal/mayor-desk-v2";
 const DESK_EDGE_TTL_S = 30 * 60;
 
 interface EdgeCache {

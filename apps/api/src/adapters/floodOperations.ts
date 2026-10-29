@@ -66,10 +66,12 @@ export async function fetchFloodObservations() {
   const relay = await fetchRelay();
   const { gauges } = mapRelayWater(relay.water);
   const { stations } = mapRelayRain(relay.rain);
+  const excludedWater = relay.water.length - gauges.length;
+  const excludedRain = relay.rain.length - stations.length;
   const meta = { source: "HII via FloodDash", ...relaySnapshotMeta(relay), note: "Observation times are retained per station; FloodDash relays HII readings" };
   return {
-    water: { features: gauges, meta: { ...meta, fallbackTier: gauges.length ? meta.fallbackTier : "unavailable" as const } },
-    rain: { features: stations, meta: { ...meta, fallbackTier: stations.length ? meta.fallbackTier : "unavailable" as const } },
+    water: { features: gauges, meta: { ...meta, excludedStationCount: excludedWater, note: excludedWater ? `${meta.note} · ${excludedWater} station(s) excluded; conditions unconfirmed` : meta.note, fallbackTier: gauges.length ? meta.fallbackTier : "unavailable" as const } },
+    rain: { features: stations, meta: { ...meta, excludedStationCount: excludedRain, note: excludedRain ? `${meta.note} · ${excludedRain} station(s) excluded; conditions unconfirmed` : meta.note, fallbackTier: stations.length ? meta.fallbackTier : "unavailable" as const } },
   };
 }
 
@@ -96,6 +98,8 @@ export async function fetchFloodOperations(): Promise<NormalizedFeed<FloodOperat
     if (!w?.features.length) gaps.push("No usable river-gauge observations");
     if (!r?.features.length) gaps.push("No usable rain-gauge observations");
     if (w?.meta.fallbackTier === "cache" || r?.meta.fallbackTier === "cache") gaps.push("HII observations from last-good cache; source refresh pending or unavailable — verify station timestamps");
+    if (w?.meta.excludedStationCount) gaps.push(`${w.meta.excludedStationCount} river station(s) excluded; conditions unconfirmed`);
+    if (r?.meta.excludedStationCount) gaps.push(`${r.meta.excludedStationCount} rain station(s) excluded; conditions unconfirmed`);
     const now = new Date().toISOString();
     const feature: FloodOperations = { generatedAt: now, gauges: w?.features ?? [], rain: r?.features ?? [], waterMeta: w?.meta ?? unavailable("thaiwater"), rainMeta: r?.meta ?? unavailable("thaiwater"), weather: f?.points ?? [], weatherFetchedAt: f?.fetchedAt ?? null, tide: t, context: c ?? { fetchedAt: now, wetness: null, rainTrend: null, tmd: null, errors: ["FloodDash context unavailable"] }, cameraCounts: { total: cams.length, online: cams.filter(c => c.status === "online").length, unknown: cams.filter(c => c.status !== "online" && c.status !== "offline").length }, gaps: [...gaps, ...(c?.errors ?? [])] };
     return { features: [feature], meta: { source: "HII via FloodDash; TMD via FloodDash; Open-Meteo models", fetchedAt: now, ageMinutes: 0, fallbackTier: "scenario", note: "Operational synthesis, not an official warning or calibrated inundation prediction" } };

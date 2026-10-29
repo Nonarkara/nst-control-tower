@@ -25,6 +25,8 @@ export interface SourceMeta {
    * Example: "Missing GEMINI_API_KEY env var — adapter disabled".
    */
   note?: string;
+  /** Stations omitted from this snapshot (silent, stale or unplaceable); their conditions remain unknown. */
+  excludedStationCount?: number;
 }
 
 export interface NormalizedFeed<T> {

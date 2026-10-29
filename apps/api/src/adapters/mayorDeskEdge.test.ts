@@ -11,7 +11,7 @@ describe("mayor desk — shared last desk", () => {
       features: [{ generatedAt, level: "warning", answerTh: "ฉบับก่อนหน้า", answerEn: "previous", parts: ["river", "official", "rain", "forecast"].map(key => ({key,level:"unknown",kind:"measured",th:"ไม่ทราบ",en:"Unknown",titleTh:"สถานี",titleEn:"Station",sourceTh:"HII",sourceEn:"HII",evidence:[],observedAt:null,staleAfterMs:7200000})), news: [], notice: null, missing: 0, gaps: [], translationIncomplete: false, translationNote: null }],
       meta: { source: "t", fetchedAt: generatedAt, ageMinutes: 0, fallbackTier: "scenario" },
     };
-    const store = new Map<string, Response>([["https://nst-control-tower-api.internal/mayor-desk-v1", new Response(JSON.stringify(lastDesk))]]);
+    const store = new Map<string, Response>([["https://nst-control-tower-api.internal/mayor-desk-v2", new Response(JSON.stringify(lastDesk))]]);
     vi.stubGlobal("caches", { default: { match: async (r: Request) => store.get(r.url)?.clone(), put: async () => {} } });
     vi.stubGlobal("fetch", vi.fn(() => new Promise<Response>(() => {}))); // every upstream hangs
 
