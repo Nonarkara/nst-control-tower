@@ -21,7 +21,7 @@ test("mayor flood watch separates observations and models without starting camer
   await expect(page.locator(".flood-watch-focal")).toContainText("11 ซม.");
   await expect(page.locator(".flood-watch-main")).toContainText("136.6");
   await expect(page.locator(".flood-watch-table").first()).toContainText("0.11");
-  await expect(page.getByRole("button", { name: "คัดลอกส่งนายกฯ" })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "คัดลอกส่งต่อให้นายกฯ" })).toBeEnabled();
   await expect(page.getByText("กล้องจะไม่เชื่อมต่อจนกดเปิดรับภาพ")).toBeVisible();
   expect(cameraNegotiations).toBe(0);
 });
