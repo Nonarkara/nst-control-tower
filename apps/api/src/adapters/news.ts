@@ -259,10 +259,17 @@ const NOT_AN_INCIDENT = /(ประชุม|มติ|งบประมาณ|
 
 export function actionTags(item: { title: string; summary: string }): string[] {
   const text = `${item.title} ${item.summary}`;
+  // Only treat "draws fire" as criticism when its context supports that
+  // reading. Armed encounters can literally draw fire and must keep EM.
+  const criticism = /\b(tax|revenue|critics?|criticism|criticised|criticized|lawmakers?|businesses)\b/i.test(text);
+  const armed = /\b(police|officers?|patrol|soldiers?|troops?|armed|attackers?|gunmen|gunman|gunfire|gunshots?|shooting|snipers?)\b/i.test(text);
+  const incidentText = criticism && !armed
+    ? text.replace(/\b(?:draw|draws|drawing|drew|drawn)\s+fire\b/gi, " ")
+    : text;
   const tags: string[] = [];
   for (const { tag, patterns } of ACTION_PATTERNS) {
     if (tag === "EM" && NOT_AN_INCIDENT.test(item.title)) continue;
-    if (patterns.some((p) => p.test(text))) tags.push(tag);
+    if (patterns.some((p) => p.test(tag === "EM" ? incidentText : text))) tags.push(tag);
   }
   return tags;
 }

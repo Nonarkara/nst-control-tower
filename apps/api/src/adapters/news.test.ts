@@ -666,6 +666,28 @@ describe("Emergency tag means an acute incident", () => {
     expect(t("Landslide blocks road in Lan Saka")).toContain("EM");
     expect(t("เด็กจมน้ำเสียชีวิตที่คลองท่าดี")).toContain("EM");
   });
+  it("criticism phrased as draws fire is not an emergency", () => {
+    expect(t("‘Sin tax’ revenue shake-up draws fire")).not.toContain("EM");
+    expect(actionTags({
+      title: "Tax changes criticised",
+      summary: "The revenue shake-up drew fire from lawmakers.",
+    })).not.toContain("EM");
+    expect(t("Tax plan drawing fire from businesses")).not.toContain("EM");
+    expect(t("Tax plan has drawn fire from critics")).not.toContain("EM");
+  });
+  it("literal incoming fire remains an incident, including in a tax story", () => {
+    expect(t("Patrol draws fire near school")).toContain("EM");
+    expect(t("Police drew fire from attackers")).toContain("EM");
+    expect(t("Tax officers draw fire from gunmen")).toContain("EM");
+    expect(t("Convoy draws fire near town")).toContain("EM");
+  });
+  it("a criticism idiom does not erase a separate physical incident", () => {
+    expect(actionTags({
+      title: "Revenue shake-up draws fire",
+      summary: "A warehouse fire destroyed shops in Nakhon Si Thammarat.",
+    })).toContain("EM");
+    expect(t("Fire destroys market in Nakhon Si Thammarat")).toContain("EM");
+  });
   it("a fire-safety drill is not an emergency", () => {
     expect(t("ซ้อมแผนดับเพลิง ไฟไหม้จำลอง เทศบาลนคร")).not.toContain("EM");
   });
