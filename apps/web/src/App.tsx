@@ -457,9 +457,14 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
   const [enabledLayers, setEnabledLayers] = useState<Set<LayerId>>(
     () => enforceLayerExclusivity(LENSES.find((l) => l.id === "operations")!.layers.filter((id) => layerCanEnable(id))),
   );
+  type ViewMode = "2D" | "3D";
+  const [viewMode, setViewMode] = useState<ViewMode>("2D");
+  const is3D = viewMode === "3D";
+  const isSubstructure = false;
+
   const [infillStatus, setInfillStatus] = useState<AssetStatus>("loading");
   const infillBuildings = useGeoJson<FeatureCollection<Polygon | MultiPolygon, BuildingProperties>>(
-    enabledLayers.has("municipality-buildings") ? "/geo/nst/buildings-infill.geojson" : null, setInfillStatus,
+    is3D && enabledLayers.has("municipality-buildings") ? "/geo/nst/buildings-infill.geojson" : null, setInfillStatus,
   );
   const cityBuildings = useMemo(() => buildings ? {
     ...buildings, features: [...buildings.features, ...(infillBuildings?.features ?? [])],
@@ -713,10 +718,6 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
     }
   }, [presence.lng, presence.lat, presence.insideArea, flyTo]);
 
-  type ViewMode = "2D" | "3D";
-  const [viewMode, setViewMode] = useState<ViewMode>("2D");
-  const is3D = viewMode === "3D";
-  const isSubstructure = false;
 
   const templeFocusRequested = useRef(false);
   const cycleViewMode = useCallback(() => {
