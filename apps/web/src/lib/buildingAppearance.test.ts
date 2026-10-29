@@ -76,7 +76,8 @@ const mapped = JSON.parse(readFileSync(new URL("../../public/geo/nst/buildings.g
 it("binds every aerial observation to a unique existing footprint with honest image dates", () => {
   expect(roofManifest.source.imageryCapturedAt).toBeNull();
   expect(new Set(roofManifest.observations.map(o => o.id)).size).toBe(roofManifest.observations.length);
-  const ids = new Set(mapped.features.map(f => f.properties.id));
+  const infill = JSON.parse(readFileSync(new URL("../../public/geo/nst/buildings-infill.geojson", import.meta.url), "utf8")) as { features: BuildingFeature[] };
+  const ids = new Set([...mapped.features, ...infill.features].map(f => f.properties.id));
   for (const o of roofManifest.observations) expect(ids.has(o.id)).toBe(true);
 });
 it("keeps reviewed flat roofs flat even inside temple precincts, and unknown roofs unverified", () => {
@@ -119,4 +120,17 @@ it("an unresolved visual observation does not erase an explicit mapped roof tag"
   const feature = { ...hall, properties: { ...hall.properties, id: "way/766207702", "roof:shape": "hipped" } };
   expect(roofObservation(feature.properties.id)!.shape).toBe("unknown");
   expect(buildingModel(feature).shape).toBe("hipped");
+});
+
+it("does not extrude aerial-confirmed open courts and parking into buildings", () => {
+  const infill = JSON.parse(readFileSync(new URL("../../public/geo/nst/buildings-infill.geojson", import.meta.url), "utf8")) as { features: BuildingFeature[] };
+  const all = [...mapped.features, ...infill.features];
+  const open = roofManifest.observations.filter(o => "openAir" in o && o.openAir);
+  expect(open).toHaveLength(3);
+  for (const o of open) {
+    const feature = all.find(f => f.properties.id === o.id)!;
+    expect(feature).toBeDefined();
+    expect(buildingModel(feature).total).toBe(0);
+    expect(buildingRoofFaces(feature)).toHaveLength(0);
+  }
 });

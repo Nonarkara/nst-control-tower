@@ -1,3 +1,4 @@
+import { validGeoAsset } from "./lib/geoAsset";
 import { isCurrentObservation } from "@nst/shared";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, memo } from "react";
 import DeckGL from "@deck.gl/react";
@@ -151,6 +152,11 @@ import { useTile3DLayer } from "./map/Tile3DLayer";
 import { useGoogleTileSession } from "./hooks/useGoogleTileSession";
 import { googleTileTemplate } from "./lib/googleTiles";
 import { ALL_LAYERS, LENSES, layerCanEnable, enforceLayerExclusivity, exclusiveGroupOf, type LayerId, type LensId, type MapViewState } from "./map/presets";
+import { CityFlyover } from "./components/CityFlyover";
+import { CITY_FLYOVER } from "./data/cityFlyover";
+import { aerialRoofsLayer } from "./map/aerialRoofsLayer";
+import { TileLayer } from "@deck.gl/geo-layers";
+import { buildScenarioIndex, floodScenarioStats } from "./lib/floodScenario";
 import {
   MAP_DEVICE_PIXELS,
   MAP_MAX_ZOOM,
@@ -349,27 +355,31 @@ const GEO_RETRY_DELAYS_MS = [2_000, 8_000, 20_000];
 /** Fetch a static geo asset. Pass `null` to skip (lazy-gated heavy assets —
  *  the fetch starts when the path becomes non-null and is cached by the
  *  browser thereafter). Retries transient failures with backoff. */
-function useGeoJson<T extends { features?: Array<{ properties?: object | null }> }>(path: string | null) {
+type AssetStatus = "loading" | "ready" | "unavailable";
+function useGeoJson<T extends { features?: Array<{ properties?: object | null }> }>(path: string | null, onStatus?: (status: AssetStatus) => void) {
   const [data, setData] = useState<T | null>(null);
   useEffect(() => {
     if (!path) return;
+    onStatus?.("loading");
     const ctrl = new AbortController();
     let timer: ReturnType<typeof setTimeout> | null = null;
 
     const attempt = (n: number) => {
-      fetch(path, { signal: ctrl.signal })
+      fetch(path, { signal: AbortSignal.any([ctrl.signal, AbortSignal.timeout(10_000)]) })
         .then((r) => {
           if (!r.ok) throw new Error(`HTTP ${r.status}`);
           return r.json();
         })
         .then((j) => {
+          if (!validGeoAsset(j, path)) throw new Error("Invalid geographic asset");
           setData(normalizeProperties(j as T));
+          onStatus?.("ready");
         })
-        .catch((err: unknown) => {
-          if (err instanceof DOMException && err.name === "AbortError") return;
+        .catch(() => {
+          if (ctrl.signal.aborted) return;
           if (n < GEO_RETRY_DELAYS_MS.length) {
             timer = setTimeout(() => attempt(n + 1), GEO_RETRY_DELAYS_MS[n]);
-          }
+          } else onStatus?.("unavailable");
         });
     };
     attempt(0);
@@ -378,7 +388,7 @@ function useGeoJson<T extends { features?: Array<{ properties?: object | null }>
       ctrl.abort();
       if (timer) clearTimeout(timer);
     };
-  }, [path]);
+  }, [path, onStatus]);
   return data;
 }
 
@@ -447,6 +457,14 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
   const [enabledLayers, setEnabledLayers] = useState<Set<LayerId>>(
     () => enforceLayerExclusivity(LENSES.find((l) => l.id === "operations")!.layers.filter((id) => layerCanEnable(id))),
   );
+  const [infillStatus, setInfillStatus] = useState<AssetStatus>("loading");
+  const infillBuildings = useGeoJson<FeatureCollection<Polygon | MultiPolygon, BuildingProperties>>(
+    enabledLayers.has("municipality-buildings") ? "/geo/nst/buildings-infill.geojson" : null, setInfillStatus,
+  );
+  const cityBuildings = useMemo(() => buildings ? {
+    ...buildings, features: [...buildings.features, ...(infillBuildings?.features ?? [])],
+  } : null, [buildings, infillBuildings]);
+
   const [catalogOpen, setCatalogOpen] = useState(false);
   const [manualOpen, setManualOpen] = useState(false);
   const [floodGuideOpen, setFloodGuideOpen] = useState(false);
@@ -467,6 +485,11 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
   const isMobile = useIsMobile();
   const online = useOnlineStatus();
   const [mobilePanel, setMobilePanel] = useState<MobilePanel>("brief");
+  const [demoStep, setDemoStep] = useState<number | null>(null);
+  const [demoPlaying, setDemoPlaying] = useState(false);
+  const demoRestore = useRef<{ layers: Set<LayerId>; view: typeof NST.defaultView; mode: "2D" | "3D"; mapState: MapViewState; scenario: number | null; panel: MobilePanel } | null>(null);
+  const demoRestoring = useRef(false);
+
 
   // ── Map camera: UNCONTROLLED (deck.gl owns the live camera) ─────────────
   // `initialViewState` is the COMMAND channel — deck resets its internal camera
@@ -669,11 +692,13 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
     }
   }, [flyTo]);
 
-  const handleInteractionStateChange = useCallback((state: { isDragging?: boolean }) => {
+  const handleInteractionStateChange = useCallback((state: { isDragging?: boolean; isZooming?: boolean; isRotating?: boolean }) => {
     mapBusyRef.current = Boolean(state.isDragging);
+    if (state.isDragging || state.isZooming || state.isRotating) setDemoPlaying(false);
   }, []);
 
   const zoomBy = (delta: number) => {
+    setDemoPlaying(false);
     const z = Math.max(MAP_MIN_ZOOM, Math.min(MAP_MAX_ZOOM, viewStateRef.current.zoom + delta));
     flyCamera({ zoom: z, transitionDuration: 200 });
   };
@@ -1411,11 +1436,79 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
   // 2.1 MB — the heaviest single asset. Lazy: fetched the first time the
   // street layer is enabled (FLOOD lens) or a scenario is activated, then
   // browser-cached. FloodCommand shows a loading line until it lands.
+  const [surveyStatus, setSurveyStatus] = useState<AssetStatus>("loading");
   const roadLevels = useGeoJson<FeatureCollection<Point, RoadLevelProps>>(
     enabledLayers.has("street-flood-sim") || scenarioLevel != null
       ? "/geo/nst/hii/road-levels.geojson"
-      : null,
+      : null, setSurveyStatus,
   );
+
+  const startCityDemo = useCallback(() => {
+    if (!demoRestore.current) demoRestore.current = { layers: new Set(enabledLayers), view: { ...viewStateRef.current }, mode: viewMode, mapState: mapViewState, scenario: scenarioLevel, panel: mobilePanel };
+    setCctvCommandOpen(false);
+    setSelectedBuilding(null);
+    setMobilePanel("map");
+    setViewMode("3D");
+    setScenarioLevel(null);
+    setMapViewState({ kind: "custom", label: "City flyover" });
+    setDemoStep(0);
+    requestAnimationFrame(() => document.getElementById("city-flyover-controls")?.focus());
+    setDemoPlaying(!prefersReducedMotion());
+    const url = new URL(window.location.href); url.searchParams.set("demo", "city");
+    window.history.replaceState(null, "", url);
+  }, [enabledLayers, viewMode, mapViewState, scenarioLevel, mobilePanel]);
+  const endCityDemo = useCallback(() => {
+    const previous = demoRestore.current;
+    setDemoPlaying(false);
+    if (previous) {
+      demoRestoring.current = true;
+      setEnabledLayers(previous.layers); setViewMode(previous.mode);
+      setMapViewState(previous.mapState); setScenarioLevel(previous.scenario); setMobilePanel(previous.panel);
+    }
+    setDemoStep(null);
+    const url = new URL(window.location.href); url.searchParams.delete("demo");
+    window.history.replaceState(null, "", url);
+    queueMicrotask(() => document.querySelector<HTMLButtonElement>('button[aria-controls="topbar-more-menu"]')?.focus());
+  }, []);
+  useEffect(() => {
+    if (demoStep == null) {
+      if (demoRestoring.current && demoRestore.current) {
+        flyCamera({ ...demoRestore.current.view, transitionDuration: 0 });
+        demoRestoring.current = false; demoRestore.current = null;
+      }
+      return;
+    }
+    const { longitude, latitude, zoom, pitch, bearing } = CITY_FLYOVER[demoStep]!;
+    setEnabledLayers(new Set<LayerId>(["satellite-esri", "municipality-buildings", "mahatat-3d", "waterways", ...(demoStep === CITY_FLYOVER.length - 1 ? ["street-flood-sim" as const, "flood-marks" as const] : [])]));
+    flyCamera({ longitude, latitude, zoom, pitch, bearing, transitionDuration: prefersReducedMotion() ? 0 : 4500, transitionInterpolator: new FlyToInterpolator() });
+  }, [demoStep, flyCamera]);
+  useEffect(() => {
+    if (!demoPlaying || demoStep == null) return;
+    if (demoStep === CITY_FLYOVER.length - 1) { setDemoPlaying(false); return; }
+    const timer = window.setTimeout(() => setDemoStep(demoStep + 1), 10000);
+    return () => window.clearTimeout(timer);
+  }, [demoPlaying, demoStep]);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape" && demoStep != null) endCityDemo(); };
+    const onVisibility = () => { if (document.hidden) setDemoPlaying(false); };
+    window.addEventListener("keydown", onKey); document.addEventListener("visibilitychange", onVisibility);
+    return () => { window.removeEventListener("keydown", onKey); document.removeEventListener("visibilitychange", onVisibility); };
+  }, [demoStep, endCityDemo]);
+  useEffect(() => {
+    if (demoStep != null && (viewMode === "2D" || mapViewState.kind !== "custom" || mapViewState.label !== "City flyover")) {
+      // A new operator task wins over the presentation; never fly back over it.
+      setDemoPlaying(false); setDemoStep(null); demoRestore.current = null;
+      const url = new URL(window.location.href); url.searchParams.delete("demo"); window.history.replaceState(null, "", url);
+    }
+  }, [demoStep, viewMode, mapViewState]);
+  const demoBooted = useRef(false);
+  useEffect(() => {
+    if (demoBooted.current) return;
+    demoBooted.current = true;
+    if (new URLSearchParams(window.location.search).get("demo") === "city") startCityDemo();
+  }, [startCityDemo]);
+  const demoRoadIndex = useMemo(() => roadLevels ? buildScenarioIndex(roadLevels) : null, [roadLevels]);
+  const demoStats = useMemo(() => scenarioLevel != null && demoRoadIndex ? floodScenarioStats(demoRoadIndex, floodMarks?.features ?? [], scenarioLevel) : null, [scenarioLevel, demoRoadIndex, floodMarks]);
 
   // ── Yala live feeds (API; render nothing if the endpoint 404s) ────────────
   // Deep South conflict feed retained as a no-op (NST is not an insurgency
@@ -1724,25 +1817,28 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
   const chediModelEnabled = enabledLayers.has("mahatat-3d");
   const buildingGeometryEnabled = enabledLayers.has("municipality-buildings") || enabledLayers.has("campus-buildings");
   const automaticChedi = is3D && buildingGeometryEnabled;
-  const renderedBuildings = useMemo(() => buildings && (chediModelEnabled || automaticChedi) && is3D
-    ? { ...buildings, features: buildings.features.filter(f => f.properties.id !== "hand/mahatat-chedi" && f.properties.id !== "way/774945305") }
-    : buildings, [buildings, chediModelEnabled, automaticChedi, is3D]);
+  const renderedBuildings = useMemo(() => cityBuildings && (chediModelEnabled || automaticChedi) && is3D
+    ? { ...cityBuildings, features: cityBuildings.features.filter(f => f.properties.id !== "hand/mahatat-chedi" && f.properties.id !== "way/774945305") }
+    : cityBuildings, [cityBuildings, chediModelEnabled, automaticChedi, is3D]);
   const memoizedBuildingsLayer = useMemo<Layer | null>(
     // zoomBucket is in the deps so the layer re-creates when the camera crosses
     // a bucket boundary — that's when the LOD filter (zoom 0 keeps only landmarks,
     // zoom 1 keeps all but drops pickable, zoom 2 keeps everything) changes. The
     // re-tessellation cost is paid only at the few bucket boundaries the user
     // actually crosses, not on every pan/zoom tick.
-    () => renderedBuildings ? (buildingsLayer(renderedBuildings, { extruded: is3D, ghosted: isSubstructure, zoomBucket }) as Layer) : null,
-    [renderedBuildings, is3D, isSubstructure, zoomBucket],
+    () => buildingGeometryEnabled && renderedBuildings ? (buildingsLayer(renderedBuildings, { extruded: is3D, ghosted: isSubstructure, zoomBucket }) as Layer) : null,
+    [renderedBuildings, is3D, isSubstructure, zoomBucket, buildingGeometryEnabled],
   );
   const memoizedRoofsLayer = useMemo<Layer | null>(
     () => {
-      if (!renderedBuildings || !is3D || isSubstructure) return null;
+      if (!buildingGeometryEnabled || !renderedBuildings || !is3D || isSubstructure) return null;
       return buildingRoofsLayer(renderedBuildings, { zoomBucket }) as Layer;
     },
-    [renderedBuildings, is3D, isSubstructure, zoomBucket],
+    [renderedBuildings, is3D, isSubstructure, zoomBucket, buildingGeometryEnabled],
   );
+
+  const aerialRoofsOn = is3D && !isSubstructure && buildingGeometryEnabled && enabledLayers.has("satellite-esri") && zoomBucket > 0;
+  const memoizedAerialRoofs = useMemo(() => aerialRoofsOn && renderedBuildings ? aerialRoofsLayer(renderedBuildings.features) : null, [aerialRoofsOn, renderedBuildings]);
 
   const layers = useMemo<Layer[]>(() => {
     const out: Layer[] = [];
@@ -1780,6 +1876,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
       out.push(memoizedBuildingsLayer);
     if ((enabledLayers.has("municipality-buildings") || enabledLayers.has("campus-buildings")) && memoizedRoofsLayer)
       out.push(memoizedRoofsLayer);
+    if (memoizedAerialRoofs) out.push(memoizedAerialRoofs);
     // Nomination-dimensioned parametric chedi, at 1:1 scale. Its duplicate
     // footprint prism is excluded above when this model is enabled in 3D.
     out.push(...(mahatat3DLayer(enabledLayers.has("mahatat-3d"), 1) as Layer[]));
@@ -2109,7 +2206,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
     return out;
   }, [
     enabledLayers, zoomBucket, is3D, isSubstructure, campus, buildings,
-    memoizedBuildingsLayer, memoizedRoofsLayer, chediModelEnabled, automaticChedi,
+    memoizedBuildingsLayer, memoizedRoofsLayer, memoizedAerialRoofs, chediModelEnabled, automaticChedi,
     trafficSamples,
     transitStations, transitLines, roads,
     cctv.data, cityReports.data,
@@ -2145,7 +2242,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
     [enabledLayers, roadLevels, scenarioLevel],
   );
   // Fast-cadence layers are concatenated OUTSIDE the big memo above: the
-  // street wash PREPENDED (renders beneath marks/gauges/labels), the blinking
+  // street comparison and radar follow raster basemaps but precede vectors; blinking
   // river arrows APPENDED then labelled on top. This concat is the ONLY work
   // their updates cost — the ~30 builder calls above never re-run for a slider
   // tick or an animation frame.
@@ -2159,10 +2256,13 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
     if (!streetFloodSimLayer && !flowAnim.layer && !radar && !wwFlow && riverLabels.length === 0 && !cctvPulse) {
       return layers;
     }
+    let backgroundEnd = 0;
+    layers.forEach((layer, i) => { if (layer instanceof TileLayer && layer.id !== "aerial-roof-surfaces") backgroundEnd = i + 1; });
     return [
+      ...layers.slice(0, backgroundEnd),
       ...(radar ? [radar] : []),
       ...(streetFloodSimLayer ? [streetFloodSimLayer] : []),
-      ...layers,
+      ...layers.slice(backgroundEnd),
       ...(wwFlow ? [wwFlow] : []),
       ...riverLabels,
       ...(cctvPulse ? [cctvPulse] : []),
@@ -2176,8 +2276,8 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
     "municipality-boundary-line": campus?.features.length ?? 0,
     "municipality-boundary-fill": campus?.features.length ?? 0,
     "municipality-boundary":      campus?.features.length ?? 0,
-    "municipality-buildings": buildings?.features.length ?? 0,
-    "building-roofs":         buildings?.features.length ?? 0,
+    "municipality-buildings": cityBuildings?.features.length ?? 0,
+    "building-roofs":         cityBuildings?.features.length ?? 0,
     "heritage-old-town":      heritage?.features.filter((f) => f.properties.kind === "old-town-district").length ?? 0,
     "heritage-temple-spires": heritage?.features.filter((f) => f.properties.kind !== "old-town-district").length ?? 0,
     "road-network":           roads?.features.length ?? 0,
@@ -2218,7 +2318,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
     "flood-marks":            floodMarks?.features.length ?? 0,
     "street-flood-sim":       roadLevels?.features.length ?? 0,
   } as Record<string, number>), [
-    campus, buildings, roads, transitStations, transitLines, civicPoints, waterways,
+    campus, buildings, cityBuildings, roads, transitStations, transitLines, civicPoints, waterways,
     fisheries, floodRisk, heritage, maritimePorts, maritimeFerries, maritimeNavAids,
     cctv.data, iticEvents.data, cityReports.data, datago.data,
     air4thai.data, airQuality.data, gistdaPois.data, gistdaSolar.data, gistdaLandUse.data, news.data,
@@ -2327,7 +2427,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
 
   return (
     <div
-      className={`shell ${isMobile ? `mobile mobile-panel-${mobilePanel}` : ""}`}
+      className={`shell ${demoStep != null ? "city-demo" : ""} ${isMobile ? `mobile mobile-panel-${mobilePanel}` : ""}`}
       data-mobile={isMobile ? "true" : "false"}
     >
       {toast && (
@@ -2335,7 +2435,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
           {toast}
         </div>
       )}
-      <a className="skip-link" href="#rail-left">Skip to city panels</a>
+      <a className="skip-link" href={demoStep != null ? "#city-flyover-controls" : "#rail-left"}>{demoStep != null ? "Skip to flyover controls" : "Skip to city panels"}</a>
       {/* ── Header stack: offline banner · top bar · system banner ── */}
       <div className="shell-top">
       {!online && (
@@ -2352,6 +2452,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
         onOpenShortcuts={useCallback(() => setShortcutsOpen(true), [])}
         onOpenFloodGuide={useCallback(() => setFloodGuideOpen(true), [])}
         onOpenCctvCommand={openCctvCommandCenter}
+        onStartCityFlyover={startCityDemo}
         onOpenHeritage3D={useCallback(() => setHeritage3dOpen(true), [])}
         onOpenWhitepaper={useCallback(() => setWhitepaperOpen(true), [])}
         onOpenAtlas={useCallback(() => setAtlasOpen(true), [])}
@@ -2397,7 +2498,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
           layer set (EXEC = strategic, OPS = day-to-day). The legacy Chula
           ExecutiveBrief / StrategicAlerts / PeerComparison panels were built
           for a university and don't belong on a city mayor's desk. ── */}
-      <aside id="rail-left" className={`left-bar ${cctvCommandOpen ? "is-cctv-mode" : ""}`} aria-label="City panels" aria-hidden={cctvCommandOpen || (isMobile && mobilePanel !== "brief")}>
+      <aside id="rail-left" className={`left-bar ${cctvCommandOpen ? "is-cctv-mode" : ""}`} aria-label="City panels" aria-hidden={demoStep != null || cctvCommandOpen || (isMobile && mobilePanel !== "brief")}>
         {/* ── RIGHT NOW: worst gauge + time to overtop, suggested action, data
             age. First in the rail on every lens so the answer to "is the city
             OK?" is always above the fold. ── */}
@@ -2841,7 +2942,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
         <div className="map-host">
           <div className="sr-only" role="status" aria-live="polite">
             Nakhon Si Thammarat map. {mapViewState.kind === "custom" ? mapViewState.label : `Current lens: ${LENSES.find((l) => l.id === lens)?.label ?? lens}`}.
-            {enabledLayers.size} layers are currently enabled. Use Clean aerial view to inspect satellite imagery without data overlays.
+            {enabledLayers.size} layers are currently enabled. {demoStep != null ? "Use flyover controls to pause, choose a stop, explore a water-level what-if, or restore the previous map." : "Use Clean aerial view to inspect satellite imagery without data overlays."}
           </div>
           <DeckGL
             initialViewState={initialViewState}
@@ -2882,8 +2983,9 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
             </MapLibreMap>
           </DeckGL>
           <BuildingSearch
-            buildings={buildings}
+            buildings={cityBuildings}
             onTempleFocus={() => {
+              if (demoStep != null) { setDemoPlaying(false); setDemoStep(null); demoRestore.current = null; const url = new URL(window.location.href); url.searchParams.delete("demo"); window.history.replaceState(null, "", url); }
               if (!is3D) { templeFocusRequested.current = true; setViewMode("3D"); }
               setEnabledLayers(prev => new Set([...prev, "municipality-buildings", "mahatat-3d"]));
               setSelectedBuilding(null);
@@ -2895,15 +2997,16 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
               flyTo(centroid[0], centroid[1], 17.5);
             }}
           />
-          <MapOverlayControls
+          {demoStep == null && <MapOverlayControls
             mapViewState={mapViewState}
             onAerialOnly={setAerialOnly}
             onClearOverlays={clearOverlays}
             onRestoreLens={restoreLens}
-          />
+          />}
+          {demoStep != null && <CityFlyover step={demoStep} playing={demoPlaying} reducedMotion={prefersReducedMotion()} onStep={step => { setDemoPlaying(false); setDemoStep(step); }} onPlay={() => { if (demoPlaying) { setDemoPlaying(false); flyCamera({ ...viewStateRef.current, transitionDuration: 0 }); } else { if (demoStep === CITY_FLYOVER.length - 1) setDemoStep(0); setDemoPlaying(true); } }} onClose={endCityDemo} level={scenarioLevel} onLevel={setScenarioLevel} stats={demoStats} coverage={infillBuildings ? "ready" : infillStatus} surveyStatus={roadLevels ? "ready" : surveyStatus} />}
           <div className="map-navigation">
             {/* Compass and zoom share one edge and flow without offsets. */}
-            <MapCompass bearing={observed.bearing} onResetNorth={resetNorth} />
+            <MapCompass bearing={observed.bearing} onResetNorth={() => { setDemoPlaying(false); resetNorth(); }} />
             <div className="zoom-controls" aria-label="Map zoom controls">
               <button onClick={() => zoomBy(0.6)} aria-label="Zoom in" className="zoom-btn">+</button>
               <button onClick={() => zoomBy(-0.6)} aria-label="Zoom out" className="zoom-btn">−</button>
@@ -2959,7 +3062,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
       {/* ── Right sidebar: news (scrollable) + layer controls.
           StrategicAlerts and PeerComparison were Chula-university panels —
           removed until rebuilt with provincial peer data (Rayong, Chachoengsao). ── */}
-      <aside className={`right-bar ${cctvCommandOpen ? "is-cctv-mode" : ""}`} aria-label="Cameras, news and map layers" aria-hidden={cctvCommandOpen || (isMobile && mobilePanel !== "layers")}>
+      <aside className={`right-bar ${cctvCommandOpen ? "is-cctv-mode" : ""}`} aria-label="Cameras, news and map layers" aria-hidden={demoStep != null || cctvCommandOpen || (isMobile && mobilePanel !== "layers")}>
         <div className="right-sections">
         <RailSection sectionKey="right-cctv" lens={lens} title="CCTV">
           <CctvDirectory

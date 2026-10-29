@@ -1,0 +1,40 @@
+{
+  "source": "Microsoft Global ML Building Footprints",
+  "license": "CDLA-Permissive-2.0",
+  "sourceUrl": "https://github.com/microsoft/GlobalMLBuildingFootprints",
+  "index": "https://bfppub.blob.core.windows.net/%24web/2026-08-13/dataset-links.csv",
+  "bbox": [
+    99.91,
+    8.375,
+    100.04,
+    8.495
+  ],
+  "scope": "municipal boundary plus eastern HII road-survey convex hull; hull is an extraction window, not inundation",
+  "sourceTiles": [
+    {
+      "Location": "Thailand",
+      "QuadKey": "132221132",
+      "Url": "https://bfppub.z5.web.core.windows.net/2026-08-13/global-buildings.geojsonl/RegionName=Thailand/quadkey=132221132/part-00101-110f5303-ff85-4c71-a2bf-c6070024fec8.c000.csv.gz",
+      "Size": "5.2MB",
+      "UploadDate": "2026-08-13",
+      "sha256": "89f64c07f7c4a2e45d2a73aeadde3a772383153ababcb5f7f865450985dfe7ea"
+    },
+    {
+      "Location": "Thailand",
+      "QuadKey": "132221310",
+      "Url": "https://bfppub.z5.web.core.windows.net/2026-08-13/global-buildings.geojsonl/RegionName=Thailand/quadkey=132221310/part-00052-110f5303-ff85-4c71-a2bf-c6070024fec8.c000.csv.gz",
+      "Size": "12.0MB",
+      "UploadDate": "2026-08-13",
+      "sha256": "0a50d99ac69e29cf6bcc14282d44b8f763519d4369bce314b8189583bcff28ee"
+    }
+  ],
+  "originalFootprints": 2458,
+  "addedFootprints": 15463,
+  "excluded": {
+    "outside": 212964,
+    "overlap": 4113,
+    "invalid": 2,
+    "selfOverlap": 1
+  },
+  "method": "Satellite-derived footprint detections; OSM wins when overlap exceeds35% of the smaller polygon. Not a complete survey. Image dates, roof shapes and heights unverified; source heights remain null."
+}

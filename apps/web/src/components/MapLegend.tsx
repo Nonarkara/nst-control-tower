@@ -37,17 +37,17 @@ const LEGEND: Partial<Record<LayerId, Row[]>> = {
     { mark: "line", color: RIVER, label: "River or canal (OpenStreetMap)" },
     { mark: "line", color: GREEN, label: "Drain or ditch" },
   ],
-  "waterway-flow": [{ mark: "arrow", color: SKY, label: "Direction the water flows (Tha Dee tinted by its gauges)" }],
+  "waterway-flow": [{ mark: "arrow", color: SKY, label: "Schematic channel orientation — not measured flow" }],
   "water-gauges": STATUS_DOTS,
   "level-posts": [{ mark: "ring", color: SKY, label: "GISTDA water-level post" }],
   "cctv-water-level": [{ mark: "dot", color: rgb(CCTV_CATEGORY_RGB.water), label: "Water-level camera" }],
   "cctv-cameras": [{ mark: "dot", color: rgb(CCTV_CATEGORY_RGB.traffic), label: "City camera (colour = camera type)" }],
   "dam-status": [{ mark: "dot", color: "var(--ink-2)", label: "Dam (colour = storage status)" }],
   "evac-villages": [
-    { mark: "dot", color: "var(--bad)", label: "Village — move people now" },
-    { mark: "dot", color: "var(--alert)", label: "Village — get ready to move" },
+    { mark: "dot", color: "var(--bad)", label: "Village — urgent local assessment" },
+    { mark: "dot", color: "var(--alert)", label: "Village — prepare local assessment" },
     { mark: "dot", color: "var(--warn)", label: "Village — watch (bigger = more people who need help)" },
-    { mark: "ring", color: "var(--ink)", label: "White ring — residents must leave when it floods" },
+    { mark: "ring", color: "var(--ink)", label: "White ring — register evacuation flag; verify locally" },
   ],
   "flood-extent-2025": [{ mark: "fill", color: "var(--alert)", label: "Flooded in Nov 2025 (GISTDA satellite)" }],
 };
@@ -59,11 +59,13 @@ function Swatch({ mark, color }: { mark: Mark; color: string }) {
 export function MapLegend({ enabled }: { enabled: ReadonlySet<LayerId> }) {
   const rows = (Object.keys(LEGEND) as LayerId[]).filter((id) => enabled.has(id)).flatMap((id) => LEGEND[id]!);
   const buildings = enabled.has("municipality-buildings");
-  if (rows.length === 0 && !buildings) return null;
+  const credit = enabled.has("satellite-esri") ? <p className="map-imagery-credit"><a href="https://goto.arcgisonline.com/maps/World_Imagery" target="_blank" rel="noreferrer">Imagery © Esri, Vantor, Earthstar Geographics, GIS User Community</a></p> : null;
+  if (rows.length === 0 && !buildings) return credit;
 
   return (
     // Starts open on wide screens only — on laptops/tablets a long key would
     // cover the map it explains.
+    <>
     <details className="map-legend" open={rows.length <= 5 || (typeof window !== "undefined" && window.innerWidth >= 1600)}>
       <summary>Map key</summary>
       <ul className="map-legend__rows">
@@ -106,13 +108,15 @@ export function MapLegend({ enabled }: { enabled: ReadonlySet<LayerId> }) {
               <span>
                 Heights use source tags where available, otherwise type/area estimates.
                 Source tags are not verified surveys. 3D uses neutral masonry and
-                schematic roofs at 1:1 height. {CLASSIFIED_ROOF_COUNT} roofs have aerial-reviewed form; the rest remain unverified neutral caps, not confirmed flat roofs. Roof dimensions and materials are unmeasured.
-                Type colours apply to 2D footprints. The chedi is an authored bell-and-spire reconstruction aligned approximately to the aerial-checked round OSM footprint; its surface detail is not surveyed.
+                schematic roofs at 1:1 height. With Esri imagery at city zoom in3D, aerial pixels are projected onto roof surfaces; this adds image detail, not surveyed roof geometry or facade textures. {CLASSIFIED_ROOF_COUNT} roofs have aerial-reviewed form; the rest remain unverified neutral caps, not confirmed flat roofs. Roof dimensions and materials are unmeasured.
+                Satellite-derived infill footprints: Microsoft Global ML Buildings (CDLA2). Image dates and completeness are unverified; no roof shape or height is supplied by that footprint detection. Type colours apply to 2D footprints. The chedi is an authored bell-and-spire reconstruction aligned approximately to the aerial-checked round OSM footprint; its surface detail is not surveyed.
               </span>
             </p>
           ) : null}
         </details>
       )}
     </details>
+    {credit}
+    </>
   );
 }

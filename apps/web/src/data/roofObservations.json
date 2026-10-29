@@ -4,7 +4,8 @@
     "url": "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer",
     "reviewedAt": "2026-10-21",
     "imageryCapturedAt": null,
-    "method": "Visual interpretation of north-up zoom19 imagery against existing OSM footprints; no measured roof heights/materials/ornaments. Unknown is not flat."
+    "method": "Visual interpretation of north-up zoom19 imagery against existing OSM footprints; no measured roof heights/materials/ornaments. Unknown is not flat.",
+    "lastUpdatedAt": "2026-10-30"
   },
   "areas": [
     {
@@ -50,6 +51,25 @@
       ],
       "zoom": 19,
       "imageSizePx": 1600
+    },
+    {
+      "id": "oldtown-south-20261030",
+      "imageSha256": "0cecaae51f1f86add30784ed4a942965051408a5103a6597657f180b2c0412ad",
+      "visibleFootprints": 136,
+      "center": [
+        99.962,
+        8.421
+      ],
+      "bbox": [
+        99.959,
+        8.418,
+        99.965,
+        8.424
+      ],
+      "imageSizePx": 2048,
+      "exportRequest": "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export?bbox=99.959%2C8.418%2C99.965%2C8.424&bboxSR=4326&imageSR=4326&size=2048%2C2048&format=jpg&f=json",
+      "imageSR": 4326,
+      "reviewedAt": "2026-10-30"
     }
   ],
   "observations": [
@@ -2036,6 +2056,1132 @@
       "label": 62,
       "shape": "unknown",
       "note": "Cloud/tree cover, mixed or complex roofs, or insufficient detail; no roof form assigned."
+    },
+    {
+      "id": "ms/d1f3992e803e4a16",
+      "area": "oldtown-south-20261030",
+      "label": 0,
+      "shape": "unknown",
+      "note": "Tree cover, mixed roof forms, uncertain ridge or footprint/image registration; unresolved, not confirmed flat.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "ms/ff3d9b9c8b9957a1",
+      "area": "oldtown-south-20261030",
+      "label": 1,
+      "shape": "unknown",
+      "note": "Tree cover, mixed roof forms, uncertain ridge or footprint/image registration; unresolved, not confirmed flat.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "ms/caec33ddf8f93d7a",
+      "area": "oldtown-south-20261030",
+      "label": 2,
+      "shape": "unknown",
+      "note": "Tree cover, mixed roof forms, uncertain ridge or footprint/image registration; unresolved, not confirmed flat.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "ms/38f496fa602405ab",
+      "area": "oldtown-south-20261030",
+      "label": 3,
+      "shape": "unknown",
+      "note": "Tree cover, mixed roof forms, uncertain ridge or footprint/image registration; unresolved, not confirmed flat.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "ms/421416fa093f0256",
+      "area": "oldtown-south-20261030",
+      "label": 4,
+      "shape": "flat",
+      "note": "Visible terrace/parapet and rooftop equipment; no pitched ridge assigned.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "ms/7f72fc02bb0f744d",
+      "area": "oldtown-south-20261030",
+      "label": 5,
+      "shape": "unknown",
+      "note": "Tree cover, mixed roof forms, uncertain ridge or footprint/image registration; unresolved, not confirmed flat.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "ms/54f877fd4d4dc744",
+      "area": "oldtown-south-20261030",
+      "label": 6,
+      "shape": "unknown",
+      "note": "Tree cover, mixed roof forms, uncertain ridge or footprint/image registration; unresolved, not confirmed flat.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "ms/1eb9f0e8092aea25",
+      "area": "oldtown-south-20261030",
+      "label": 7,
+      "shape": "unknown",
+      "note": "Tree cover, mixed roof forms, uncertain ridge or footprint/image registration; unresolved, not confirmed flat.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "ms/0d9f6c41bb945a32",
+      "area": "oldtown-south-20261030",
+      "label": 8,
+      "shape": "unknown",
+      "note": "Tree cover, mixed roof forms, uncertain ridge or footprint/image registration; unresolved, not confirmed flat.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "way/766425611",
+      "area": "oldtown-south-20261030",
+      "label": 9,
+      "shape": "unknown",
+      "note": "Tree cover, mixed roof forms, uncertain ridge or footprint/image registration; unresolved, not confirmed flat.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "way/766420688",
+      "area": "oldtown-south-20261030",
+      "label": 10,
+      "shape": "unknown",
+      "note": "Tree cover, mixed roof forms, uncertain ridge or footprint/image registration; unresolved, not confirmed flat.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "ms/5a7d99bb5dbfe99a",
+      "area": "oldtown-south-20261030",
+      "label": 11,
+      "shape": "unknown",
+      "note": "Tree cover, mixed roof forms, uncertain ridge or footprint/image registration; unresolved, not confirmed flat.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "way/772856117",
+      "area": "oldtown-south-20261030",
+      "label": 12,
+      "shape": "unknown",
+      "note": "Tree cover, mixed roof forms, uncertain ridge or footprint/image registration; unresolved, not confirmed flat.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "ms/d35542fe20da3af8",
+      "area": "oldtown-south-20261030",
+      "label": 13,
+      "shape": "unknown",
+      "note": "Tree cover, mixed roof forms, uncertain ridge or footprint/image registration; unresolved, not confirmed flat.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "ms/86d774ae9901e34d",
+      "area": "oldtown-south-20261030",
+      "label": 14,
+      "shape": "flat",
+      "note": "Visible terrace/parapet and rooftop equipment; no pitched ridge assigned.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "way/766420686",
+      "area": "oldtown-south-20261030",
+      "label": 15,
+      "shape": "unknown",
+      "note": "Tree cover, mixed roof forms, uncertain ridge or footprint/image registration; unresolved, not confirmed flat.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "way/772856118",
+      "area": "oldtown-south-20261030",
+      "label": 16,
+      "shape": "unknown",
+      "note": "Tree cover, mixed roof forms, uncertain ridge or footprint/image registration; unresolved, not confirmed flat.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "way/766420685",
+      "area": "oldtown-south-20261030",
+      "label": 17,
+      "shape": "unknown",
+      "note": "Tree cover, mixed roof forms, uncertain ridge or footprint/image registration; unresolved, not confirmed flat.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "ms/f121c79040101c9f",
+      "area": "oldtown-south-20261030",
+      "label": 18,
+      "shape": "unknown",
+      "note": "Tree cover, mixed roof forms, uncertain ridge or footprint/image registration; unresolved, not confirmed flat.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "way/766425607",
+      "area": "oldtown-south-20261030",
+      "label": 19,
+      "shape": "unknown",
+      "note": "Tree cover, mixed roof forms, uncertain ridge or footprint/image registration; unresolved, not confirmed flat.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "way/772856103",
+      "area": "oldtown-south-20261030",
+      "label": 20,
+      "shape": "unknown",
+      "note": "Tree cover, mixed roof forms, uncertain ridge or footprint/image registration; unresolved, not confirmed flat.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "way/766420682",
+      "area": "oldtown-south-20261030",
+      "label": 21,
+      "shape": "unknown",
+      "note": "Tree cover, mixed roof forms, uncertain ridge or footprint/image registration; unresolved, not confirmed flat.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "ms/5e6a9b4ba589591f",
+      "area": "oldtown-south-20261030",
+      "label": 22,
+      "shape": "unknown",
+      "note": "Independent aerial review: ridge/slope, partial footprint or multiple sections are ambiguous; no form assigned.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "ms/52c384e79f4af8b1",
+      "area": "oldtown-south-20261030",
+      "label": 23,
+      "shape": "unknown",
+      "note": "Tree cover, mixed roof forms, uncertain ridge or footprint/image registration; unresolved, not confirmed flat.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "way/772856104",
+      "area": "oldtown-south-20261030",
+      "label": 24,
+      "shape": "gabled",
+      "note": "Visible paired roof planes and ridge; ridge dimensions remain schematic.",
+      "reviewedAt": "2026-10-30",
+      "color": [
+        128,
+        133,
+        133
+      ]
+    },
+    {
+      "id": "ms/442891e93924a292",
+      "area": "oldtown-south-20261030",
+      "label": 25,
+      "shape": "unknown",
+      "note": "Tree cover, mixed roof forms, uncertain ridge or footprint/image registration; unresolved, not confirmed flat.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "ms/a5e460bcd570d7b9",
+      "area": "oldtown-south-20261030",
+      "label": 26,
+      "shape": "flat",
+      "note": "Visible terrace/parapet and rooftop equipment; no pitched ridge assigned.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "way/772856106",
+      "area": "oldtown-south-20261030",
+      "label": 27,
+      "shape": "gabled",
+      "note": "Visible paired roof planes and ridge; ridge dimensions remain schematic.",
+      "reviewedAt": "2026-10-30",
+      "color": [
+        123,
+        71,
+        59
+      ]
+    },
+    {
+      "id": "ms/5aefd0984f326940",
+      "area": "oldtown-south-20261030",
+      "label": 28,
+      "shape": "unknown",
+      "note": "Tree cover, mixed roof forms, uncertain ridge or footprint/image registration; unresolved, not confirmed flat.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "way/772856105",
+      "area": "oldtown-south-20261030",
+      "label": 29,
+      "shape": "unknown",
+      "note": "Tree cover, mixed roof forms, uncertain ridge or footprint/image registration; unresolved, not confirmed flat.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "ms/7de1a66d9fbe66b7",
+      "area": "oldtown-south-20261030",
+      "label": 30,
+      "shape": "unknown",
+      "note": "Tree cover, mixed roof forms, uncertain ridge or footprint/image registration; unresolved, not confirmed flat.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "ms/108de4ee00be0965",
+      "area": "oldtown-south-20261030",
+      "label": 31,
+      "shape": "unknown",
+      "note": "Tree cover, mixed roof forms, uncertain ridge or footprint/image registration; unresolved, not confirmed flat.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "ms/1b80ef11dabfa884",
+      "area": "oldtown-south-20261030",
+      "label": 32,
+      "shape": "unknown",
+      "note": "Tree cover, mixed roof forms, uncertain ridge or footprint/image registration; unresolved, not confirmed flat.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "ms/77f51d53014a7964",
+      "area": "oldtown-south-20261030",
+      "label": 33,
+      "shape": "unknown",
+      "note": "Tree cover, mixed roof forms, uncertain ridge or footprint/image registration; unresolved, not confirmed flat.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "ms/72250492cd530d8d",
+      "area": "oldtown-south-20261030",
+      "label": 34,
+      "shape": "unknown",
+      "note": "Tree cover, mixed roof forms, uncertain ridge or footprint/image registration; unresolved, not confirmed flat.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "ms/13b8c991f7b844ad",
+      "area": "oldtown-south-20261030",
+      "label": 35,
+      "shape": "unknown",
+      "note": "Tree cover, mixed roof forms, uncertain ridge or footprint/image registration; unresolved, not confirmed flat.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "ms/e3c0a14ba9cb16eb",
+      "area": "oldtown-south-20261030",
+      "label": 36,
+      "shape": "unknown",
+      "note": "Tree cover, mixed roof forms, uncertain ridge or footprint/image registration; unresolved, not confirmed flat.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "way/770823232",
+      "area": "oldtown-south-20261030",
+      "label": 37,
+      "shape": "unknown",
+      "note": "Tree cover, mixed roof forms, uncertain ridge or footprint/image registration; unresolved, not confirmed flat.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "way/772856113",
+      "area": "oldtown-south-20261030",
+      "label": 38,
+      "shape": "unknown",
+      "note": "Independent aerial review: ridge/slope, partial footprint or multiple sections are ambiguous; no form assigned.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "way/772856109",
+      "area": "oldtown-south-20261030",
+      "label": 39,
+      "shape": "unknown",
+      "note": "Tree cover, mixed roof forms, uncertain ridge or footprint/image registration; unresolved, not confirmed flat.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "way/772856115",
+      "area": "oldtown-south-20261030",
+      "label": 40,
+      "shape": "unknown",
+      "note": "Tree cover, mixed roof forms, uncertain ridge or footprint/image registration; unresolved, not confirmed flat.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "way/766420681",
+      "area": "oldtown-south-20261030",
+      "label": 41,
+      "shape": "unknown",
+      "note": "Tree cover, mixed roof forms, uncertain ridge or footprint/image registration; unresolved, not confirmed flat.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "ms/44796dd676e0734c",
+      "area": "oldtown-south-20261030",
+      "label": 42,
+      "shape": "unknown",
+      "note": "Tree cover, mixed roof forms, uncertain ridge or footprint/image registration; unresolved, not confirmed flat.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "ms/a37db8c3e0ddb040",
+      "area": "oldtown-south-20261030",
+      "label": 43,
+      "shape": "unknown",
+      "note": "Tree cover, mixed roof forms, uncertain ridge or footprint/image registration; unresolved, not confirmed flat.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "ms/f231706e850ecc45",
+      "area": "oldtown-south-20261030",
+      "label": 44,
+      "shape": "unknown",
+      "note": "Tree cover, mixed roof forms, uncertain ridge or footprint/image registration; unresolved, not confirmed flat.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "way/772856119",
+      "area": "oldtown-south-20261030",
+      "label": 45,
+      "shape": "flat",
+      "note": "Visible terrace/parapet and rooftop equipment; no pitched ridge assigned.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "way/772856111",
+      "area": "oldtown-south-20261030",
+      "label": 46,
+      "shape": "unknown",
+      "note": "Tree cover, mixed roof forms, uncertain ridge or footprint/image registration; unresolved, not confirmed flat.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "way/772856125",
+      "area": "oldtown-south-20261030",
+      "label": 47,
+      "shape": "flat",
+      "note": "Visible terrace/parapet and rooftop equipment; no pitched ridge assigned.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "way/766420674",
+      "area": "oldtown-south-20261030",
+      "label": 48,
+      "shape": "unknown",
+      "note": "Tree cover, mixed roof forms, uncertain ridge or footprint/image registration; unresolved, not confirmed flat.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "way/772856123",
+      "area": "oldtown-south-20261030",
+      "label": 49,
+      "shape": "unknown",
+      "note": "Tree cover, mixed roof forms, uncertain ridge or footprint/image registration; unresolved, not confirmed flat.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "way/766420675",
+      "area": "oldtown-south-20261030",
+      "label": 50,
+      "shape": "flat",
+      "note": "Visible terrace/parapet and rooftop equipment; no pitched ridge assigned.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "ms/9728178479d0a285",
+      "area": "oldtown-south-20261030",
+      "label": 51,
+      "shape": "unknown",
+      "note": "Tree cover, mixed roof forms, uncertain ridge or footprint/image registration; unresolved, not confirmed flat.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "ms/e71695cbac6bf5a5",
+      "area": "oldtown-south-20261030",
+      "label": 52,
+      "shape": "unknown",
+      "note": "Independent aerial review: ridge/slope, partial footprint or multiple sections are ambiguous; no form assigned.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "way/772856122",
+      "area": "oldtown-south-20261030",
+      "label": 53,
+      "shape": "gabled",
+      "note": "Visible paired roof planes and ridge; ridge dimensions remain schematic.",
+      "reviewedAt": "2026-10-30",
+      "color": [
+        123,
+        71,
+        59
+      ]
+    },
+    {
+      "id": "way/766420676",
+      "area": "oldtown-south-20261030",
+      "label": 54,
+      "shape": "unknown",
+      "note": "Tree cover, mixed roof forms, uncertain ridge or footprint/image registration; unresolved, not confirmed flat.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "way/772856120",
+      "area": "oldtown-south-20261030",
+      "label": 55,
+      "shape": "flat",
+      "note": "Visible terrace/parapet and rooftop equipment; no pitched ridge assigned.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "way/772856114",
+      "area": "oldtown-south-20261030",
+      "label": 56,
+      "shape": "unknown",
+      "note": "Tree cover, mixed roof forms, uncertain ridge or footprint/image registration; unresolved, not confirmed flat.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "way/772856121",
+      "area": "oldtown-south-20261030",
+      "label": 57,
+      "shape": "unknown",
+      "note": "Tree cover, mixed roof forms, uncertain ridge or footprint/image registration; unresolved, not confirmed flat.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "way/766425600",
+      "area": "oldtown-south-20261030",
+      "label": 58,
+      "shape": "unknown",
+      "note": "Tree cover, mixed roof forms, uncertain ridge or footprint/image registration; unresolved, not confirmed flat.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "ms/80d58e1d087a3ee1",
+      "area": "oldtown-south-20261030",
+      "label": 59,
+      "shape": "unknown",
+      "note": "Tree cover, mixed roof forms, uncertain ridge or footprint/image registration; unresolved, not confirmed flat.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "ms/1f1392e293bc7f4c",
+      "area": "oldtown-south-20261030",
+      "label": 60,
+      "shape": "unknown",
+      "note": "Tree cover, mixed roof forms, uncertain ridge or footprint/image registration; unresolved, not confirmed flat.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "ms/4064ba66fe7900c2",
+      "area": "oldtown-south-20261030",
+      "label": 61,
+      "shape": "unknown",
+      "note": "Tree cover, mixed roof forms, uncertain ridge or footprint/image registration; unresolved, not confirmed flat.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "way/766420672",
+      "area": "oldtown-south-20261030",
+      "label": 62,
+      "shape": "flat",
+      "note": "Visible terrace/parapet and rooftop equipment; no pitched ridge assigned.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "ms/9b7b620eb91f2929",
+      "area": "oldtown-south-20261030",
+      "label": 63,
+      "shape": "unknown",
+      "note": "Tree cover, mixed roof forms, uncertain ridge or footprint/image registration; unresolved, not confirmed flat.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "ms/180b28e7da414f17",
+      "area": "oldtown-south-20261030",
+      "label": 64,
+      "shape": "unknown",
+      "note": "Tree cover, mixed roof forms, uncertain ridge or footprint/image registration; unresolved, not confirmed flat.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "ms/68af84995e97ae35",
+      "area": "oldtown-south-20261030",
+      "label": 65,
+      "shape": "unknown",
+      "note": "Tree cover, mixed roof forms, uncertain ridge or footprint/image registration; unresolved, not confirmed flat.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "ms/a330094239ac8071",
+      "area": "oldtown-south-20261030",
+      "label": 66,
+      "shape": "unknown",
+      "note": "Tree cover, mixed roof forms, uncertain ridge or footprint/image registration; unresolved, not confirmed flat.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "way/766425595",
+      "area": "oldtown-south-20261030",
+      "label": 67,
+      "shape": "unknown",
+      "note": "Tree cover, mixed roof forms, uncertain ridge or footprint/image registration; unresolved, not confirmed flat.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "way/766420671",
+      "area": "oldtown-south-20261030",
+      "label": 68,
+      "shape": "flat",
+      "note": "Visible terrace/parapet and rooftop equipment; no pitched ridge assigned.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "way/766420670",
+      "area": "oldtown-south-20261030",
+      "label": 69,
+      "shape": "unknown",
+      "note": "Tree cover, mixed roof forms, uncertain ridge or footprint/image registration; unresolved, not confirmed flat.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "ms/550fc1ede6410098",
+      "area": "oldtown-south-20261030",
+      "label": 70,
+      "shape": "unknown",
+      "note": "Tree cover, mixed roof forms, uncertain ridge or footprint/image registration; unresolved, not confirmed flat.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "ms/5a939a06325b9b5b",
+      "area": "oldtown-south-20261030",
+      "label": 71,
+      "shape": "unknown",
+      "note": "Tree cover, mixed roof forms, uncertain ridge or footprint/image registration; unresolved, not confirmed flat.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "ms/52a23bfdab2d6d7d",
+      "area": "oldtown-south-20261030",
+      "label": 72,
+      "shape": "unknown",
+      "note": "Tree cover, mixed roof forms, uncertain ridge or footprint/image registration; unresolved, not confirmed flat.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "ms/23a6885fee8e47dd",
+      "area": "oldtown-south-20261030",
+      "label": 73,
+      "shape": "unknown",
+      "note": "Tree cover, mixed roof forms, uncertain ridge or footprint/image registration; unresolved, not confirmed flat.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "way/772856133",
+      "area": "oldtown-south-20261030",
+      "label": 74,
+      "shape": "unknown",
+      "note": "Tree cover, mixed roof forms, uncertain ridge or footprint/image registration; unresolved, not confirmed flat.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "ms/b81bd355f6df9f4d",
+      "area": "oldtown-south-20261030",
+      "label": 75,
+      "shape": "unknown",
+      "note": "Tree cover, mixed roof forms, uncertain ridge or footprint/image registration; unresolved, not confirmed flat.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "ms/4b57c3c98f095e4a",
+      "area": "oldtown-south-20261030",
+      "label": 76,
+      "shape": "unknown",
+      "note": "Independent aerial review: ridge/slope, partial footprint or multiple sections are ambiguous; no form assigned.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "ms/6a44c54a412f1c59",
+      "area": "oldtown-south-20261030",
+      "label": 77,
+      "shape": "flat",
+      "note": "Visible terrace/parapet and rooftop equipment; no pitched ridge assigned.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "way/766420660",
+      "area": "oldtown-south-20261030",
+      "label": 78,
+      "shape": "flat",
+      "note": "Visible terrace/parapet and rooftop equipment; no pitched ridge assigned.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "ms/773631140e1fb14f",
+      "area": "oldtown-south-20261030",
+      "label": 79,
+      "shape": "unknown",
+      "note": "Tree cover, mixed roof forms, uncertain ridge or footprint/image registration; unresolved, not confirmed flat.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "ms/9508eb2c0439dbfc",
+      "area": "oldtown-south-20261030",
+      "label": 80,
+      "shape": "unknown",
+      "note": "Tree cover, mixed roof forms, uncertain ridge or footprint/image registration; unresolved, not confirmed flat.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "way/772856131",
+      "area": "oldtown-south-20261030",
+      "label": 81,
+      "shape": "unknown",
+      "note": "Tree cover, mixed roof forms, uncertain ridge or footprint/image registration; unresolved, not confirmed flat.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "way/766420659",
+      "area": "oldtown-south-20261030",
+      "label": 82,
+      "shape": "flat",
+      "note": "Visible terrace/parapet and rooftop equipment; no pitched ridge assigned.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "way/774942245",
+      "area": "oldtown-south-20261030",
+      "label": 83,
+      "shape": "unknown",
+      "note": "Tree cover, mixed roof forms, uncertain ridge or footprint/image registration; unresolved, not confirmed flat.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "way/770823237",
+      "area": "oldtown-south-20261030",
+      "label": 84,
+      "shape": "unknown",
+      "note": "Tree cover, mixed roof forms, uncertain ridge or footprint/image registration; unresolved, not confirmed flat.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "ms/555f2400fa59e885",
+      "area": "oldtown-south-20261030",
+      "label": 85,
+      "shape": "gabled",
+      "note": "Visible paired roof planes and ridge; ridge dimensions remain schematic.",
+      "reviewedAt": "2026-10-30",
+      "color": [
+        128,
+        133,
+        133
+      ]
+    },
+    {
+      "id": "ms/33292fc6e589fc06",
+      "area": "oldtown-south-20261030",
+      "label": 86,
+      "shape": "unknown",
+      "note": "Tree cover, mixed roof forms, uncertain ridge or footprint/image registration; unresolved, not confirmed flat.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "way/772856135",
+      "area": "oldtown-south-20261030",
+      "label": 87,
+      "shape": "unknown",
+      "note": "Tree cover, mixed roof forms, uncertain ridge or footprint/image registration; unresolved, not confirmed flat.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "way/772856141",
+      "area": "oldtown-south-20261030",
+      "label": 88,
+      "shape": "flat",
+      "note": "Visible terrace/parapet and rooftop equipment; no pitched ridge assigned.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "ms/834b43c8592dd08c",
+      "area": "oldtown-south-20261030",
+      "label": 89,
+      "shape": "unknown",
+      "note": "Tree cover, mixed roof forms, uncertain ridge or footprint/image registration; unresolved, not confirmed flat.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "way/772856129",
+      "area": "oldtown-south-20261030",
+      "label": 90,
+      "shape": "gabled",
+      "note": "Visible paired roof planes and ridge; ridge dimensions remain schematic.",
+      "reviewedAt": "2026-10-30",
+      "color": [
+        128,
+        133,
+        133
+      ]
+    },
+    {
+      "id": "ms/2d1d6162dfad59ed",
+      "area": "oldtown-south-20261030",
+      "label": 91,
+      "shape": "unknown",
+      "note": "Independent aerial review: ridge/slope, partial footprint or multiple sections are ambiguous; no form assigned.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "way/772856132",
+      "area": "oldtown-south-20261030",
+      "label": 92,
+      "shape": "unknown",
+      "note": "Independent aerial review: ridge/slope, partial footprint or multiple sections are ambiguous; no form assigned.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "ms/501666456d9e94bf",
+      "area": "oldtown-south-20261030",
+      "label": 93,
+      "shape": "gabled",
+      "note": "Visible paired roof planes and ridge; ridge dimensions remain schematic.",
+      "reviewedAt": "2026-10-30",
+      "color": [
+        123,
+        71,
+        59
+      ]
+    },
+    {
+      "id": "ms/631481fd42db5ccf",
+      "area": "oldtown-south-20261030",
+      "label": 94,
+      "shape": "unknown",
+      "note": "Independent aerial review: ridge/slope, partial footprint or multiple sections are ambiguous; no form assigned.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "ms/d548496d1a9cc699",
+      "area": "oldtown-south-20261030",
+      "label": 95,
+      "shape": "unknown",
+      "note": "Tree cover, mixed roof forms, uncertain ridge or footprint/image registration; unresolved, not confirmed flat.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "ms/089b5bf1b9a05b70",
+      "area": "oldtown-south-20261030",
+      "label": 96,
+      "shape": "gabled",
+      "note": "Visible paired roof planes and ridge; ridge dimensions remain schematic.",
+      "reviewedAt": "2026-10-30",
+      "color": [
+        123,
+        71,
+        59
+      ]
+    },
+    {
+      "id": "way/772856137",
+      "area": "oldtown-south-20261030",
+      "label": 97,
+      "shape": "flat",
+      "note": "Visible terrace/parapet and rooftop equipment; no pitched ridge assigned.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "ms/926648bdb88477dd",
+      "area": "oldtown-south-20261030",
+      "label": 98,
+      "shape": "hipped",
+      "note": "Visible roof end planes; dimensions remain schematic.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "ms/db7bc3b2531b43f3",
+      "area": "oldtown-south-20261030",
+      "label": 99,
+      "shape": "unknown",
+      "note": "Tree cover, mixed roof forms, uncertain ridge or footprint/image registration; unresolved, not confirmed flat.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "ms/e90648c2af109c3c",
+      "area": "oldtown-south-20261030",
+      "label": 100,
+      "shape": "unknown",
+      "note": "Tree cover, mixed roof forms, uncertain ridge or footprint/image registration; unresolved, not confirmed flat.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "way/772856138",
+      "area": "oldtown-south-20261030",
+      "label": 101,
+      "shape": "unknown",
+      "note": "Tree cover, mixed roof forms, uncertain ridge or footprint/image registration; unresolved, not confirmed flat.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "way/772856153",
+      "area": "oldtown-south-20261030",
+      "label": 102,
+      "shape": "unknown",
+      "note": "Open-air paved court/parking visible in reviewed imagery; suppress3D building mass for this footprint. Image acquisition date unknown; field confirmation still required.",
+      "reviewedAt": "2026-10-30",
+      "openAir": true
+    },
+    {
+      "id": "way/772856143",
+      "area": "oldtown-south-20261030",
+      "label": 103,
+      "shape": "unknown",
+      "note": "Tree cover, mixed roof forms, uncertain ridge or footprint/image registration; unresolved, not confirmed flat.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "ms/0e3f5ef52dec74f4",
+      "area": "oldtown-south-20261030",
+      "label": 104,
+      "shape": "unknown",
+      "note": "Open-air paved court/parking visible in reviewed imagery; suppress3D building mass for this footprint. Image acquisition date unknown; field confirmation still required.",
+      "reviewedAt": "2026-10-30",
+      "openAir": true
+    },
+    {
+      "id": "way/772856142",
+      "area": "oldtown-south-20261030",
+      "label": 105,
+      "shape": "unknown",
+      "note": "Tree cover, mixed roof forms, uncertain ridge or footprint/image registration; unresolved, not confirmed flat.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "way/772856157",
+      "area": "oldtown-south-20261030",
+      "label": 106,
+      "shape": "unknown",
+      "note": "Tree cover, mixed roof forms, uncertain ridge or footprint/image registration; unresolved, not confirmed flat.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "way/1427658651",
+      "area": "oldtown-south-20261030",
+      "label": 107,
+      "shape": "unknown",
+      "note": "Tree cover, mixed roof forms, uncertain ridge or footprint/image registration; unresolved, not confirmed flat.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "way/772856161",
+      "area": "oldtown-south-20261030",
+      "label": 108,
+      "shape": "unknown",
+      "note": "Tree cover, mixed roof forms, uncertain ridge or footprint/image registration; unresolved, not confirmed flat.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "way/772856158",
+      "area": "oldtown-south-20261030",
+      "label": 109,
+      "shape": "unknown",
+      "note": "Tree cover, mixed roof forms, uncertain ridge or footprint/image registration; unresolved, not confirmed flat.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "way/772856144",
+      "area": "oldtown-south-20261030",
+      "label": 110,
+      "shape": "unknown",
+      "note": "Open-air paved court/parking visible in reviewed imagery; suppress3D building mass for this footprint. Image acquisition date unknown; field confirmation still required.",
+      "reviewedAt": "2026-10-30",
+      "openAir": true
+    },
+    {
+      "id": "way/766420602",
+      "area": "oldtown-south-20261030",
+      "label": 111,
+      "shape": "unknown",
+      "note": "Tree cover, mixed roof forms, uncertain ridge or footprint/image registration; unresolved, not confirmed flat.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "way/772856148",
+      "area": "oldtown-south-20261030",
+      "label": 112,
+      "shape": "flat",
+      "note": "Visible terrace/parapet and rooftop equipment; no pitched ridge assigned.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "ms/55ae6e7c78045ec3",
+      "area": "oldtown-south-20261030",
+      "label": 113,
+      "shape": "unknown",
+      "note": "Tree cover, mixed roof forms, uncertain ridge or footprint/image registration; unresolved, not confirmed flat.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "ms/084f75c837e734ca",
+      "area": "oldtown-south-20261030",
+      "label": 114,
+      "shape": "unknown",
+      "note": "Tree cover, mixed roof forms, uncertain ridge or footprint/image registration; unresolved, not confirmed flat.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "way/772856160",
+      "area": "oldtown-south-20261030",
+      "label": 115,
+      "shape": "unknown",
+      "note": "Tree cover, mixed roof forms, uncertain ridge or footprint/image registration; unresolved, not confirmed flat.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "ms/eeda5bd342257a50",
+      "area": "oldtown-south-20261030",
+      "label": 116,
+      "shape": "unknown",
+      "note": "Tree cover, mixed roof forms, uncertain ridge or footprint/image registration; unresolved, not confirmed flat.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "way/772856162",
+      "area": "oldtown-south-20261030",
+      "label": 117,
+      "shape": "unknown",
+      "note": "Tree cover, mixed roof forms, uncertain ridge or footprint/image registration; unresolved, not confirmed flat.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "way/772856139",
+      "area": "oldtown-south-20261030",
+      "label": 118,
+      "shape": "unknown",
+      "note": "Tree cover, mixed roof forms, uncertain ridge or footprint/image registration; unresolved, not confirmed flat.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "way/772856173",
+      "area": "oldtown-south-20261030",
+      "label": 119,
+      "shape": "unknown",
+      "note": "Tree cover, mixed roof forms, uncertain ridge or footprint/image registration; unresolved, not confirmed flat.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "ms/0099ae5c172cc7f1",
+      "area": "oldtown-south-20261030",
+      "label": 120,
+      "shape": "unknown",
+      "note": "Tree cover, mixed roof forms, uncertain ridge or footprint/image registration; unresolved, not confirmed flat.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "way/772856140",
+      "area": "oldtown-south-20261030",
+      "label": 121,
+      "shape": "unknown",
+      "note": "Tree cover, mixed roof forms, uncertain ridge or footprint/image registration; unresolved, not confirmed flat.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "ms/225015613b1b6c1c",
+      "area": "oldtown-south-20261030",
+      "label": 122,
+      "shape": "unknown",
+      "note": "Tree cover, mixed roof forms, uncertain ridge or footprint/image registration; unresolved, not confirmed flat.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "way/772856167",
+      "area": "oldtown-south-20261030",
+      "label": 123,
+      "shape": "unknown",
+      "note": "Tree cover, mixed roof forms, uncertain ridge or footprint/image registration; unresolved, not confirmed flat.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "way/772856145",
+      "area": "oldtown-south-20261030",
+      "label": 124,
+      "shape": "unknown",
+      "note": "Tree cover, mixed roof forms, uncertain ridge or footprint/image registration; unresolved, not confirmed flat.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "ms/3d80eb2962271b04",
+      "area": "oldtown-south-20261030",
+      "label": 125,
+      "shape": "unknown",
+      "note": "Tree cover, mixed roof forms, uncertain ridge or footprint/image registration; unresolved, not confirmed flat.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "way/772856170",
+      "area": "oldtown-south-20261030",
+      "label": 126,
+      "shape": "unknown",
+      "note": "Tree cover, mixed roof forms, uncertain ridge or footprint/image registration; unresolved, not confirmed flat.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "way/772856163",
+      "area": "oldtown-south-20261030",
+      "label": 127,
+      "shape": "flat",
+      "note": "Visible terrace/parapet and rooftop equipment; no pitched ridge assigned.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "way/772856172",
+      "area": "oldtown-south-20261030",
+      "label": 128,
+      "shape": "unknown",
+      "note": "Independent aerial review: ridge/slope, partial footprint or multiple sections are ambiguous; no form assigned.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "way/772856147",
+      "area": "oldtown-south-20261030",
+      "label": 129,
+      "shape": "unknown",
+      "note": "Tree cover, mixed roof forms, uncertain ridge or footprint/image registration; unresolved, not confirmed flat.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "way/772856169",
+      "area": "oldtown-south-20261030",
+      "label": 130,
+      "shape": "flat",
+      "note": "Visible terrace/parapet and rooftop equipment; no pitched ridge assigned.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "way/772856168",
+      "area": "oldtown-south-20261030",
+      "label": 131,
+      "shape": "unknown",
+      "note": "Independent aerial review: ridge/slope, partial footprint or multiple sections are ambiguous; no form assigned.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "way/772856166",
+      "area": "oldtown-south-20261030",
+      "label": 132,
+      "shape": "unknown",
+      "note": "Tree cover, mixed roof forms, uncertain ridge or footprint/image registration; unresolved, not confirmed flat.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "way/772856165",
+      "area": "oldtown-south-20261030",
+      "label": 133,
+      "shape": "unknown",
+      "note": "Tree cover, mixed roof forms, uncertain ridge or footprint/image registration; unresolved, not confirmed flat.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "way/772856164",
+      "area": "oldtown-south-20261030",
+      "label": 134,
+      "shape": "unknown",
+      "note": "Tree cover, mixed roof forms, uncertain ridge or footprint/image registration; unresolved, not confirmed flat.",
+      "reviewedAt": "2026-10-30"
+    },
+    {
+      "id": "way/766420593",
+      "area": "oldtown-south-20261030",
+      "label": 135,
+      "shape": "unknown",
+      "note": "Tree cover, mixed roof forms, uncertain ridge or footprint/image registration; unresolved, not confirmed flat.",
+      "reviewedAt": "2026-10-30"
     }
   ]
 }

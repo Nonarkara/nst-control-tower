@@ -70,10 +70,11 @@ export function BuildingCard({ building, coord, onClose }: Props) {
           </>
         )}
         <dt>ROOF</dt>
-        <dd>{isChedi ? "Chedi · authored bell-and-spire reconstruction" : roof && roof.shape !== "unknown" ? `${roof.shape} · aerial interpretation` : building["roof:shape"] ? `${building["roof:shape"]} · mapped tag` : "Unverified · neutral schematic cap"}</dd>
-        {!isChedi && roof && <><dt>ROOF BASIS</dt><dd>{roof.note} <a href={ROOF_STUDY.url} target="_blank" rel="noreferrer">Esri World Imagery</a> · reviewed {ROOF_STUDY.reviewedAt}; image capture date unknown. Heights and roof profile dimensions are schematic.</dd></>}
-        <dt>OSM</dt>
+        <dd>{isChedi ? "Chedi · authored bell-and-spire reconstruction" : roof?.openAir ? "Open-air in reviewed aerial · no building mass" : roof && roof.shape !== "unknown" ? `${roof.shape} · aerial interpretation` : building["roof:shape"] ? `${building["roof:shape"]} · mapped tag` : "Unverified · neutral schematic cap"}</dd>
+        {!isChedi && roof && <><dt>ROOF BASIS</dt><dd>{roof.note} <a href={ROOF_STUDY.url} target="_blank" rel="noreferrer">Esri World Imagery</a> · reviewed {roof.reviewedAt ?? ROOF_STUDY.reviewedAt}; image capture date unknown. Heights and roof profile dimensions are schematic.</dd></>}
+        <dt>FOOTPRINT</dt>
         <dd className="num">{osmId}</dd>
+        {building.source === "ms-footprints" && <><dt>SOURCE</dt><dd>Microsoft satellite-derived footprint. Capture date, height and roof form unverified.</dd></>}
       </dl>
 
       {/* ── Ground truth: Google Street View at this location ── */}

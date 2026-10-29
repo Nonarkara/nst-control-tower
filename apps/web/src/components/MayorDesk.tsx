@@ -228,6 +228,7 @@ export default function MayorDesk() {
 
       <footer className="desk-foot">
         สรุปนี้รวมสถานีระดับน้ำ ฝน DWR แบบจำลอง และข่าว — ข้อมูลเปลี่ยนตามเวลา กรุณาระบุเวลาบันทึกเมื่อส่งต่อ
+        {" · "}<a href="/?demo=city">บินชมเมือง 3D · เทียบระดับถนน</a>
         {" · "}<a href="/flood-ops">บันทึกฉบับเต็มสำหรับนายกฯ</a>
         {" · "}<a href="https://www.tmd.go.th/warning-and-events/warning-storm">ประกาศ อต.</a>
         {" · ไม่ใช่ประกาศราชการ และไม่ใช่การคาดการณ์น้ำท่วมรายถนน"}

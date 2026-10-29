@@ -486,33 +486,9 @@ export function buildingsLayer(
   const materialKind = options.material ?? "phong";
   const lineA = ghosted ? 110 : 220;
 
-  // ── LOD: drop the ordinary buildings at province scale (default zoom 8.4) ──
-  // At bucket 0 the camera is showing the whole NST province. Individual
-  // buildings are 1-2 px dots and indistinguishable from one another — drawing
-  // all 2,457 of them is pure waste. We keep only the landmarks (mnType set,
-  // ~200 of them) plus buildings that carry a name. Below city scale (bucket 1)
-  // we keep all but drop pickable — pickable is per-pixel-per-frame work and
-  // not useful when the user is panning around the whole city. At street
-  // scale (bucket 2) everything is on.
-  //
-  // The province-scale floor was 20m (mid-rise+ only). Lifted to 12m so the
-  // 2-3 story Old Town fabric survives the zoom-out — without that you only
-  // see the tall landmarks and the city reads as "landmarks floating on a
-  // flat green plain" instead of a real Old Town.
-  const features = collection.features;
-  const filtered =
-    zoomBucket === 0
-      ? features.filter((f) => {
-          const p = f.properties as BuildingProperties & { _elevM?: number };
-          if (p.mnType || hasReviewedRoof(p.id)) return true;
-          if (p.name) return true;
-          if (typeof p._elevM === "number" && p._elevM >= 12) return true;
-          if (classifyBuilding(p)) return true; // classified residential/retail/etc still reads as fabric at province scale
-          return false;
-        })
-      : extruded
-      ? capUntaggedFor3D(features)
-      : features;
+  // City/street views preserve every mapped block. Only the province-wide
+  // view thins subpixel geometry; missing names are not a reason to erase houses.
+  const filtered = buildingPopulation(collection.features, zoomBucket);
   const pickable = zoomBucket === 2 && !ghosted;
   const filteredCollection: FeatureCollection<Polygon | MultiPolygon, BuildingProperties> = {
     type: "FeatureCollection",
@@ -627,7 +603,7 @@ export function buildingsLayer(
       // other footprint. Same compounding problem as the fill above: at
       // street scale, thousands of near-black edges sharing walls in a
       // dense block fuse into a solid dark rectangle — the artifact this
-      // fixes. These footprints carry no information (see capUntaggedFor3D
+      // fixes. These footprints carry no information (see buildingPopulation
       // above), so a faint outline is enough to keep the street pattern
       // legible without dominating the block.
       return withAlpha(grey(150), Math.round(lineA * 0.3)) as [number, number, number, number];
@@ -650,41 +626,17 @@ export function buildingsLayer(
   });
 }
 
-/**
- * LIGHTWEIGHTNESS — keep most of the 1-2 storey untagged fabric in 3D mode.
- * The breakdown is roughly:
- *   - ~250 landmarks (mnType) + 50 super-tall (≥20 m)        — always kept
- *   - ~1,500 named (street-color outline)                    — always kept
- *   - ~5,400 short-tagged (`building=residential`/`house`)  — always kept
- *   - ~13,800 "OSM building=yes" untagged low-rise          — kept at 70%
- *
- * The original 30% cap made the 3D map look like "landmarks floating on a
- * flat plain" — the residential fabric dropped out, the city felt empty.
- * Lifted to 70% so a 5-year-old can still trace the block pattern under
- * the landmarks. Kept in 2D so BuildingSearch can still find every one.
- */
-export function capUntaggedFor3D(
+/** One population authority for walls and roofs; never drop city blocks by ID. */
+export function buildingPopulation(
   features: Feature<Polygon | MultiPolygon, BuildingProperties>[],
+  zoomBucket: 0 | 1 | 2 = 2,
 ): Feature<Polygon | MultiPolygon, BuildingProperties>[] {
-  const keep: typeof features = [];
-  const maybeDrop: typeof features = [];
-  for (const f of features) {
-    const p = f.properties as BuildingProperties & { _elevM?: number };
-    const isLandmark = !!p.mnType || hasReviewedRoof(p.id);
-    const isNamed = !!p.name;
-    const isTall = typeof p._elevM === "number" && p._elevM >= 20;
-    const isClassified = !!classifyBuilding(p);
-    if (isLandmark || isNamed || isTall || isClassified) keep.push(f);
-    else maybeDrop.push(f);
-  }
-  maybeDrop.sort((a, b) => {
-    const ai = String((a.properties as { id?: string }).id ?? "");
-    const bi = String((b.properties as { id?: string }).id ?? "");
-    return ai.localeCompare(bi);
+  if (zoomBucket > 0) return features;
+  return features.filter(f => {
+    const kind = classifyBuilding(f.properties);
+    return !!f.properties.mnType || hasReviewedRoof(f.properties.id) || !!f.properties.name
+      || (kind !== null && kind !== "ms-generic");
   });
-  const cap = Math.floor(maybeDrop.length * 0.7);
-  const survivors = maybeDrop.slice(0, cap);
-  return [...keep, ...survivors];
 }
 
 /** Roof surfaces at the wall height, never a second ground-up extrusion. */
@@ -693,9 +645,7 @@ export function buildingRoofsLayer(
   options: { zoomBucket?: 0 | 1 | 2 } = {},
 ) {
   // Use precisely the same LOD population as the walls: no floating roof-only buildings.
-  const candidates = options.zoomBucket === 0
-    ? collection.features.filter(f => !!f.properties.mnType || hasReviewedRoof(f.properties.id) || !!f.properties.name || !!classifyBuilding(f.properties) || (f.properties as BuildingProperties & { _elevM?: number })._elevM! >= 12)
-    : capUntaggedFor3D(collection.features);
+  const candidates = buildingPopulation(collection.features, options.zoomBucket);
   const sorted = [...candidates].sort((a, b) => Number(!!classifyBuilding(b.properties)) - Number(!!classifyBuilding(a.properties)));
   const features = sorted.flatMap(buildingRoofFaces);
   return new GeoJsonLayer({
@@ -2434,8 +2384,8 @@ function scenarioColor(z: number, levelM: number): [number, number, number, numb
   const depth = levelM - z;
   // Submergence depth → StatusLevel.
   if (depth <= 0) return statusRgba("normal", 90);    // dry
-  if (depth < 0.3) return statusRgba("watch", 210);   // shallow — passable with care
-  if (depth < 0.8) return statusRgba("warning", 230); // deep — impassable for cars
+  if (depth < 0.3) return statusRgba("watch", 210);   // hypothetical level-minus-road <0.3m
+  if (depth < 0.8) return statusRgba("warning", 230); // hypothetical level-minus-road <0.8m
   return statusRgba("critical", 240);                 // very deep
 }
 
@@ -2454,10 +2404,10 @@ export function streetFloodLayer(
   return new ScatterplotLayer<Feature<Point, RoadLevelProps>>({
     id: "street-flood-sim",
     data: collection.features,
-    getPosition: (f) => f.geometry.coordinates as [number, number],
-    getRadius: 14,
+    getPosition: (f) => [f.geometry.coordinates[0]!, f.geometry.coordinates[1]!, .05] as [number, number, number],
+    getRadius: 4,
     radiusMinPixels: 1.5,
-    radiusMaxPixels: 5,
+    radiusMaxPixels: 3,
     getFillColor: (f) =>
       scenarioLevelM == null
         ? elevationRamp(f.properties.z)
@@ -2465,7 +2415,7 @@ export function streetFloodLayer(
     updateTriggers: { getFillColor: [scenarioLevelM] },
     stroked: false,
     pickable: true,
-    parameters: { depthWriteEnabled: false, depthCompare: "always" },
+    parameters: { depthWriteEnabled: false, depthCompare: "less-equal" },
   });
 }
 

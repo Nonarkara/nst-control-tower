@@ -1,0 +1,48 @@
+/* A task view: the city is the dominant picture; end restores all prior layers. */
+.shell.city-demo:not(.mobile) { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr) auto; grid-template-areas: "topbar" "map" "bottom"; }
+.shell.city-demo.mobile { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); grid-template-areas: "topbar" "map"; }
+.shell.city-demo:not(.mobile) .left-bar, .shell.city-demo:not(.mobile) .right-bar, .shell.city-demo.mobile .left-bar, .shell.city-demo.mobile .right-bar { display: none; }
+.shell.city-demo .map-area { grid-column: 1 / -1; }
+.city-flyover { position: absolute; z-index: 38; bottom: 12px; left: 50%; transform: translateX(-50%); width: min(460px, calc(100% - 120px)); padding: 10px 12px; background: var(--panel); color: var(--ink); border: 1px solid var(--line-2); }
+.city-flyover p { margin: 0; max-width: 65ch; }
+.city-flyover-title { font-weight: 600; }
+.city-flyover-actions { display: flex; gap: 6px; margin-block: 6px; }
+.city-flyover button { color: var(--ink); background: var(--paper); border: 1px solid var(--line-2); min-width: 44px; min-height: 44px; font: inherit; cursor: pointer; }
+.city-flyover-actions button { font-size: 24px; }
+.city-flyover button:disabled { opacity: .45; cursor: default; }
+.city-flyover-note, .city-flyover-scenario p { font-size: 13px; line-height: 1.45; color: var(--ink-2); }
+.city-flyover-scenario { margin-top: 8px; border-top: 1px solid var(--line); padding-top: 8px; }
+.city-flyover-scenario label { display: block; font-size: 14px; }
+.city-flyover-presets { display: flex; gap: 6px; margin-block: 6px; }
+.city-flyover-presets button { padding-inline: 10px; }
+.city-flyover-presets button[aria-pressed="true"] { border-bottom: 3px solid var(--accent); }
+.city-flyover input { width: 100%; min-height: 44px; accent-color: var(--accent); }
+.city-flyover :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+@media(max-width: 1100px) {
+  .shell.city-demo .city-flyover { left: 12px; transform: none; width: min(460px, calc(100% - 112px)); }
+  .shell.city-demo .map-hud-bl { top: 68px; bottom: auto; }
+}
+
+.map-imagery-credit { margin: 4px 0 0; max-width: 260px; font-size: 12px; line-height: 1.35; color: var(--ink-2); }
+.map-imagery-credit a { display: inline-flex; align-items: center; min-height: 44px; color: inherit; }
+
+.city-flyover-depth-key { list-style: none; display: flex; flex-wrap: wrap; gap: 4px 12px; padding: 0; margin: 4px 0; font-size: 13px; }
+.city-flyover-depth-key li { display: inline-flex; align-items: center; gap: 5px; }
+.city-flyover-depth-key span { width: 7px; height: 7px; }
+
+.city-flyover { box-sizing: border-box; }
+.city-flyover summary { display: flex; align-items: center; min-height: 44px; cursor: pointer; font-size: 13px; }
+.city-flyover summary::before { content: "▸"; margin-right: 6px; }
+.city-flyover details[open] summary::before { content: "▾"; }
+@media(max-width: 700px) {
+  .shell.city-demo.mobile .city-flyover { left: 12px; width: calc(100% - 24px); bottom: 74px; }
+  .shell.city-demo.mobile .map-navigation { top: 112px; bottom: auto; }
+  .shell.city-demo.mobile .chatbox-closed { bottom: auto; top: 168px; left: 12px; right: auto; }
+}
+
+.city-demo-imagery-credit { display: none; }
+@media(max-width: 700px) {
+ .city-demo-imagery-credit { display: flex; align-items: center; position: fixed; left: 12px; right: 72px; top: 112px; min-height: 44px; font-size: 12px; line-height: 1.35; color: var(--ink); background: var(--panel); padding: 0 6px; }
+}
+/* The map canvas extends behind the fixed mobile task navigation. */
+.shell.city-demo.mobile .city-flyover { bottom: 74px; }

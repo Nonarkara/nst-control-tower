@@ -5,8 +5,8 @@
  * Everything here is direct comparison against surveyed elevations on ONE
  * shared datum (m MSL) — no flow routing, no drainage dynamics, no timing.
  * That limitation is surfaced in the FLOOD COMMAND panel caveat; what this
- * buys in exchange is total auditability: "at level L these points are below
- * water" is measurement, not model.
+ * buys in exchange is total auditability: "at level L these surveyed points are lower" is auditable arithmetic,
+ * not a prediction that water reaches them.
  */
 
 import type { Feature, FeatureCollection, Point } from "geojson";

@@ -27,10 +27,10 @@ export function buildingModel(feature: BuildingFeature) {
     "building:levels": (p as unknown as { "building:levels"?: number })["building:levels"] ?? p.levels ?? undefined,
     building: p.building === "yes" && kind === "temple" ? "temple" : p.building,
   });
-  const compound = isGroundsCompound(p, area);
+  const observation = roofObservation(p.id);
+  const compound = isGroundsCompound(p, area) || !!observation?.openAir;
   const polygons = feature.geometry.type === "Polygon" ? [feature.geometry.coordinates] : feature.geometry.coordinates;
   // A POI/category does not establish the roof on each building in a precinct.
-  const observation = roofObservation(p.id);
   const tagged = p["roof:shape"];
   const mappedShape: RoofShape = tagged === "gabled" || tagged === "hipped" || tagged === "flat" ? tagged : "unknown";
   const observedShape = observation && observation.shape !== "unknown" ? observation.shape : mappedShape;
@@ -39,7 +39,7 @@ export function buildingModel(feature: BuildingFeature) {
   const shape: RoofShape = !compound && !stupa && simple ? observedShape : observedShape === "flat" ? "flat" : "unknown";
   const frames = polygons.map(poly => roofFrame(poly[0]!));
   const rise = shape !== "flat" && shape !== "unknown" ? Math.min(5, height.metres * .4, Math.max(1.2, Math.min(...frames.map(f => f.width)) * .32)) : 0;
-  const total = compound ? .8 : height.metres;
+  const total = observation?.openAir ? 0 : compound ? .8 : height.metres;
   return { height, total, eaves: total - rise, rise, compound, polygons, frames, kind, shape, observation };
 }
 

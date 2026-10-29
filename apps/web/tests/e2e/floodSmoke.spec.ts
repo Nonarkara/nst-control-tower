@@ -41,7 +41,7 @@ test.describe("FLOOD COMMAND — God Mode scenario", () => {
     await ensureSectionOpen(page, "Flood Command");
 
     // Panel header confirms mount (left rail, always visible inside the body)
-    await expect(page.getByText(/FLOOD COMMAND \/\/ GOD MODE/i)).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText(/FLOOD WHAT-IF/i)).toBeVisible({ timeout: 15_000 });
 
     // No impact readout while the scenario is off
     await expect(page.locator(".fc-impact")).toHaveCount(0);
@@ -50,7 +50,7 @@ test.describe("FLOOD COMMAND — God Mode scenario", () => {
     await page.getByRole("button", { name: /PABUK 2019/ }).evaluate((el) => (el as HTMLButtonElement).click());
     const impact = page.locator(".fc-impact");
     await expect(impact).toBeVisible({ timeout: 15_000 });
-    await expect(impact).toContainText(/% of surveyed streets under water/);
+    await expect(impact).toContainText(/% of surveyed points below the selected level/);
     await expect(impact).toContainText(/historical marks/);
 
     // OFF turns the readout back off
@@ -73,7 +73,7 @@ test.describe("Language toggle (EN/TH)", () => {
     await ensureSectionOpen(page, "Flood Command");
 
     // Default locale is English — the FLOOD COMMAND header reads in English.
-    await expect(page.getByText(/FLOOD COMMAND \/\/ GOD MODE/i)).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText(/FLOOD WHAT-IF/i)).toBeVisible({ timeout: 15_000 });
 
     // Click the language toggle (offers "TH" while in EN mode).
     const toThai = page.getByRole("button", { name: /Switch to Thai interface/i });
@@ -82,12 +82,12 @@ test.describe("Language toggle (EN/TH)", () => {
 
     // Panel title flips to Thai — this is the panel that was explicitly
     // deferred as "not yet Thai-localized" in the flood-hardening commit.
-    await expect(page.getByText("ศูนย์บัญชาการน้ำท่วม")).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText("จำลองระดับน้ำเทียบถนน")).toBeVisible({ timeout: 10_000 });
 
     // Flip back to English.
     const toEnglish = page.getByRole("button", { name: /Switch to English interface/i });
     await toEnglish.evaluate((el) => (el as HTMLButtonElement).click());
-    await expect(page.getByText(/FLOOD COMMAND \/\/ GOD MODE/i)).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText(/FLOOD WHAT-IF/i)).toBeVisible({ timeout: 10_000 });
   });
 });
 

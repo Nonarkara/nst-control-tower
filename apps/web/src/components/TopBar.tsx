@@ -39,6 +39,7 @@ interface Props {
   onOpenFloodGuide: () => void;
   onOpenCctvCommand: () => void;
   onOpenHeritage3D?: () => void;
+  onStartCityFlyover?: () => void;
   onFlip?: () => void;
   sheetsConfigured: boolean;
   /** Retained for API compatibility with the university fork; not shown. */
@@ -204,6 +205,7 @@ export function TopBar({
   onOpenAtlas,
   onOpenFloodGuide,
   onOpenHeritage3D,
+  onStartCityFlyover,
   onOpenCctvCommand,
   onFlip,
   sheetsConfigured,
@@ -313,6 +315,7 @@ export function TopBar({
             { label: "Source catalog", group: "Data", ariaLabel: "Open source catalog", onSelect: onOpenCatalog },
             { label: "Data tables", group: "Data", ariaLabel: "Open data — every data.go.th dataset for Nakhon Si Thammarat as searchable tables", onSelect: () => window.location.assign("/data") },
             { label: "Atlas", group: "Data", ariaLabel: "Open atlas — outcome indicators and data sources", onSelect: onOpenAtlas },
+            ...(onStartCityFlyover ? [{ label: "City flyover / บินชมเมือง3D", group: "City", onSelect: onStartCityFlyover }] : []),
             ...(onOpenHeritage3D ? [{ label: "3D heritage — Phra Borommathat Chedi", group: "City", ariaLabel: "Open heritage 3D demo — photogrammetry viewer", onSelect: onOpenHeritage3D }] : []),
             // The analyst data view stays reachable, but not as a top-level
             // "Terminal" button in a mayor's header.

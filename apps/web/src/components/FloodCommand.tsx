@@ -44,7 +44,7 @@ import { STATUS, type StatusLevel } from "../lib/status";
  * are assembled inline in the component via `t({ en, th })`.
  */
 const STR = {
-  title: { en: "FLOOD COMMAND // GOD MODE", th: "ศูนย์บัญชาการน้ำท่วม // โหมดควบคุมรวม" },
+  title: { en: "FLOOD WHAT-IF", th: "จำลองระดับน้ำเทียบถนน" },
   scenarioEyebrow: { en: "STREET SCENARIO · WATER LEVEL (m MSL)", th: "สถานการณ์ถนน · ระดับน้ำ (ม. รทก.)" },
   off: { en: "OFF", th: "ปิด" },
   offTitle: { en: "Scenario off — streets colored by surveyed elevation instead", th: "ปิดสถานการณ์ — ถนนระบายสีตามระดับความสูงที่สำรวจแทน" },
@@ -54,9 +54,9 @@ const STR = {
   presetPabukTitle: { en: "Highest surveyed Tropical Storm Pabuk (Jan 2019) high-water mark", th: "ระดับน้ำสูงสุดที่สำรวจจากพายุโซนร้อนปาบุก (ม.ค. 2019)" },
   sliderLabel: { en: "Scenario water level in metres above mean sea level", th: "ระดับน้ำสถานการณ์เป็นเมตรจากระดับน้ำทะเลปานกลาง" },
   loading: { en: "Loading the street elevation survey (18,359 points)…", th: "กำลังโหลดการสำรวจระดับความสูงถนน (18,359 จุด)…" },
-  legendDry: { en: "dry", th: "แห้ง" },
+  legendDry: { en: "≥ selected level", th: "≥ ระดับที่เลือก" },
   legendShallow: { en: "<0.3 m", th: "<0.3 ม." },
-  legendCar: { en: "0.3–0.8 m (cars impassable)", th: "0.3–0.8 ม. (รถผ่านไม่ได้)" },
+  legendCar: { en: "0.3–0.8 m", th: "0.3–0.8 ม." },
   legendDeep: { en: ">0.8 m", th: ">0.8 ม." },
   legendLowOff: { en: "lowest streets", th: "ถนนต่ำสุด" },
   legendMedOff: { en: "~median (1.5 m MSL)", th: "~มัธยฐาน (1.5 ม. รทก.)" },
@@ -263,19 +263,19 @@ export function FloodCommand({
             <span className="flood-status" style={{ color: STATUS[impactLevel].color }}>
               <span aria-hidden="true">{STATUS[impactLevel].glyph}</span>
               {t({
-                en: `${(stats.wetShare * 100).toFixed(0)}% of surveyed streets under water`,
-                th: `${(stats.wetShare * 100).toFixed(0)}% ของถนนที่สำรวจอยู่ใต้น้ำ`,
+                en: `${(stats.wetShare * 100).toFixed(0)}% of surveyed points below the selected level`,
+                th: `${(stats.wetShare * 100).toFixed(0)}% ของจุดสำรวจต่ำกว่าระดับที่เลือก`,
               })}
             </span>
             <span className="flood-cmd-impact-sub">
               {t({
-                en: `≈ ${stats.wetKm.toFixed(1)} of ${stats.totalKm.toFixed(1)} km · deepest ${stats.deepestM.toFixed(2)} m · exceeds ${stats.marksExceeded}/${stats.marksTotal} historical marks`,
-                th: `≈ ${stats.wetKm.toFixed(1)} จาก ${stats.totalKm.toFixed(1)} กม. · ลึกสุด ${stats.deepestM.toFixed(2)} ม. · เกิน ${stats.marksExceeded}/${stats.marksTotal} ระดับน้ำในประวัติ`,
+                en: `≈ ${stats.wetKm.toFixed(1)} of ${stats.totalKm.toFixed(1)} km · max level-minus-road ${stats.deepestM.toFixed(2)} m · exceeds ${stats.marksExceeded}/${stats.marksTotal} historical marks`,
+                th: `≈ ${stats.wetKm.toFixed(1)} จาก ${stats.totalKm.toFixed(1)} กม. · ส่วนต่างระดับสูงสุด ${stats.deepestM.toFixed(2)} ม. · เกิน ${stats.marksExceeded}/${stats.marksTotal} ระดับน้ำในประวัติ`,
               })}
             </span>
           </div>
         )}
-        {/* Map color legend — the depth classes double as passability guidance. */}
+        {/* Map color legend — hypothetical differences, not road-passability advice. */}
         <ul className="flood-legend" aria-label={t(STR.legendAria)}>
           {scenarioLevel != null ? (
             <>
