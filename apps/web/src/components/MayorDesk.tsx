@@ -6,25 +6,8 @@ import { useFeed } from "../hooks/useFeed";
 import { FLOOD_BULLETIN } from "../lib/floodBulletin";
 import "../styles/mayor-desk.css";
 
-/**
- * The mayor's desk — one screen, most important first.
- *
- * The espresso of the morning: the answer, the parts that make it, the
- * day's news in plain Thai, and the notice that is in force. Four
- * compartments, sized by what they hold, and a bento rather than a buffet:
- * nothing here is padding, and every line carries its source and its age.
- *
- * It is not the flood briefing (/flood-ops), which is the full evidence —
- * tables, camera comparison, the copy-paste record for the file. The desk
- * answers "what is the situation and what do I need to know today"; the
- * briefing answers "show me the evidence".
- *
- * The house system is the Chiang Mai operations war room's: the worst
- * signal names the answer, every part keeps its own provenance, a part that
- * could not be read says so with its reason, and "below threshold" is never
- * painted green — a green chip reads as an all-clear, and nothing on a
- * flood desk can certify one.
- */
+/** A compact evidence ledger: situation, verification action, then source readings.
+ * Missing evidence keeps its own status and original clocks. */
 
 const date = (s: string | null | undefined) =>
   s && Number.isFinite(Date.parse(s))
@@ -65,24 +48,37 @@ function PartLine({ part, now }: { part: DeskPart; now: number }) {
   const sourceAge = ageText(part.sourceFetchedAt ?? null, now, 60_000);
   const evidence = part.evidence.slice(["river", "rain", "forecast"].includes(part.key) || part.declared ? 1 : 0);
   return (
-    <div className="desk-part">
+    <div className={`desk-part desk-reading${evidence.length ? " desk-reading--with-evidence" : ""}`}>
       <div className="desk-part__head">
         <span className="desk-part__title">{part.titleTh}</span>
         <span className="desk-part__kind">{KIND_TH[part.kind]}</span>
         <Chip level={part.level}>{LEVEL_TH[part.level]}</Chip>
       </div>
-      <p className={`desk-part__line${part.level === "unknown" ? " desk-part__line--muted" : ""}`}>{part.th}</p>
+      <div className="desk-reading__description">
+        <p className={`desk-part__line${part.level === "unknown" ? " desk-part__line--muted" : ""}`}>{part.th}</p>
+        <p className="desk-part__source">
+          {part.sourceTh}
+          {age && <span className={age.stale ? "desk-stale" : undefined}> · วัด/อ้างอิง {age.text}</span>}
+          {sourceAge && <span> · ดึงข้อมูล {sourceAge.text}</span>}
+          {part.sourceTier && part.sourceTier !== "live" && <span className="desk-stale"> · {part.sourceTier === "cache" ? "ข้อมูลเก็บล่าสุด ไม่ใช่ข้อมูลสด" : "แหล่งข้อมูลไม่พร้อม"}</span>}
+        </p>
+      </div>
       {evidence.length > 0 && (
         <ul className="desk-evidence">
-          {evidence.map((e, i) => <li key={i}>{e}</li>)}
+          {evidence.map((e, i) => {
+            const split = e.indexOf(" — ");
+            const [value, ...notes] = split < 0 ? [] : e.slice(split + 3).split(" · ");
+            return <li key={i}>{split < 0 ? e : <>
+              <span>{e.slice(0, split)}</span>
+              <span className="desk-evidence__value">
+                <span>{value}</span>
+                {notes.map((note, j) => <span className="desk-evidence__note" key={j}> · {note.split(" (").map((phrase, k) => <span key={k}>{k > 0 ? ` (${phrase}` : phrase}</span>)}</span>)}
+              </span>
+            </>}</li>;
+          })}
         </ul>
       )}
-      <p className="desk-part__source">
-        {part.sourceTh}
-        {age && <span className={age.stale ? "desk-stale" : undefined}> · วัด/อ้างอิง {age.text}</span>}
-        {sourceAge && <span> · ดึงข้อมูล {sourceAge.text}</span>}
-        {part.sourceTier && part.sourceTier !== "live" && <span className="desk-stale"> · {part.sourceTier === "cache" ? "ข้อมูลเก็บล่าสุด ไม่ใช่ข้อมูลสด" : "แหล่งข้อมูลไม่พร้อม"}</span>}
-      </p>
+
     </div>
   );
 }
@@ -152,16 +148,17 @@ export default function MayorDesk() {
               <Chip level={data.level}>{LEVEL_TH[data.level]}</Chip>
             </div>
             <p className="desk-answer__text">{data.answerTh}</p>
-            <p className="desk-answer__action"><strong>ตรวจสอบต่อ:</strong> {mayorDeskAction(data)}</p>
-            <p className="desk-answer__meta">
-              ประมวลผล {date(data.generatedAt)}
-              {data.missing > 0 && <span className="desk-stale"> · {data.missing} แหล่งข้อมูลไม่พร้อมหรือครอบคลุมไม่ครบ</span>}
-              {" · "}<a href="/flood-ops">ดูหลักฐานฉบับเต็ม</a>
-            </p>
+            <div className="desk-answer__support">
+              <p className="desk-answer__action"><strong>ตรวจสอบต่อ:</strong> {mayorDeskAction(data)}</p>
+              <p className="desk-answer__meta">
+                ประมวลผล {date(data.generatedAt)}
+                {data.missing > 0 && <span className="desk-stale"> · {data.missing} แหล่งข้อมูลไม่พร้อมหรือครอบคลุมไม่ครบ</span>}
+                {" · "}<a href="/flood-ops">ดูหลักฐานฉบับเต็ม</a>
+              </p>
+            </div>
           </section>
 
-          <div className={`desk-bento${official?.declared && data.answerTh.startsWith(official.titleTh) ? " desk-bento--official-first" : ""}`}>
-            <div className="desk-column desk-column--measurements">
+          <div className={`desk-readings${official?.declared && data.answerTh.startsWith(official.titleTh) ? " desk-readings--official-first" : ""}`}>
             <section className="desk-cell desk-cell--rivers" aria-label="ระดับน้ำที่สถานีวัด">
               {rivers && <PartLine part={rivers} now={now} />}
             </section>
@@ -171,12 +168,11 @@ export default function MayorDesk() {
               {forecast && <PartLine part={forecast} now={now} />}
             </section>
 
-            </div>
-            <div className="desk-column desk-column--context">
             <section className="desk-cell desk-cell--official" aria-label="ประกาศและเตือนภัยจากหน่วยงานรัฐ">
               {official && <PartLine part={official} now={now} />}
+              <div className="desk-notice-tools">
               <details className="desk-part desk-part--notice">
-                <summary>{bulletinExpired ? "ประกาศ TMD อ้างอิงหมดอายุ — ตรวจประกาศล่าสุด" : "ประกาศ TMD ที่อ้างอิง"}</summary>
+                <summary>{bulletinExpired ? "ประกาศ TMD ที่อ้างอิง (หมดอายุ)" : "ประกาศ TMD ที่อ้างอิง"}</summary>
                 <div className="desk-part__head">
                   <span className="desk-part__title">ประกาศล่าสุดที่อ้างอิง</span>
                   <span className="desk-part__kind">อ้างอิง</span>
@@ -191,31 +187,33 @@ export default function MayorDesk() {
                   {" · ปภ. 1784 · อต. 1182 · อปท."}
                 </p>
               </details>
-              <p className="desk-part__source"><a href={FLOOD_BULLETIN.source} target="_blank" rel="noreferrer">ตรวจประกาศ TMD ล่าสุด</a> · หน้านี้ยังไม่ยืนยันประกาศรอบปัจจุบัน</p>
-            </section>
-
-            <section className="desk-cell desk-cell--news" aria-label="ข่าววันนี้">
-              <div className="desk-part">
-                <div className="desk-part__head">
-                  <span className="desk-part__title">ข่าวที่ต้องรู้วันนี้</span>
-                  <span className="desk-part__kind">อันดับ</span>
-                </div>
-                {data.news.length > 0 ? (
-                  <ul className="desk-news">
-                    {data.news.slice(0, 3).map(item => <NewsRow key={item.id} item={item} />)}
-                  </ul>
-                ) : (
-                  <p className="desk-part__line desk-part__line--muted">ไม่มีข่าวใน 36 ชั่วโมงที่ผ่านมา — ไม่ใช่การยืนยันว่าไม่มีเหตุการณ์</p>
-                )}
-                {data.news.length > 3 && <details className="desk-news-more"><summary>ข่าวเพิ่มเติม {data.news.length - 3} เรื่อง</summary><ul className="desk-news">{data.news.slice(3).map(item => <NewsRow key={item.id} item={item} />)}</ul></details>}
-                {data.translationIncomplete && (
-                  <p className="desk-part__source desk-stale">
-                    {data.translationNote ?? "บางพาดหัวยังไม่ได้แปลเป็นภาษาไทย — ดูต้นฉบับได้ที่ลิงก์"}
-                  </p>
-                )}
+              <a className="desk-notice-latest" href={FLOOD_BULLETIN.source} target="_blank" rel="noreferrer">อ่านประกาศล่าสุด</a>
               </div>
-            </section>            </div>
+              <p className="desk-part__source">หน้านี้ยังไม่ยืนยันประกาศรอบปัจจุบัน</p>
+            </section>
           </div>
+
+          <section className="desk-cell desk-cell--news" aria-label="ข่าววันนี้">
+            <div className="desk-part">
+              <div className="desk-part__head">
+                <span className="desk-part__title">ข่าวที่ต้องรู้วันนี้</span>
+                <span className="desk-part__kind">อันดับ</span>
+              </div>
+              {data.news.length > 0 ? (
+                <ul className="desk-news">
+                  {data.news.slice(0, 3).map(item => <NewsRow key={item.id} item={item} />)}
+                </ul>
+              ) : (
+                <p className="desk-part__line desk-part__line--muted">ไม่มีข่าวใน 36 ชั่วโมงที่ผ่านมา — ไม่ใช่การยืนยันว่าไม่มีเหตุการณ์</p>
+              )}
+              {data.news.length > 3 && <details className="desk-news-more"><summary>ข่าวเพิ่มเติม {data.news.length - 3} เรื่อง</summary><ul className="desk-news">{data.news.slice(3).map(item => <NewsRow key={item.id} item={item} />)}</ul></details>}
+              {data.translationIncomplete && (
+                <p className="desk-part__source desk-stale">
+                  {data.translationNote ?? "บางพาดหัวยังไม่ได้แปลเป็นภาษาไทย — ดูต้นฉบับได้ที่ลิงก์"}
+                </p>
+              )}
+            </div>
+          </section>
 
           {data.gaps.length > 0 && (
             <section className="desk-gaps" aria-label="ช่องว่างข้อมูล">
@@ -227,11 +225,13 @@ export default function MayorDesk() {
       )}
 
       <footer className="desk-foot">
-        สรุปนี้รวมสถานีระดับน้ำ ฝน DWR แบบจำลอง และข่าว — ข้อมูลเปลี่ยนตามเวลา กรุณาระบุเวลาบันทึกเมื่อส่งต่อ
-        {" · "}<a href="/?demo=city">บินชมเมือง 3D · เทียบระดับถนน</a>
-        {" · "}<a href="/flood-ops">บันทึกฉบับเต็มสำหรับนายกฯ</a>
-        {" · "}<a href="https://www.tmd.go.th/warning-and-events/warning-storm">ประกาศ อต.</a>
-        {" · ไม่ใช่ประกาศราชการ และไม่ใช่การคาดการณ์น้ำท่วมรายถนน"}
+        <p>สรุปสถานีระดับน้ำ ฝน DWR แบบจำลอง และข่าว · ข้อมูลเปลี่ยนตามเวลา กรุณาระบุเวลาบันทึกเมื่อส่งต่อ</p>
+        <nav aria-label="เอกสารและแผนที่ประกอบ">
+          <a href="/?demo=city" aria-label="บินชมเมือง 3D และเทียบระดับถนน">ชมเมือง 3D</a>
+          <a href="/flood-ops" aria-label="บันทึกฉบับเต็มสำหรับนายกฯ">บันทึกฉบับเต็ม</a>
+          <a href="https://www.tmd.go.th/warning-and-events/warning-storm">ประกาศ อต.</a>
+        </nav>
+        <p>ไม่ใช่ประกาศราชการหรือการคาดการณ์น้ำท่วมรายถนน</p>
       </footer>
     </main>
   );
