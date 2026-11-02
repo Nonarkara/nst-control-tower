@@ -30,6 +30,7 @@
 
 import {
   ageMayorDesk,
+  MAYOR_DESK_RETENTION_MS,
   DESK_LEVEL_RANK,
   buildDeskAnswer,
   detectNewsLanguage,
@@ -894,8 +895,11 @@ export interface MayorDeskEnv {
  * available on demand. The limit is a reading choice, not a panel-height fill. */
 const DESK_NEWS_LIMIT = 8;
 
-/** Core evidence gets14s, then translation gets at most6s: a cold failure
- * must still leave headroom inside the browser's25s request deadline. */
+/** Optional context has14s. Critical readings may use18s (the relay can need
+ * 13–15s cold); translation uses only the remaining22s request budget,
+ * including any edge-cache read. */
+const CRITICAL_SOURCE_BUDGET_MS = 18_000;
+const DESK_RESPONSE_BUDGET_MS = 22_000;
 export async function withinDeskBudget<T>(work: Promise<T>, timeoutMs = 14_000): Promise<T> {
   // A deadline stops waiting, not I/O: any late cache fill still belongs
   // to this request's Worker lifetime, never a later request's context.
@@ -917,7 +921,18 @@ export async function withinDeskBudget<T>(work: Promise<T>, timeoutMs = 14_000):
 // refreshes in the background.
 // Do not seed briefs synthesized before excluded-station coverage was retained.
 const DESK_EDGE_KEY = "https://nst-control-tower-api.internal/mayor-desk-v2";
-const DESK_EDGE_TTL_S = 30 * 60;
+export const DESK_RETENTION_MS = MAYOR_DESK_RETENTION_MS;
+const DESK_EDGE_TTL_S = DESK_RETENTION_MS / 1000;
+
+/** Evidence age is immutable across retry cooldowns, edge seeds and Node
+ * persistence. A new cache expiry is not a newly prepared briefing. */
+export function canRetainDesk(feed: NormalizedFeed<MayorDesk>): boolean {
+  const clocks = [feed?.features?.[0]?.generatedAt, feed?.meta?.fetchedAt];
+  return clocks.every(stamp => {
+    const age = Date.now() - Date.parse(stamp ?? "");
+    return Number.isFinite(age) && age >= -300_000 && age <= DESK_RETENTION_MS;
+  });
+}
 
 interface EdgeCache {
   match(req: Request): Promise<Response | undefined>;
@@ -962,7 +977,7 @@ function isDeskEdgeFeed(value: unknown): value is NormalizedFeed<MayorDesk> {
 }
 
 async function seedDeskFromEdge(): Promise<void> {
-  if (hasCacheEntry("mayor-desk")) return;
+  if (hasCacheEntry("mayor-desk", canRetainDesk)) return;
   const cache = edgeCache();
   if (!cache) return;
   try {
@@ -989,13 +1004,14 @@ async function storeDeskAtEdge(feed: NormalizedFeed<MayorDesk>): Promise<void> {
 }
 
 export async function fetchMayorDesk(env: MayorDeskEnv = {}): Promise<NormalizedFeed<MayorDesk>> {
+  const requestStartedAt = Date.now();
   await seedDeskFromEdge();
   const feed = await cachedWithStale<NormalizedFeed<MayorDesk>>("mayor-desk", 60, async () => {
     const now = Date.now();
     const [observations, weather, ews, news] = await Promise.allSettled([
-      withinDeskBudget(fetchFloodObservations()),
+      withinDeskBudget(fetchFloodObservations(), CRITICAL_SOURCE_BUDGET_MS),
       withinDeskBudget(fetchFloodWeather()),
-      withinDeskBudget(fetchEwsStations()),
+      withinDeskBudget(fetchEwsStations(), CRITICAL_SOURCE_BUDGET_MS),
       withinDeskBudget(fetchNews()),
     ]);
 
@@ -1015,6 +1031,7 @@ export async function fetchMayorDesk(env: MayorDeskEnv = {}): Promise<Normalized
     const { translated, reasons, pending } = await translateHeadlines(
       toTranslate.map(r => ({ text: r.headline, language: r.language })),
       env.AI,
+      Math.max(0, Math.min(TRANSLATION_DEADLINE_MS, DESK_RESPONSE_BUDGET_MS - (Date.now() - requestStartedAt))),
     );
 
     const deskNews: DeskNewsItem[] = ranked.map(r => {
@@ -1068,6 +1085,6 @@ export async function fetchMayorDesk(env: MayorDeskEnv = {}): Promise<Normalized
     };
     await finishBackgroundWork(storeDeskAtEdge(fresh), false);
     return fresh;
-  }, 900, true);
+  }, DESK_EDGE_TTL_S, true, canRetainDesk);
   return {...feed, features: feed.features.map(desk => ageMayorDesk(desk, Date.now()))};
 }

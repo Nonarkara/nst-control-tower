@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ageMayorDesk, mayorDeskAction, mayorDeskText } from "@nst/shared";
+import { MAYOR_DESK_RETENTION_MS, ageMayorDesk, mayorDeskAction, mayorDeskText } from "@nst/shared";
 import type { DeskLevel, DeskNewsItem, DeskPart, MayorDesk } from "@nst/shared";
 import { API_BASE } from "../lib/apiBase";
 import { useFeed } from "../hooks/useFeed";
@@ -105,7 +105,7 @@ function NewsRow({ item }: { item: DeskNewsItem }) {
 }
 
 export default function MayorDesk() {
-  const feed = useFeed<MayorDesk>(`${API_BASE}/api/mayor-desk`, 60_000, 25_000);
+  const feed = useFeed<MayorDesk>(`${API_BASE}/api/mayor-desk`, 60_000, 25_000, MAYOR_DESK_RETENTION_MS);
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
     document.documentElement.lang = "th";

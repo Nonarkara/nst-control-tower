@@ -128,3 +128,31 @@ test("tablet rain follows river evidence without inheriting the official panel h
  expect(gap).toBeGreaterThanOrEqual(0);expect(gap).toBeLessThanOrEqual(20);
  await expect(page.locator('.desk-news__translation')).toContainText('ยังไม่ยืนยัน');
 });
+
+
+test("reopening the desk discards an expired browser seed while awaiting current evidence", async ({page}) => {
+  const old = desk();
+  const oldClock = new Date(Date.now() - 2 * 60 * 60_000).toISOString();
+  old.features[0].generatedAt = oldClock;
+  old.features[0].news[0].titleTh = "OLD cached briefing";
+  await page.addInitScript(({data, loadedAt}) => {
+    const saved = JSON.stringify({savedAt: Date.now(), state: {
+      data, loadedAt, ageUpdatedAt: Date.now(), ageMinutes: 120,
+      fallbackTier: "cache", error: null,
+    }});
+    for (const path of ["/api/mayor-desk", "https://nst-control-tower-api.drnon.workers.dev/api/mayor-desk"])
+      localStorage.setItem(`nst:feed:${path}`, saved);
+  }, {data: old.features, loadedAt: oldClock});
+  let release!: () => void;
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  await page.route("**/api/mayor-desk?**", async r => {
+    await gate;
+    await r.fulfill({json: desk()});
+  });
+  try {
+    await page.goto("/mayor-desk");
+    await expect(page.getByText("OLD cached briefing", {exact:true})).toHaveCount(0);
+    await expect(page.getByRole("button", {name:"คัดลอกส่ง LINE"})).toBeDisabled();
+  } finally { release(); }
+  await expect(page.locator(".desk-answer__text")).toContainText("PTTEP3");
+});

@@ -25,6 +25,9 @@ import type { SourceMeta } from "./types.js";
  *   unknown  — could not be established. A true neutral: no data can never
  *              look like good.
  */
+/** Maximum age for retaining a synthesized operational brief; source clocks stay independent. */
+export const MAYOR_DESK_RETENTION_MS = 15 * 60_000;
+
 export type DeskLevel = "good" | "watch" | "alert" | "critical" | "unknown";
 
 /**

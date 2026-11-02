@@ -53,3 +53,28 @@ it("four valid parts plus a corrupt extra row cannot seed a crashing snapshot",a
  const result=await (await import("./mayorDesk")).fetchMayorDesk();
  expect(result.features[0].parts).toHaveLength(4);
 });
+
+it("expired in-memory/cooldown evidence cannot block a newer edge seed",async()=>{
+ vi.resetModules();vi.useFakeTimers();vi.setSystemTime(new Date("2026-11-03T00:00:00Z"));
+ const {fetchMayorDesk,DESK_RETENTION_MS}=await import("./mayorDesk");
+ const first=await fetchMayorDesk();
+ await vi.advanceTimersByTimeAsync(DESK_RETENTION_MS+1);
+ const stamp=new Date().toISOString();
+ const newer={...first,features:[{...first.features[0],generatedAt:stamp}],meta:{...first.meta,fetchedAt:stamp}};
+ const match=vi.fn(async()=>Response.json(newer));
+ vi.stubGlobal("caches",{default:{match,put:async()=>{}}});
+ const {setCache,withCacheLifetime}=await import("../lib/cache");
+ setCache("mayor-desk",first,3600); // model disk hydration/retry extending cache TTL
+ const lifetime:Promise<unknown>[]=[];
+ const result=await withCacheLifetime(p=>lifetime.push(p),()=>fetchMayorDesk());
+ expect(match).toHaveBeenCalledOnce();expect(result.features[0].generatedAt).toBe(stamp);
+ await Promise.allSettled(lifetime);
+});
+it("Mayor retention uses both original clocks, including after a TTL renewal",async()=>{
+ const {fetchMayorDesk,canRetainDesk,DESK_RETENTION_MS}=await import("./mayorDesk");
+ const first=await fetchMayorDesk();
+ expect(canRetainDesk(first)).toBe(true);
+ const old=new Date(Date.now()-DESK_RETENTION_MS-1).toISOString();
+ expect(canRetainDesk({...first,features:[{...first.features[0],generatedAt:old}]})).toBe(false);
+ expect(canRetainDesk({...first,meta:{...first.meta,fetchedAt:old}})).toBe(false);
+});

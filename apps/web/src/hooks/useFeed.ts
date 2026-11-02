@@ -33,13 +33,19 @@ function storageKey(path: string): string {
   return `${STORAGE_PREFIX}${path}`;
 }
 
-export function readLocal<T>(path: string): FeedState<T> | null {
+export function readLocal<T>(path: string, maxEvidenceAgeMs?: number): FeedState<T> | null {
   try {
     const raw = typeof window !== "undefined" ? window.localStorage.getItem(storageKey(path)) : null;
     if (!raw) return null;
     const parsed = JSON.parse(raw) as { state: FeedState<T>; savedAt: number };
     const elapsed = Date.now() - parsed?.savedAt;
     if (!Number.isFinite(elapsed) || elapsed < 0 || elapsed > MAX_CACHE_AGE_MS || !Array.isArray(parsed.state?.data)) return null;
+    if (maxEvidenceAgeMs != null) {
+      // savedAt can advance when the same payload is persisted again. Keep the
+      // immutable feed clock as the operational seed's retention boundary.
+      const age = parsed.state.loadedAt ? Date.now() - Date.parse(parsed.state.loadedAt) : NaN;
+      if (!Number.isFinite(age) || age < -300_000 || age > maxEvidenceAgeMs) return null;
+    }
     return ageState({ ...parsed.state, ageUpdatedAt: parsed.state.ageUpdatedAt ?? parsed.savedAt, fallbackTier: retainedTier(parsed.state.fallbackTier) });
   } catch {
     return null;
@@ -133,8 +139,8 @@ export async function fetchWithRetry<T>(url: string, signal: AbortSignal, isFirs
   throw lastErr ?? new Error("Fetch failed after retries");
 }
 
-export function useFeed<T>(path: string, pollMs: number, requestTimeoutMs?: number): FeedState<T> & { refetch: () => void } {
-  const [state, setState] = useState<FeedState<T>>(() => readLocal<T>(path) ?? emptyInitial<T>());
+export function useFeed<T>(path: string, pollMs: number, requestTimeoutMs?: number, maxLocalEvidenceAgeMs?: number): FeedState<T> & { refetch: () => void } {
+  const [state, setState] = useState<FeedState<T>>(() => readLocal<T>(path, maxLocalEvidenceAgeMs) ?? emptyInitial<T>());
   const inflight = useRef<AbortController | null>(null);
   const runRef = useRef<() => Promise<void>>(async () => {});
   const failCount = useRef(0);
@@ -157,7 +163,7 @@ export function useFeed<T>(path: string, pollMs: number, requestTimeoutMs?: numb
       pathRef.current = path;
       failCount.current = 0;
       isFirstAttempt.current = true;
-      setState(readLocal<T>(path) ?? emptyInitial<T>());
+      setState(readLocal<T>(path, maxLocalEvidenceAgeMs) ?? emptyInitial<T>());
     }
 
     const run = async () => {
@@ -229,7 +235,7 @@ export function useFeed<T>(path: string, pollMs: number, requestTimeoutMs?: numb
       clearInterval(ageId);
       inflight.current?.abort();
     };
-  }, [path, pollMs, requestTimeoutMs]);
+  }, [path, pollMs, requestTimeoutMs, maxLocalEvidenceAgeMs]);
 
   const refetch = useCallback(() => runRef.current(), []);
   return { ...state, refetch };

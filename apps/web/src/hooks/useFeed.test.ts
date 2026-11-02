@@ -108,3 +108,15 @@ it("reports a cold timeout after one bounded attempt instead of a 133-second loa
   expect(f).toHaveBeenCalledTimes(1);
   expect(vi.getTimerCount()).toBe(0);
 });
+
+it("does not seed an operational brief from old evidence merely saved again recently", () => {
+  vi.useFakeTimers(); vi.setSystemTime(Date.parse(stamp) + 20 * 60_000);
+  vi.stubGlobal("window", {localStorage:{getItem:()=>JSON.stringify({savedAt:Date.now(),state})}});
+  expect(readLocal("/api/mayor-desk", 15 * 60_000)).toBeNull();
+  expect(readLocal("/api/reference")).not.toBeNull(); // preserve other feeds' offline policy
+});
+it("retains a recent operational seed with its original age and scenario identity", () => {
+  vi.useFakeTimers(); vi.setSystemTime(Date.parse(stamp) + 10 * 60_000);
+  vi.stubGlobal("window", {localStorage:{getItem:()=>JSON.stringify({savedAt:Date.now(),state:{...state,fallbackTier:"scenario"}})}});
+  expect(readLocal("/api/mayor-desk", 15 * 60_000)).toMatchObject({loadedAt:stamp,ageMinutes:17,fallbackTier:"scenario"});
+});

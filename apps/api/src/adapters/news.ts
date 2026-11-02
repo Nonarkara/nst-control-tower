@@ -245,7 +245,7 @@ const ACTION_PATTERNS: Array<{ tag: string; patterns: RegExp[] }> = [
     /(ระเบิด|ลอบยิง|ยิง|คนร้าย|ก่อความไม่สงบ|กลุ่มก่อการ|ปิดล้อม|ตรวจค้น|กฎอัยการศึก|ลอบวางระเบิด|คาร์บอมบ์)/,
   ]},
   { tag: "FL", patterns: [
-    /\b(flood|flooding|inundat|overflow|deluge)\b/i,
+    /\b(flood(?:s|ed|ing|waters?)?|inundat(?:e[ds]?|ing|ions?)|overflow(?:s|ed|ing)?|delug(?:e[ds]?|ing))\b/i,
     /(น้ำท่วม|น้ำหลาก|อุทกภัย|น้ำล้นตลิ่ง)/,
   ]},
   { tag: "PU", patterns: [
@@ -266,10 +266,13 @@ export function actionTags(item: { title: string; summary: string }): string[] {
   const incidentText = criticism && !armed
     ? text.replace(/\b(?:draw|draws|drawing|drew|drawn)\s+fire\b/gi, " ")
     : text;
+  // "Floods" and "inundated" are real report forms; a flood of messages
+  // is not. Strip only explicit idioms, preserving literal water elsewhere.
+  const floodText = text.replace(/\bflood(?:s|ed|ing)?\s+(?:of|with)\s+(?:complaints|messages|e-?mails|requests|applications|criticism)\b/gi, " ");
   const tags: string[] = [];
   for (const { tag, patterns } of ACTION_PATTERNS) {
     if (tag === "EM" && NOT_AN_INCIDENT.test(item.title)) continue;
-    if (patterns.some((p) => p.test(tag === "EM" ? incidentText : text))) tags.push(tag);
+    if (patterns.some((p) => p.test(tag === "EM" ? incidentText : tag === "FL" ? floodText : text))) tags.push(tag);
   }
   return tags;
 }

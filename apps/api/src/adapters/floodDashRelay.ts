@@ -249,12 +249,7 @@ function isTimeoutFailure(err: unknown): boolean {
   return /timed out|timeout|abort/i.test(message);
 }
 
-async function refreshRelay(cache: EdgeCache | null, key: Request): Promise<RelayResponse> {
-  const body = await fetchJsonOrThrow<RelayResponse>(RELAY_URL, undefined, RELAY_TIMEOUT_MS);
-  if (!validShape(body) || (!body.water.length && !body.rain.length)) throw new Error("FloodDash relay returned no station snapshot");
-  const snapshot: RelayResponse = {...body, relayFetchedAt: new Date().toISOString(), relayFromCache: false};
-  // The combined cache is transactional: a partial/invalid source reply may
-  // serve its usable subset now, but cannot erase the other last-good feed.
+function usableFeeds(body: RelayResponse) {
   const recent = (row: {lat: number; lng: number; observedAt: string}) => {
     const age = Date.now() - Date.parse(row.observedAt);
     return Number.isFinite(row.lat) && Math.abs(row.lat) <= 90 && Number.isFinite(row.lng) && Math.abs(row.lng) <= 180
@@ -262,6 +257,16 @@ async function refreshRelay(cache: EdgeCache | null, key: Request): Promise<Rela
   };
   const usableWater = mapRelayWater(body.water).gauges.some(row => recent(row) && row.levelMsl != null && Number.isFinite(row.levelMsl));
   const usableRain = mapRelayRain(body.rain).stations.some(row => recent(row) && [row.rain1h, row.rain24h].some(value => value != null && Number.isFinite(value)));
+  return { usableWater, usableRain };
+}
+
+async function refreshRelay(cache: EdgeCache | null, key: Request): Promise<RelayResponse> {
+  const body = await fetchJsonOrThrow<RelayResponse>(RELAY_URL, undefined, RELAY_TIMEOUT_MS);
+  if (!validShape(body) || (!body.water.length && !body.rain.length)) throw new Error("FloodDash relay returned no station snapshot");
+  const snapshot: RelayResponse = {...body, relayFetchedAt: new Date().toISOString(), relayFromCache: false};
+  // The combined cache is transactional: a partial/invalid source reply may
+  // serve its usable subset now, but cannot erase the other last-good feed.
+  const { usableWater, usableRain } = usableFeeds(body);
   if (!usableWater && !usableRain) throw new Error("FloodDash relay returned no usable observations");
   if (cache && usableWater && usableRain) {
     await finishBackgroundWork(cacheDeadline(cache.put(key, new Response(JSON.stringify(snapshot), {
@@ -299,7 +304,12 @@ export async function fetchRelay(): Promise<RelayResponse> {
       if (hit) {
         const snapshot = await cacheDeadline(hit.json()) as RelayResponse;
         const age = Date.now() - Date.parse(snapshot.relayFetchedAt ?? snapshot.generated_at);
-        if (validShape(snapshot) && (snapshot.water.length || snapshot.rain.length) && Number.isFinite(age) && age >= -5 * 60_000 && age <= RELAY_EDGE_TTL_S * 1000) {
+        // Retrieval age alone is insufficient: every observation may already
+        // have expired. Await the source in that case instead of immediately
+        // caching an empty/unknown operational summary for another minute.
+        // Keep continuity when even one of the two feeds still has evidence.
+        if (validShape(snapshot) && Number.isFinite(age) && age >= -5 * 60_000 && age <= RELAY_EDGE_TTL_S * 1000
+          && Object.values(usableFeeds(snapshot)).some(Boolean)) {
           if (age <= RELAY_FRESH_MS) return snapshot;
           // Keep the old snapshot if refresh fails, including an empty HTTP200.
           await finishBackgroundWork(refreshRelay(cache, key).catch(err => {

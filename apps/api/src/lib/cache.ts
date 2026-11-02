@@ -94,8 +94,13 @@ function effectiveTtl(value: unknown, ttlSeconds: number): number {
 }
 
 /** True when this isolate holds ANY entry for the key, expired or not. */
-export function hasCacheEntry(key: string): boolean {
-  return store.has(key);
+export function hasCacheEntry<T = unknown>(key: string, canRetain?: (value: T) => boolean): boolean {
+  const entry = store.get(key);
+  if (entry && canRetain && !canRetain(entry.data as T)) {
+    store.delete(key);
+    return false;
+  }
+  return entry !== undefined;
 }
 
 export function setCache<T>(key: string, data: T, ttlSeconds: number): void {
@@ -185,50 +190,70 @@ export async function cachedWithStale<T>(
    *  pinning a request for tens of seconds behind the refresh is worse than
    *  momentarily-older data. */
   serveStaleWhileRevalidate: boolean = false,
+  /** Opt-in evidence-age bound. Retry TTLs and persistence must not renew it.
+   * Historical/static callers keep their existing retention policy. */
+  canRetain?: (value: T) => boolean,
 ): Promise<T> {
+  // Validate before the fresh/cooldown fast path, not only before SWR.
+  hasCacheEntry(key, canRetain);
   const entry = store.get(key);
+  const retained = (value: T): T => {
+    if (canRetain && !canRetain(value)) {
+      if (store.get(key)?.data === value) store.delete(key);
+      throw new Error(`Cache retention limit exceeded for ${key}`);
+    }
+    return value;
+  };
   if (entry && Date.now() <= entry.expiresAt) {
     touch(key);
-    return entry.data as T;
+    return retained(entry.data as T);
   }
 
   if (entry && serveStaleWhileRevalidate && !pending.has(key)) {
     // Kick the refresh (deduplicated via `pending`) but answer NOW.
     const refresh = raceAgainstHang(Promise.resolve().then(compute), key)
       .then((fresh) => {
+        retained(fresh);
         setCache(key, fresh, effectiveTtl(fresh, ttlSeconds));
         pending.delete(key);
         return fresh;
       })
       .catch(() => {
         pending.delete(key);
+        // A refresh can cross the age bound while it waits on the source.
+        const stale = retained(entry.data as T);
         // Keep the stale entry alive so future reads still have it, but only
         // for a short cooldown — NOT the full staleTtlSeconds. Re-stamping
         // with staleTtlSeconds here would silently lock in a broken upstream
         // for up to a full day; a short cooldown means the next request
         // after ~60s triggers another background retry instead.
-        setCache(key, entry.data, STALE_REFRESH_RETRY_COOLDOWN_MS / 1000);
-        return entry.data as T;
+        setCache(key, stale, STALE_REFRESH_RETRY_COOLDOWN_MS / 1000);
+        return stale;
       });
     pending.set(key, refresh as Promise<unknown>);
+    // Node callers may have no request lifetime, and the evidence can expire
+    // while this background refresh fails. Keep shared waiters rejectable
+    // without leaving an unhandled rejection behind the already-sent response.
+    void refresh.catch(() => undefined);
     refreshLifetime.getStore()?.(refresh);
-    return entry.data as T;
+    return retained(entry.data as T);
   }
-  if (entry && serveStaleWhileRevalidate) return entry.data as T; // refresh already in flight
+  if (entry && serveStaleWhileRevalidate) return retained(entry.data as T); // refresh already in flight
 
   // Deduplicate: if a refresh is already in-flight, share it
   const inflight = pending.get(key);
   if (inflight) {
     return inflight.catch(() => {
       // If the shared promise failed, return stale if available
-      if (entry) return entry.data as T;
+      if (entry) return retained(entry.data as T);
       throw new Error(`No data available for ${key}`);
-    }) as Promise<T>;
+    }).then(value => retained(value as T));
   }
 
   const staleEntry = entry; // capture before async gap
   const promise = raceAgainstHang(Promise.resolve().then(compute), key)
     .then((fresh) => {
+      retained(fresh);
       setCache(key, fresh, effectiveTtl(fresh, ttlSeconds));
       pending.delete(key);
       return fresh;
@@ -236,9 +261,10 @@ export async function cachedWithStale<T>(
     .catch((err) => {
       pending.delete(key);
       if (staleEntry) {
+        const stale = retained(staleEntry.data as T);
         // Reinstate stale entry briefly so subsequent reads don't re-fail
-        setCache(key, staleEntry.data, Math.min(staleTtlSeconds, STALE_REFRESH_RETRY_COOLDOWN_MS / 1000));
-        return staleEntry.data as T;
+        setCache(key, stale, Math.min(staleTtlSeconds, STALE_REFRESH_RETRY_COOLDOWN_MS / 1000));
+        return stale;
       }
       throw err;
     });
