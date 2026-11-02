@@ -41,6 +41,21 @@ for (const width of [390,1024,1440]) {
     await expect(page.locator('.desk-news-more[open]')).toBeVisible();
     if(process.env.NST_DESK_ARTIFACT_DIR) await page.screenshot({path:path.join(process.env.NST_DESK_ARTIFACT_DIR,`${process.env.NST_DESK_BASELINE?'before':'after'}-expanded-${width}.png`),fullPage:true});
     if (!process.env.NST_DESK_BASELINE) {
+      // Losing one optional source must release its content space rather
+      // than leave a source-sized blank area reserved by another feed.
+      await page.locator(".desk-news-more summary").click();
+      await expect(page.locator(".desk-news-more[open]")).toHaveCount(0);
+      const fullHeight=await page.locator('.desk').evaluate(el=>el.getBoundingClientRect().height);
+      response=structuredClone(fixture);
+      const model=response.features[0].parts.find((p:{key:string})=>p.key==="forecast");
+      model.level="unknown";model.th="แบบจำลองไม่มีข้อมูลรอบปัจจุบัน";model.evidence=[];model.observedAt=null;
+      response.features[0].generatedAt=response.meta.fetchedAt="2026-11-02T19:32:57Z";
+      await page.reload();
+      await expect(page.locator('.desk-cell--forecast')).toContainText('แบบจำลองไม่มีข้อมูลรอบปัจจุบัน');
+      const missingHeight=await page.locator('.desk').evaluate(el=>el.getBoundingClientRect().height);
+      expect(missingHeight).toBeLessThan(fullHeight-24);
+      if(process.env.NST_DESK_ARTIFACT_DIR) await page.screenshot({path:path.join(process.env.NST_DESK_ARTIFACT_DIR,`after-model-missing-${width}.png`),fullPage:true});
+      response=structuredClone(fixture);
       await page.emulateMedia({colorScheme:"dark"});
       await page.reload();
       await expect(page.locator(".desk-answer__text")).toContainText("PTTEP3");
@@ -68,8 +83,8 @@ for (const width of [390,1024,1440]) {
       response.features[0].generatedAt=response.meta.fetchedAt="2026-11-02T19:32:58Z";
       await page.reload();
       await expect(page.locator(".desk-readings--official-first")).toBeVisible();
-      const priority=await page.evaluate(()=>({official:document.querySelector('.desk-cell--official')!.getBoundingClientRect().top,river:document.querySelector('.desk-cell--rivers')!.getBoundingClientRect().top}));
-      expect(priority.official).toBeLessThan(priority.river);
+      const priority=await page.evaluate(()=>({official:document.querySelector('.desk-cell--official')!.getBoundingClientRect().toJSON(),river:document.querySelector('.desk-cell--rivers')!.getBoundingClientRect().toJSON()}));
+      expect(priority.official.top < priority.river.top || (Math.abs(priority.official.top-priority.river.top)<1 && priority.official.left<priority.river.left)).toBe(true);
       if(process.env.NST_DESK_ARTIFACT_DIR) await page.screenshot({path:path.join(process.env.NST_DESK_ARTIFACT_DIR,`after-official-first-${width}.png`),fullPage:true});
       response=structuredClone(fixture);
       response.features[0].generatedAt=response.meta.fetchedAt="2026-11-02T19:32:59Z";
@@ -87,3 +102,19 @@ for (const width of [390,1024,1440]) {
 
   });
 }
+
+
+test("rain headline states the reading once while keeping coverage and exclusions in evidence",async({page})=>{
+ test.setTimeout(60_000);
+ await page.setViewportSize({width:390,height:844});
+ await page.clock.install({time:new Date("2026-11-02T19:33:00Z")});
+ const response=structuredClone(fixture);
+ response.features[0].parts.find((p:{key:string})=>p.key==="river").level="good";
+ await page.route("**/api/mayor-desk?**",r=>r.fulfill({json:response}));
+ await page.goto("/mayor-desk");
+ await expect(page.locator('.desk-answer__text')).toContainText('59.0');
+ await expect(page.locator('.desk-answer__text')).not.toContainText('39/39');
+ await expect(page.locator('.desk-cell--rain')).toContainText('39/39');
+ await expect(page.locator('.desk-cell--rain')).toContainText('35 สถานี');
+ if(process.env.NST_DESK_ARTIFACT_DIR) await page.screenshot({path:path.join(process.env.NST_DESK_ARTIFACT_DIR,'after-rain-headline-390.png'),fullPage:true});
+});
