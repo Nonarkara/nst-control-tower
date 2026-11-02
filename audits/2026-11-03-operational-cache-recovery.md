@@ -10,6 +10,8 @@ Task: give the mayor a timestamped, readable situation brief and usable evidence
 - The mayor's 14-second source wait could discard a usable cold relay response. Water/rain and DWR now receive 18 seconds; optional context retains 14 seconds. Headline translation uses only the remainder of a 22-second total budget measured before the edge read, inside the browser's 25-second request deadline.
 - English flood reports using “flooded”, “floods” or “inundation” missed the flood tag. Added inflected forms and explicit figurative-phrase controls; separate literal flooding in the same report remains tagged.
 
+The live main dashboard also contained generic “1–3 h” arrival and “within the hour” readiness advice without a local arrival model. Replaced those strings with local verification/transport-readiness guidance; landslide and standing-water text now requests local assessment rather than asserting a sequence or issuing movement instructions. Ranking inputs and thresholds are unchanged.
+
 No source observation timestamps are renewed. A retained synthesis still ages into an incomplete answer after five minutes. Missing stations, stale observations and unavailable DWR remain explicit; no all-clear is inferred.
 
 ## Evidence and scope

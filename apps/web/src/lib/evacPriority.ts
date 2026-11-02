@@ -173,7 +173,7 @@ function actionFor(tier: EvacTier, v: EvacVillage): string {
     case "move-now":
       return `Urgently call ${who} and village health volunteers (อสม.) to confirm local danger, the named vulnerable-resident list and evacuation needs. A nearby station does not establish village inundation; follow the local emergency plan.`;
     case "get-ready":
-      return `Call ${who}: confirm who is bedridden or homebound, who their carers are, and which vehicle will move them. Be ready to go within the hour.`;
+      return `Call ${who}: confirm who is bedridden or homebound, who their carers are, and which vehicle will move them. Confirm transport availability and readiness with the responsible local authority.`;
     case "watch":
       return `Check the list of residents who cannot leave on their own is current, and where they would go.`;
     default:
@@ -182,9 +182,9 @@ function actionFor(tier: EvacTier, v: EvacVillage): string {
 }
 
 function leadTimeFor(v: EvacVillage): string {
-  if (v.floodTypes.includes("flash")) return "Flash flood: water can arrive within 1–3 h of heavy rain upstream, often at night.";
-  if (v.floodTypes.includes("landslide")) return "Landslide risk: move people away from slopes after heavy rain.";
-  return "Standing water: rises over hours to days, but access roads go first.";
+  if (v.floodTypes.includes("flash")) return "Flash-flood exposure: confirm upstream rain and local conditions with the duty team. This screening does not predict arrival time.";
+  if (v.floodTypes.includes("landslide")) return "Landslide exposure: ask the responsible local authority to assess slope conditions and protective action under the local plan.";
+  return "Standing-water exposure: verify drainage and access roads locally. This screening does not predict the sequence or timing of flooding.";
 }
 
 export function rankEvacuation(opts: {
