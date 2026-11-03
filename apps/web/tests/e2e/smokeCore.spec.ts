@@ -1,5 +1,5 @@
 import { test, expect } from "./fixtures";
-import { selectLens, stubHiiSurvey, openMore } from "./floodSmokeHelpers";
+import { selectLens, stubHiiSurvey, openMore, openMapTools } from "./floodSmokeHelpers";
 
 /**
  * Smoke tests — these are the contracts that, if broken, mean a council
@@ -77,6 +77,7 @@ test.describe("Layer palette — count badge suppression", () => {
 
     // Layer toggles have role="checkbox". Distance grid lives in the "municipality"
     // group, which is open by default. Expand it explicitly in case a prior preset collapsed it.
+    await openMapTools(page);
     const muniHead = page.getByRole("button", { name: /Municipality layers/i });
     if (await muniHead.getAttribute("aria-expanded") === "false") await muniHead.click();
 
@@ -325,6 +326,7 @@ test.describe("Review fixes — phone and sticky mode", () => {
     }));
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("/");
+    await page.getByRole("tab", { name: /^BRIEF/ }).click();
     const headline = page.getByRole("region", { name: "Right now" });
     await expect(headline).toBeVisible({ timeout: 20_000 });
     const show = headline.getByRole("button", { name: "Show on map" });
@@ -336,13 +338,14 @@ test.describe("Review fixes — phone and sticky mode", () => {
   test("the mayor's desk is one tap from the phone Brief", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("/");
+    await page.getByRole("tab", { name: /^BRIEF/ }).click();
     await expect(page.getByRole("link", { name: /Mayor's desk/ })).toHaveAttribute("href", "/mayor-desk", { timeout: 20_000 });
   });
 
   test("phone controls are at least 44 px tall", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("/");
-    await expect(page.getByRole("region", { name: "Right now" })).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByRole("region", { name: "Water map readout" })).toBeVisible({ timeout: 20_000 });
     const heights = await page.locator(".topbar .btn, .topbar button").evaluateAll((els) =>
       els.filter((el) => (el as HTMLElement).offsetParent !== null).map((el) => el.getBoundingClientRect().height));
     // The phone header carries the identity, the trust label and the More
@@ -362,7 +365,7 @@ test.describe("Review fixes — phone and sticky mode", () => {
   test("a dialog's title is not covered by the header on a phone", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("/");
-    await expect(page.getByRole("region", { name: "Right now" })).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByRole("region", { name: "Water map readout" })).toBeVisible({ timeout: 20_000 });
     await openMore(page);
     await page.getByRole("button", { name: /Open flood guide/ }).click();
     const dialog = page.getByRole("dialog");

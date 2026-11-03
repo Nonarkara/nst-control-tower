@@ -24,13 +24,23 @@ interface Props {
   onOpenCamera: (camera: CctvCamera) => void;
   /** Who-to-move-first totals; null while the village register loads. */
   evac?: EvacSummary | null;
+  /** Map-edge reading band; the full briefing remains one action away. */
+  onOpenBrief?: () => void;
 }
 
-export function SituationHeadline({ gauges, basins, cameras, ageMinutes, tier, onFocus, onOpenCamera, evac }: Props) {
+export function SituationHeadline({ gauges, basins, cameras, ageMinutes, tier, onFocus, onOpenCamera, evac, onOpenBrief }: Props) {
   const { locale } = useLocale();
   const th = locale === "th";
   const h = buildSituationHeadline({ gauges, basins, cameras, ageMinutes, tier, lang: th ? "th" : "en" });
   const st = STATUS[h.level];
+
+  if (onOpenBrief) return (
+    <section className="map-situation" aria-label="Water map readout" style={statusStyle(h.level)} lang={th ? "th" : undefined}>
+      <p className="map-situation__headline" aria-live="polite" aria-atomic="true"><span className="pc-glyph" aria-hidden="true">{st.glyph} </span>{h.headline}</p>
+      <p className="map-situation__age">{h.freshness}</p>
+      <button className="btn" type="button" onClick={onOpenBrief}>{th ? "ยืนยันสภาพกับเวร · หลักฐาน →" : "Confirm with duty team · evidence →"}</button>
+    </section>
+  );
 
   return (
     <section className="situation-headline" aria-label="Right now" aria-live="polite" style={statusStyle(h.level)} lang={th ? "th" : undefined}>

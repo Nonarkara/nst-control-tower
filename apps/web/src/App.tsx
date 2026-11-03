@@ -489,7 +489,8 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
   // Mobile: 1-column stack with bottom segmented nav to swap panels.
   const isMobile = useIsMobile();
   const online = useOnlineStatus();
-  const [mobilePanel, setMobilePanel] = useState<MobilePanel>("brief");
+  const [mobilePanel, setMobilePanel] = useState<MobilePanel>("map");
+  const [mapToolsOpen, setMapToolsOpen] = useState(false);
   const [demoStep, setDemoStep] = useState<number | null>(null);
   const [demoPlaying, setDemoPlaying] = useState(false);
   const demoRestore = useRef<{ layers: Set<LayerId>; view: typeof NST.defaultView; mode: "2D" | "3D"; mapState: MapViewState; scenario: number | null; panel: MobilePanel } | null>(null);
@@ -2428,7 +2429,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
 
   return (
     <div
-      className={`shell ${demoStep != null ? "city-demo" : ""} ${isMobile ? `mobile mobile-panel-${mobilePanel}` : ""}`}
+      className={`shell ${demoStep != null ? "city-demo" : ""} ${isMobile ? `mobile mobile-panel-${mobilePanel}` : !mapToolsOpen && !cctvCommandOpen ? "map-tools-closed" : ""}`}
       data-mobile={isMobile ? "true" : "false"}
     >
       {toast && (
@@ -2436,7 +2437,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
           {toast}
         </div>
       )}
-      <a className="skip-link" href={demoStep != null ? "#city-flyover-controls" : "#rail-left"}>{demoStep != null ? "Skip to flyover controls" : "Skip to city panels"}</a>
+      <a className="skip-link" href={demoStep != null ? "#city-flyover-controls" : isMobile && mobilePanel === "map" ? "#city-map" : "#rail-left"}>{demoStep != null ? "Skip to flyover controls" : isMobile && mobilePanel === "map" ? "Skip to city map" : "Skip to city panels"}</a>
       {/* ── Header stack: offline banner · top bar · system banner ── */}
       <div className="shell-top">
       {!online && (
@@ -2499,7 +2500,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
           layer set (EXEC = strategic, OPS = day-to-day). The legacy Chula
           ExecutiveBrief / StrategicAlerts / PeerComparison panels were built
           for a university and don't belong on a city mayor's desk. ── */}
-      <aside id="rail-left" className={`left-bar ${cctvCommandOpen ? "is-cctv-mode" : ""}`} aria-label="City panels" aria-hidden={demoStep != null || cctvCommandOpen || (isMobile && mobilePanel !== "brief")}>
+      <aside id="rail-left" tabIndex={-1} className={`left-bar ${cctvCommandOpen ? "is-cctv-mode" : ""}`} aria-label="City panels" aria-hidden={demoStep != null || cctvCommandOpen || (isMobile && mobilePanel !== "brief")} inert={demoStep != null || cctvCommandOpen || (isMobile && mobilePanel !== "brief")}>
         {/* ── RIGHT NOW: worst gauge + time to overtop, suggested action, data
             age. First in the rail on every lens so the answer to "is the city
             OK?" is always above the fold. ── */}
@@ -2939,7 +2940,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
       </aside>
 
       {/* ── Map center — nothing overlaps this ── */}
-      <main className="map-area" aria-hidden={isMobile && mobilePanel !== "map"}>
+      <main id="city-map" tabIndex={-1} aria-label="City map" className={`map-area ${isMobile && demoStep == null ? "map-area--with-reading" : ""}`} aria-hidden={isMobile && mobilePanel !== "map"} inert={isMobile && mobilePanel !== "map"}>
         <div className="map-host">
           <div className="sr-only" role="status" aria-live="polite">
             Nakhon Si Thammarat map. {mapViewState.kind === "custom" ? mapViewState.label : `Current lens: ${LENSES.find((l) => l.id === lens)?.label ?? lens}`}.
@@ -3003,6 +3004,8 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
             onAerialOnly={setAerialOnly}
             onClearOverlays={clearOverlays}
             onRestoreLens={restoreLens}
+            onTogglePanel={!isMobile ? () => setMapToolsOpen(open => !open) : undefined}
+            panelOpen={mapToolsOpen}
           />}
           {demoStep != null && <CityFlyover step={demoStep} playing={demoPlaying} reducedMotion={prefersReducedMotion()} onStep={step => { setDemoPlaying(false); setDemoStep(step); }} onPlay={() => { if (demoPlaying) { setDemoPlaying(false); flyCamera({ ...viewStateRef.current, transitionDuration: 0 }); } else { if (demoStep === CITY_FLYOVER.length - 1) setDemoStep(0); setDemoPlaying(true); } }} onClose={endCityDemo} level={scenarioLevel} onLevel={setScenarioLevel} stats={demoStats} coverage={infillBuildings ? "ready" : infillStatus} surveyStatus={roadLevels ? "ready" : surveyStatus} />}
           <div className="map-navigation">
@@ -3057,13 +3060,31 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
               ))}
             </div>
           )}
+          <ChatBox apiBase={API_BASE} />
         </div>
+        {isMobile && demoStep == null && <SituationHeadline
+          gauges={waterGauges.data} basins={currentBasins}
+          cameras={cctv.data.filter(c => c.category === "water")}
+          ageMinutes={waterGauges.data.length ? waterGauges.ageMinutes : null}
+          tier={waterGauges.fallbackTier}
+          onFocus={(lng, lat) => flyTo(lng, lat, 14)}
+          onOpenCamera={c => { highlightCamera(c.id); setSelectedCctv(c); }}
+          onOpenBrief={() => {
+            setMobilePanel("brief");
+            requestAnimationFrame(() => document.getElementById("rail-left")?.focus());
+          }}
+        />}
       </main>
 
       {/* ── Right sidebar: news (scrollable) + layer controls.
           StrategicAlerts and PeerComparison were Chula-university panels —
           removed until rebuilt with provincial peer data (Rayong, Chachoengsao). ── */}
-      <aside className={`right-bar ${cctvCommandOpen ? "is-cctv-mode" : ""}`} aria-label="Cameras, news and map layers" aria-hidden={demoStep != null || cctvCommandOpen || (isMobile && mobilePanel !== "layers")}>
+      <aside id="map-tools-panel" className={`right-bar ${cctvCommandOpen ? "is-cctv-mode" : ""}`} aria-label="Cameras, news and map layers" aria-hidden={demoStep != null || cctvCommandOpen || (isMobile ? mobilePanel !== "layers" : !mapToolsOpen)} inert={demoStep != null || cctvCommandOpen || (isMobile ? mobilePanel !== "layers" : !mapToolsOpen)} onKeyDown={e => {
+        if (!isMobile && e.key === "Escape") {
+          setMapToolsOpen(false);
+          document.querySelector<HTMLButtonElement>(".map-panel-toggle")?.focus();
+        }
+      }}>
         <div className="right-sections">
         <RailSection sectionKey="right-cctv" lens={lens} title="CCTV">
           <CctvDirectory
@@ -3241,7 +3262,6 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
           onClose={() => setShortcutsOpen(false)}
         />
       )}
-      <ChatBox apiBase={API_BASE} />
       {isMobile && <MobileNav panel={mobilePanel} onChange={setMobilePanel} />}
     </div>
   );

@@ -404,6 +404,21 @@ input:focus-visible,
   position: absolute;
   inset: 0;
 }
+.map-area--with-reading { display:flex; flex-direction:column; padding-bottom:62px; }
+.map-area--with-reading .map-host { position:relative; inset:auto; flex:1; min-height:0; }
+.map-situation { flex:none; display:grid; gap:4px; padding:8px 12px; background:var(--panel); border-top:1px solid var(--line); }
+.map-situation p { margin:0; max-width:75ch; }
+.map-situation__headline { font-size:var(--text-sm); font-weight:var(--weight-bold); line-height:1.35; }
+.map-situation .pc-glyph { color:var(--status,var(--ink)); }
+.map-situation__age { font-size:13px; color:var(--ink-2); line-height:1.35; }
+.map-situation .btn { justify-self:start; min-height:44px; }
+@media (min-width:601px) {
+  .map-situation { grid-template-columns:minmax(0,1fr) auto; column-gap:16px; align-items:center; }
+  .map-situation p { grid-column:1; }
+  .map-situation .btn { grid-column:2; grid-row:1 / span 2; }
+}
+.shell.mobile .map-area--with-reading .map-navigation { position:absolute; bottom:8px; right:8px; }
+.shell.mobile .map-host .chatbox-closed { position:absolute; bottom:8px; left:8px; right:auto; }
 
 /* ── Right sidebar ── */
 .right-bar {
@@ -1145,6 +1160,7 @@ input:focus-visible,
   gap: var(--s-2);
 }
 .map-overlay-controls button { pointer-events: auto; }
+.map-panel-toggle { align-self:flex-start; min-height:44px; }
 .map-overlay-actions {
   display: flex;
   flex-wrap: wrap;

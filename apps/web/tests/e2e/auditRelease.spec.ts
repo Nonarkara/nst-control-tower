@@ -1,3 +1,4 @@
+import { openMapTools } from "./floodSmokeHelpers";
 import { test, expect } from "./fixtures";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
@@ -10,6 +11,7 @@ for (const width of [1440, 1024, 390]) {
     await page.route("**/api/air-quality?**", r => r.fulfill({ json: { meta, features: [{ lat: 8.43, lng: 99.96, station: "Open-Meteo grid test", source: "open-meteo", pm25: 4.2, aqi: 20, observedAt }] } }));
     await page.route("**/api/air-quality/air4thai?**", r => r.fulfill({ json: { meta, features: [{ lat: 8.43, lng: 99.96, station: "PCD station test", source: "air4thai", pm25: 14, aqi: 25, observedAt }] } }));
     await page.goto("/");
+    await openMapTools(page);
     if (width <= 1100) await page.getByRole("tab", { name: /^LAYERS/ }).click();
     const views = page.getByRole("group", { name: "Map views", exact: true });
     await views.getByRole("button", { name: "Air", exact: true }).click();

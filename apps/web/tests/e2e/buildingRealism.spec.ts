@@ -1,3 +1,4 @@
+import { openMapTools } from "./floodSmokeHelpers";
 import { test, expect } from "./fixtures";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
@@ -12,6 +13,7 @@ for (const width of [1440, 1024, 390]) {
     await page.setViewportSize({ width, height: 1000 });
     await page.addInitScript(() => localStorage.setItem("nst:theme", "dark"));
     await page.goto("/");
+    await openMapTools(page);
     await expect(page.locator(".map-host")).toBeVisible({ timeout: 20_000 });
     if (width <= 1100) await page.getByRole("tab", { name: /^MAP/ }).click();
     await page.getByRole("button", { name: "Show Wat Mahathat in 3D", exact: true }).click();
