@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { safeUrl } from "../lib/safeUrl";
 import { Dialog } from "./Dialog";
 import { friendlyError } from "../lib/chat";
@@ -207,8 +208,7 @@ export function ChatBox({ apiBase }: Props) {
 
   return (
     <>
-      {!open && (
-        <div className="chatbox chatbox-closed">
+        <div className="chatbox chatbox-closed" hidden={open}>
           <button
             type="button"
             className="chat-handle"
@@ -225,11 +225,17 @@ export function ChatBox({ apiBase }: Props) {
             <span className="chat-handle-cta" aria-hidden="true">[ASK →]</span>
           </button>
         </div>
-      )}
-
-      <Dialog
+      {open && createPortal(<Dialog
         open={open}
-        onClose={() => setOpen(false)}
+        onClose={() => {
+          setOpen(false);
+          requestAnimationFrame(() => {
+            const trigger = document.querySelector<HTMLButtonElement>('.chat-handle');
+            const target = trigger && !trigger.closest('[inert]') ? trigger
+              : document.querySelector<HTMLElement>('.mobile-nav [aria-selected="true"]') ?? document.getElementById('city-map');
+            target?.focus();
+          });
+        }}
         size="md"
         className="dialog--chat"
         eyebrow="NST-Concierge · Gemini 2.5 Flash"
@@ -318,7 +324,7 @@ export function ChatBox({ apiBase }: Props) {
             {busy ? "Sending…" : "SEND"}
           </button>
         </form>
-      </Dialog>
+      </Dialog>, document.body)}
     </>
   );
 }

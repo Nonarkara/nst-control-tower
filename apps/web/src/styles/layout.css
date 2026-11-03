@@ -411,7 +411,7 @@ input:focus-visible,
 .map-situation__headline { font-size:var(--text-sm); font-weight:var(--weight-bold); line-height:1.35; }
 .map-situation .pc-glyph { color:var(--status,var(--ink)); }
 .map-situation__age { font-size:13px; color:var(--ink-2); line-height:1.35; }
-.map-situation .btn { justify-self:start; min-height:44px; }
+.map-situation .btn { justify-self:start; min-height:44px; max-width:100%; white-space:normal; text-align:left; }
 @media (min-width:601px) {
   .map-situation { grid-template-columns:minmax(0,1fr) auto; column-gap:16px; align-items:center; }
   .map-situation p { grid-column:1; }

@@ -11,8 +11,8 @@ for (const width of [390,1024,1440]) test(`map entry, evidence exit and keyboard
   const stamp=new Date().toISOString();
   const meta={source:"synthetic glance test",fetchedAt:stamp,ageMinutes:43,fallbackTier:"cache"};
   const gauge={id:"glance-test",name:"สะพานนางพระยา-บางหลวง ชุมชนปากนคร (ข้อมูลทดสอบ)",stationCode:"TEST",amphoe:"เมืองนครศรีธรรมราช",riverName:"คลองทดสอบ",lat:8.43,lng:100.03,levelMsl:.62,diffFromBank:-.11,fullnessPct:96,trend:"rising",observedAt:stamp};
-  let missing=false;
-  await page.route("**/api/water/gauges?**",r=>r.fulfill({json:{meta,features:[missing?{...gauge,observedAt:"2000-01-01T00:00:00Z"}:gauge]}}));
+  let missing=false,critical=false;
+  await page.route("**/api/water/gauges?**",r=>r.fulfill({json:{meta,features:[missing?{...gauge,observedAt:"2000-01-01T00:00:00Z"}:critical?{...gauge,diffFromBank:.1,fullnessPct:102,situationLevel:5}:gauge]}}));
   await page.route("**/geo/nst/terrain-grid.json",r=>r.fulfill({json:{cellLng:1,cellLat:1,cells:[]}}));
   await page.goto("/",{waitUntil:"domcontentloaded"});
   await expect(page.locator('.map-host')).toBeVisible({timeout:30_000});
@@ -23,15 +23,7 @@ for (const width of [390,1024,1440]) test(`map entry, evidence exit and keyboard
     await page.getByRole('button',{name:'More',exact:true}).press('Tab');
     expect(await page.evaluate(()=>!!document.activeElement?.closest('[inert]'))).toBe(false);
   }else await expect(page.getByRole('button',{name:'Layers & news',exact:true})).toHaveAttribute('aria-expanded','false');
-  const geometry=await page.evaluate(()=>{
-    const map=document.querySelector('.map-host')!.getBoundingClientRect();
-    const rects=Array.from(document.querySelectorAll('.building-search,.map-navigation,.map-overlay-actions,.map-panel-toggle,.map-hud-bl,.chatbox-closed')).map(el=>el.getBoundingClientRect());
-    const occupied=rects.reduce((n,r)=>n+Math.max(0,Math.min(map.right,r.right)-Math.max(map.left,r.left))*Math.max(0,Math.min(map.bottom,r.bottom)-Math.max(map.top,r.top)),0);
-    return {width:innerWidth,height:innerHeight,map:map.toJSON(),visibleMapRatio:(map.width*map.height-occupied)/(innerWidth*innerHeight),scrollWidth:document.documentElement.scrollWidth};
-  });
-  expect(geometry.visibleMapRatio).toBeGreaterThanOrEqual(.60);
-  expect(geometry.scrollWidth).toBeLessThanOrEqual(width);
-  await shot('map',geometry);
+  await verifyMap('map');
   if(width<=1100){
     await page.getByRole('region',{name:'Water map readout'}).getByRole('button').click();
     await expect(page.locator('#rail-left')).toBeFocused();
@@ -42,6 +34,9 @@ for (const width of [390,1024,1440]) test(`map entry, evidence exit and keyboard
     await expect(page.locator('#city-map')).toBeFocused();
     await page.getByRole('tab',{name:/^LAYERS/}).click();
     await expect(page.getByRole('combobox',{name:'Advanced map views',exact:true})).toBeVisible();
+    await page.getByRole('link',{name:'Skip to map tools',exact:true}).focus();
+    await page.keyboard.press('Enter');
+    await expect(page.locator('#map-tools-panel')).toBeFocused();
     await shot('tools');
   }else{
     await page.getByRole('button',{name:'Layers & news',exact:true}).click();
@@ -53,9 +48,13 @@ for (const width of [390,1024,1440]) test(`map entry, evidence exit and keyboard
     await expect(page.getByRole('button',{name:'Layers & news',exact:true})).toBeFocused();
     await expect(page.locator('.right-bar')).toHaveAttribute('inert','');
   }
-  missing=true;await page.reload({waitUntil:"domcontentloaded"});
+  critical=true;await page.goto("/",{waitUntil:"domcontentloaded"});
+  await expect(page.locator(width<=1100?'.map-situation':'.situation-headline')).toContainText('วิกฤต');
+  if(width<=1100) await expect(page.locator('.map-situation')).toContainText('ประสานเวรทันที');
+  await verifyMap('critical');
+  missing=true;critical=false;await page.goto("/",{waitUntil:"domcontentloaded"});
   await expect(page.locator(width<=1100?'.map-situation':'.situation-headline')).toContainText('ไม่มีข้อมูล');
-  await shot('missing');
+  await verifyMap('missing');
   const observation={generatedAt:stamp,gauges:[gauge],rain:[],waterMeta:meta,rainMeta:meta,weather:[],weatherFetchedAt:null,tide:null,context:{fetchedAt:stamp,wetness:null,rainTrend:null,tmd:null,errors:[]},cameraCounts:{total:0,online:0,unknown:0},gaps:['Synthetic missing-rain case']};
   await page.route('**/api/flood/operations?**',r=>r.fulfill({json:{meta,features:[observation]}}));
   await page.goto('/flood-ops',{waitUntil:'domcontentloaded'});
@@ -79,10 +78,41 @@ for (const width of [390,1024,1440]) test(`map entry, evidence exit and keyboard
   const authority=await page.evaluate(()=>({status:document.querySelector('.flood-watch-status')!.getBoundingClientRect().top,focal:document.querySelector('.flood-watch-focal')!.getBoundingClientRect().top}));
   expect(authority.status).toBeLessThan(authority.focal);
   await shot('official');
+  async function verifyMap(state:string){
+  const geometry=await page.evaluate(()=>{
+    const map=document.querySelector('.map-host')!.getBoundingClientRect();
+    const rects=Array.from(document.querySelectorAll('.building-search,.map-navigation,.map-overlay-actions,.map-panel-toggle,.map-hud-bl,.chatbox-closed')).map(el=>el.getBoundingClientRect());
+    const occupied=rects.reduce((n,r)=>n+Math.max(0,Math.min(map.right,r.right)-Math.max(map.left,r.left))*Math.max(0,Math.min(map.bottom,r.bottom)-Math.max(map.top,r.top)),0);
+    return {width:innerWidth,height:innerHeight,map:map.toJSON(),visibleMapRatio:(map.width*map.height-occupied)/(innerWidth*innerHeight),scrollWidth:document.documentElement.scrollWidth};
+  });
+  expect(geometry.visibleMapRatio).toBeGreaterThanOrEqual(.60);
+  expect(geometry.scrollWidth).toBeLessThanOrEqual(width);
+  await shot(state,geometry);
+  }
   async function shot(state:string,geometry?:unknown){
     const dir=process.env.NST_DESK_ARTIFACT_DIR;if(!dir)return;
     mkdirSync(dir,{recursive:true});
     await page.screenshot({path:path.join(dir,`glance-${state}-${width}.png`)});
     if(geometry)writeFileSync(path.join(dir,`glance-${state}-${width}.json`),JSON.stringify(geometry,null,2));
   }
+});
+
+
+test("chat remains reachable when resize restores an inactive map panel",async({page})=>{
+  await page.setViewportSize({width:390,height:844});
+  await page.goto("/",{waitUntil:"domcontentloaded"});
+  await page.getByRole("tab",{name:/^LAYERS/}).click();
+  await page.setViewportSize({width:1440,height:900});
+  await page.getByRole("button",{name:"Ask NST: open concierge chat",exact:true}).click();
+  const dialog=page.getByRole("dialog",{name:"Ask anything about Nakhon Si Thammarat",exact:true});
+  await expect(dialog.getByRole("textbox",{name:"Your message",exact:true})).toBeFocused();
+  await dialog.getByRole("textbox",{name:"Your message",exact:true}).fill("Unsent test draft");
+  await page.setViewportSize({width:390,height:844});
+  await expect(page.locator('#city-map')).toHaveAttribute('inert','');
+  await expect(dialog).toBeVisible();
+  expect(await dialog.evaluate(e=>!!e.closest('[inert],[aria-hidden="true"]'))).toBe(false);
+  await expect(dialog.getByRole("textbox",{name:"Your message",exact:true})).toHaveValue("Unsent test draft");
+  await page.keyboard.press("Escape");
+  await expect(dialog).toHaveCount(0);
+  await expect(page.getByRole("tab",{name:/^LAYERS/})).toBeFocused();
 });

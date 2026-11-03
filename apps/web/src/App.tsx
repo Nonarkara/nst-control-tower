@@ -489,7 +489,10 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
   // Mobile: 1-column stack with bottom segmented nav to swap panels.
   const isMobile = useIsMobile();
   const online = useOnlineStatus();
-  const [mobilePanel, setMobilePanel] = useState<MobilePanel>("map");
+  const [mobilePanel, setMobilePanel] = useState<MobilePanel>(() => {
+    const hash = typeof window === "undefined" ? "" : window.location.hash;
+    return hash === "#rail-left" ? "brief" : hash === "#map-tools-panel" ? "layers" : "map";
+  });
   const [mapToolsOpen, setMapToolsOpen] = useState(false);
   const [demoStep, setDemoStep] = useState<number | null>(null);
   const [demoPlaying, setDemoPlaying] = useState(false);
@@ -2437,7 +2440,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
           {toast}
         </div>
       )}
-      <a className="skip-link" href={demoStep != null ? "#city-flyover-controls" : isMobile && mobilePanel === "map" ? "#city-map" : "#rail-left"}>{demoStep != null ? "Skip to flyover controls" : isMobile && mobilePanel === "map" ? "Skip to city map" : "Skip to city panels"}</a>
+      <a className="skip-link" href={demoStep != null ? "#city-flyover-controls" : isMobile && mobilePanel === "map" ? "#city-map" : isMobile && mobilePanel === "layers" ? "#map-tools-panel" : "#rail-left"}>{demoStep != null ? "Skip to flyover controls" : isMobile && mobilePanel === "map" ? "Skip to city map" : isMobile && mobilePanel === "layers" ? "Skip to map tools" : "Skip to city panels"}</a>
       {/* ── Header stack: offline banner · top bar · system banner ── */}
       <div className="shell-top">
       {!online && (
@@ -3089,7 +3092,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
       {/* ── Right sidebar: news (scrollable) + layer controls.
           StrategicAlerts and PeerComparison were Chula-university panels —
           removed until rebuilt with provincial peer data (Rayong, Chachoengsao). ── */}
-      <aside id="map-tools-panel" className={`right-bar ${cctvCommandOpen ? "is-cctv-mode" : ""}`} aria-label="Cameras, news and map layers" aria-hidden={demoStep != null || cctvCommandOpen || (isMobile ? mobilePanel !== "layers" : !mapToolsOpen)} inert={demoStep != null || cctvCommandOpen || (isMobile ? mobilePanel !== "layers" : !mapToolsOpen)} onKeyDown={e => {
+      <aside id="map-tools-panel" tabIndex={-1} className={`right-bar ${cctvCommandOpen ? "is-cctv-mode" : ""}`} aria-label="Cameras, news and map layers" aria-hidden={demoStep != null || cctvCommandOpen || (isMobile ? mobilePanel !== "layers" : !mapToolsOpen)} inert={demoStep != null || cctvCommandOpen || (isMobile ? mobilePanel !== "layers" : !mapToolsOpen)} onKeyDown={e => {
         if (!isMobile && e.key === "Escape") {
           setMapToolsOpen(false);
           document.querySelector<HTMLButtonElement>(".map-panel-toggle")?.focus();
