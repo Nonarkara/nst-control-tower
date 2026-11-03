@@ -3084,7 +3084,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
           )}
           <ChatBox apiBase={API_BASE} />
         </div>
-        {isMobile && demoStep == null && <SituationHeadline
+        {isMobile && demoStep == null && mobilePanel === "map" && <SituationHeadline
           gauges={waterGauges.data} basins={currentBasins}
           cameras={cctv.data.filter(c => c.category === "water")}
           ageMinutes={waterGauges.data.length ? waterGauges.ageMinutes : null}

@@ -34,6 +34,8 @@ for (const width of [390,1024,1440]) test(`map entry, evidence exit and keyboard
     await expect(page.locator('#city-map')).toBeFocused();
     await page.getByRole('tab',{name:/^LAYERS/}).click();
     await expect(page.getByRole('combobox',{name:'Advanced map views',exact:true})).toBeVisible();
+    const inactive=await page.evaluate(()=>({mapBottom:document.querySelector('.map-host')!.getBoundingClientRect().bottom,navTop:document.querySelector('.mobile-nav')!.getBoundingClientRect().top}));
+    expect(Math.abs(inactive.mapBottom-inactive.navTop)).toBeLessThan(1);
     await page.getByRole('link',{name:'Skip to map tools',exact:true}).focus();
     await page.keyboard.press('Enter');
     await expect(page.locator('#map-tools-panel')).toBeFocused();
