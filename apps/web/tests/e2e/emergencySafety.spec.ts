@@ -32,7 +32,7 @@ for (const width of [390, 1024, 1440]) {
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     let focus: {tag?: string; outline?: string | null} = {};
     await shot("current");
-    await page.keyboard.press("Tab");
+    await page.getByRole('button', {name:'More',exact:true}).press("Tab");
     focus = await page.evaluate(() => ({ tag:document.activeElement?.tagName, outline:document.activeElement ? getComputedStyle(document.activeElement).outlineStyle : null }));
     expect(focus.tag).not.toBe("BODY");
     if (width <= 1100) await page.getByRole("tab", {name:/^LAYERS/}).click();

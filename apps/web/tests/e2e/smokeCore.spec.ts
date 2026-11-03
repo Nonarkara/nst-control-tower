@@ -220,11 +220,13 @@ test.describe("WHO TO MOVE FIRST — coverage honesty", () => {
 });
 
 test.describe("Phone — first screen", () => {
-  test("opens on the Brief (the answer), not an empty map", async ({ page }) => {
+  test("opens on the map with a reading and verification action", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("/");
-    await expect(page.getByRole("region", { name: "Right now" })).toBeVisible({ timeout: 20_000 });
-    await expect(page.getByRole("region", { name: "What the cameras see" })).toBeVisible();
+    const readout = page.getByRole("region", { name: "Water map readout" });
+    await expect(readout).toBeVisible({ timeout: 20_000 });
+    await expect(readout.getByRole('button')).toBeVisible();
+    await expect(page.getByRole('tab',{name:/^MAP/})).toHaveAttribute('aria-selected','true');
   });
 
   test("header stays one slim row at laptop width", async ({ page }) => {

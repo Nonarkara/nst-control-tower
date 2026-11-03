@@ -18,6 +18,12 @@ export async function ensureSectionOpen(
   const header = page.locator(".sidebar-section__hdr", {
     hasText: new RegExp(sectionTitle, "i"),
   });
+  await expect(page.locator('.shell')).toBeVisible({ timeout: 30_000 });
+  if (await header.evaluate(el => !!el.closest('.right-bar'))) await openMapTools(page);
+  else {
+    const brief = page.getByRole('tab', { name: /^BRIEF/ });
+    if (await brief.count()) await brief.click();
+  }
   await expect(header).toBeVisible({ timeout: 15_000 });
   // Treat anything other than "true" as collapsed — including a missing/empty
   // attribute if a remount races the read.

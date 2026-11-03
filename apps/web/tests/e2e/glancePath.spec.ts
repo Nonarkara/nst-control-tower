@@ -12,7 +12,7 @@ for (const width of [390,1024,1440]) test(`map entry, evidence exit and keyboard
   const meta={source:"synthetic glance test",fetchedAt:stamp,ageMinutes:43,fallbackTier:"cache"};
   const gauge={id:"glance-test",name:"สะพานนางพระยา-บางหลวง ชุมชนปากนคร (ข้อมูลทดสอบ)",stationCode:"TEST",amphoe:"เมืองนครศรีธรรมราช",riverName:"คลองทดสอบ",lat:8.43,lng:100.03,levelMsl:.62,diffFromBank:-.11,fullnessPct:96,trend:"rising",observedAt:stamp};
   let missing=false,critical=false;
-  await page.route("**/api/water/gauges?**",r=>r.fulfill({json:{meta,features:[missing?{...gauge,observedAt:"2000-01-01T00:00:00Z"}:critical?{...gauge,diffFromBank:.1,fullnessPct:102,situationLevel:5}:gauge]}}));
+  await page.route("**/api/water/gauges?**",r=>r.fulfill({json:{meta:{...meta,fetchedAt:new Date(Date.parse(stamp)+(missing?2000:critical?1000:0)).toISOString()},features:[missing?{...gauge,observedAt:"2000-01-01T00:00:00Z"}:critical?{...gauge,diffFromBank:.1,fullnessPct:102,situationLevel:5}:gauge]}}));
   await page.route("**/geo/nst/terrain-grid.json",r=>r.fulfill({json:{cellLng:1,cellLat:1,cells:[]}}));
   await page.goto("/",{waitUntil:"domcontentloaded"});
   await expect(page.locator('.map-host')).toBeVisible({timeout:30_000});
@@ -73,7 +73,7 @@ for (const width of [390,1024,1440]) test(`map entry, evidence exit and keyboard
   await page.locator('.flood-watch-verify').click();
   await expect(page.locator('#duty-actions')).toBeInViewport();
   await page.route('**/api/water/ews?**',r=>r.fulfill({json:{meta:{...meta,fallbackTier:'live'},features:[{id:'test-dwr',name:'ประกาศทดสอบลำดับอ่าน',lat:8.4,lng:99.9,type:'water',amphoe:'ลานสกา',tambon:'ทดสอบ',basin:'test',status:2,stale:false,observedAt:stamp,rain:null,rain12h:null,rain07h:null,soilMoisture:null}]}}));
-  await page.reload({waitUntil:"domcontentloaded"});
+  await page.goto('/flood-ops',{waitUntil:"domcontentloaded"});
   await expect(page.locator('.flood-watch-status strong')).toContainText('DWR ประกาศเตือน');
   const authority=await page.evaluate(()=>({status:document.querySelector('.flood-watch-status')!.getBoundingClientRect().top,focal:document.querySelector('.flood-watch-focal')!.getBoundingClientRect().top}));
   expect(authority.status).toBeLessThan(authority.focal);
