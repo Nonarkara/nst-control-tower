@@ -5,6 +5,8 @@ interface MapOverlayControlsProps {
   onAerialOnly: () => void;
   onClearOverlays: () => void;
   onRestoreLens: () => void;
+  onTogglePanel?: () => void;
+  panelOpen?: boolean;
 }
 
 // Visible text is the accessible name (WCAG 2.5.3); the longer explanation is a tooltip.
@@ -13,6 +15,8 @@ export function MapOverlayControls({
   onAerialOnly,
   onClearOverlays,
   onRestoreLens,
+  onTogglePanel,
+  panelOpen,
 }: MapOverlayControlsProps) {
   const isCustom = mapViewState.kind === "custom";
   const label = isCustom ? (mapViewState as { kind: "custom"; label: string }).label : null;
@@ -41,6 +45,7 @@ export function MapOverlayControls({
           </>
         )}
       </div>
+      {onTogglePanel && <button className="map-panel-toggle btn" type="button" aria-expanded={panelOpen} aria-controls="map-tools-panel" onClick={onTogglePanel}>Layers &amp; news</button>}
     </div>
   );
 }

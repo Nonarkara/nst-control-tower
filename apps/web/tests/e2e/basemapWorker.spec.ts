@@ -1,3 +1,4 @@
+import { openMapTools } from "./floodSmokeHelpers";
 import { test, expect } from "./fixtures";
 
 test.setTimeout(90_000);
@@ -26,6 +27,7 @@ test("map worker is emitted as JavaScript rather than the SPA fallback", async (
 
 test("satellite replaces terrain and missing Google configuration keeps the selected base", async ({ page }) => {
   await page.goto("/");
+    await openMapTools(page);
   await page.getByRole("button", { name: /^Imagery layers/ }).click();
   const terrain = page.getByRole("checkbox", { name: /^3D Terrain/ });
   const esri = page.getByRole("checkbox", { name: /^Satellite \(Esri HD\)/ });

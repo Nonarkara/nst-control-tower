@@ -1,3 +1,4 @@
+import { openMapTools } from "./floodSmokeHelpers";
 import { test, expect } from "./fixtures";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -17,23 +18,25 @@ for (const width of [390, 1024, 1440]) {
     await page.route("**/api/water/ews?**", r => r.fulfill({ json: {meta, features:[ews]} }));
     await page.route("**/api/water/balance?**", r => r.fulfill({json:{meta:{...meta,fallbackTier:"cache",ageMinutes:45},features:[{basinId:"city_tha_dee",nameTh:"cached test",nameEn:"cached test",horizons:[],gauges:[{id:water.id,code:"TEST",name:water.name,etaOvertopH:1,freeboardM:.1,riseMPerH:.1}],worstEtaOvertopH:1,assumptions:[],reservoirs:[]}]}}));
     await page.goto("/");
-    const headline = page.getByRole("region", {name:"Right now", exact:true});
-    await expect(headline).toContainText("Safety test station", {timeout:30_000});
-    await expect(headline).toContainText("overtopping time is not established");
-    // Official warnings must surface on the default view, before selecting FLOOD.
+    // An authority alert still interrupts the map-first entry.
     const initialAlert = page.getByRole("dialog");
     await expect(initialAlert).toContainText("DWR test critical", {timeout:20_000});
     await expect(initialAlert).toContainText("Contact the duty officer now");
     await page.keyboard.press("Escape");
     await expect(initialAlert).toHaveCount(0);
+    if (width <= 1100) await page.getByRole("tab", {name:/^BRIEF/}).click();
+    const headline = page.getByRole("region", {name:"Right now", exact:true});
+    await expect(headline).toContainText("Safety test station", {timeout:30_000});
+    await expect(headline).toContainText("overtopping time is not established");
     await expect(headline.getByRole("button", {name:"Show on map"})).toBeInViewport();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     let focus: {tag?: string; outline?: string | null} = {};
     await shot("current");
-    await page.keyboard.press("Tab");
+    await page.getByRole('button', {name:'More',exact:true}).press("Tab");
     focus = await page.evaluate(() => ({ tag:document.activeElement?.tagName, outline:document.activeElement ? getComputedStyle(document.activeElement).outlineStyle : null }));
     expect(focus.tag).not.toBe("BODY");
     if (width <= 1100) await page.getByRole("tab", {name:/^LAYERS/}).click();
+    await openMapTools(page);
     await page.getByRole("combobox", {name:"Advanced map views",exact:true}).selectOption("flood");
     if (width <= 1100) await page.getByRole("tab", {name:/^BRIEF/}).click();
     await page.getByRole("button", {name:/Open flash flood alert/}).click();
@@ -54,6 +57,7 @@ for (const width of [390, 1024, 1440]) {
     await expect(headline).not.toContainText("No action needed");
     await shot("missing");
     if (width <= 1100) await page.getByRole("tab", {name:/^LAYERS/}).click();
+    await openMapTools(page);
     await page.getByRole("combobox", {name:"Advanced map views",exact:true}).selectOption("flood");
     if (width <= 1100) await page.getByRole("tab", {name:/^BRIEF/}).click();
     await page.getByRole("button", {name:/OPS BOARD/}).click();

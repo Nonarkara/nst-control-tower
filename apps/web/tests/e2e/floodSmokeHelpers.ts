@@ -18,6 +18,12 @@ export async function ensureSectionOpen(
   const header = page.locator(".sidebar-section__hdr", {
     hasText: new RegExp(sectionTitle, "i"),
   });
+  await expect(page.locator('.shell')).toBeVisible({ timeout: 30_000 });
+  if (await header.evaluate(el => !!el.closest('.right-bar'))) await openMapTools(page);
+  else {
+    const brief = page.getByRole('tab', { name: /^BRIEF/ });
+    if (await brief.count()) await brief.click();
+  }
   await expect(header).toBeVisible({ timeout: 15_000 });
   // Treat anything other than "true" as collapsed — including a missing/empty
   // attribute if a remount races the read.
@@ -33,7 +39,18 @@ export async function ensureSectionOpen(
 
 /** Switch lens by its visible label (Executive / Operations / Flood / Satellite …).
  *  Case-insensitive: the labels are title-case in the DOM, uppercased by CSS. */
+export async function openMapTools(page: Page) {
+  await expect(page.locator('.shell')).toBeVisible({ timeout: 30_000 });
+  const toggle = page.getByRole("button", { name: "Layers & news", exact: true });
+  if (await toggle.count()) {
+    if (await toggle.getAttribute("aria-expanded") !== "true") await toggle.click();
+  } else {
+    await page.getByRole("tab", { name: /^LAYERS/ }).click();
+  }
+}
+
 export async function selectLens(page: Page, label: string) {
+  await openMapTools(page);
   const selector = page.getByRole("combobox", { name: "Advanced map views", exact: true });
   const option = selector.getByRole("option", { name: new RegExp(`^${label}$`, "i") });
   await selector.selectOption(await option.getAttribute("value") as string);

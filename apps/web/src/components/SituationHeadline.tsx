@@ -10,9 +10,19 @@ import type { BasinWaterBalance, FallbackTier, WaterGauge } from "@nst/shared";
 import type { CctvCamera } from "../map/layers";
 import { buildSituationHeadline } from "../lib/situationHeadline";
 import type { EvacSummary } from "../lib/evacPriority";
-import { STATUS } from "../lib/status";
+import { STATUS, type StatusLevel } from "../lib/status";
 import { statusStyle } from "../lib/cityStatus";
 import { useLocale } from "../hooks/useLocale";
+
+// Presentation shorthand only; the existing classifier owns severity and the
+// full action remains in Brief. No public warning or evacuation order here.
+const mapActions: Record<StatusLevel, { th:string; en:string }> = {
+  critical: { th:"ประสานเวรทันที", en:"Duty response now" },
+  warning: { th:"ตรวจกล้องและเวรทันที", en:"Verify now" },
+  watch: { th:"ตรวจกล้อง/ภาคสนาม", en:"Field check" },
+  normal: { th:"ติดตามสถานี/ข้อมูลที่ขาด", en:"Monitor gauges/gaps" },
+  unknown: { th:"ยืนยันกับเวรทันที", en:"Duty check now" },
+};
 
 interface Props {
   gauges: WaterGauge[];
@@ -24,13 +34,23 @@ interface Props {
   onOpenCamera: (camera: CctvCamera) => void;
   /** Who-to-move-first totals; null while the village register loads. */
   evac?: EvacSummary | null;
+  /** Map-edge reading band; the full briefing remains one action away. */
+  onOpenBrief?: () => void;
 }
 
-export function SituationHeadline({ gauges, basins, cameras, ageMinutes, tier, onFocus, onOpenCamera, evac }: Props) {
+export function SituationHeadline({ gauges, basins, cameras, ageMinutes, tier, onFocus, onOpenCamera, evac, onOpenBrief }: Props) {
   const { locale } = useLocale();
   const th = locale === "th";
   const h = buildSituationHeadline({ gauges, basins, cameras, ageMinutes, tier, lang: th ? "th" : "en" });
   const st = STATUS[h.level];
+
+  if (onOpenBrief) return (
+    <section className="map-situation" aria-label="Water map readout" style={statusStyle(h.level)} lang={th ? "th" : undefined}>
+      <p className="map-situation__headline" aria-live="polite" aria-atomic="true"><span className="pc-glyph" aria-hidden="true">{st.glyph} </span>{h.headline}</p>
+      <p className="map-situation__age">{h.freshness}</p>
+      <button className="btn" type="button" onClick={onOpenBrief}><strong>{th ? st.th : st.en}</strong> · {th ? mapActions[h.level].th : mapActions[h.level].en} · {th ? "หลักฐาน" : "evidence"} →</button>
+    </section>
+  );
 
   return (
     <section className="situation-headline" aria-label="Right now" aria-live="polite" style={statusStyle(h.level)} lang={th ? "th" : undefined}>

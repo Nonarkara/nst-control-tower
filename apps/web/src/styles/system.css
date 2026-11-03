@@ -401,6 +401,8 @@ kbd {
     "bottom bottom bottom";
 }
 .shell-top { grid-area: topbar; min-width: 0; display: flex; flex-direction: column; }
+.shell:not(.mobile):not(.city-demo).map-tools-closed { grid-template-columns:var(--rail) minmax(0,1fr) 0; }
+.shell:not(.mobile):not(.city-demo).map-tools-closed .right-bar { display:none; }
 .shell-top > .topbar { grid-area: auto; }
 .shell-top .system-banner,
 .shell-top .offline-banner {
@@ -559,7 +561,7 @@ kbd {
   color: var(--on-status);
 }
 
-/* Right rail: sections scroll together above a pinned layer palette */
+/* Right rail: the pinned layer palette precedes news and camera browsing */
 .shell:not(.mobile) .right-bar { display: flex; flex-direction: column; overflow: hidden; }
 .shell:not(.mobile) .right-sections {
   flex: 1 1 0;
@@ -581,7 +583,7 @@ kbd {
   background: linear-gradient(to bottom, transparent, var(--panel));
   pointer-events: none;
 }
-.shell:not(.mobile) .right-layers { flex: 0 0 auto; max-height: 50%; overflow-y: auto; border-top: 1px solid var(--line-2); }
+.shell:not(.mobile) .right-layers { flex: 0 0 auto; max-height: 50%; overflow-y: auto; border-bottom: 1px solid var(--line-2); }
 
 /* ── The header's width budget ─────────────────────────────────────────
  *
