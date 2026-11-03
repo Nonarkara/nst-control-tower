@@ -46,8 +46,8 @@ test("the desk answers first, in Thai, with the evidence under it", async ({ pag
   await page.goto("/mayor-desk");
   await expect(page.locator(".desk-answer__text")).toContainText("ระดับน้ำที่สถานีวัด");
   await expect(page.locator(".desk-answer__text")).toContainText("PTTEP3");
-  // the four compartments, each with the content it was built for
-  await expect(page.locator(".desk-cell")).toHaveCount(4);
+  // Each source and news group retains the content it was built for
+  await expect(page.locator(".desk-cell")).toHaveCount(5);
   await expect(page.locator(".desk-cell--rivers")).toContainText("0.52 ม.");
   await expect(page.locator(".desk-cell--official")).toContainText("ไม่มีประกาศเตือนจาก DWR");
   await expect(page.locator(".desk-cell--rain")).toContainText("88.0 มม.");
@@ -57,9 +57,9 @@ test("the desk answers first, in Thai, with the evidence under it", async ({ pag
 test("a part that could not be read says so — it is never dropped and never calm", async ({ page }) => {
   await page.route("**/api/mayor-desk?**", r => r.fulfill({ json: desk() }));
   await page.goto("/mayor-desk");
-  const forecast = page.locator(".desk-cell--rain").getByText("พยากรณ์ฝน 24 ชม.");
+  const forecast = page.locator(".desk-cell--forecast").getByText("พยากรณ์ฝน 24 ชม.");
   await expect(forecast).toBeVisible();
-  await expect(page.locator(".desk-cell--rain")).toContainText("ยังไม่มีแบบจำลองพยากรณ์ฝน");
+  await expect(page.locator(".desk-cell--forecast")).toContainText("ยังไม่มีแบบจำลองพยากรณ์ฝน");
   // and the chip for it is the neutral "not complete" one, not a severity fill
   const unknown = page.locator(".desk-chip--unknown");
   await expect(unknown).toHaveCount(1);

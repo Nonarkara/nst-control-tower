@@ -163,14 +163,20 @@ export default function MayorDesk() {
               {rivers && <PartLine part={rivers} now={now} />}
             </section>
 
-            <section className="desk-cell desk-cell--rain" aria-label="ฝนที่วัดได้และพยากรณ์">
+            <section className="desk-cell desk-cell--rain" aria-label="ฝนที่วัดได้">
               {rain && <PartLine part={rain} now={now} />}
-              {forecast && <PartLine part={forecast} now={now} />}
             </section>
 
             <section className="desk-cell desk-cell--official" aria-label="ประกาศและเตือนภัยจากหน่วยงานรัฐ">
               {official && <PartLine part={official} now={now} />}
-              <div className="desk-notice-tools">
+
+            </section>
+            <section className="desk-cell desk-cell--forecast" aria-label="พยากรณ์ฝน">
+              {forecast && <PartLine part={forecast} now={now} />}
+            </section>
+          </div>
+
+          <section className="desk-notice-rail" aria-label="ประกาศและข้อมูลอ้างอิงจากกรมอุตุนิยมวิทยา">
               <details className="desk-part desk-part--notice">
                 <summary>{bulletinExpired ? "ประกาศ TMD ที่อ้างอิง (หมดอายุ)" : "ประกาศ TMD ที่อ้างอิง"}</summary>
                 <div className="desk-part__head">
@@ -188,10 +194,8 @@ export default function MayorDesk() {
                 </p>
               </details>
               <a className="desk-notice-latest" href={FLOOD_BULLETIN.source} target="_blank" rel="noreferrer">อ่านประกาศล่าสุด</a>
-              </div>
               <p className="desk-part__source">หน้านี้ยังไม่ยืนยันประกาศรอบปัจจุบัน</p>
-            </section>
-          </div>
+          </section>
 
           <section className="desk-cell desk-cell--news" aria-label="ข่าววันนี้">
             <div className="desk-part">
@@ -229,7 +233,6 @@ export default function MayorDesk() {
         <nav aria-label="เอกสารและแผนที่ประกอบ">
           <a href="/?demo=city" aria-label="บินชมเมือง 3D และเทียบระดับถนน">ชมเมือง 3D</a>
           <a href="/flood-ops" aria-label="บันทึกฉบับเต็มสำหรับนายกฯ">บันทึกฉบับเต็ม</a>
-          <a href="https://www.tmd.go.th/warning-and-events/warning-storm">ประกาศ อต.</a>
         </nav>
         <p>ไม่ใช่ประกาศราชการหรือการคาดการณ์น้ำท่วมรายถนน</p>
       </footer>

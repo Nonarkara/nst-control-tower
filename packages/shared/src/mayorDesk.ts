@@ -163,9 +163,13 @@ export function buildDeskAnswer(parts: DeskPart[]): DeskAnswer {
   if (signals.length) {
     const top = signals[0];
     const others = signals.length - 1;
+    // The measured-rain first clause is the reading and place. Coverage and
+    // exclusions stay in the source paragraph and missing count, not twice
+    // in the headline. This also works with retained pre-headline payloads.
+    const headline = top.headlineTh ?? (top.key === "rain" && top.kind === "measured" ? top.th.split(" · ")[0] : top.th);
     return {
       level: top.level,
-      th: `${top.titleTh}: ${top.headlineTh ?? top.th}${others ? ` · และอีก ${others} สัญญาณ` : ""}`,
+      th: `${top.titleTh}: ${headline}${others ? ` · และอีก ${others} สัญญาณ` : ""}`,
       en: `${top.titleEn}: ${top.en}${others ? ` · and ${others} more signal${others > 1 ? "s" : ""}` : ""}`,
       missing,
     };

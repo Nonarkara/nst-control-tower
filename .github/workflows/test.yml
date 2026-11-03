@@ -90,6 +90,16 @@ jobs:
         env:
           CI: "1"
           PLAYWRIGHT_PREVIEW: "1"
+          NST_DESK_ARTIFACT_DIR: ${{ runner.temp }}/mayor-desk-layout
+
+      - name: Retain mayor desk viewport evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: mayor-desk-layout
+          path: ${{ runner.temp }}/mayor-desk-layout
+          if-no-files-found: ignore
+          retention-days: 7
 
       - name: Upload Playwright report on failure
         if: failure()
