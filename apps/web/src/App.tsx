@@ -3022,11 +3022,12 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
             onClearOverlays={clearOverlays}
             onRestoreLens={restoreLens}
             onTogglePanel={!isMobile ? () => {
-              const open = !mapToolsOpen;
+              const open = cctvCommandOpen || !mapToolsOpen;
+              setCctvCommandOpen(false);
               setMapToolsOpen(open);
               if (open) requestAnimationFrame(() => document.getElementById("lens-select")?.focus());
             } : undefined}
-            panelOpen={mapToolsOpen}
+            panelOpen={mapToolsOpen && !cctvCommandOpen}
           />}
           {demoStep != null && <CityFlyover step={demoStep} playing={demoPlaying} reducedMotion={prefersReducedMotion()} onStep={step => { setDemoPlaying(false); setDemoStep(step); }} onPlay={() => { if (demoPlaying) { setDemoPlaying(false); flyCamera({ ...viewStateRef.current, transitionDuration: 0 }); } else { if (demoStep === CITY_FLYOVER.length - 1) setDemoStep(0); setDemoPlaying(true); } }} onClose={endCityDemo} level={scenarioLevel} onLevel={setScenarioLevel} stats={demoStats} coverage={infillBuildings ? "ready" : infillStatus} surveyStatus={roadLevels ? "ready" : surveyStatus} />}
           <div className="map-navigation">
@@ -3102,6 +3103,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
           removed until rebuilt with provincial peer data (Rayong, Chachoengsao). ── */}
       <aside id="map-tools-panel" tabIndex={-1} className={`right-bar ${cctvCommandOpen ? "is-cctv-mode" : ""}`} aria-label="Cameras, news and map layers" aria-hidden={demoStep != null || (isMobile ? mobilePanel !== "layers" : !mapToolsOpen && !cctvCommandOpen)} inert={demoStep != null || (isMobile ? mobilePanel !== "layers" : !mapToolsOpen && !cctvCommandOpen)} onKeyDown={e => {
         if (!isMobile && e.key === "Escape") {
+          if (cctvCommandOpen) { closeCctvCommandCenter(); return; }
           setMapToolsOpen(false);
           document.querySelector<HTMLButtonElement>(".map-panel-toggle")?.focus();
         }

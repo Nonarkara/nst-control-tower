@@ -132,4 +132,8 @@ test("visible CCTV command walls remain operable and restore focus on exit",asyn
   await exit.click();
   await expect(trigger).toBeFocused();
   await expect(page.locator('.right-bar')).toHaveAttribute('inert','');
+  await trigger.click();
+  await page.getByRole('button',{name:'Layers & news',exact:true}).click();
+  await expect(page.locator('.cctv-cc')).toHaveCount(0);
+  await expect(page.getByRole('combobox',{name:'Advanced map views',exact:true})).toBeFocused();
 });
