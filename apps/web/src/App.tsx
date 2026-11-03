@@ -2510,7 +2510,13 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
           cameras={cctv.data.filter((c) => c.category === "water")}
           ageMinutes={waterGauges.data.length > 0 ? waterGauges.ageMinutes : null}
           tier={waterGauges.fallbackTier}
-          onFocus={(lng, lat) => { if (isMobile) setMobilePanel("map"); flyTo(lng, lat, 14); }}
+          onFocus={(lng, lat) => {
+            if (isMobile) {
+              setMobilePanel("map");
+              requestAnimationFrame(() => document.getElementById("city-map")?.focus());
+            }
+            flyTo(lng, lat, 14);
+          }}
           onOpenCamera={(c) => { highlightCamera(c.id); setSelectedCctv(c); }}
           evac={evacData ? evacSummary : null}
         />
@@ -3004,7 +3010,11 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
             onAerialOnly={setAerialOnly}
             onClearOverlays={clearOverlays}
             onRestoreLens={restoreLens}
-            onTogglePanel={!isMobile ? () => setMapToolsOpen(open => !open) : undefined}
+            onTogglePanel={!isMobile ? () => {
+              const open = !mapToolsOpen;
+              setMapToolsOpen(open);
+              if (open) requestAnimationFrame(() => document.getElementById("lens-select")?.focus());
+            } : undefined}
             panelOpen={mapToolsOpen}
           />}
           {demoStep != null && <CityFlyover step={demoStep} playing={demoPlaying} reducedMotion={prefersReducedMotion()} onStep={step => { setDemoPlaying(false); setDemoStep(step); }} onPlay={() => { if (demoPlaying) { setDemoPlaying(false); flyCamera({ ...viewStateRef.current, transitionDuration: 0 }); } else { if (demoStep === CITY_FLYOVER.length - 1) setDemoStep(0); setDemoPlaying(true); } }} onClose={endCityDemo} level={scenarioLevel} onLevel={setScenarioLevel} stats={demoStats} coverage={infillBuildings ? "ready" : infillStatus} surveyStatus={roadLevels ? "ready" : surveyStatus} />}

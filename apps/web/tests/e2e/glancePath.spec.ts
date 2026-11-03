@@ -38,6 +38,8 @@ for (const width of [390,1024,1440]) test(`map entry, evidence exit and keyboard
     await expect(page.locator('.map-area')).toHaveAttribute('inert','');
     await expect(page.getByRole('region',{name:'Right now',exact:true})).toContainText('ยังประเมินเวลาล้นตลิ่งไม่ได้');
     await shot('brief');
+    await page.getByRole('region',{name:'Right now',exact:true}).getByRole('button',{name:'ดูบนแผนที่',exact:true}).click();
+    await expect(page.locator('#city-map')).toBeFocused();
     await page.getByRole('tab',{name:/^LAYERS/}).click();
     await expect(page.getByRole('combobox',{name:'Advanced map views',exact:true})).toBeVisible();
     await shot('tools');
@@ -45,6 +47,7 @@ for (const width of [390,1024,1440]) test(`map entry, evidence exit and keyboard
     await page.getByRole('button',{name:'Layers & news',exact:true}).click();
     const selector=page.getByRole('combobox',{name:'Advanced map views',exact:true});
     await expect(selector).toBeVisible();
+    await expect(selector).toBeFocused();
     await shot('tools');
     await selector.press('Escape');
     await expect(page.getByRole('button',{name:'Layers & news',exact:true})).toBeFocused();
