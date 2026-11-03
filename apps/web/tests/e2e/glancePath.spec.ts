@@ -118,3 +118,18 @@ test("chat remains reachable when resize restores an inactive map panel",async({
   await expect(dialog).toHaveCount(0);
   await expect(page.getByRole("tab",{name:/^LAYERS/})).toBeFocused();
 });
+
+
+test("visible CCTV command walls remain operable and restore focus on exit",async({page})=>{
+  await page.goto("/",{waitUntil:"domcontentloaded"});
+  const trigger=page.getByRole("button",{name:/^Open CCTV command center/});
+  await trigger.click();
+  await expect(page.locator('.left-bar')).not.toHaveAttribute('inert','');
+  await expect(page.locator('.right-bar')).not.toHaveAttribute('inert','');
+  await expect(page.locator('.left-bar')).toHaveAttribute('aria-hidden','false');
+  const exit=page.locator('.cctv-cc').first().getByRole('button',{name:'Exit CCTV command center',exact:true});
+  await expect(exit).toBeVisible();
+  await exit.click();
+  await expect(trigger).toBeFocused();
+  await expect(page.locator('.right-bar')).toHaveAttribute('inert','');
+});

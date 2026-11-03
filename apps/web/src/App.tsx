@@ -1265,10 +1265,18 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
   // close the wall and restore the normal rails. The map stays where
   // it was — we don't fly back, so the operator doesn't lose their
   // place when they exit.
+  const closeCctvCommandCenter = useCallback(() => {
+    setCctvCommandOpen(false);
+    requestAnimationFrame(() => {
+      const target = document.querySelector<HTMLElement>('.mobile-nav [aria-selected="true"]')
+        ?? document.querySelector<HTMLElement>('button[aria-label^="Open CCTV command center"]');
+      target?.focus();
+    });
+  }, []);
   const openCctvCommandCenter = useCallback(() => {
     if (cctvCommandOpen) {
       // Already open → close (the natural toggle behavior).
-      setCctvCommandOpen(false);
+      closeCctvCommandCenter();
       return;
     }
     if (cctv.data.length === 0) {
@@ -1301,7 +1309,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
       transitionDuration: prefersReducedMotion() ? 0 : 1100,
     });
     setCctvCommandOpen(true);
-  }, [cctvCommandOpen, cctv.data, flyCamera, prefersReducedMotion]);
+  }, [cctvCommandOpen, cctv.data, flyCamera, prefersReducedMotion, closeCctvCommandCenter]);
   const aqiTrend = useFeed<AqiTrend>(`${API_BASE}/api/air-quality/trend`, 15 * 60_000);
   const trends = useFeed<TrendsSnapshot>(`${API_BASE}/api/trends`, 15 * 60_000);
   const executive = useFeed<ExecutiveSnapshot>(`${API_BASE}/api/executive`, 15 * 60_000);
@@ -2503,7 +2511,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
           layer set (EXEC = strategic, OPS = day-to-day). The legacy Chula
           ExecutiveBrief / StrategicAlerts / PeerComparison panels were built
           for a university and don't belong on a city mayor's desk. ── */}
-      <aside id="rail-left" tabIndex={-1} className={`left-bar ${cctvCommandOpen ? "is-cctv-mode" : ""}`} aria-label="City panels" aria-hidden={demoStep != null || cctvCommandOpen || (isMobile && mobilePanel !== "brief")} inert={demoStep != null || cctvCommandOpen || (isMobile && mobilePanel !== "brief")}>
+      <aside id="rail-left" tabIndex={-1} className={`left-bar ${cctvCommandOpen ? "is-cctv-mode" : ""}`} aria-label="City panels" aria-hidden={demoStep != null || (isMobile && mobilePanel !== "brief")} inert={demoStep != null || (isMobile && mobilePanel !== "brief")}>
         {/* ── RIGHT NOW: worst gauge + time to overtop, suggested action, data
             age. First in the rail on every lens so the answer to "is the city
             OK?" is always above the fold. ── */}
@@ -2943,7 +2951,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
             cameras={cctv.data}
             highlightedId={highlightedCctvId}
             onSelect={(c) => { highlightCamera(c.id); setSelectedCctv(c); }}
-            onExit={() => setCctvCommandOpen(false)}
+            onExit={closeCctvCommandCenter}
           />
         )}
       </aside>
@@ -3092,7 +3100,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
       {/* ── Right sidebar: news (scrollable) + layer controls.
           StrategicAlerts and PeerComparison were Chula-university panels —
           removed until rebuilt with provincial peer data (Rayong, Chachoengsao). ── */}
-      <aside id="map-tools-panel" tabIndex={-1} className={`right-bar ${cctvCommandOpen ? "is-cctv-mode" : ""}`} aria-label="Cameras, news and map layers" aria-hidden={demoStep != null || cctvCommandOpen || (isMobile ? mobilePanel !== "layers" : !mapToolsOpen)} inert={demoStep != null || cctvCommandOpen || (isMobile ? mobilePanel !== "layers" : !mapToolsOpen)} onKeyDown={e => {
+      <aside id="map-tools-panel" tabIndex={-1} className={`right-bar ${cctvCommandOpen ? "is-cctv-mode" : ""}`} aria-label="Cameras, news and map layers" aria-hidden={demoStep != null || (isMobile ? mobilePanel !== "layers" : !mapToolsOpen && !cctvCommandOpen)} inert={demoStep != null || (isMobile ? mobilePanel !== "layers" : !mapToolsOpen && !cctvCommandOpen)} onKeyDown={e => {
         if (!isMobile && e.key === "Escape") {
           setMapToolsOpen(false);
           document.querySelector<HTMLButtonElement>(".map-panel-toggle")?.focus();
@@ -3159,7 +3167,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
             cameras={cctv.data}
             highlightedId={highlightedCctvId}
             onSelect={(c) => { highlightCamera(c.id); setSelectedCctv(c); }}
-            onExit={() => setCctvCommandOpen(false)}
+            onExit={closeCctvCommandCenter}
           />
         )}
       </aside>
