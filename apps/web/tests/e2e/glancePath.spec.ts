@@ -37,6 +37,8 @@ for (const width of [390,1024,1440]) test(`map entry, evidence exit and keyboard
     await page.getByRole('link',{name:'Skip to map tools',exact:true}).focus();
     await page.keyboard.press('Enter');
     await expect(page.locator('#map-tools-panel')).toBeFocused();
+    await page.keyboard.press('Tab');
+    expect(await page.evaluate(()=>!!document.activeElement?.closest('.right-layers'))).toBe(true);
     await shot('tools');
   }else{
     await page.getByRole('button',{name:'Layers & news',exact:true}).click();

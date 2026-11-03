@@ -3098,6 +3098,18 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
           document.querySelector<HTMLButtonElement>(".map-panel-toggle")?.focus();
         }
       }}>
+        {/* Tools precede news in both visual and keyboard order. */}
+        <div className="right-layers">
+          <MemoLayerPalette
+            lens={lens}
+            onLensChange={onLensChange}
+            enabled={enabledLayers}
+            onToggleLayer={onToggleLayer}
+            counts={layerCounts}
+            statuses={layerStatuses}
+          />
+        </div>
+
         <div className="right-sections">
         <RailSection sectionKey="right-cctv" lens={lens} title="CCTV">
           <CctvDirectory
@@ -3137,19 +3149,6 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
           />
         </RailSection>
 
-        </div>
-
-        {/* Layer palette: pinned under the scrolling sections so lens + layer
-            controls are always on screen. */}
-        <div className="right-layers">
-          <MemoLayerPalette
-            lens={lens}
-            onLensChange={onLensChange}
-            enabled={enabledLayers}
-            onToggleLayer={onToggleLayer}
-            counts={layerCounts}
-            statuses={layerStatuses}
-          />
         </div>
 
         {/* CCTV Command Center — right rail half. See left rail for the

@@ -2432,7 +2432,7 @@ input:focus-visible,
      (low priority on a small screen — trends sparkline is a nice desktop detail). */
   .shell.mobile .right-bar { display: flex; flex-direction: column; }
   .shell.mobile .right-trends { display: none; }
-  .shell.mobile .right-layers { order: -1; max-height: none; flex: 0 0 auto; }
+  .shell.mobile .right-layers { max-height: none; flex: 0 0 auto; }
   .shell.mobile .right-news { flex: 1 1 auto; }
 
   /* Bottom bar compresses: ident hidden, hour rail stretches full width, stats stack. */
