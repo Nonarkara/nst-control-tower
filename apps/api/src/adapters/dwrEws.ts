@@ -95,14 +95,21 @@ function alertLevel(raw: number | string | null | undefined): number | null {
  * station that stopped reporting months ago isn't presented as current.
  */
 export function parseDwrDate(raw: string | null | undefined): string | null {
-  const m = /^(\d{1,2})\/(\d{1,2})\/(\d{2,4})\s+(\d{1,2}):(\d{2})/.exec(String(raw ?? "").trim());
+  const m = /^(\d{1,2})\/(\d{1,2})\/(\d{2,4})\s+(\d{1,2}):(\d{2})\s*(?:น\.?)?\s*$/.exec(String(raw ?? "").trim());
   if (!m) return null;
   const [, dd, mm, yy, hh, mi] = m;
   let year = Number(yy);
   if (year < 100) year += 2500; // "69" → 2569 BE
   if (year > 2400) year -= 543; // BE → CE
   const iso = `${year}-${mm!.padStart(2, "0")}-${dd!.padStart(2, "0")}T${hh!.padStart(2, "0")}:${mi}:00+07:00`;
-  return Number.isNaN(Date.parse(iso)) ? null : new Date(iso).toISOString();
+  const parsed = Date.parse(iso);
+  if (!Number.isFinite(parsed)) return null;
+  // Date.parse can normalise impossible dates (31 February, 24:00).
+  const local = new Date(parsed + 7 * 3_600_000);
+  if (local.getUTCFullYear() !== year || local.getUTCMonth() + 1 !== Number(mm)
+    || local.getUTCDate() !== Number(dd) || local.getUTCHours() !== Number(hh)
+    || local.getUTCMinutes() !== Number(mi)) return null;
+  return new Date(parsed).toISOString();
 }
 
 /** A station whose last report is older than this is not current evidence. */
@@ -286,30 +293,32 @@ async function fetchEwsInner(): Promise<NormalizedFeed<EwsStation>> {
 
     const features: EwsStation[] = raw
       .filter((s) => String(s.province ?? "").includes(PROVINCE_TH))
-      .map((s) => ({
-        id: String(s.stn ?? ""),
-        name: s.name ?? "",
-        lat: num(s.latitude) ?? 0,
-        lng: num(s.longitude) ?? 0,
-        type: stationType(s.stn_type),
-        tambon: s.tambon ?? "",
-        amphoe: s.amphoe ?? "",
-        basin: s.main_basin ?? "",
-        status: status(s.status),
-        rain: num(s.rain),
-        rain12h: num(s.rain12h),
-        rain07h: num(s.rain07h),
-        waterLevel: num(s.wl),
-        soilMoisture: num(s.soil),
-        soil07h: num(s.soil07h),
-        alertMax: alertLevel(s.alert_max),
-        warn: s.warn ?? null,
-        observedAt: parseDwrDate(s.date) ?? fetchedAt,
-        stale: (() => {
-          const t = Date.parse(parseDwrDate(s.date) ?? "");
-          return !Number.isFinite(t) || Date.now() - t > EWS_STALE_AFTER_H * 3_600_000;
-        })(),
-      }))
+      .map((s) => {
+        const observedAt = parseDwrDate(s.date) ?? "";
+        const ageMs = Date.now() - Date.parse(observedAt);
+        return {
+          id: String(s.stn ?? ""),
+          name: s.name ?? "",
+          lat: num(s.latitude) ?? 0,
+          lng: num(s.longitude) ?? 0,
+          type: stationType(s.stn_type),
+          tambon: s.tambon ?? "",
+          amphoe: s.amphoe ?? "",
+          basin: s.main_basin ?? "",
+          status: status(s.status),
+          rain: num(s.rain),
+          rain12h: num(s.rain12h),
+          rain07h: num(s.rain07h),
+          waterLevel: num(s.wl),
+          soilMoisture: num(s.soil),
+          soil07h: num(s.soil07h),
+          alertMax: alertLevel(s.alert_max),
+          warn: s.warn ?? null,
+          // Missing measurement time stays unknown; a retrieval is not a measurement.
+          observedAt,
+          stale: !Number.isFinite(ageMs) || ageMs < -5 * 60_000 || ageMs > EWS_STALE_AFTER_H * 3_600_000,
+        };
+      })
       .filter((s) => s.id !== "" && s.lat !== 0 && s.lng !== 0);
 
     // Sort: highest alert status first, then most-saturated soil, then heaviest 12h rain.

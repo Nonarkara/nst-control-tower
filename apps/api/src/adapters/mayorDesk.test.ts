@@ -514,3 +514,16 @@ it("a stalled source cannot consume the browser's whole brief budget",async()=>{
  expect(Date.now()-started).toBeLessThan(1000);expect(lifetime).toHaveLength(1);
  release("late cache fill");await Promise.all(lifetime);
 });
+
+
+it("English non-alert statements are limited to current reporting stations, including incomplete coverage",()=>{
+ for(const waterLevel of [3,5]){const p=officialPart([ews({status:0,waterLevel}),ews({id:"silent",status:3,observedAt:minutesAgo(200)})],NOW);expect(p.coverageIncomplete).toBe(true);expect(p.en).toContain("current reporting stations");expect(p.en).toContain("1/2");expect(p.en).not.toContain("no DWR alert in force");}
+});
+
+
+it("rain coverage denominator retains returned older and missing-total records",()=>{
+ const p=rainPart([{id:"recent",name:"Recent",amphoe:"a",rain24h:45,observedAt:minutesAgo(10)},{id:"old",name:"Old",amphoe:"a",rain24h:100,observedAt:minutesAgo(130)},{id:"no-total",name:"Unknown",amphoe:"a",rain24h:null,observedAt:minutesAgo(10)}],NOW);
+ expect(p.th).toContain("1/3");expect(p.th).toContain("ภายใน 2 ชม.");
+ expect(p.en).toContain("1/3");expect(p.en).toContain("within 2 h");
+ expect(p.level).toBe("watch");expect(p.coverageIncomplete).toBe(true);
+});

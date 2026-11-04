@@ -150,3 +150,11 @@ it("expired/future official tiers and soil reports cannot remain current",()=>{
  expect(ewsAlertState([old,future],NOW).checked).toBe(0);
  expect(ewsSoilState([old,future],3,NOW).measured).toBe(0);
 });
+
+
+it("English briefing non-alert wording is scoped to current returned stations",()=>{
+ const state=ewsAlertState([station({id:"current"}),station({id:"old",status:3,observedAt:minutesAgo(200)})],NOW);
+ expect(ewsStatusLineEn(state)).toContain("current reporting stations");
+ expect(ewsStatusLineEn(state)).toContain("1 checked");
+ expect(ewsStatusLineEn(state)).not.toContain("in force");
+});

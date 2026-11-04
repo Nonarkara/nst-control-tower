@@ -96,7 +96,7 @@ export function ewsStatusLineEn(
   if (state.maxTier >= 1) {
     return `DWR has declared an alert on ${state.alerting.length} station(s) — tier ${EWS_TIER_EN[state.maxTier]}${snapshot}`;
   }
-  return `No DWR alert in force — ${state.checked} stations checked${snapshot}`;
+  return `No declared DWR alert among current reporting stations — ${state.checked} checked${snapshot}`;
 }
 
 export interface EwsWaterRow {

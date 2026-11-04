@@ -1,4 +1,5 @@
 import { test, expect } from "./fixtures";
+import { mkdirSync } from "node:fs";
 
 const stamp = new Date().toISOString();
 const meta = { source: "fixture", fetchedAt: stamp, ageMinutes: 0, fallbackTier: "live" };
@@ -123,4 +124,31 @@ test("nothing declared is stated as a checked result, not as silence", async ({ 
   await page.goto("/flood-ops");
   await expect(page.locator(".flood-watch-status")).toContainText("ไม่มีประกาศเตือนจาก DWR ขณะนี้ (ตรวจ 1 สถานีที่มีรายงานปัจจุบัน)");
   await expect(page.locator(".flood-watch-main")).toContainText("เหลือ 1.06 ม.");
+});
+
+
+for (const width of [390,1024,1440]) test(`undated DWR readings stay unknown in both briefing languages at ${width}px`, async ({page})=>{
+ await page.setViewportSize({width,height:width===390?844:900});
+ await page.route("**/api/flood/operations?**",r=>r.fulfill({json:{features:[observation],meta}}));
+ await page.route("**/api/water/ews?**",r=>r.fulfill({json:{features:[{...ewsStation,observedAt:"",stale:true}],meta}}));
+ await page.goto("/flood-ops");
+ const table=page.getByRole('region',{name:'สถานีระดับน้ำ DWR เทียบเกณฑ์เตือนของ DWR'});
+ await expect(table).toContainText('ไม่มีเวลาอ้างอิง');await expect(table).not.toContainText('NaN');
+ await expect(table).toContainText('— นาที');
+ await expect(table).toContainText('ยังยืนยันระดับเทียบเกณฑ์ปัจจุบันไม่ได้');
+ await expect(table).not.toContainText('ไม่ได้รายงานเกิน 2 ชม.');
+ await expect(page.getByText('ไม่มีค่าความชื้นดินที่วัดจริงจาก DWR ในรอบนี้',{exact:false})).toBeVisible();
+ if(process.env.NST_DESK_ARTIFACT_DIR) {mkdirSync(process.env.NST_DESK_ARTIFACT_DIR,{recursive:true});await table.screenshot({path:`${process.env.NST_DESK_ARTIFACT_DIR}/dwr-undated-${width}.png`});}
+ await page.getByRole('button',{name:'English summary',exact:true}).click();
+ const summary=page.getByRole('region',{name:'English operational summary'});
+ await expect(summary).not.toContainText('NaN');await expect(summary).toContainText('— min');
+});
+
+
+test("measured DWR soil and TMD rain criteria retain distinct source labels",async({page})=>{
+ await page.route("**/api/flood/operations?**",r=>r.fulfill({json:{features:[observation],meta}}));
+ await page.route("**/api/water/ews?**",r=>r.fulfill({json:{features:[{...ewsStation,soilMoisture:92}],meta}}));
+ await page.goto("/flood-ops");
+ await expect(page.getByText('วัดจริงจาก DWR:',{exact:true})).toBeVisible();
+ await expect(page.getByText('≥90.1 มม. คือฝนหนักมากตามเกณฑ์ อต.',{exact:false})).toBeVisible();
 });

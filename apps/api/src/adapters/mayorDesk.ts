@@ -243,6 +243,7 @@ export function officialPart(
   const measured = fresh.length;
   const total = rows.length;
   const coverage = total ? ` · ${measured}/${total} สถานีที่มีเกณฑ์รายงานภายใน 2 ชม.` : "";
+  const coverageEn = total ? ` · ${measured}/${total} stations with thresholds reported within 2 h` : "";
   // The evidence list leads with the stations whose reading is current. A
   // station 27 days silent can be the closest to the threshold and must
   // still not come first: the reader's first line of evidence has to be a
@@ -270,9 +271,9 @@ export function officialPart(
       `${r.s.name} (${r.s.amphoe}) — ${r.margin <= 0 ? `ถึง/เกินเกณฑ์ ${fmt(Math.abs(r.margin), 2)} ม.` : `เหลือ ${fmt(r.margin, 2)} ม.`}${!fresh.includes(r) ? " · ล้าสมัย/เวลาไม่พร้อม" : ""}`),
     en: closest && margin != null
       ? margin <= 0
-        ? `Water is at or over DWR's own alert level at ${closest.name} (${closest.amphoe}) — no DWR alert has been declared${coverage}`
-        : `Closest to DWR's own alert level: ${closest.name} (${closest.amphoe}), ${fmt(margin, 2)} m to go — no DWR alert in force${coverage}`
-      : `No DWR alert in force · no station publishes a DWR alert level to compare against${coverage}`,
+        ? `Water is at or over DWR's own alert level at ${closest.name} (${closest.amphoe}) — no declared DWR alert in current reporting stations${coverageEn}`
+        : `Closest to DWR's own alert level: ${closest.name} (${closest.amphoe}), ${fmt(margin, 2)} m to go — no declared DWR alert in current reporting stations${coverageEn}`
+      : `No declared DWR alert in current reporting stations · no current station publishes a DWR alert level to compare against${coverageEn}`,
     observedAt: closest?.observedAt ?? null,
   };
 }
@@ -305,8 +306,8 @@ export function rainPart(
     coverageIncomplete: withRain.length < stations.length,
     evidence: [...withRain].sort((a, b) => (b.rain24h as number) - (a.rain24h as number)).slice(0, 3)
       .map(r => `${r.name} (${r.amphoe}) — ${fmt(r.rain24h as number)} มม./24 ชม.`),
-    th: `มากสุด ${fmt(wettest.rain24h as number)} มม./24 ชม. ที่ ${wettest.name} (${wettest.amphoe}) · ฝนหนัก ${heavy} สถานี${veryHeavy ? ` (หนักมาก ${veryHeavy})` : ""} · ${withRain.length}/${current.length} สถานีรายงาน`,
-    en: `Wettest ${fmt(wettest.rain24h as number)} mm/24 h at ${wettest.name} (${wettest.amphoe}) · heavy rain at ${heavy} station(s)${veryHeavy ? ` (very heavy ${veryHeavy})` : ""} · ${withRain.length}/${current.length} reporting`,
+    th: `มากสุด ${fmt(wettest.rain24h as number)} มม./24 ชม. ที่ ${wettest.name} (${wettest.amphoe}) · ฝนหนัก ${heavy} สถานี${veryHeavy ? ` (หนักมาก ${veryHeavy})` : ""} · ${withRain.length}/${stations.length} สถานีในชุดข้อมูล: ฝน 24 ชม. วัดภายใน 2 ชม.`,
+    en: `Wettest ${fmt(wettest.rain24h as number)} mm/24 h at ${wettest.name} (${wettest.amphoe}) · heavy rain at ${heavy} station(s)${veryHeavy ? ` (very heavy ${veryHeavy})` : ""} · ${withRain.length}/${stations.length} returned stations: 24 h rain observed within 2 h`,
     observedAt: wettest.observedAt,
   };
 }
