@@ -306,8 +306,8 @@ export function rainPart(
     coverageIncomplete: withRain.length < stations.length,
     evidence: [...withRain].sort((a, b) => (b.rain24h as number) - (a.rain24h as number)).slice(0, 3)
       .map(r => `${r.name} (${r.amphoe}) — ${fmt(r.rain24h as number)} มม./24 ชม.`),
-    th: `มากสุด ${fmt(wettest.rain24h as number)} มม./24 ชม. ที่ ${wettest.name} (${wettest.amphoe}) · ฝนหนัก ${heavy} สถานี${veryHeavy ? ` (หนักมาก ${veryHeavy})` : ""} · ${withRain.length}/${current.length} สถานีรายงาน`,
-    en: `Wettest ${fmt(wettest.rain24h as number)} mm/24 h at ${wettest.name} (${wettest.amphoe}) · heavy rain at ${heavy} station(s)${veryHeavy ? ` (very heavy ${veryHeavy})` : ""} · ${withRain.length}/${current.length} reporting`,
+    th: `มากสุด ${fmt(wettest.rain24h as number)} มม./24 ชม. ที่ ${wettest.name} (${wettest.amphoe}) · ฝนหนัก ${heavy} สถานี${veryHeavy ? ` (หนักมาก ${veryHeavy})` : ""} · ${withRain.length}/${stations.length} สถานีในชุดข้อมูล: ฝน 24 ชม. วัดภายใน 2 ชม.`,
+    en: `Wettest ${fmt(wettest.rain24h as number)} mm/24 h at ${wettest.name} (${wettest.amphoe}) · heavy rain at ${heavy} station(s)${veryHeavy ? ` (very heavy ${veryHeavy})` : ""} · ${withRain.length}/${stations.length} returned stations: 24 h rain observed within 2 h`,
     observedAt: wettest.observedAt,
   };
 }
