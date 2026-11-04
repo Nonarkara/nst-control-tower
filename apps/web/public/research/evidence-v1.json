@@ -1,0 +1,283 @@
+{
+  "schemaVersion": 1,
+  "studyCutoff": "2026-11-04",
+  "inputs": [
+    {
+      "file": "manifest.json",
+      "sha256": "adf3786d643c1b90f65bc83135ffaa1c72205482f5bfb31769538e41d76b18c2",
+      "bytes": 1993356
+    },
+    {
+      "file": "fd_health.json",
+      "sha256": "fc0eec765be25c99c652a766c412aca18471acecaffa899990f093073dbd8acd",
+      "bytes": 21631
+    },
+    {
+      "file": "fd_sensors_health.json",
+      "sha256": "d85c961b71f71cd7d04fdf6acdf0763a4b63d6a33c1da1fda976ba4d38671eef",
+      "bytes": 855956
+    },
+    {
+      "file": "fd_province_stations_code_80.json",
+      "sha256": "668ac2e4303cdac69c2d8eab5b333fee07b76886b741a830e1aaa4b0e7f631bd",
+      "bytes": 182584
+    },
+    {
+      "file": "fd_sources.json",
+      "sha256": "f120f1a14383df19b01417c229aa0caee616d43c7f741e712cfea4c62fa4c4fe",
+      "bytes": 119501
+    },
+    {
+      "file": "deployment-runs-2026-11-04.json",
+      "sha256": "fc4c2b99ab5e714a1c14bf610091ba6bbf22e5cf649620f7bcb238de9ba9dd6f",
+      "bytes": 19551
+    }
+  ],
+  "catalog": {
+    "capturedAt": "2026-09-18T06:45:42.646Z",
+    "timestampConvention": "CKAN timezone-less metadata interpreted as UTC; exact elapsed days at manifest capture",
+    "datasets": 216,
+    "resources": 1995,
+    "publishers": 34,
+    "provincialPublisher": "สำนักงานจังหวัดนครศรีธรรมราช",
+    "provincialRecords": 139,
+    "provincialDay24": 130,
+    "retrieval": {
+      "ok": 485,
+      "oversize": 12,
+      "fetch-failed": 140,
+      "skipped": 1358
+    },
+    "medianMetadataAgeDays": 236.4797729976852,
+    "ageBinUpperDays": [
+      30,
+      90,
+      180,
+      365,
+      730,
+      1095,
+      null
+    ],
+    "ageBinCounts": [
+      15,
+      32,
+      21,
+      53,
+      57,
+      12,
+      26
+    ],
+    "olderThanYear": 95,
+    "hazardTitleTerms": [
+      "ท่วม",
+      "อุทกภัย",
+      "สาธารณภัย",
+      "ภัยพิบัติ",
+      "วาตภัย",
+      "ไฟป่า",
+      "หมอกควัน",
+      "ฝุ่น",
+      "PM",
+      "ระดับน้ำ",
+      "ภัยแล้ง",
+      "เผชิญเหตุ",
+      "ปริมาณน้ำฝน",
+      "น้ำขึ้นน้ำลง"
+    ],
+    "hazardSelection": [
+      {
+        "id": "plan_ddpm_nrt",
+        "title": "แผนป้องกันและบรรเทาสาธารณภัยจังหวัด"
+      },
+      {
+        "id": "gdpublish-tide-water",
+        "title": "สถานีวัดค่าน้ำขึ้นน้ำลง"
+      },
+      {
+        "id": "visualization-ddpm",
+        "title": "สารสนเทศในรูปแบบแผนภาพ (Visualization) สาธารณภัย"
+      },
+      {
+        "id": "dataset-ddpm-27",
+        "title": "ผลกระทบจากอุทกภัย"
+      },
+      {
+        "id": "dataset_tr_54",
+        "title": "การจัดตั้ง 1 ตำบล 1 ศูนย์จัดการภัยพิบัติที่ผ่านการฝึกอบรม"
+      },
+      {
+        "id": "dataset-ddpm-28",
+        "title": "ข้อมูลพื้นที่เสี่ยงภัยพิบัติได้รับการป้องกัน"
+      },
+      {
+        "id": "dataset_30_137",
+        "title": "มูลค่าความเสียหายจากวาตภัย"
+      },
+      {
+        "id": "dataset_30_218",
+        "title": "สถิติการเกิดภัยจากภัยไฟป่าและหมอกควัน"
+      },
+      {
+        "id": "dataset_30_158",
+        "title": "ระดับความเสี่ยงในการเกิดวาตภัย"
+      },
+      {
+        "id": "dataset-ddpm-25",
+        "title": "ผลกระทบจากวาตภัย"
+      },
+      {
+        "id": "dataset_30_127",
+        "title": "การเกิดวาตภัยที่สร้างความสูญเสียต่อชีวิตและทรัพย์สิน"
+      },
+      {
+        "id": "dataset_30_117",
+        "title": "สถิติการเกิดวาตภัย"
+      },
+      {
+        "id": "dataset_tr_52",
+        "title": "จำนวนวันที่ปริมาณฝุ่นละอองขนาดเล็ก (PM10) มีค่าเกินมาตรฐาน"
+      },
+      {
+        "id": "dataset_tr_55",
+        "title": "ผลการวิเคราะห์ความเสี่ยงจากอุทกภัย"
+      },
+      {
+        "id": "dataset_30_259",
+        "title": "ระดับความเสี่ยงในการเกิดไฟป่า"
+      },
+      {
+        "id": "dataset_ope004",
+        "title": "พื้นที่เสี่ยงอุทกภัย"
+      },
+      {
+        "id": "dataset-ddpm-26",
+        "title": "ผลกระทบจากไฟป่า"
+      },
+      {
+        "id": "dataset_30_0111",
+        "title": "สถิติการเกิดอุทกภัย"
+      },
+      {
+        "id": "dataset_30_0512",
+        "title": "ระดับความเสี่ยงในการเกิดอุทกภัย"
+      },
+      {
+        "id": "dataset_30_0211",
+        "title": "การเกิดอุทกภัยที่สร้างความสูญเสียต่อชีวิตและทรัพย์สิน"
+      },
+      {
+        "id": "dataset_dpm_01",
+        "title": "งบประมาณที่ใช้ฟื้นฟูถนนหลังเกิดอุทกภัย"
+      },
+      {
+        "id": "dataset_30_229",
+        "title": "พื้นที่ที่ได้รับความเสียหายจากไฟป่าและหมอกควัน"
+      },
+      {
+        "id": "dataset_30_238",
+        "title": "จำนวนความเสียหายจากการเกิดไฟป่าและหมอกควัน"
+      },
+      {
+        "id": "dataset_ddpm_03",
+        "title": "ข้อมูลเครื่องจักรกล ยานพาหนะ เครื่องมืออุปกรณ์ ในการป้องกันและบรรเทาสาธารณภัยของจังหวัด"
+      },
+      {
+        "id": "dataset_tr_53",
+        "title": "จำนวนวันที่ปริมาณฝุ่นละอองขนาดเล็ก PM2.5 มีค่าเกินมาตรฐาน"
+      },
+      {
+        "id": "dataset_ddpm_01",
+        "title": "ข้อมูลการให้ความช่วยเหลือผู้ประสบอุทกภัยในช่วงฤดูฝน"
+      },
+      {
+        "id": "natwalan-data",
+        "title": "แผนเผชิญเหตุภัยแล้ง 2563"
+      },
+      {
+        "id": "gdpublish-dwr_21_01",
+        "title": "ปริมาณน้ำฝนจากสถานีตรวจวัดในพื้นที่ลุ่มน้ำ"
+      },
+      {
+        "id": "dataset_30_039",
+        "title": "มูลค่าความเสียหายจากการเกิดอุทกภัย"
+      },
+      {
+        "id": "093",
+        "title": "ข้อมูลพื้นที่เสี่ยงสาธารณภัย 76 จังหวัด"
+      },
+      {
+        "id": "gdpublish-dpm-drm01",
+        "title": "แผนเผชิญเหตุอุทกภัยจังหวัด"
+      },
+      {
+        "id": "gdpublish-dwr_21_02",
+        "title": "ระดับน้ำในลำน้ำ"
+      }
+    ],
+    "hazardResources": {
+      "ok": 63,
+      "fetch-failed": 13,
+      "oversize": 8,
+      "skipped": 158
+    },
+    "limit": "Keyword-selected catalog metadata and partial downloads do not prove absence of services behind failed or skipped resources."
+  },
+  "registry": {
+    "capturedAt": "2026-11-04T13:27:02.142Z",
+    "recordCount": 10414,
+    "retainedReadingRows": 64136681,
+    "hourlyRows": 19578834,
+    "storedRuleAlertRecords": 13824,
+    "healthCheckedAt": "2026-11-04T13:23:59.171Z",
+    "healthServedAt": "2026-11-04T13:27:02.158Z",
+    "healthRecords": 10412,
+    "staleRecords": 2230,
+    "stalePercent": 21.417595082597003,
+    "pipelines": 44,
+    "limit": "Registry includes non-Thai/global series; row counts do not establish archive start, uniqueness of physical gauges, warning receipt or field outcomes."
+  },
+  "province": {
+    "generatedAt": "2026-11-04T13:27:06.651Z",
+    "waterRecords": 51,
+    "rainRecords": 173,
+    "waterRecent2h": 21,
+    "rainRecent2h": 59,
+    "rainRecent6h": 138,
+    "rainAgencyCodes": {
+      "DWR": 93,
+      "HII": 18,
+      "DISASTER": 13,
+      "FOP": 20,
+      "RID": 25,
+      "EGAT": 1,
+      "TMD": 3
+    },
+    "limit": "One dated aggregated response; agency code plurality is not evidence of absent interoperability."
+  },
+  "auditChecks": {
+    "method": "Transcribed from dated operation-audit checks; not independently derived from continuous telemetry or issuance logs",
+    "sourceSha256": "2390f2a7d2e5db263032eb74e70b3faf2c78e7c7fd6933243eb16502bdd0cc54",
+    "date": "2026-10-26",
+    "timezone": "Asia/Bangkok",
+    "first": "05:48",
+    "later": "08:13",
+    "intervalMinutes": 145,
+    "station": "STN2101",
+    "firstLevelM": 4.25,
+    "alertReferenceM": 4,
+    "firstObservationAgeMinutes": 38,
+    "firstStatus": 0,
+    "laterStatus": 1,
+    "source": "audits/2026-10-23-operation-audit.md",
+    "limit": "Two audit checks do not establish crossing time, continuity, issuance time, other warning channels or human receipt."
+  },
+  "repository": {
+    "method": "Git ancestors at pinned cutoff plus captured deployment-workflow records",
+    "cutoffCommit": "d862847faa1e9e173200f726db7d80cde8299611",
+    "commits": 231,
+    "distinctCommitDates": 42,
+    "successfulDeploymentWorkflowRuns": 78,
+    "firstCommit": "2026-06-22",
+    "limit": "Workflow runs are not necessarily unique releases; current automatic gates do not prove all historical/manual releases were test gated."
+  }
+}

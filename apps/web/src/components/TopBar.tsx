@@ -299,10 +299,14 @@ export function TopBar({
         >
           DESK
         </a>
+        <a href="/research" className="btn topbar-research" aria-label="Open the research paper about this system — preprint, PDF">
+          RESEARCH
+        </a>
         <MoreMenu
           items={[
             // Phones hide the header buttons; the mayor still needs the flood briefing.
             { label: "Flood watch / เฝ้าระวังน้ำท่วม", group: "Operations", mobileOnly: true, onSelect: () => window.location.assign("/flood-ops") },
+            { label: "Research paper / งานวิจัย", group: "Help", mobileOnly: true, ariaLabel: "Open the research paper about this system — preprint, PDF", onSelect: () => window.location.assign("/research") },
             { label: "Mayor's desk / โต๊ะทำงานนายกฯ", group: "Operations", mobileOnly: true, ariaLabel: "Open the mayor's desk — this morning's situation, warnings and news in one screen", onSelect: () => window.location.assign("/mayor-desk") },
             // The display preferences are preferences, not tasks. Below 1440px
             // the bar has no room for them, so they move into this menu —

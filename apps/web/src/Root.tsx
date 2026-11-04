@@ -20,6 +20,7 @@ const FloodWatchPage = lazy(() => import("./components/FloodWatchPage"));
 // The mayor's desk — this morning's situation, warnings and news in one
 // screen. Its own lazy chunk, like every full surface here.
 const MayorDesk = lazy(() => import("./components/MayorDesk"));
+const ResearchPage = lazy(() => import("./components/ResearchPage"));
 
 type Mode = "geo" | "terminal";
 
@@ -65,6 +66,15 @@ function RouteFallback({
 }
 
 export function Root() {
+  if (/^\/research(\/|$)/.test(window.location.pathname)) {
+    return (
+      <Suspense
+        fallback={<RouteFallback place="Nakhon Si Thammarat · Research" what="Loading the paper…" backHref="/" backLabel="← Back to the map" />}
+      >
+        <ResearchPage />
+      </Suspense>
+    );
+  }
   if (/^\/mayor-desk(\/|$)/.test(window.location.pathname)) {
     return (
       <LocaleProvider>

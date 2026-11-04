@@ -4,3 +4,6 @@
 # which turned /data into a redirect to the map instead of a rewrite.
 /data   /   200
 /data/  /   200
+# /research is an SPA route that shares its prefix with public/research/*.pdf.
+/research   /   200
+/research/  /   200
