@@ -132,7 +132,7 @@ export default function FloodWatchPage() {
         <p>DWR กำหนดระดับที่จะยกระดับเตือนไว้เองทุกสถานี เป็นเกณฑ์ของหน่วยงาน ไม่ใช่ระยะถึงตลิ่งของตารางข้างบน และไม่ใช่เกณฑ์ 30 ซม. ที่เราใช้คัดงานตรวจของเวร</p>
         {ewsRows.length > 0 ? <>
           <p className={ewsAtLevel.length ? "flood-watch-alert" : undefined}>
-            {ewsRows.length} สถานีที่มีเกณฑ์ของ DWR เอง · {ewsAtLevel.length ? `${ewsAtLevel.length} ถึง/เกินเกณฑ์แล้ว` : "ยังไม่มีสถานีใดถึงเกณฑ์"}{ewsOld.length ? ` · อีก ${ewsOld.length} ไม่ได้รายงานเกิน 2 ชม. (แสดงค่าล่าสุดที่มีพร้อมอายุ ไม่ใช่ค่าปัจจุบัน)` : ""}
+            {ewsRows.length} สถานีที่มีเกณฑ์ของ DWR เอง · {ewsAtLevel.length ? `${ewsAtLevel.length} ถึง/เกินเกณฑ์แล้ว` : ewsRows.some(r => r.current) ? "ไม่พบระดับถึงเกณฑ์ในสถานีที่มีรายงานปัจจุบัน" : "ยังยืนยันระดับเทียบเกณฑ์ปัจจุบันไม่ได้"}{ewsOld.length ? ` · อีก ${ewsOld.length} สถานีไม่มีรายงานปัจจุบันที่ยืนยันได้ (เก่า/เวลาไม่พร้อม — แสดงค่าล่าสุด ไม่ใช่ค่าปัจจุบัน)` : ""}
           </p>
           <div className="flood-watch-table"><table>
             <thead><tr><th>สถานี / อำเภอ</th><th>ระดับน้ำ (ม.)</th><th>เกณฑ์ DWR (ม.)</th><th>เหลือถึงเกณฑ์</th><th>วัดเมื่อ</th></tr></thead>

@@ -135,6 +135,8 @@ for (const width of [390,1024,1440]) test(`undated DWR readings stay unknown in 
  const table=page.getByRole('region',{name:'สถานีระดับน้ำ DWR เทียบเกณฑ์เตือนของ DWR'});
  await expect(table).toContainText('ไม่มีเวลาอ้างอิง');await expect(table).not.toContainText('NaN');
  await expect(table).toContainText('— นาที');
+ await expect(table).toContainText('ยังยืนยันระดับเทียบเกณฑ์ปัจจุบันไม่ได้');
+ await expect(table).not.toContainText('ไม่ได้รายงานเกิน 2 ชม.');
  await expect(page.getByText('ไม่มีค่าความชื้นดินที่วัดจริงจาก DWR ในรอบนี้',{exact:false})).toBeVisible();
  if(process.env.NST_DESK_ARTIFACT_DIR) {mkdirSync(process.env.NST_DESK_ARTIFACT_DIR,{recursive:true});await table.screenshot({path:`${process.env.NST_DESK_ARTIFACT_DIR}/dwr-undated-${width}.png`});}
  await page.getByRole('button',{name:'English summary',exact:true}).click();
