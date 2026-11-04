@@ -81,13 +81,13 @@ function Row({ row, onFocus, onOpenCamera }: { row: EvacRow; onFocus: Props["onF
       <p className="evac-row__tier">
         <span aria-hidden="true">{st.glyph}</span> {t.en} · <span lang="th">{t.th}</span>
         {v.floodTypes.includes("flash") ? " · flash flood" : ""}
-        {v.mustEvacuate ? " · residents must leave" : ""}
+        {v.mustEvacuate ? " · evacuation listed in flood-risk register" : ""}
       </p>
       <p className="evac-row__name" lang="th">{villageLabel(v)}</p>
       {row.signals.length > 0 ? (
         <p className="evac-row__why">Why now: {row.signals.map((s) => s.text).join("; ")}</p>
       ) : (
-        <p className="evac-row__why">No live signal — listed because it is flood season here and residents must leave when it floods.</p>
+        <p className="evac-row__why">No live signal — the register lists evacuation when this village floods. Confirm current conditions and any evacuation decision with the responsible local authority.</p>
       )}
       <p className="evac-row__people num">
         {v.population != null ? `${fmt(v.population)} people · ${fmt(v.households)} homes` : "Population not in the register"}
