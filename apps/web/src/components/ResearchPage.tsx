@@ -21,7 +21,7 @@ export const PAPER = {
     { name: "Poon Thiengburanathum", th: "ปุ่น เที่ยงบูรณธรรม", affil: "Faculty of Engineering, Chiang Mai University · Research and Innovation Acceleration Agency for Competitiveness and Area Development (RCAD)" },
     { name: "Non Arkaraprasertkul", th: "นน อัครประเสริฐกุล", affil: "Digital Economy Promotion Agency (depa) · corresponding author" },
   ],
-  pages: 7,
+  pages: 8,
 } as const;
 
 /** Each finding is a number the paper measured, with the sentence that gives it meaning. */

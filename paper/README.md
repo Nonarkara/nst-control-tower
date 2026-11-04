@@ -22,7 +22,7 @@ The 32-entry selection follows the title terms published with the evidence. The 
 node paper/build.mjs
 ```
 
-Requires the web app's installed Playwright Chromium and the Charter/Sukhumvit Set fonts used for the reviewed export (fallback fonts can change pagination). This renders print media to PDF and copies the same source as a readable HTML edition. After rebuilding, inspect every rendered page, check embedded fonts and page count, and update `PAPER.pages` if pagination changes. The reviewed PDF has **7 A4 pages**. No routine production app build is required to render the document.
+Requires the web app's installed Playwright Chromium and the Charter/Sukhumvit Set fonts used for the reviewed export (fallback fonts can change pagination). This renders print media to PDF and copies the same source as a readable HTML edition. After rebuilding, inspect every rendered page, check embedded fonts and page count, and update `PAPER.pages` if pagination changes. The reviewed PDF has **8 A4 pages**. No routine production app build is required to render the document.
 
 The HTML edition is the embedded reading surface because PDF plugins can be absent in in-app and mobile browsers. The pane uses script-free sandboxed `srcDoc` from the canonical paper source; production retains `X-Frame-Options: DENY` and needs no network-framing exception. PDF download remains available; phones get direct HTML/PDF links rather than a narrow frame.
 
