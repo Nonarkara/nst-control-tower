@@ -1,0 +1,362 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>The Last Mile Is Institutional — Thiengburanathum &amp; Arkaraprasertkul (preprint)</title>
+<style>
+  @page { size: A4; margin: 17mm 15mm 18mm 15mm; }
+  :root {
+    --ink: #141414; --ink-2: #3d3d3d; --ink-3: #6b6b6b; --rule: #bdbdbd; --accent: #0c2f53; --alert: #b3261e; --watch: #a15c00;
+  }
+  * { box-sizing: border-box; }
+  html { font-family: "Charter", "Sukhumvit Set", "Thonburi", Georgia, serif; color: var(--ink); font-size: 9.35pt; line-height: 1.38; }
+  body { margin: 0; }
+  [lang="th"] { font-family: "Sukhumvit Set", "Thonburi", sans-serif; font-size: 0.95em; }
+  p { margin: 0 0 0.55em; text-align: justify; hyphens: auto; orphans: 3; widows: 3; }
+  p + p { text-indent: 1.1em; }
+  p.conclusion { break-inside: avoid; }
+  .noindent, h2 + p, h3 + p, figure + p, table + p, .tablewrap + p { text-indent: 0; }
+  a { color: var(--accent); text-decoration: none; }
+  em { font-style: italic; }
+  sup { font-size: 0.7em; line-height: 0; }
+
+  /* ── Front matter (spans both columns) ── */
+  .preprint { white-space: nowrap; font-family: "Helvetica Neue", Arial, sans-serif; font-size: 7.2pt; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); border-bottom: 0.5pt solid var(--rule); padding-bottom: 2mm; margin-bottom: 4mm; display: flex; justify-content: space-between; }
+  h1 { font-size: 17.5pt; line-height: 1.16; margin: 0 0 3mm; font-weight: 700; letter-spacing: -0.01em; }
+  .subtitle { font-size: 11pt; color: var(--ink-2); margin: 0 0 4mm; font-style: italic; }
+  .authors { font-size: 10.5pt; margin: 0 0 1.5mm; }
+  .affil { font-size: 7.8pt; color: var(--ink-2); line-height: 1.35; margin: 0 0 4mm; }
+  .affil p { text-align: left; margin: 0; text-indent: 0; }
+  .abstract { border-top: 0.75pt solid var(--ink); border-bottom: 0.5pt solid var(--rule); padding: 3mm 0 3mm; margin: 0 0 5mm; display: grid; grid-template-columns: 1fr 52mm; gap: 6mm; }
+  .abstract h2 { margin-top: 0; }
+  .abstract p { font-size: 8.9pt; }
+  .abstract aside { font-size: 7.6pt; color: var(--ink-2); line-height: 1.35; border-left: 0.5pt solid var(--rule); padding-left: 4mm; }
+  .abstract aside p { text-align: left; text-indent: 0; margin-bottom: 0.7em; }
+  .abstract aside b { color: var(--ink); }
+
+  /* ── Body: two columns ── */
+  .cols { column-count: 2; column-gap: 7mm; column-fill: balance; }
+  h2 { font-family: "Helvetica Neue", Arial, sans-serif; font-size: 9.2pt; text-transform: uppercase; letter-spacing: .05em; margin: 4.2mm 0 1.8mm; break-after: avoid; }
+  h3 { font-size: 9.4pt; font-style: italic; font-weight: 700; margin: 3mm 0 1.2mm; break-after: avoid; }
+  .cols > h2:first-child { margin-top: 0; }
+  blockquote { margin: 0.4em 0 0.7em 0.9em; padding-left: 2.4mm; border-left: 1pt solid var(--rule); color: var(--ink-2); font-size: 8.8pt; }
+  blockquote p { text-indent: 0; text-align: left; }
+  ul.tight, ol.tight { margin: 0.2em 0 0.7em; padding-left: 1.2em; }
+  ul.tight li, ol.tight li { margin-bottom: 0.25em; text-align: left; }
+
+  figure { margin: 2mm 0 3.5mm; break-inside: avoid; }
+  figure.wide { column-span: all; margin: 3mm 0 4mm; }
+  figcaption { font-family: "Helvetica Neue", Arial, sans-serif; font-size: 7.3pt; line-height: 1.32; color: var(--ink-2); margin-top: 1.5mm; text-align: left; }
+  figcaption b { color: var(--ink); }
+  svg { display: block; width: 100%; height: auto; font-family: "Helvetica Neue", Arial, sans-serif; }
+
+  .tablewrap { break-inside: avoid; margin: 2mm 0 3.5mm; }
+  .tablewrap.wide { column-span: all; }
+  table { width: 100%; border-collapse: collapse; font-family: "Helvetica Neue", Arial, sans-serif; font-size: 7.2pt; line-height: 1.3; }
+  caption { caption-side: top; text-align: left; font-size: 7.3pt; color: var(--ink-2); padding-bottom: 1.2mm; }
+  caption b { color: var(--ink); }
+  th, td { text-align: left; vertical-align: top; padding: 1.1mm 1.6mm 1.1mm 0; border-bottom: 0.4pt solid #d8d8d8; }
+  thead th { border-top: 0.75pt solid var(--ink); border-bottom: 0.5pt solid var(--ink); font-weight: 700; }
+  tbody tr:last-child td { border-bottom: 0.75pt solid var(--ink); }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; padding-right: 2mm; }
+
+  .refs { column-span: all; columns: 2; column-gap: 7mm; font-size: 7.45pt; line-height: 1.32; }
+  .refs h2 { column-span: all; }
+  .refs p { text-align: left; text-indent: -1.1em; padding-left: 1.1em; margin-bottom: 0.38em; break-inside: avoid; }
+  .endmatter p { font-size: 8.4pt; }
+  .endmatter h3 { font-style: normal; font-family: "Helvetica Neue", Arial, sans-serif; font-size: 8pt; text-transform: uppercase; letter-spacing: .04em; }
+  @media screen {
+    html { font-size:16px; line-height:1.5; background:#fff; }
+    body { max-width:65ch; margin:0 auto; padding:24px; }
+    p { text-align:left; hyphens:none; }
+    p + p { text-indent:0; }
+    .cols, .refs { column-count:1; }
+    .abstract { display:block; }
+    .abstract aside { border-left:0; padding-left:0; margin-top:1em; }
+    .preprint { white-space:normal; display:block; }
+    .preprint span { display:block; }
+    h1 { font-size:1.7rem; }
+    h2 { font-size:1.15rem; }
+    h3, .authors, .abstract p { font-size:1rem; }
+    .subtitle { font-size:1.1rem; }
+    .affil, figcaption, .refs { font-size:.85rem; }
+    .abstract aside, .endmatter p { font-size:.9rem; }
+    .preprint { font-size:.8rem; }
+    table { font-size:.85rem; }
+    .tablewrap { overflow-x:auto; }
+  }
+</style>
+</head>
+<body>
+
+<div class="preprint"><span>Preprint · not peer reviewed · v1 · 4 November 2026</span><span>NST Control Tower Research Series No. 1</span></div>
+
+<h1>The Last Mile Is Institutional: Why Thailand’s Smart Cities Stall Between Monitoring and Action, and What One City Built to Cross It</h1>
+<p class="subtitle">Evidence from a flood and haze control tower in Nakhon Si Thammarat</p>
+
+<p class="authors"><b>Poon Thiengburanathum</b><sup>1,2</sup> &nbsp;and&nbsp; <b>Non Arkaraprasertkul</b><sup>3,*</sup></p>
+<div class="affil">
+  <p><sup>1</sup> Faculty of Engineering, Chiang Mai University, Chiang Mai, Thailand (<span lang="th">ปุ่น เที่ยงบูรณธรรม</span>)</p>
+  <p><sup>2</sup> Research and Innovation Acceleration Agency for Competitiveness and Area Development (RCAD) (<span lang="th">สำนักงานเร่งรัดการวิจัยและนวัตกรรมเพื่อเพิ่มความสามารถการแข่งขันและการพัฒนาพื้นที่ (องค์การมหาชน)</span>), Bangkok, Thailand</p>
+  <p><sup>3</sup> Digital Economy Promotion Agency (depa), Bangkok, Thailand (<span lang="th">นน อัครประเสริฐกุล</span>) · <sup>*</sup> Corresponding author: non.ar@depa.or.th</p>
+</div>
+
+<section class="abstract">
+  <div>
+    <h2>Abstract</h2>
+<p class="noindent">Thailand’s smart-city programs depend on institutions as well as technology. This embedded case examines four proposed gaps — coordination, procurement, data responsiveness and monitoring-to-action — through a public flood and haze decision-support prototype in Nakhon Si Thammarat. The evidence combines a catalog audit, dated telemetry snapshots, a repository and a participant operation audit. The catalog lists 216 datasets; 130 of the provincial office’s 139 records have metadata update dates on the 24th, a pattern that does not establish measurement freshness. FloodDash’s database snapshot contains 64.1 million retained reading rows and 10,414 registry records; a separate health check flags 2,230 of 10,412 records stale (21.4%). In the provincial snapshot, 21 of 51 water-level records have observations within two hours. Two audit checks on 26 October recorded a threshold exceedance with status zero, then a declared watch status 145 minutes later. They do not establish issuance or human notification time. The prototype preserves source clocks and incomplete coverage and links evidence to human verification. Official adoption, calibrated inundation prediction and improved response outcomes remain unestablished.</p>
+  </div>
+  <aside>
+    <p><b>Keywords</b><br>smart city; digital government; early warning; inter-agency coordination; public procurement; Thailand; design science</p>
+    <p><b>Research question</b><br>Is the failure of smart city promotion and digital government in Thailand a failure of coordination, procurement, data responsiveness and monitoring-to-push — and can a working system that bypasses those failures be built and used now?</p>
+    <p><b>Artifact</b><br>nst.nonarkara.org — public research prototype</p>
+  </aside>
+</section>
+
+<main class="cols">
+
+<h2>1 · Introduction</h2>
+<p class="noindent">The operation audit records a check at 05:48 ICT on 26 October 2026 in which DWR station STN2101 (Ban Bang Chan Si) returned a water level of 4.25 m against an alert reference of 4.00 m, with status zero. The audit described the observation as 38 minutes old. At a later check, 08:13 ICT, it recorded one declared watch status. The checks are 145 minutes apart. They do not establish when the threshold was first crossed, how long it remained crossed, when the agency published its status or whether people received warnings through other channels.</p>
+<p>Measurement time, retrieval time, declaration status and human receipt are different quantities. A public number and a working display do not by themselves demonstrate a completed warning chain.</p>
+<p>Thailand has spent a decade promoting the “smart city.” The Digital Economy Promotion Agency (depa) was created by statute in 2017 (Thailand, 2017a), the national Smart City Thailand framework followed in 2018, and the Digital Government Administration and Services Act of 2019 obliged agencies to share data and serve citizens digitally (Thailand, 2019). Cities across the country have since been certified as Smart City Promotional Zones. Yet the familiar critique applies: the label is easy to award and hard to cash (Hollands, 2008; Söderström et al., 2014). The city we study says so in its own words: in Thailand, the term “has often been reduced to a tech showcase: install a few sensors, launch a flashy app, and call it transformation” (SLIC, 2025).</p>
+<p>We ask a blunt question. <em>Is the failure of smart city promotion and digital government in Thailand a failure of inter-agency coordination, of technological procurement, of data-driven responsiveness and of the end-to-end chain from monitoring to push — and can a working system that bypasses those failures be built and put to use now?</em></p>
+<p>We proceed in three moves. First, we describe measurable features of the available evidence and the limits of institutional inference. Second, we report the artifact’s implemented capabilities and unclosed links. Third, the documentary city narrative frames hypotheses about leadership and incentives without estimating their causal effects.</p>
+
+<h2>2 · Background: a city and a program</h2>
+<h3>2.1 A city that floods</h3>
+<p class="noindent">Nakhon Si Thammarat City Municipality covers about 22.56 km² and some 105,000 residents according to the municipal case report (SLIC, 2025). It lies below the Khao Luang massif on the Gulf coast. Steep terrain, channel connectivity, drainage conditions and coastal backwater all matter. A dated HII probe reported maximum-discharge metadata of 245 m³/s at X.200 and 39.5 m³/s at X.203, a ratio of about 6.2. Two station attributes do not establish city drainage capacity. The prototype’s water-balance model excludes channel routing, backwater and the drainage network; surveyed connectivity, rating-curve provenance and hydraulic calibration are needed before inferring a bottleneck or street-level outcome.</p>
+<h3>2.2 A leader who lost first</h3>
+<p class="noindent">The municipal case report describes Mayor Kanop Ketchart’s unsuccessful 2011 bid, his return in 2021 and re-election in 2025, framing the intervening years as relationship building (SLIC, 2025). We use that secondary account to contextualize the project, not as independently verified electoral or causal evidence.</p>
+<p>The report describes a meeting with depa after the 2021 election, followed by co-design and support for digital services (SLIC, 2025). The second author participated in that relationship. Participant access informs the narrative but does not independently establish what caused the city’s outcomes.</p>
+<h3>2.3 What the program produced</h3>
+<p class="noindent">The city’s flagship became @NakhonCity, a civic channel inside the LINE messenger, run as a service by a Thai provider. The municipality reports large gains: call-center workload down 37%, about ฿2.3 million a year saved, and procurement lead times cut from an average of 14 months (2019) to 6.5 months (2024) by standardizing terms of reference and buying through depa’s Digital Catalog (SLIC, 2025). We note a caution that becomes a finding later. The same report gives two incompatible accounts of @NakhonCity’s volume — “over 72,000 issues” with resolution time falling from 6.2 to 2.7 days, and “over 31,000 citizen reports” with resolution time falling from 12.6 to 3.2 days, both for 2021–2024. A municipality that reports performance in good faith can still lack a single source of truth for its own numbers.</p>
+<p>The second author’s portfolio describes Refill City as a 2023 hackathon project and a 2024 local pilot, and identifies a visit to Taipei’s operations center as an influence on the control-tower concept (Arkaraprasertkul, 2026a). These are documentary accounts of design motivation, rather than evaluations of operational effects.</p>
+
+<h2>3 · Four deficits and a chain</h2>
+<p class="noindent">The smart-city literature has long separated the brochure from the city that actually exists (Shelton et al., 2015). Its most useful finding for us is that smart-city outcomes depend less on technology than on institutions, people and governance (Nam &amp; Pardo, 2011; Meijer &amp; Rodríguez Bolívar, 2016; Albino et al., 2015). Digital-government research says the same thing from inside the state: information technology is “enacted” through existing institutional arrangements, and tends to reproduce them unless they change (Fountain, 2001; Bekkers &amp; Homburg, 2007; Janowski, 2015). Most e-government projects in developing countries fail in whole or in part, typically at the gap between design and reality (Heeks, 2003). We organize these insights as four deficits.</p>
+<p><b>Coordination.</b> A hazard crosses agency boundaries that a budget does not. Implementation decays with every agency whose agreement it needs (Pressman &amp; Wildavsky, 1973), and agencies collaborate only when someone invests in the craft of making them (Bardach, 1998; Ansell &amp; Gash, 2008).</p>
+<p><b>Procurement.</b> Rules built to buy roads in a single, lowest-price tender are poorly suited to software, which must be tried, changed and kept running. Thailand’s Public Procurement and Supplies Administration Act B.E. 2560 (Thailand, 2017b) is transparent in principle and slow in practice for anything iterative; the delivery literature argues that the strategy is delivery itself (Greenway et al., 2021).</p>
+<p><b>Responsiveness.</b> Dashboards and indicators promise “real-time” governance (Kitchin, 2014; Kitchin et al., 2015), but a number becomes governance only when someone is obliged to act on it (Mattern, 2015). Publishing is not responding.</p>
+<p><b>Monitoring-to-push.</b> People-centred early warning is a chain — risk knowledge, monitoring, dissemination and response capability — and it fails at its weakest link, usually the last mile (Basher, 2006; UNISDR, 2006; WMO, 2022).</p>
+<p>We combine the four into one model: a <em>monitoring-to-push chain</em> that runs sense → share → judge → push → act → learn (Figure 1). Each deficit breaks a particular link. The model is deliberately mechanical. If the chain is the unit of analysis, a smart city is not a set of projects but a set of working paths — rain to drainage, haze to shelter, complaint to crew — and each path can be tested.</p>
+
+<figure class="wide">
+<svg viewBox="0 0 1000 205" role="img" aria-label="Monitoring-to-push chain">
+  <defs><marker id="ar" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#141414"/></marker></defs>
+  <g font-size="15" text-anchor="middle">
+    <g><rect x="10" y="40" width="130" height="58" fill="none" stroke="#141414" stroke-width="1.4"/><text x="75" y="66" font-weight="700">SENSE</text><text x="75" y="86" font-size="11.5" fill="#3d3d3d">gauge · camera · report</text></g>
+    <g><rect x="175" y="40" width="130" height="58" fill="none" stroke="#141414" stroke-width="1.4"/><text x="240" y="66" font-weight="700">SHARE</text><text x="240" y="86" font-size="11.5" fill="#3d3d3d">across agencies</text></g>
+    <g><rect x="340" y="40" width="130" height="58" fill="none" stroke="#141414" stroke-width="1.4"/><text x="405" y="66" font-weight="700">JUDGE</text><text x="405" y="86" font-size="11.5" fill="#3d3d3d">threshold · context</text></g>
+    <g><rect x="505" y="40" width="130" height="58" fill="none" stroke="#b3261e" stroke-width="2.2"/><text x="570" y="66" font-weight="700">PUSH</text><text x="570" y="86" font-size="11.5" fill="#3d3d3d">to a named person</text></g>
+    <g><rect x="670" y="40" width="130" height="58" fill="none" stroke="#b3261e" stroke-width="2.2"/><text x="735" y="66" font-weight="700">ACT</text><text x="735" y="86" font-size="11.5" fill="#3d3d3d">drain · move · shelter</text></g>
+    <g><rect x="835" y="40" width="150" height="58" fill="none" stroke="#141414" stroke-width="1.4"/><text x="910" y="66" font-weight="700">LEARN</text><text x="910" y="86" font-size="11.5" fill="#3d3d3d">did it work?</text></g>
+  </g>
+  <g stroke="#141414" stroke-width="1.3" marker-end="url(#ar)"><line x1="141" y1="69" x2="172" y2="69"/><line x1="306" y1="69" x2="337" y2="69"/><line x1="471" y1="69" x2="502" y2="69"/><line x1="636" y1="69" x2="667" y2="69"/><line x1="801" y1="69" x2="832" y2="69"/></g>
+  <path d="M910,99 C910,150 75,150 75,101" fill="none" stroke="#6b6b6b" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#ar)"/>
+  <g font-size="12" fill="#141414">
+    <text x="75" y="24" text-anchor="middle">② Procurement</text>
+    <text x="240" y="24" text-anchor="middle">① Coordination</text>
+    <text x="405" y="24" text-anchor="middle">③ Responsiveness</text>
+    <text x="652" y="24" text-anchor="middle" fill="#b3261e" font-weight="700">④ Monitoring-to-push — the last mile</text>
+  </g>
+  <text x="500" y="185" font-size="11.5" fill="#3d3d3d" text-anchor="middle">Decision-support paths implemented: rain → river → drainage scenario · river → village → who to move first · haze → camera + sensor → advice</text>
+</svg>
+<figcaption><b>Figure 1.</b> The monitoring-to-push chain. Each of the four deficits breaks a particular link; the last two links (red) require institutional authority and field evidence beyond the software. A smart city, on this view, is a set of working paths, each of which can be tested end to end.</figcaption>
+</figure>
+
+<h2>4 · Research design</h2>
+<p class="noindent">We use an embedded single-case design (Yin, 2018) with a design-science framing (Hevner et al., 2004). The case illustrates what a decision-support prototype can connect and what remains outside its authority. It cannot establish national causal effects, official adoption or changed response behavior. A critical-case argument motivates further inquiry rather than statistical generalization (Flyvbjerg, 2006).</p>
+<p>Rival explanations include funding, technical skill and central–local authority; this design does not rule them out. Table 1 groups the evidence. The documentary arc spans 2011–2026; telemetry results are dated snapshots, not a verified multi-year panel. FloodDash’s source catalog describes a 45-day raw-retention policy with hourly rollups. A database row count is therefore not four months of raw observations. The second author is a depa official and the authors built the artifact. We distinguish software tests, source availability, institutional adoption and public-safety outcomes.</p>
+
+<div class="tablewrap wide">
+<table>
+<caption><b>Table 1.</b> Data sources. Dated aggregates accompany the preprint; not all raw inputs are distributed publicly. Coding rule for “hazard dataset” (D1): a dataset title containing any of ท่วม, อุทกภัย, สาธารณภัย, ภัยพิบัติ, วาตภัย, ไฟป่า, หมอกควัน, ฝุ่น, PM, ระดับน้ำ, ภัยแล้ง, เผชิญเหตุ, ปริมาณน้ำฝน or น้ำขึ้นน้ำลง (n = 32).</caption>
+<thead><tr><th>ID</th><th>Source</th><th>What it contains</th><th>Window</th><th>Used for</th></tr></thead>
+<tbody>
+<tr><td>D1</td><td>Open-data catalog audit (data.go.th, query “Nakhon Si Thammarat”)</td><td>216 datasets, 1,995 resources, 34 publishers; 485 downloaded; 1,358 skipped; 140 failed; 12 oversized</td><td>crawl of 18 Sep 2026</td><td>coordination, responsiveness</td></tr>
+<tr><td>D2</td><td>FloodDash database and health snapshots</td><td>10,414 registry records; 64.1 million retained reading rows; separate 10,412-record health check</td><td>4 Nov 2026 snapshots; distinct capture/check clocks</td><td>responsiveness, reliability</td></tr>
+<tr><td>D3</td><td>Province snapshot</td><td>51 river-level and 173 rain stations with operator and age</td><td>4 Nov 2026, 20:27:06 ICT</td><td>coordination, responsiveness</td></tr>
+<tr><td>D4</td><td>Operation audit of the artifact during the October flood</td><td>timed observations of gauges, DWR alerts, tide, cameras; 16 named failures and repairs</td><td>23–26 Oct 2026</td><td>monitoring-to-push</td></tr>
+<tr><td>D5</td><td>Build record (Git, continuous integration)</td><td>231 commits on 42 distinct days; 78 successful deployment-workflow runs; test suites</td><td>22 Jun – 4 Nov 2026</td><td>procurement</td></tr>
+<tr><td>D6</td><td>Documents</td><td>municipal transformation report built on 30+ field interviews (SLIC, 2025); Refill City portfolio; policy statutes; earlier writing by the second author</td><td>2011–2026</td><td>leadership, incentives</td></tr>
+</tbody>
+</table>
+</div>
+
+<h2>5 · Findings: the four deficits, measured</h2>
+<h3>5.1 Coordination: seven agency codes in one rain feed</h3>
+<p class="noindent">The provincial snapshot contains 173 rain-station records carrying seven source agency codes: DWR (93), RID (25), FOP (20), HII (18), DISASTER (13), TMD (3) and EGAT (1). These metadata categories are not proof of seven independent legal operators or absent interoperability: the records already arrive in one aggregated response. The artifact combines that aggregation with DWR declarations and other sources whose clocks, formats and availability differ. The coordination question is whether the available interfaces support a reliable decision process.</p>
+<p>The catalog lists 216 datasets from 34 publishers, with 139 records (64%) attributed to the provincial office and 20 publishers contributing one record each (D1). This describes catalog administration, not how agencies share data outside the catalog or why publication is distributed this way.</p>
+<p>The operation audit documents source-access failures, intermittent DWR errors and translation rate limits from the deployment environment (D4). A source could be reachable through a Thai-host relay while unavailable from the cloud. These observed constraints do not establish provider motives or institutional responsibility.</p>
+
+<h3>5.2 Procurement: six and a half months versus weekly releases</h3>
+<p class="noindent">The municipal report claims procurement lead times fell from 14 to 6.5 months (SLIC, 2025); that calculation has not been independently audited here. The prototype repository records 231 commits on 42 distinct commit dates beginning 22 June 2026, and 78 successful deployment-workflow runs by the audit cutoff. Runs are not necessarily distinct releases or proof of uninterrupted uptime. The current automatic workflow gates deployment on tests, while manual dispatch remains possible. The codebase contains 47 adapter modules and more than 1,900 unit tests (D5).</p>
+<p>A procurement lead time and a prototype commit history have different scopes, costs, accountability and service obligations. They do not show that bypassing procurement is faster or better for an equivalent service. They illustrate different iteration mechanisms and motivate contracts that support testing, maintenance and correction alongside public accountability (Greenway et al., 2021).</p>
+
+<h3>5.3 Responsiveness: published is not current</h3>
+<p class="noindent">At the 18 September 2026 capture, the median metadata update age was about 236 days and 95 of 216 records (44%) were older than a year (Figure 2). The catalog lists 1,995 resources: 485 downloaded successfully, 1,358 were skipped by scope, 140 failed and 12 exceeded size limits. The explicit title rule in Table 1 selects 32 hazard-related entries with 242 resources: 63 downloaded, 158 skipped, 13 failed and eight oversized. This selection includes 23 CSV-only entries, a mixed flood-risk analysis, plans, environmental and capacity records, a tide GIS service and DWR basin links. The metadata identify services as well as files; they do not support a blanket claim that none are machine-readable. We established no directly usable sub-daily river/rain endpoint among the inspected resources. Failed and skipped resources remain unclassified, so this is a limit of the audit, not proof that no live service exists. Both DWR rain and river-level entries list basin websites.</p>
+<p>Of the provincial office’s 139 records, 130 have metadata update dates on the 24th. This clustering is consistent with batch administration but does not prove when observations were made or why metadata changed. A catalog clock should therefore be distinguished from a measurement clock.</p>
+
+<figure>
+<svg viewBox="0 0 470 250" role="img" aria-label="Age of datasets at crawl">
+  <g font-size="11" fill="#141414">
+    <text x="0" y="14" font-weight="700">Days since last update (216 datasets)</text>
+    <g transform="translate(118,30)">
+      <!-- bins: ≤30:15, 31–90:32, 91–180:21, 181–365:53, 366–730:57, 731–1095:12, >1095:26 ; scale 3.1 px per dataset -->
+      <g><text x="-8" y="13" text-anchor="end">≤ 30</text><rect x="0" y="2" width="46.5" height="15" fill="#0c2f53"/><text x="52" y="13">15</text></g>
+      <g transform="translate(0,26)"><text x="-8" y="13" text-anchor="end">31–90</text><rect x="0" y="2" width="99" height="15" fill="#0c2f53"/><text x="105" y="13">32</text></g>
+      <g transform="translate(0,52)"><text x="-8" y="13" text-anchor="end">91–180</text><rect x="0" y="2" width="65" height="15" fill="#0c2f53"/><text x="71" y="13">21</text></g>
+      <g transform="translate(0,78)"><text x="-8" y="13" text-anchor="end">181–365</text><rect x="0" y="2" width="164" height="15" fill="#0c2f53"/><text x="170" y="13">53</text></g>
+      <g transform="translate(0,104)"><text x="-8" y="13" text-anchor="end">1–2 years</text><rect x="0" y="2" width="177" height="15" fill="#a15c00"/><text x="183" y="13">57</text></g>
+      <g transform="translate(0,130)"><text x="-8" y="13" text-anchor="end">2–3 years</text><rect x="0" y="2" width="37" height="15" fill="#a15c00"/><text x="43" y="13">12</text></g>
+      <g transform="translate(0,156)"><text x="-8" y="13" text-anchor="end">&gt; 3 years</text><rect x="0" y="2" width="81" height="15" fill="#a15c00"/><text x="87" y="13">26</text></g>
+      <line x1="0" y1="0" x2="0" y2="178" stroke="#141414" stroke-width="0.8"/>
+    </g>
+    <text x="0" y="232" fill="#3d3d3d">Median ≈236 days · 44% older than a year (amber) · metadata age, not observation age</text>
+  </g>
+</svg>
+<figcaption><b>Figure 2.</b> Age of the province’s open datasets on data.go.th at the crawl of 18 September 2026 (D1). Metadata dates do not establish observation freshness: 130 of the provincial office’s 139 records are stamped on the 24th of a month.</figcaption>
+</figure>
+
+<p>Telemetry requires distinct denominators and clocks (D2, D3). FloodDash’s database response at 20:27 ICT on 4 November lists 10,414 registry records, 64,136,681 retained reading rows and 19,578,834 hourly rows. A separate health check at 20:23:59 assessed 10,412 records and flagged 2,230 stale (21.4%). These include non-Thai and global series; they are not a census of unique Thai physical gauges. In the provincial snapshot generated at 20:27:06 ICT, 21 of 51 water-level records (41%) and 59 of 173 rain records (34%) have observations within two hours. These are dated coverage measurements, not permanent outage verdicts. Missing or expired observations cannot establish safe conditions.</p>
+
+<h3>5.4 Monitoring-to-push: two checks, distinct clocks</h3>
+<p class="noindent">The operation audit records checks at 05:48 and 08:13 ICT on 26 October (Figure 3, D4). At the first, STN2101 returned a measured level 0.25 m above its alert reference while declaration status was zero; the observation was described as 38 minutes old. The later check recorded one watch declaration. The 145-minute interval does not establish continuous exceedance, first crossing, issuance time or delivery time. Metadata place STN2101 in a west-coast basin; no downstream connection to the city gauge is established here.</p>
+<p>The defensible finding distinguishes a measured threshold comparison from a returned declaration status. That threshold may not be the agency’s full issuance rule; validation or other criteria may apply. The audit does not establish negligence or a 145-minute notification delay. FloodDash’s 13,824 stored rule-based alert records are machine outputs, not confirmed public warnings, delivery receipts or response outcomes.</p>
+
+<figure class="wide">
+<svg viewBox="0 0 1000 170" role="img" aria-label="Two audit checks, not an official issuance timeline">
+<g font-size="15" fill="#141414">
+<text x="15" y="24" font-weight="700">26 October 2026 · audit check times (ICT)</text>
+<text x="15" y="60" font-weight="700">05:48 check</text>
+<text x="15" y="84">STN2101: 4.25 m; alert reference: 4.00 m</text>
+<text x="15" y="108">Returned declaration status: 0</text>
+<text x="15" y="132">Observation described as 38 minutes old</text>
+<text x="710" y="60" font-weight="700">08:13 check</text>
+<text x="710" y="84">One watch status recorded</text>
+<line x1="445" y1="62" x2="675" y2="62" stroke="#6b6b6b" stroke-dasharray="5 5"/>
+<text x="560" y="107" text-anchor="middle" font-size="13">145 minutes between checks</text>
+<text x="15" y="162" font-size="13">Threshold crossing, continuous exceedance, issuance time and human receipt are not established.</text>
+</g></svg>
+<figcaption><b>Figure 3.</b> Two checks recorded in the operation audit (D4). The dashed gap is unobserved time, not a measured warning delay. Other warning channels may have been active.</figcaption>
+</figure>
+
+<h2>6 · The artifact: a control tower built around the chain</h2>
+<p class="noindent">The control tower at nst.nonarkara.org is a public web application with a map, a one-screen brief for the mayor and a printable briefing for duty officers. It was designed backwards from the chain in Figure 1 and from a single test: what evidence and verification task should a duty operator find first? Figure 4 shows its structure. Its rules are more interesting than its stack, so we report them as design principles, each tied to a deficit. The interface follows the rule the second author used for a national city-comparison instrument: form should show how the instrument works (Arkaraprasertkul, 2026b).</p>
+
+<figure class="wide">
+<svg viewBox="0 0 1000 220" role="img" aria-label="System architecture">
+  <g font-size="12.5" fill="#141414">
+    <text x="0" y="16" font-weight="700">SOURCES</text>
+    <g font-size="11.5"><text x="0" y="40">HII ThaiWater · river &amp; rain</text><text x="0" y="58">DWR early-warning stations</text><text x="0" y="76">RID reservoirs · WRF rain grids</text><text x="0" y="94">TMD · GISTDA · PCD air</text><text x="0" y="112">223 combined camera entries</text><text x="0" y="130">Provincial risk register (437 villages)</text><text x="0" y="148">data.go.th (216 datasets)</text><text x="0" y="166">news · @NakhonCity · social</text></g>
+    <rect x="232" y="26" width="200" height="150" fill="none" stroke="#141414" stroke-width="1.2"/>
+    <text x="332" y="48" text-anchor="middle" font-weight="700">RELAY &amp; ADAPTERS</text>
+    <g font-size="11.2" text-anchor="middle"><text x="332" y="72">47 adapters, one feed format</text><text x="332" y="90">Thai-host relay when the</text><text x="332" y="106">cloud is refused</text><text x="332" y="126">circuit breakers · deadlines</text><text x="332" y="144">edge cache of last good answer</text><text x="332" y="164">every reading keeps its age</text></g>
+    <rect x="470" y="26" width="210" height="150" fill="none" stroke="#0c2f53" stroke-width="1.8"/>
+    <text x="575" y="48" text-anchor="middle" font-weight="700" fill="#0c2f53">JUDGMENT RULES</text>
+    <g font-size="11.2" text-anchor="middle"><text x="575" y="72">silent gauge ≠ calm river</text><text x="575" y="90">“not loaded” ≠ “offline”</text><text x="575" y="108">official alert leads the answer</text><text x="575" y="126">level vs event (no re-alert spam)</text><text x="575" y="144">who to move first: risk × need</text><text x="575" y="162">camera haze vs PM2.5 cross-check</text></g>
+    <text x="720" y="16" font-weight="700">SURFACES</text>
+    <g font-size="11.5"><text x="720" y="44">Mayor’s desk — one screen, Thai</text><text x="720" y="64">Map — water first, city framed</text><text x="720" y="84">Flood watch — printable briefing</text><text x="720" y="104">People First — villages ranked</text><text x="720" y="124">Cameras — flood &amp; haze reading</text><text x="720" y="144">Chat — hotlines before answers</text><text x="720" y="164">Copy to LINE · print to PDF</text></g>
+    <g stroke="#141414" stroke-width="1.2" marker-end="url(#ar)"><line x1="200" y1="100" x2="228" y2="100"/><line x1="433" y1="100" x2="466" y2="100"/><line x1="681" y1="100" x2="712" y2="100"/></g>
+    <text x="500" y="206" font-size="11" fill="#3d3d3d" text-anchor="middle">Not an official warning system: every surface says so, names its sources and shows the age of every number.</text>
+  </g>
+</svg>
+<figcaption><b>Figure 4.</b> Structure of the artifact. Implemented rules (center) and output surfaces; software tests do not demonstrate field effectiveness.</figcaption>
+</figure>
+
+<p><b>Bypass the plumbing, not the authority (coordination).</b> When the cloud was refused by the national water service, the artifact did not ask for an exception. It relayed the same public readings through a host inside Thailand, labeled them as relayed, and kept every reading’s age. The principle is to route around a default nobody owns while never pretending to be the source.</p>
+<p>The current automatic release workflow runs type checks, tests, a dependency audit and a production build before deployment. Historical workflow counts do not establish that every change followed that path or that software gates substitute for public accountability.</p>
+<p>Adapters exclude or label old observations and retain missing-coverage counts. Decision surfaces use explicit freshness windows rather than treating retention as validity. A recent retrieval does not renew the observation clock; an expired station is unknown, not zero.</p>
+<p><b>Lead with the authority, then the evidence (monitoring-to-push).</b> When the DWR declares an alert, that declaration is the first line of the answer; when a threshold is crossed without a declaration, the brief says both facts in that order and does not invent a warning. The design keeps the authority in charge of warning while removing the blind interval in which only a few people could see the data.</p>
+<p>Surfaces offer a Thai brief for manual LINE forwarding, printing, camera inspection and village screening. The data.go.th provincial risk register contains 437 villages, not 437 city neighborhoods. Vulnerability counts are estimates derived from district totals. The study establishes implemented controls, not delivery into an official channel, authorized dispatch or completed evacuation.</p>
+<p>The combined camera index contains 223 municipal and Longdo entries at the audit snapshot. Experimental readers produce image-based water or haze indicators; haze uses a dark-channel method (He et al., 2009) with sensor comparison. Calibration against surveyed levels and validated haze observations is incomplete. These are capabilities, not calibrated street depths or independently validated operational results.</p>
+<p>The implemented path is evidence → briefing → human verification. Hydraulic scenarios and village priorities require domain and field validation; they do not close an official response chain. Haze-to-shelter additionally lacks a verified shelter registry. Receipt, action and outcome evaluation remain future work for all paths.</p>
+
+<div class="tablewrap wide">
+<table>
+<caption><b>Table 2.</b> Deficits, evidence, design responses and what remains. “Remaining” is the honest part: a prototype can expose an institutional gap, but only an institution can close it.</caption>
+<thead><tr><th>Deficit</th><th>Evidence in Nakhon Si Thammarat</th><th>Design response in the artifact</th><th>What remains</th></tr></thead>
+<tbody>
+<tr><td>Coordination</td><td>7 agency codes in an aggregated rain feed; 34 catalog publishers; observed access constraints</td><td>One feed format across 47 adapters; Thai-host relay; every reading labeled with its source and age</td><td>Relay runs on one workstation — a single point of failure; no data-sharing agreement</td></tr>
+<tr><td>Procurement</td><td>Lead time 14 → 6.5 months (SLIC, 2025)</td><td>231 commits; 78 successful deployment-workflow runs by the audit cutoff</td><td>No contract, budget line or service-level agreement; continuity depends on people</td></tr>
+<tr><td>Responsiveness</td><td>Median metadata age ≈236 days; incomplete resource retrieval; 21/51 water records within 2 h</td><td>Silent ≠ calm; freshness counted aloud; stale-while-refreshing with honest ages</td><td>Snapshot coverage is incomplete; metadata updates do not date observations</td></tr>
+<tr><td>Monitoring-to-push</td><td>Two audit checks 145 minutes apart; issuance and delivery time unknown</td><td>Official alert leads; threshold-without-alert stated; Thai brief to LINE; villages ranked by need</td><td>No sanctioned push integration demonstrated; official receipt and action remain unestablished</td></tr>
+</tbody>
+</table>
+</div>
+
+<h2>7 · Discussion: leadership and incentives</h2>
+<p class="noindent">The artifact makes several institutional questions concrete without resolving their causes. The documentary narrative suggests hypotheses about leadership, incentives and ownership; the available evidence cannot rank their importance against technology or cost.</p>
+<p>The municipal narrative emphasizes the mayor’s persistence and attention to whether services worked (SLIC, 2025). Incentive theory motivates examining operator behavior (Wilson, 1989), but this study has no independent interviews or causal design separating leadership from staffing, funding or other changes.</p>
+<p>Isomorphic mimicry describes organizational forms without equivalent capability (Pritchett et al., 2013). The catalog audit is compatible with that concern but does not prove it: annual tables and administrative records can serve purposes other than live warning. The artifact tests a narrower proposition — combining existing public observations with honest clocks and explicit verification tasks. PDIA provides a design frame rather than a demonstrated explanation of outcomes (Andrews et al., 2013).</p>
+<p>The second author frames visible working services as a source of credibility (Arkaraprasertkul, 2023, 2026a; Nye, 1990). A prototype can make a proposed workflow concrete for officials. Whether it changed ministry decisions or mayoral actions is not measured here.</p>
+<h3>7.1 The case against bypassing</h3>
+<p class="noindent">The strongest objection is that bypassing bureaucracy bypasses accountability. Procurement rules exist because public money was stolen; agency boundaries exist because someone must be responsible for a warning. This prototype has no evidenced municipal service-level agreement or authorized warning mandate. When the host it depended on was starved of memory on 23 October, the national feed it relayed went dark for a time (D4). Street-level discretion, moved into software, can escape the controls that once governed it (Bovens &amp; Zouridis, 2002), and the literature on “shadow IT” warns that systems built around official channels accumulate risks nobody is accountable for (Haag &amp; Eckhardt, 2017). The GovTech agenda answers the same problem from the other side, by building the shared platforms and contracts that make such bypasses unnecessary (Dener et al., 2021). These are not quibbles; they are the reasons the system labels itself as unofficial on every screen.</p>
+<h3>7.2 Synthesis: bypass to prove, then hand over</h3>
+<p class="noindent">We reconcile the two positions with a sequence rather than a compromise. Bypass is legitimate when it is temporary, transparent and aimed at handing over. It should prove a chain works, publish how, and give the institution the evidence it needs to own the chain: the agreements to share data, the contract to run the service, the official channel to receive alerts. The second author’s team calls this “innovation as a service,” with four rules — purposeful, practical, proven, people-first (Arkaraprasertkul, 2026a). The test of success is not that the prototype keeps running. It is that the city or the agency replaces it with something it owns, and that the replacement keeps the three rules that mattered most: silent is not calm, the authority speaks first, and every number carries its age.</p>
+<h3>7.3 Limitations</h3>
+<p class="noindent">This is a participant case with dated snapshots, not a controlled effectiveness study. Retained row counts do not establish a continuous four-month raw archive. Catalog retrieval is incomplete, hydraulic scenarios and camera readers are uncalibrated, and the municipal narrative is secondary evidence. The build has not been fully costed, including author labor and AI tools. No independent receipt logs, duty interviews, dispatch records or public-safety outcomes establish actual mayor use or a completed warning chain. Future work requires prospective source logging, calibration, adoption records and response evaluation.</p>
+
+<h2>8 · Conclusion</h2>
+<p class="noindent conclusion">This case shows what a public decision-support prototype can expose: source and observation clocks, incomplete coverage, the distinction between a threshold comparison and a declaration, and tasks for human verification. Code alone cannot establish authorized warning delivery, calibrated inundation prediction, field action or institutional ownership. The four proposed deficits organize these questions; one participant case cannot settle them nationally. The contribution is an inspectable artifact and a bounded evidence record, with an agenda for testing the institutional links that remain open.</p>
+
+</main>
+
+<section class="endmatter cols" style="margin-top:4mm">
+<h3>Data and code availability</h3>
+<p class="noindent">The artifact is available at https://nst.nonarkara.org and source code at https://github.com/Nonarkara/nst-control-tower. The accompanying evidence summary and offline analysis script identify inputs, hashes, denominators and capture clocks. Raw catalog caches, telemetry and operation captures are not all distributed publicly; access may be requested from the corresponding author subject to source terms and privacy constraints. The public workbench mirrors a selected subset. These materials check reported snapshots, not an entire historical warning process.</p>
+<h3>Author contributions</h3>
+<p class="noindent">To be confirmed by the authors before submission (CRediT taxonomy).</p>
+<h3>Competing interests</h3>
+<p class="noindent">The second author is an employee of depa, which certifies and co-funds smart-city projects, including in Nakhon Si Thammarat. The authors designed the artifact they evaluate. No vendor funded this work.</p>
+<h3>Use of AI tools</h3>
+<p class="noindent">AI assistants helped develop the artifact and draft text. Their claims were treated as unverified: evidence review corrected catalog selection, archive scope, denominators and alert-timing inference. Software checks and rendered review do not establish field effectiveness. The authors remain responsible for the content.</p>
+<h3>Ethics</h3>
+<p class="noindent">No personal data were collected for this study. Village-level estimates of vulnerable residents are derived from district totals and published registers. Personal fields in open datasets were withheld in the public mirror.</p>
+</section>
+
+<section class="refs">
+<h2>References</h2>
+<p>Albino, V., Berardi, U., &amp; Dangelico, R. M. (2015). Smart cities: Definitions, dimensions, performance, and initiatives. <em>Journal of Urban Technology, 22</em>(1), 3–21. https://doi.org/10.1080/10630732.2014.942092</p>
+<p>Andrews, M., Pritchett, L., &amp; Woolcock, M. (2013). Escaping capability traps through problem driven iterative adaptation (PDIA). <em>World Development, 51</em>, 234–244. https://doi.org/10.1016/j.worlddev.2013.05.011</p>
+<p>Ansell, C., &amp; Gash, A. (2008). Collaborative governance in theory and practice. <em>Journal of Public Administration Research and Theory, 18</em>(4), 543–571. https://doi.org/10.1093/jopart/mum032</p>
+<p>Arkaraprasertkul, N. (2023). Effective soft power: How media can help cities harness smart technology for societal change [<span lang="th">การใช้ “ซอฟท์ พาวเวอร์” (อิทธิพลอ่อน) อย่างมีประสิทธิภาพ: การใช้สื่อในการช่วยเมืองให้ใช้เทคโนโลยีที่ทันสมัยเพื่อการเปลี่ยนแปลงทางสังคม</span>]. <em>Thai Media Fund Journal, 2</em>(2).</p>
+<p>Arkaraprasertkul, N. (2026a). <em>Refill City: Portfolio 2023–2026</em> [Traditional Chinese edition]. Unpublished portfolio, Digital Economy Promotion Agency.</p>
+<p>Arkaraprasertkul, N. (2026b). <em>SCITI 2026: Designer portfolio, CEA Creative Excellence Awards, Creative City Policy Award</em>. Digital Economy Promotion Agency.</p>
+<p>Bardach, E. (1998). <em>Getting agencies to work together: The practice and theory of managerial craftsmanship</em>. Brookings Institution Press.</p>
+<p>Basher, R. (2006). Global early warning systems for natural hazards: Systematic and people-centred. <em>Philosophical Transactions of the Royal Society A, 364</em>(1845), 2167–2182. https://doi.org/10.1098/rsta.2006.1819</p>
+<p>Bekkers, V., &amp; Homburg, V. (2007). The myths of e-government: Looking beyond the assumptions of a new and better government. <em>The Information Society, 23</em>(5), 373–382. https://doi.org/10.1080/01972240701572913</p>
+<p>Bovens, M., &amp; Zouridis, S. (2002). From street-level to system-level bureaucracies. <em>Public Administration Review, 62</em>(2), 174–184. https://doi.org/10.1111/0033-3352.00168</p>
+<p>Dener, C., Nii-Aponsah, H., Ghunney, L. E., &amp; Johns, K. D. (2021). <em>GovTech maturity index: The state of public sector digital transformation</em>. World Bank.</p>
+<p>Fountain, J. E. (2001). <em>Building the virtual state: Information technology and institutional change</em>. Brookings Institution Press.</p>
+<p>Flyvbjerg, B. (2006). Five misunderstandings about case-study research. <em>Qualitative Inquiry, 12</em>(2), 219–245. https://doi.org/10.1177/1077800405284363</p>
+<p>Greenway, A., Terrett, B., Bracken, M., &amp; Loosemore, T. (2021). <em>Digital transformation at scale: Why the strategy is delivery</em> (2nd ed.). London Publishing Partnership.</p>
+<p>Haag, S., &amp; Eckhardt, A. (2017). Shadow IT. <em>Business &amp; Information Systems Engineering, 59</em>(6), 469–473.</p>
+<p>He, K., Sun, J., &amp; Tang, X. (2009). Single image haze removal using dark channel prior. In <em>Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition</em> (pp. 1956–1963).</p>
+<p>Heeks, R. (2003). <em>Most eGovernment-for-development projects fail: How can risks be reduced?</em> (iGovernment Working Paper No. 14). Institute for Development Policy and Management, University of Manchester.</p>
+<p>Hevner, A. R., March, S. T., Park, J., &amp; Ram, S. (2004). Design science in information systems research. <em>MIS Quarterly, 28</em>(1), 75–105. https://doi.org/10.2307/25148625</p>
+<p>HII (Hydro-Informatics Institute). (2026). <em>ThaiWater public water-level service, province 80</em> [Data set]. Retrieved 4 November 2026, from https://api-v3.thaiwater.net</p>
+<p>Hollands, R. G. (2008). Will the real smart city please stand up? <em>City, 12</em>(3), 303–320. https://doi.org/10.1080/13604810802479126</p>
+<p>Janowski, T. (2015). Digital government evolution: From transformation to contextualization. <em>Government Information Quarterly, 32</em>(3), 221–236. https://doi.org/10.1016/j.giq.2015.07.001</p>
+<p>Kitchin, R. (2014). The real-time city? Big data and smart urbanism. <em>GeoJournal, 79</em>(1), 1–14. https://doi.org/10.1007/s10708-013-9516-8</p>
+<p>Kitchin, R., Lauriault, T. P., &amp; McArdle, G. (2015). Knowing and governing cities through urban indicators, city benchmarking and real-time dashboards. <em>Regional Studies, Regional Science, 2</em>(1), 6–28. https://doi.org/10.1080/21681376.2014.983149</p>
+<p>Mattern, S. (2015, March). Mission control: A history of the urban dashboard. <em>Places Journal</em>.</p>
+<p>Meijer, A., &amp; Rodríguez Bolívar, M. P. (2016). Governing the smart city: A review of the literature on smart urban governance. <em>International Review of Administrative Sciences, 82</em>(2), 392–408. https://doi.org/10.1177/0020852314564308</p>
+<p>Nam, T., &amp; Pardo, T. A. (2011). Conceptualizing smart city with dimensions of technology, people, and institutions. In <em>Proceedings of the 12th Annual International Digital Government Research Conference</em> (pp. 282–291). https://doi.org/10.1145/2037556.2037602</p>
+<p>Nye, J. S. (1990). Soft power. <em>Foreign Policy, 80</em>, 153–171. https://doi.org/10.2307/1148580</p>
+<p>Pressman, J. L., &amp; Wildavsky, A. (1973). <em>Implementation</em>. University of California Press.</p>
+<p>Pritchett, L., Woolcock, M., &amp; Andrews, M. (2013). Looking like a state: Techniques of persistent failure in state capability for implementation. <em>Journal of Development Studies, 49</em>(1), 1–18. https://doi.org/10.1080/00220388.2012.709614</p>
+<p>Shelton, T., Zook, M., &amp; Wiig, A. (2015). The “actually existing smart city.” <em>Cambridge Journal of Regions, Economy and Society, 8</em>(1), 13–25. https://doi.org/10.1093/cjres/rsu026</p>
+<p>SLIC (Smart and Livable City Company). (2025). [<em>Nakhon Si Thammarat smart and livable city transformation report</em>]. Unpublished report prepared with Nakhon Si Thammarat City Municipality and depa, building on the Korea Development Institute’s interim report under Korea’s Knowledge Sharing Program.</p>
+<p>Söderström, O., Paasche, T., &amp; Klauser, F. (2014). Smart cities as corporate storytelling. <em>City, 18</em>(3), 307–320. https://doi.org/10.1080/13604813.2014.906716</p>
+<p>Thailand. (2017a). <em>Digital Development for Economy and Society Act, B.E. 2560</em>.</p>
+<p>Thailand. (2017b). <em>Public Procurement and Supplies Administration Act, B.E. 2560</em>.</p>
+<p>Thailand. (2019). <em>Digital Government Administration and Services Act, B.E. 2562</em>.</p>
+<p>UNISDR. (2006). <em>Developing early warning systems: A checklist</em>. Third International Conference on Early Warning, Bonn.</p>
+<p>Wilson, J. Q. (1989). <em>Bureaucracy: What government agencies do and why they do it</em>. Basic Books.</p>
+<p>WMO (World Meteorological Organization). (2022). <em>Early warnings for all: The UN global early warning initiative for the implementation of climate adaptation — Executive action plan 2023–2027</em>. WMO.</p>
+<p>Yin, R. K. (2018). <em>Case study research and applications: Design and methods</em> (6th ed.). SAGE.</p>
+</section>
+
+</body>
+</html>
