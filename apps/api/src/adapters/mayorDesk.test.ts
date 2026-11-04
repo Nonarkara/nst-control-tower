@@ -514,3 +514,8 @@ it("a stalled source cannot consume the browser's whole brief budget",async()=>{
  expect(Date.now()-started).toBeLessThan(1000);expect(lifetime).toHaveLength(1);
  release("late cache fill");await Promise.all(lifetime);
 });
+
+
+it("English non-alert statements are limited to current reporting stations, including incomplete coverage",()=>{
+ for(const waterLevel of [3,5]){const p=officialPart([ews({status:0,waterLevel}),ews({id:"silent",status:3,observedAt:minutesAgo(200)})],NOW);expect(p.coverageIncomplete).toBe(true);expect(p.en).toContain("current reporting stations");expect(p.en).toContain("1/2");expect(p.en).not.toContain("no DWR alert in force");}
+});

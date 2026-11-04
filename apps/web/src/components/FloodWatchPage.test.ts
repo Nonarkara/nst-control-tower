@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { selectForBriefing } from "./FloodWatchPage";
+import { selectForBriefing, observationAgeMinutes } from "./FloodWatchPage";
 import type { RainfallStation, WaterGauge } from "@nst/shared";
 
 /**
@@ -74,4 +74,10 @@ describe("the briefing shows every station, and says how old each one is", () =>
     expect(out.near).toHaveLength(0);
     expect(out.staleWater).toBe(0);
   });
+});
+
+
+it("unknown or implausibly future clocks never render a numeric observation age",()=>{
+ for(const raw of ["", "invalid",minutesAgo(-6)]) expect(observationAgeMinutes(raw,NOW)).toBe("—");
+ expect(observationAgeMinutes(minutesAgo(30),NOW)).toBe(30);
 });

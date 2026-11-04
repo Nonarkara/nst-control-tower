@@ -369,3 +369,25 @@ describe("dwrEws — the official layer must not blank on an upstream outage", (
     vi.restoreAllMocks();
   });
 });
+
+
+describe("DWR observation clock integrity", () => {
+  it("rejects impossible calendar dates and hours rather than normalising them", async () => {
+    const { parseDwrDate } = await import("./dwrEws.js");
+    for (const raw of ["31/02/69 22:00 น.", "29/02/69 22:00 น.", "04/11/69 24:00 น.", "04/11/69 22:60 น.", "04/11/69 22:300 น.", "04/11/69 22:30garbage"]) expect(parseDwrDate(raw)).toBeNull();
+    expect(parseDwrDate("29/02/71 22:00 น.")).toBe("2028-02-29T15:00:00.000Z");
+  });
+  it("never substitutes retrieval time for an absent or invalid observation; future reports stay noncurrent", async () => {
+    vi.resetModules(); vi.useFakeTimers(); vi.setSystemTime(new Date("2026-11-04T15:45:00Z"));
+    const dates = [undefined, "", "bad", "31/02/69 22:00 น.", "04/11/69 23:00 น.", "04/11/69 22:30 น."];
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(Response.json(dates.map((date,i)=>({stn:`CLOCK${i}`,name:`Clock${i}`,stn_type:"wl",province:"นครศรีธรรมราช",latitude:8.4,longitude:99.9,status:3,wl:5,alert_max:4,date}))));
+    try {
+      const { fetchEwsStations: fresh } = await import("./dwrEws.js"); const feed=await fresh();
+      expect(feed.features).toHaveLength(6);
+      for(let i=0;i<4;i++){const row=feed.features.find(s=>s.id===`CLOCK${i}`)!;expect(row.observedAt).toBe("");expect(row.stale).toBe(true);}
+      expect(feed.features.find(s=>s.id==="CLOCK4")!.stale).toBe(true);
+      expect(feed.features.find(s=>s.id==="CLOCK5")!.observedAt).toBe("2026-11-04T15:30:00.000Z");
+      expect(feed.features.find(s=>s.id==="CLOCK5")!.stale).toBe(false);
+    } finally {vi.restoreAllMocks();vi.useRealTimers();}
+  });
+});
