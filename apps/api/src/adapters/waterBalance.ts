@@ -33,6 +33,7 @@ import type {
   NormalizedFeed,
   WaterGauge,
 } from "@nst/shared";
+import { isCurrentObservation } from "@nst/shared";
 import { cacheAgeMinutes, cachedWithStale as cached } from "../lib/cache.js";
 import { riseRatePerHour } from "../lib/gaugeHistory.js";
 import { fetchJsonOrThrow } from "./common.js";
@@ -405,7 +406,7 @@ interface LedgerInputs {
   gauges: WaterGauge[];
   rain: { rain24h: number | null; amphoe: string }[];
   reservoirs: { id: string; name: string; storageMcm: number | null; volumeMcm: number | null }[];
-  ews: { soilMoisture: number | null; amphoe: string }[];
+  ews: { soilMoisture: number | null; amphoe: string; observedAt: string; stale: boolean }[];
   wrf: Awaited<ReturnType<typeof fetchWrfWindows>>;
   tideFactor: number | null;
   antecedent?: { api: number; band: string; asOf: string } | null;
@@ -466,9 +467,10 @@ export function buildBasinLedger(cfg: BasinConfig, inputs: LedgerInputs): BasinW
   if (inputs.wrf == null) assumptions.push("WRF-ROMS forecast unavailable — forecast subtotal is incomplete; stress unavailable");
 
   // ── Wetness → runoff C ──
+  const soilNow = Date.now();
   const soil = mean(
     inputs.ews
-      .filter((e) => matchesAmphoe(e.amphoe, cfg.amphoeKeys))
+      .filter((e) => !e.stale && isCurrentObservation(e.observedAt, soilNow) && matchesAmphoe(e.amphoe, cfg.amphoeKeys))
       .map((e) => e.soilMoisture)
       .filter((v): v is number => v != null),
   );

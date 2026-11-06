@@ -152,3 +152,22 @@ test("measured DWR soil and TMD rain criteria retain distinct source labels",asy
  await expect(page.getByText('วัดจริงจาก DWR:',{exact:true})).toBeVisible();
  await expect(page.getByText('≥90.1 มม. คือฝนหนักมากตามเกณฑ์ อต.',{exact:false})).toBeVisible();
 });
+
+
+for (const width of [390,1024,1440]) test(`retained DWR warnings stay historical after three hours at ${width}px`,async({page})=>{
+ const old=new Date(Date.now()-3*3600_000).toISOString();
+ await page.setViewportSize({width,height:width===390?844:900});
+ await page.route("**/api/flood/operations?**",r=>r.fulfill({json:{features:[observation],meta}}));
+ await page.route("**/api/water/ews?**",r=>r.fulfill({json:{features:[{...ewsStation,status:3,observedAt:old,stale:true}],meta:{...meta,fetchedAt:old,ageMinutes:180,fallbackTier:"cache"}}}));
+ await page.goto("/flood-ops");
+ const table=page.getByRole('region',{name:'สถานีระดับน้ำ DWR เทียบเกณฑ์เตือนของ DWR'});
+ await expect(table).toContainText(ewsStation.name);
+ await expect(table).toContainText('ล้าสมัย');
+ await expect(table).toContainText('180 นาที');
+ await expect(page.locator('.flood-watch-status')).toContainText('ยังยืนยันสถานะเตือน DWR ไม่ได้');
+ await expect(page.locator('.flood-watch-status')).not.toContainText('DWR ประกาศเตือน');
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+ if(process.env.NST_DESK_ARTIFACT_DIR){mkdirSync(process.env.NST_DESK_ARTIFACT_DIR,{recursive:true});await page.screenshot({path:`${process.env.NST_DESK_ARTIFACT_DIR}/dwr-retained-page-${width}.png`});await table.screenshot({path:`${process.env.NST_DESK_ARTIFACT_DIR}/dwr-retained-table-${width}.png`});}
+ await page.getByRole('button',{name:'English summary',exact:true}).click();
+ await expect(page.getByRole('region',{name:'English operational summary'})).toContainText('DWR warning state cannot be confirmed');
+});

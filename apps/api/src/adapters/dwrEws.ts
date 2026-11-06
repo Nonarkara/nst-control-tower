@@ -14,7 +14,7 @@
  * gain9999/thaiwater skill collection.
  */
 
-import type { NormalizedFeed, EwsStation } from "@nst/shared";
+import { isCurrentObservation, type NormalizedFeed, type EwsStation } from "@nst/shared";
 import { cacheAgeMinutes, finishBackgroundWork, cachedWithStale as cached } from "../lib/cache.js";
 import { ageOperationalFeed } from "../lib/operationalFeed.js";
 import { fetchJsonOrThrow } from "./common.js";
@@ -135,9 +135,18 @@ function status(raw: number | string | null | undefined): EwsStation["status"] {
   return 0;
 }
 
-/** How long a last-good snapshot may stand in while DWR is down. Each station
- *  still carries its own `stale` flag from its own timestamp. */
-const STALE_SERVE_S = 2 * 3600;
+/** Retain last-good evidence for up to six hours while DWR is down.
+ * Delivered station freshness still uses the unchanged two-hour operational window. */
+const STALE_SERVE_S = 6 * 3600;
+
+/** Longer retention is historical evidence only; current comparisons stay at two hours. */
+function ageEwsFeed(feed: NormalizedFeed<EwsStation>): NormalizedFeed<EwsStation> {
+  const now = Date.now();
+  const aged = ageOperationalFeed(feed, now, STALE_SERVE_S * 1000);
+  return { ...aged, features: aged.features.map(station => ({ ...station,
+    stale: station.stale || !isCurrentObservation(station.observedAt, now),
+  })) };
+}
 
 export const DWR_SNAPSHOT_KEY = "https://nst-control-tower-api.drnon.workers.dev/__snapshot/dwr-ews";
 interface DwrCache {
@@ -235,7 +244,7 @@ async function fetchEwsShared(): Promise<NormalizedFeed<EwsStation>> {
 
 export async function fetchEwsStations(): Promise<NormalizedFeed<EwsStation>> {
   try {
-    return ageOperationalFeed(await cached("dwr-ews", TTL, fetchEwsShared, STALE_SERVE_S, true));
+    return ageEwsFeed(await cached("dwr-ews", TTL, fetchEwsShared, STALE_SERVE_S, true));
   } catch (err) {
     // The origin is down. If a last-good snapshot exists, serve it — an
     // outage must not blank the official layer while its own last reading is
@@ -243,7 +252,7 @@ export async function fetchEwsStations(): Promise<NormalizedFeed<EwsStation>> {
     const cache = (globalThis as {caches?: {default?: DwrCache}}).caches?.default;
     const snapshot = await readEwsSnapshot(cache, new Request(DWR_SNAPSHOT_KEY));
     if (snapshot.kind === "hit") {
-      return ageOperationalFeed(asSnapshot(snapshot.feed));
+      return ageEwsFeed(asSnapshot(snapshot.feed));
     }
     // Nothing good cached: an honest outage, not a cached empty "feed" —
     // and the note says WHICH kind of nothing it is, because a read that
@@ -271,7 +280,7 @@ export async function fetchEwsStations(): Promise<NormalizedFeed<EwsStation>> {
  */
 export async function probeEwsStations(): Promise<NormalizedFeed<EwsStation>> {
   const cache = (globalThis as {caches?: {default?: DwrCache}}).caches?.default;
-  return ageOperationalFeed(await loadEwsSnapshot(cache, new Request(DWR_SNAPSHOT_KEY)));
+  return ageEwsFeed(await loadEwsSnapshot(cache, new Request(DWR_SNAPSHOT_KEY)));
 }
 
 // Throws on any failure so cachedWithStale serves the last good snapshot.
