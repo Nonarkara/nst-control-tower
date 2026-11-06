@@ -388,6 +388,22 @@ as live. Owner: the upstream. Nothing in this repository can make an empty
 upstream answer; what this repository can do is not lose the last good
 reading when it happens, and it no longer does (F5, and F16).
 
+**The snapshot lives for two hours.** It is written on every successful live
+fetch and expires two hours later, so a DWR outage longer than that empties
+the official layer — measured again on 6 November, after an upstream
+522-window: *"DWR EWS unreachable — non-OK 522 … and no last-good snapshot is
+stored."* The layer then says exactly what it can support — *"ยังยืนยันสถานะ
+เตือน DWR ไม่ได้ — แหล่งข้อมูลไม่ตอบ (ไม่ใช่การไม่มีประกาศ)"* — which is the
+rule this audit insists on: **"checked and nothing declared" and "could not
+ask the authority" are different sentences.**
+
+**The next repair, not yet made:** give the snapshot a longer life. The desk
+already excludes stale stations from the comparison and prints each station's
+own observation time, so a six-hour-old reading would appear as *evidence
+with its age* and the comparison would say "no station is reporting now" —
+instead of the layer simply going empty. The upstream 522s for days at a
+time; two hours of cover is thinner than the operation needs.
+
 **RED — the translation's reachability.** Google's key-free translate
 endpoint and MyMemory both answer **HTTP 429** from Cloudflare's shared
 egress, while both answer 200 from this host. The desk therefore leans on
