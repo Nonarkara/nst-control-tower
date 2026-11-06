@@ -1,9 +1,10 @@
 import type { NormalizedFeed } from "@nst/shared";
 
-/** Apply after every cache layer: serving a snapshot never renews its clock. */
-export function ageOperationalFeed<T>(feed: NormalizedFeed<T>, now = Date.now()): NormalizedFeed<T> {
+/** Apply after every cache layer: serving a snapshot never renews its clock.
+ * An explicit retention override preserves historical evidence, not observation freshness. */
+export function ageOperationalFeed<T>(feed: NormalizedFeed<T>, now = Date.now(), maxSnapshotAgeMs = 2 * 3600_000): NormalizedFeed<T> {
   const elapsed = now - Date.parse(feed.meta.fetchedAt);
-  const valid = Number.isFinite(elapsed) && elapsed >= -5 * 60_000 && elapsed <= 2 * 3600_000;
+  const valid = Number.isFinite(elapsed) && elapsed >= -5 * 60_000 && elapsed <= maxSnapshotAgeMs;
   const ageMinutes = Number.isFinite(elapsed) ? Math.max(0, Math.floor(elapsed / 60_000)) : feed.meta.ageMinutes;
   if (!valid) return { features: [], meta: { ...feed.meta, ageMinutes, fallbackTier: "unavailable",
     note: "Source snapshot expired or its retrieval clock is invalid. Current observations unavailable; retrying." } };

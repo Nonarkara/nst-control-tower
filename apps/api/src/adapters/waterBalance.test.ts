@@ -249,3 +249,18 @@ describe("storm-time forecast and antecedent honesty", () => {
     expect(b.assumptions.join(" ")).toContain("not measured soil moisture");
   });
 });
+
+
+describe("DWR soil evidence freshness at the model boundary",()=>{
+ test("retains current soil but excludes historical or invalid readings",async()=>{
+  const {buildBasinLedger}=await import("./waterBalance.js");
+  const now=Date.now();
+  const fresh={amphoe:"ลานสกา",soilMoisture:40,stale:false,observedAt:new Date(now-30*60_000).toISOString()};
+  const old={...fresh,soilMoisture:100,observedAt:new Date(now-3*3600_000).toISOString()};
+  const inputs={gauges:[],rain:[],reservoirs:[],ews:[fresh,old,{...fresh,soilMoisture:100,stale:true},{...fresh,soilMoisture:100,observedAt:"invalid"},{...fresh,soilMoisture:100,observedAt:new Date(now+6*60_000).toISOString()}],tideFactor:null,wrf:null};
+  expect(buildBasinLedger(BASINS[0],inputs).soilMoisturePct).toBe(40);
+  const unavailable=buildBasinLedger(BASINS[0],{...inputs,ews:[old]});
+  expect(unavailable.soilMoisturePct).toBeNull();
+  expect(unavailable.wetness).toBe("unknown");
+ });
+});
