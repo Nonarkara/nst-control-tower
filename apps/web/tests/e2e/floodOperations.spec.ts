@@ -93,6 +93,17 @@ test("historical above-bank evidence keeps its timestamp without asserting a cur
   await expect(summary).toContainText("10 cm above the bank reference");
   await expect(summary).toContainText("stale");
   await expect(summary).not.toContainText("current station(s) within");
+  const artifactDir = process.env.NST_DESK_ARTIFACT_DIR;
+  if (artifactDir) {
+    mkdirSync(artifactDir, { recursive: true });
+    for (const [width, height] of [[390, 844], [1024, 900], [1440, 900]]) {
+      await page.setViewportSize({ width, height });
+      await page.screenshot({ path: `${artifactDir}/flood-historical-en-${width}.png` });
+      await page.getByRole("button", { name: "รายละเอียดภาษาไทย", exact: true }).click();
+      await page.screenshot({ path: `${artifactDir}/flood-historical-th-${width}.png` });
+      await page.getByRole("button", { name: "English summary", exact: true }).click();
+    }
+  }
 });
 
 test("last-good observations remain visible but are never presented as a live source", async ({page}) => {
