@@ -76,6 +76,36 @@ test("known near-bank observations survive missing rain and invalid synthesis ti
   await expect(page.locator(".flood-watch-layout")).not.toBeVisible();
 });
 
+test("historical above-bank evidence keeps its timestamp without asserting a current crossing", async ({ page }) => {
+  const old = new Date(Date.now() - 150 * 60_000).toISOString();
+  const [gauge] = observation.gauges;
+  const gauges = [
+    { ...gauge, diffFromBank: 0.1, trend: "rising", observedAt: old },
+    { ...gauge, id: "fresh-away", name: "Current station away from bank", diffFromBank: -0.94, observedAt: stamp },
+  ];
+  await page.route("**/api/flood/operations?**", r => r.fulfill({ json: { features: [{ ...observation, gauges }], meta } }));
+  await page.goto("/flood-ops");
+  await expect(page.locator(".flood-watch-status strong")).toContainText("สถานการณ์ปัจจุบันยังไม่ยืนยัน");
+  await expect(page.locator(".flood-watch-focal")).toHaveCount(0);
+  await page.getByRole("button", { name: "English summary", exact: true }).click();
+  const summary = page.getByRole("region", { name: "English operational summary" });
+  await expect(summary).toContainText("Current conditions unconfirmed");
+  await expect(summary).toContainText("10 cm above the bank reference");
+  await expect(summary).toContainText("stale");
+  await expect(summary).not.toContainText("current station(s) within");
+  const artifactDir = process.env.NST_DESK_ARTIFACT_DIR;
+  if (artifactDir) {
+    mkdirSync(artifactDir, { recursive: true });
+    for (const [width, height] of [[390, 844], [1024, 900], [1440, 900]]) {
+      await page.setViewportSize({ width, height });
+      await page.screenshot({ path: `${artifactDir}/flood-historical-en-${width}.png` });
+      await page.getByRole("button", { name: "รายละเอียดภาษาไทย", exact: true }).click();
+      await page.screenshot({ path: `${artifactDir}/flood-historical-th-${width}.png` });
+      await page.getByRole("button", { name: "English summary", exact: true }).click();
+    }
+  }
+});
+
 test("last-good observations remain visible but are never presented as a live source", async ({page}) => {
   const cachedMeta={...meta,fetchedAt:new Date(Date.now()-120_000).toISOString(),ageMinutes:2,fallbackTier:"cache",note:"last-good snapshot; refreshing — not live"};
   await page.route("**/api/flood/operations?**",r=>r.fulfill({json:{features:[{...observation,waterMeta:cachedMeta,rainMeta:cachedMeta,gaps:["HII last-good snapshot; source refresh pending"]}],meta}}));
