@@ -78,7 +78,11 @@ test("known near-bank observations survive missing rain and invalid synthesis ti
 
 test("historical above-bank evidence keeps its timestamp without asserting a current crossing", async ({ page }) => {
   const old = new Date(Date.now() - 150 * 60_000).toISOString();
-  const gauges = observation.gauges.map(g => ({ ...g, diffFromBank: 0.1, trend: "rising", observedAt: old }));
+  const [gauge] = observation.gauges;
+  const gauges = [
+    { ...gauge, diffFromBank: 0.1, trend: "rising", observedAt: old },
+    { ...gauge, id: "fresh-away", name: "Current station away from bank", diffFromBank: -0.94, observedAt: stamp },
+  ];
   await page.route("**/api/flood/operations?**", r => r.fulfill({ json: { features: [{ ...observation, gauges }], meta } }));
   await page.goto("/flood-ops");
   await expect(page.locator(".flood-watch-status strong")).toContainText("สถานการณ์ปัจจุบันยังไม่ยืนยัน");

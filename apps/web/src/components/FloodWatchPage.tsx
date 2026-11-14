@@ -85,9 +85,13 @@ export default function FloodWatchPage() {
   const modelOld = !freshTimestamp(data?.weatherFetchedAt, now, 30 * 60_000);
   const currentNear = near.filter(g => !isStale(g.observedAt, now));
   const historicalNear = near.length - currentNear.length;
-  const highest = priority(freshWater).find(g => freeboard(g) != null) ?? gauges[0];
+  const highest = currentNear[0] ?? near[0]
+    ?? priority(freshWater).find(g => freeboard(g) != null) ?? gauges[0];
   const margin = highest ? freeboard(highest) : null;
   const historical = highest && isStale(highest.observedAt, now);
+  const marginCm = margin == null ? null : Math.round(Math.abs(margin) * 100);
+  const distanceTh = marginCm === 0 ? "น้อยกว่า 1 ซม." : `${marginCm} ซม.`;
+  const distanceEn = marginCm === 0 ? "less than 1 cm" : `${marginCm} cm`;
   const trendTh = highest?.trend === "rising" ? "กำลังขึ้น" : highest?.trend === "falling" ? "กำลังลด" : "";
   const ewsAlert = ewsAlertState(ewsFeed.data, now);
   const ewsRows = ewsWaterRows(ewsFeed.data, now);
@@ -125,7 +129,7 @@ export default function FloodWatchPage() {
             ? "Incomplete observations — current flood conditions cannot be established."
             : "Keep checking water levels and rainfall. No signal does not mean safe."}</strong></p>
       {highest && margin != null && <p>
-        {historical ? "Last recorded reading: " : ""}{highest.name} · {highest.stationCode} · {margin === 0 ? "at the bank reference" : `${Math.round(Math.abs(margin) * 100)} cm ${margin < 0 ? "above" : "below"} the bank reference`}
+        {historical ? "Last recorded reading: " : ""}{highest.name} · {highest.stationCode} · {margin === 0 ? "at the bank reference" : `${distanceEn} ${margin < 0 ? "above" : "below"} the bank reference`}
         {highest.trend === "rising" || highest.trend === "falling" ? ` · ${highest.trend}` : ""}
         {" · Observed "}{date(highest.observedAt)}{" ICT"}{historical ? " · stale" : ""}
       </p>}
@@ -150,9 +154,9 @@ export default function FloodWatchPage() {
     <div hidden={english} className="flood-watch-layout"><section className="flood-watch-main">
       <section aria-label="ระดับน้ำที่ต้องติดตาม"><h2>ระยะถึงตลิ่งจากสถานีตรวจวัด</h2>{historical && !english && ewsAlert.maxTier < 1 && status}
       {highest && margin != null && <p className={historical ? "flood-watch-gap" : "flood-watch-focal"}>
-        <b>{historical && "ค่าที่เคยวัด · "}{margin === 0 ? "ถึงตลิ่ง" : `${Math.round(Math.abs(margin) * 100)} ซม.`}</b>
+        <b>{historical && "ค่าที่เคยวัด · "}{margin === 0 ? "ถึงตลิ่ง" : margin < 0 ? `เกินตลิ่ง ${distanceTh}` : distanceTh}</b>
         <span> {highest.name} · {highest.stationCode} · {margin < 0 ? "สูงกว่าตลิ่งที่สถานีนี้" : margin > 0 ? "เหลือถึงตลิ่งที่สถานีนี้" : "ตรวจยืนยันกับเจ้าหน้าที่"}{trendTh && ` · ${trendTh}`} · วัด {date(highest.observedAt)} ({observationAgeMinutes(highest.observedAt, now)} นาที{historical ? " · ล้าสมัย" : ""})</span>
-      </p>}<a className="flood-watch-verify" href="#duty-actions">ยืนยันสถานีกับเวร · แนวทางตรวจพื้นที่ →</a>{!historical && !english && ewsAlert.maxTier < 1 && status}<p>เรียงจากระยะถึงตลิ่งน้อยสุดทั้งจังหวัด ไม่ใช่ทุกสถานีไหลเข้าตัวเมือง · เกณฑ์ 30 ซม. ใช้คัดงานตรวจของเวร ไม่ใช่เกณฑ์เตือนภัยราชการ</p>{staleWater > 0 && <p className="flood-watch-gap">{staleWater} สถานีในตารางมีข้อมูลเก่าหรือไม่ทราบเวลาวัด · ตรวจเวลาและอายุในแต่ละแถว</p>}<div className="flood-watch-table"><table><thead><tr><th>สถานี / ทางน้ำ</th><th>ถึงตลิ่ง (ม.)</th><th>แนวโน้ม</th><th>เวลา / อายุ</th></tr></thead><tbody>{gauges.slice(0, 10).map(g => <tr key={g.id}><th><a href={`https://www.google.com/maps?q=${g.lat},${g.lng}`} target="_blank" rel="noreferrer">{g.name}</a><small>{g.stationCode} · {g.riverName || g.amphoe}</small></th><td>{freeboard(g) == null ? "—" : metres(freeboard(g))}</td><td>{({ rising: "เพิ่ม", falling: "ลด", stable: g.levelPrev != null ? "ทรงตัว" : "ไม่ยืนยันแนวโน้ม" })[g.trend] ?? "ไม่ทราบ"}</td><td>{date(g.observedAt)}<small>{observationAgeMinutes(g.observedAt, now)} นาที{isStale(g.observedAt, now) ? " · ล้าสมัย" : ""}</small></td></tr>)}</tbody></table></div>{!gauges.length && <p>ไม่มีข้อมูลสถานีน้ำเลย — ห้ามอ่านว่าแม่น้ำปกติ</p>}</section>
+      </p>}<a className="flood-watch-verify" href="#duty-actions">ยืนยันสถานีกับเวร · แนวทางตรวจพื้นที่ →</a>{!historical && !english && ewsAlert.maxTier < 1 && status}<p>เรียงจากระยะถึงตลิ่งน้อยสุดทั้งจังหวัด ไม่ใช่ทุกสถานีไหลเข้าตัวเมือง · เกณฑ์ 30 ซม. ใช้คัดงานตรวจของเวร ไม่ใช่เกณฑ์เตือนภัยราชการ</p>{staleWater > 0 && <p className="flood-watch-gap">{staleWater} สถานีในชุดข้อมูลมีข้อมูลเก่าหรือไม่ทราบเวลาวัด · ตรวจเวลาและอายุในแต่ละแถว</p>}<div className="flood-watch-table"><table><thead><tr><th>สถานี / ทางน้ำ</th><th>ถึงตลิ่ง (ม.)</th><th>แนวโน้ม</th><th>เวลา / อายุ</th></tr></thead><tbody>{gauges.slice(0, 10).map(g => <tr key={g.id}><th><a href={`https://www.google.com/maps?q=${g.lat},${g.lng}`} target="_blank" rel="noreferrer">{g.name}</a><small>{g.stationCode} · {g.riverName || g.amphoe}</small></th><td>{freeboard(g) == null ? "—" : metres(freeboard(g))}</td><td>{({ rising: "เพิ่ม", falling: "ลด", stable: g.levelPrev != null ? "ทรงตัว" : "ไม่ยืนยันแนวโน้ม" })[g.trend] ?? "ไม่ทราบ"}</td><td>{date(g.observedAt)}<small>{observationAgeMinutes(g.observedAt, now)} นาที{isStale(g.observedAt, now) ? " · ล้าสมัย" : ""}</small></td></tr>)}</tbody></table></div>{!gauges.length && <p>ไม่มีข้อมูลสถานีน้ำเลย — ห้ามอ่านว่าแม่น้ำปกติ</p>}</section>
       <section aria-label="สถานีระดับน้ำ DWR เทียบเกณฑ์เตือนของ DWR">
         <h2>สถานีระดับน้ำ DWR — เทียบกับเกณฑ์เตือนของ DWR เอง</h2>
         <p>DWR กำหนดระดับที่จะยกระดับเตือนไว้เองทุกสถานี เป็นเกณฑ์ของหน่วยงาน ไม่ใช่ระยะถึงตลิ่งของตารางข้างบน และไม่ใช่เกณฑ์ 30 ซม. ที่เราใช้คัดงานตรวจของเวร</p>
