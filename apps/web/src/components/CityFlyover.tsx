@@ -50,9 +50,10 @@ export function CityFlyover({ step, playing, reducedMotion, onStep, onPlay, onCl
         {level != null && level !== 1.24 && level !== 2.12 && <output aria-live="polite">{level.toFixed(2)} m MSL</output>}
       </div>
       {surveyStatus !== "ready" && <p role="status">{surveyStatus === "unavailable" ? "HII survey unavailable — no what-if result." : "Loading HII road survey…"}</p>}
-      {level != null ? <ul className="city-flyover-depth-key" aria-label="What-if map colors">
+      {level != null ? <ul className="city-flyover-depth-key" aria-label={th ? "ถนนต่ำกว่าระดับสมมติ" : "Road height below selected level"}>
+        <li>{th ? "ถนนต่ำกว่า" : "Below level"}</li>
         {[["normal", "≥ level"], ["watch", "0–0.3 m"], ["warning", "0.3–0.8 m"], ["critical", ">0.8 m"]].map(([key, label]) => <li key={key}><span style={{background: STATUS[key as keyof typeof STATUS].color}} />{label}</li>)}
-      </ul> : <p>{th ? "จุดถนน: เข้ม = ต่ำ · อ่อน = สูง" : "Road dots: darker = lower."}</p>}
+      </ul> : <p>{th ? "ถนน: สีเข้ม = ต่ำ · ป้ายคือรอยน้ำปี 2562" : "Roads: darker = lower · Labels: 2019 flood marks"}</p>}
       {level != null && surveyStatus === "ready" && <p role="status">{stats ? (th ? `≈${stats.wetKm.toFixed(1)}/${stats.totalKm.toFixed(1)} กม. ถนนสำรวจต่ำกว่าระดับสมมติ` : `≈${stats.wetKm.toFixed(1)}/${stats.totalKm.toFixed(1)} surveyed road km below level`) : (th ? "กำลังโหลดผลสำรวจ HII…" : "Loading HII road survey…")}</p>}
       <p className="city-flyover-limit">{th ? "เทียบระดับถนนเท่านั้น ไม่ใช่พยากรณ์น้ำท่วมคืนนี้" : "Road-height comparison, not tonight’s flood forecast."}</p>
       <div className="city-flyover-custom-level" id="flyover-custom-level" hidden={!customOpen}>

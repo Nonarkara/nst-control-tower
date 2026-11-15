@@ -68,6 +68,6 @@
 }
 
 .city-demo-imagery-credit { display: none; }
-@media(max-width: 700px) {
- .city-demo-imagery-credit { display: flex; align-items: center; position: fixed; left: 12px; right: 72px; top: 112px; min-height: 44px; font-size: 12px; line-height: 1.35; color: var(--ink); background: var(--panel); padding: 0 6px; }
+@media(max-width: 1100px) {
+ .city-demo-imagery-credit { display: flex; align-items: center; position: fixed; left: 12px; max-width: calc(100% - 84px); top: 112px; min-height: 44px; font-size: 12px; line-height: 1.35; color: var(--ink); background: var(--panel); padding: 0 6px; }
 }
