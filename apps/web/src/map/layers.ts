@@ -974,24 +974,43 @@ export function cctvLayer(cameras: CctvCamera[], id: "cctv-cameras" | "cctv-wate
 }
 
 /** A browser-session camera comparison remains anchored to its public CCTV location. */
-export function cameraWaterSignalLayer(camera: CctvCamera, signalText: string) {
-  return new TextLayer({
-    id: "cctv-water-signal",
-    data: [{ ...camera, signalText }],
-    getPosition: (entry) => [entry.lng, entry.lat],
-    getText: (entry) => entry.signalText,
-    getSize: 13,
-    getPixelOffset: [0, -14],
-    getAlignmentBaseline: "bottom",
-    getColor: [255, 255, 255, 255],
-    getBackgroundColor: [19, 23, 26, 245],
-    background: true,
-    backgroundPadding: [6, 4],
-    billboard: true,
-    fontFamily: MAP_FONT,
-    pickable: true,
-    parameters: { depthWriteEnabled: false, depthCompare: "always" },
-  });
+export function cameraWaterSignalLayers(camera: CctvCamera, signalText: string): Layer[] {
+  const position: [number, number] = [camera.lng, camera.lat];
+  const data = [{ ...camera, signalText }];
+  const parameters = { depthWriteEnabled: false, depthCompare: "always" as const };
+  return [
+    new ScatterplotLayer({
+      id: "cctv-water-signal-anchor",
+      data,
+      getPosition: () => position,
+      radiusUnits: "pixels",
+      getRadius: 6,
+      getFillColor: [...CCTV_CATEGORY_RGB.water, 255],
+      stroked: true,
+      lineWidthUnits: "pixels",
+      getLineWidth: 2,
+      getLineColor: [19, 23, 26, 255],
+      pickable: true,
+      parameters,
+    }),
+    new TextLayer({
+      id: "cctv-water-signal",
+      data,
+      getPosition: () => position,
+      getText: (entry) => entry.signalText,
+      getSize: 13,
+      getPixelOffset: [0, -14],
+      getAlignmentBaseline: "bottom",
+      getColor: [255, 255, 255, 255],
+      getBackgroundColor: [19, 23, 26, 245],
+      background: true,
+      backgroundPadding: [6, 4],
+      billboard: true,
+      fontFamily: MAP_FONT,
+      pickable: true,
+      parameters,
+    }),
+  ];
 }
 
 /**

@@ -53,7 +53,7 @@ import {
   campusBoundaryLayer,
   cctvLayer,
   cctvPulseLayer,
-  cameraWaterSignalLayer,
+  cameraWaterSignalLayers,
   devicePresenceLayer,
   himawariInfraredLayer,
   openTopoTerrainLayer,
@@ -698,7 +698,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
       // Click an incident → open its card with a deep-link back to the report.
       setSelectedBuilding(null);
       setSelectedIncident(info.object as IncidentFeature);
-    } else if ((info.layer?.id === "cctv-cameras" || info.layer?.id === "cctv-water-level" || info.layer?.id === "cctv-water-signal") && info.object) {
+    } else if ((info.layer?.id === "cctv-cameras" || info.layer?.id === "cctv-water-level" || info.layer?.id === "cctv-water-signal" || info.layer?.id === "cctv-water-signal-anchor") && info.object) {
       // The palette has promised "click for the live stream" — honor it.
       const c = info.object as CctvCamera;
       setSelectedCctv(c);
@@ -876,6 +876,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
         sub = pick("category", "severity", "status");
         break;
       case "cctv-water-signal":
+      case "cctv-water-signal-anchor":
         title = pick("name") ?? "Water camera";
         sub = pick("signalText");
         break;
@@ -2317,8 +2318,8 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
     setSelectedCctv(null);
     if (stopsWatch) requestAnimationFrame(() => document.getElementById("city-map")?.focus());
   };
-  const mapSignalLayer = useMemo(
-    () => showMapWatch && watchedCamera ? cameraWaterSignalLayer(watchedCamera, signalText) : null,
+  const mapSignalLayers = useMemo(
+    () => showMapWatch && watchedCamera ? cameraWaterSignalLayers(watchedCamera, signalText) : [],
     [showMapWatch, watchedCamera, signalText],
   );
   const allLayers = useMemo<Layer[]>(() => {
@@ -2328,7 +2329,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
     const radar = rainRadar.layer as Layer | null;
     const wwFlow = waterwayFlow.layer as Layer | null;
     const cctvPulse = cctvPulseLayer(highlightedCctvId, cctv.data, cctvPulseRadius);
-    if (!streetFloodSimLayer && !flowAnim.layer && !radar && !wwFlow && riverLabels.length === 0 && !cctvPulse && !mapSignalLayer) {
+    if (!streetFloodSimLayer && !flowAnim.layer && !radar && !wwFlow && riverLabels.length === 0 && !cctvPulse && mapSignalLayers.length === 0) {
       return layers;
     }
     let backgroundEnd = 0;
@@ -2342,9 +2343,9 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
       ...riverLabels,
       ...(cctvPulse ? [cctvPulse] : []),
       ...(flowAnim.layer ? [flowAnim.layer as Layer] : []),
-      ...(mapSignalLayer ? [mapSignalLayer] : []),
+      ...mapSignalLayers,
     ];
-  }, [layers, streetFloodSimLayer, flowAnim.layer, rainRadar.layer, waterwayFlow.layer, riverLabels, highlightedCctvId, cctv.data, cctvPulseRadius, mapSignalLayer]);
+  }, [layers, streetFloodSimLayer, flowAnim.layer, rainRadar.layer, waterwayFlow.layer, riverLabels, highlightedCctvId, cctv.data, cctvPulseRadius, mapSignalLayers]);
 
   // Feature counts — passed to LayerPalette so every toggle shows a number,
   // making it immediately obvious whether the layer has data or not.

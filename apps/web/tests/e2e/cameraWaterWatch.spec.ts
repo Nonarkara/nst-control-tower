@@ -36,8 +36,15 @@ for (const width of [1440, 1024, 390]) {
     });
     await page.clock.setFixedTime(new Date("2026-10-21T20:00:00+07:00"));
     await page.route("**/api/cctv?**", r => r.fulfill({ json: { features: [{ id: "wl-fixture", sourceId: "WLTEST", name: "Canal camera test", lat: 8.411, lng: 99.966, category: "water", status: "online", embedUrl: "https://camera.example.test/wl/" }], meta: { source: "fixture", fetchedAt: new Date().toISOString(), ageMinutes: 0, fallbackTier: "live" } } }));
-    await page.route("https://camera.example.test/**", r => r.fulfill({ body: "Test camera source", headers: { "Access-Control-Allow-Origin": "*" } }));
-    await page.goto("/");
+    let captured = false;
+    await page.route("https://camera.example.test/**", async route => {
+      if (route.request().method() === "POST") {
+        if (captured) return route.abort();
+        captured = true;
+      }
+      await route.fulfill({ body: "Test camera source", headers: { "Access-Control-Allow-Origin": "*" } });
+    });
+    await page.goto("/", { waitUntil: "domcontentloaded" });
     if (width <= 1100) await page.getByRole("tab", { name: /^LAYERS/ }).click();
     await ensureSectionOpen(page, "CCTV");
     await page.getByRole("region", { name: "CCTV cameras" }).getByRole("button", { name: /Canal camera test/ }).click();
