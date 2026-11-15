@@ -33,6 +33,8 @@ for (const width of [390, 1024, 1440]) {
     await expect(slider).toBeHidden();
     const collapsed = await controls.boundingBox();
     expect(collapsed!.height).toBeLessThan(155);
+    const mapTab = page.getByRole("tab", { name: /^MAP/ });
+    if (await mapTab.isVisible()) expect(collapsed!.y + collapsed!.height).toBeLessThan((await mapTab.boundingBox())!.y);
     const artifactDir = process.env.NST_DESK_ARTIFACT_DIR;
     if (artifactDir) await page.screenshot({ path: join(artifactDir, `flyover-compact-${width}.png`) });
     await page.getByRole("button", { name: "2.12 m", exact: true }).click();
@@ -47,6 +49,7 @@ for (const width of [390, 1024, 1440]) {
     const box = await controls.boundingBox();
     expect(box!.y).toBeGreaterThanOrEqual(52);
     expect(box!.y + box!.height).toBeLessThanOrEqual(width <= 1100 ? (width === 390 ? 782 : 838) : 900);
+    if (await mapTab.isVisible()) expect(box!.y + box!.height).toBeLessThan((await mapTab.boundingBox())!.y);
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width);
     await controls.getByRole("button", { name: "Previous flyover stop" }).focus();
     await expect(controls.getByRole("button", { name: "Previous flyover stop" })).toBeFocused();

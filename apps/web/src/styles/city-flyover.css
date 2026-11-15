@@ -47,6 +47,7 @@
 @media(max-width: 1100px) {
   .shell.city-demo .city-flyover { left: 12px; transform: none; }
   .shell.city-demo .map-hud-bl { top: 68px; bottom: auto; }
+  .shell.city-demo.mobile .city-flyover { bottom: 74px; }
 }
 
 .map-imagery-credit { margin: 4px 0 0; max-width: 260px; font-size: 12px; line-height: 1.35; color: var(--ink-2); }
@@ -59,7 +60,7 @@
 .city-flyover-custom { text-decoration: underline; text-underline-offset: 3px; }
 .city-flyover-custom-level { border-top: 1px solid var(--line); margin-top: 6px; padding-top: 5px; }
 @media(max-width: 700px) {
-  .shell.city-demo.mobile .city-flyover { left: 12px; max-width: calc(100% - 24px); bottom: 74px; }
+  .shell.city-demo.mobile .city-flyover { left: 12px; max-width: calc(100% - 24px); }
   .city-flyover-head { flex-wrap: wrap; gap: 0; }
   .city-flyover-title { flex: 1 1 140px; }
   .shell.city-demo.mobile .map-navigation { top: 112px; bottom: auto; }
