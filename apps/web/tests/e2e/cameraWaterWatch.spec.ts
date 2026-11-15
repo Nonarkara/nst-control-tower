@@ -57,6 +57,7 @@ for (const width of [1440, 1024, 390]) {
     await expect(dialog).toBeHidden();
     const marker = page.getByRole("button", { name: /Canal camera test: CV reference set.*20:00 ICT/ });
     await expect(marker).toBeVisible();
+    await expect(marker).toBeFocused();
     if (process.env.NST_DESK_ARTIFACT_DIR) {
       await page.screenshot({ path: resolve(process.env.NST_DESK_ARTIFACT_DIR, `camera-watch-map-${width}.png`) });
     }
@@ -66,8 +67,18 @@ for (const width of [1440, 1024, 390]) {
     await page.clock.setFixedTime(new Date("2026-10-21T20:01:45+07:00"));
     await page.evaluate(() => document.dispatchEvent(new Event("visibilitychange")));
     await expect(watch.getByRole("status")).toContainText("ภาพเก่า");
-    await dialog.getByRole("button", { name: /Close/ }).click();
-    await expect(marker).toHaveCount(0);
+    if (width <= 1100) {
+      await showOnMap.click();
+      const staleMarker = page.getByRole("button", { name: /CV frame stale · received 20:00 ICT/ });
+      await expect(staleMarker).toBeVisible();
+      await page.getByRole("tab", { name: /^LAYERS/ }).click();
+      await expect(page.locator("#map-camera-water-watch")).toHaveCount(0);
+      await expect(page.getByText("ติดตามบนแผนที่ · Watch on map", { exact: true })).toHaveCount(0);
+    } else {
+      await dialog.getByRole("button", { name: /Stop watch and close/ }).click();
+      await expect(page.locator("#map-camera-water-watch")).toHaveCount(0);
+      await expect(page.getByRole("main", { name: "City map" })).toBeFocused();
+    }
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     if (process.env.BUILDING_SCREENSHOTS) {
       const dir = resolve("../../var/hero-temple-2026-10-21"); mkdirSync(dir, { recursive: true });

@@ -7,7 +7,7 @@ import { framePixels } from "../lib/gaugeWatch";
 import { compareBoundary, readMarkedBoundary, type BoundaryReading } from "../lib/cameraBoundary";
 
 export interface CameraWaterSignal {
-  state: "waiting" | "unavailable" | "reference" | "inspect-rise" | "no-significant-change";
+  state: "waiting" | "unavailable" | "stale" | "reference" | "inspect-rise" | "no-significant-change";
   receivedAt: number | null;
 }
 
@@ -78,8 +78,8 @@ export function CameraWaterWatch({
   const receivedAt = frame.frame?.capturedAt ?? null;
   const currentComparison = comparison?.receivedAt === receivedAt ? comparison : null;
   const signalState =
-    stale || frame.kind === "error" || camera?.status === "offline"
-      ? "unavailable"
+    stale ? "stale"
+      : frame.kind === "error" || camera?.status === "offline" ? "unavailable"
       : currentComparison?.state ?? "waiting";
   useEffect(() => {
     onSignal?.(enabled && mark ? { state: signalState, receivedAt: signalState === "waiting" ? null : receivedAt } : null);
@@ -103,7 +103,7 @@ export function CameraWaterWatch({
     {!compact && <label>เลือกจุดเฝ้าระวัง <select value={camera?.id ?? ""} onChange={e => setChosen(e.target.value)}>{ordered.map(c => <option key={c.id} value={c.id}>{c.name} · {c.status ?? "unknown"}</option>)}</select></label>}
     <div className="flood-watch-actions"><button type="button" onClick={() => { if (enabled) chooseMark(null); setEnabled(!enabled); }} disabled={!camera?.embedUrl || camera.status === "offline"}>{enabled ? "หยุดรับภาพ" : "เปิดรับภาพและ CV เฉพาะกล้องนี้"}</button>{camera?.embedUrl && <a href={camera.embedHdUrl ?? camera.embedUrl} target="_blank" rel="noreferrer">เปิดภาพสดต้นทาง</a>}<button type="button" onClick={() => chooseMark(null)}>ตั้งจุดอ้างอิงใหม่</button>{onShowOnMap && <button type="button" disabled={!enabled || !mark} onClick={onShowOnMap}>ติดตามบนแผนที่ · Watch on map</button>}</div>
     <p role="status">{status}</p>
-    {frame.frame ? <div className="flood-watch-frames"><figure><div className="flood-watch-image" role="button" tabIndex={0} aria-label="เลือกจุดอ้างอิงขอบน้ำในภาพ กด Enter เพื่อเลือกกลางภาพ" onKeyDown={e => { if (e.key === "Enter") chooseMark({ x: .5, y: .6 }); }} onClick={e => { const r = e.currentTarget.getBoundingClientRect(); chooseMark({ x: (e.clientX - r.left) / r.width, y: (e.clientY - r.top) / r.height }); }}><img src={frame.frame.dataUrl} alt={`ภาพล่าสุดที่ได้รับจาก ${camera?.name}`} />{reading && enabled && !stale && <i className="camera-water-watch__boundary" style={{ top: `${reading.y * 100}%` }} aria-label="Detected image boundary — unverified water" />}{mark && <span style={{ left: `${mark.x * 100}%`, top: `${mark.y * 100}%` }}>+</span>}</div><figcaption>รับภาพ {new Date(frame.frame.capturedAt).toLocaleTimeString("th-TH", { timeZone: "Asia/Bangkok" })} — เวลาได้รับภาพ ไม่ใช่นาฬิกาต้นทาง · คลิกจุดขอบน้ำเพื่อเทียบ</figcaption></figure>{baselineImage && <figure><img src={baselineImage} alt="ภาพอ้างอิงที่เจ้าหน้าที่เลือก" /><figcaption>ภาพอ้างอิงของกล้องนี้ · เก็บบนอุปกรณ์นี้เท่านั้น</figcaption></figure>}</div> : <p>{camera?.status === "offline" ? "ต้นทางแจ้งออฟไลน์ — เลือกกล้องอื่น" : enabled ? "กำลังขอภาพ…" : "กล้องจะไม่เชื่อมต่อจนกดเปิดรับภาพ"}</p>}
+    {frame.frame ? <div className="flood-watch-frames"><figure><div className="flood-watch-image" role="button" tabIndex={0} aria-label="เลือกจุดอ้างอิงขอบน้ำในภาพ กด Enter หรือ Space เพื่อเลือกกลางภาพ" onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); chooseMark({ x: .5, y: .6 }); } }} onClick={e => { const r = e.currentTarget.getBoundingClientRect(); chooseMark({ x: (e.clientX - r.left) / r.width, y: (e.clientY - r.top) / r.height }); }}><img src={frame.frame.dataUrl} alt={`ภาพล่าสุดที่ได้รับจาก ${camera?.name}`} />{reading && enabled && !stale && <i className="camera-water-watch__boundary" style={{ top: `${reading.y * 100}%` }} aria-label="Detected image boundary — unverified water" />}{mark && <span style={{ left: `${mark.x * 100}%`, top: `${mark.y * 100}%` }}>+</span>}</div><figcaption>รับภาพ {new Date(frame.frame.capturedAt).toLocaleTimeString("th-TH", { timeZone: "Asia/Bangkok" })} — เวลาได้รับภาพ ไม่ใช่นาฬิกาต้นทาง · คลิกจุดขอบน้ำเพื่อเทียบ</figcaption></figure>{baselineImage && <figure><img src={baselineImage} alt="ภาพอ้างอิงที่เจ้าหน้าที่เลือก" /><figcaption>ภาพอ้างอิงของกล้องนี้ · เก็บบนอุปกรณ์นี้เท่านั้น</figcaption></figure>}</div> : <p>{camera?.status === "offline" ? "ต้นทางแจ้งออฟไลน์ — เลือกกล้องอื่น" : enabled ? "กำลังขอภาพ…" : "กล้องจะไม่เชื่อมต่อจนกดเปิดรับภาพ"}</p>}
     <p>ทำงานในแท็บนี้ระหว่างเปิดรับภาพ ไม่ใช่บริการเฝ้ากล้องเบื้องหลัง 24 ชั่วโมง · ผล CV เป็นเพียงสัญญาณให้ตรวจสอบ ไม่ใช่ประกาศราชการ ไม่ใช่หลักฐานว่าเกิด/ไม่เกิดน้ำท่วม · ปภ. 1784</p>
   </section>;
 }

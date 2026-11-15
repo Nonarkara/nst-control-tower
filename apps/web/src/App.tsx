@@ -656,7 +656,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
     setMobilePanel("map");
     setEnabledLayers(current => new Set(current).add("cctv-water-level"));
     flyTo(selectedCctv.lng, selectedCctv.lat, Math.max(viewStateRef.current.zoom, 15));
-    requestAnimationFrame(() => document.getElementById("map-camera-water-watch")?.focus());
+
   };
 
   // Reset map rotation to true north (compass click).
@@ -2290,6 +2290,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
   const cameraSignalText = cameraWaterSignal ? {
     waiting: "CV waiting for image",
     unavailable: "CV comparison unavailable",
+    stale: "CV frame stale",
     reference: "CV reference set",
     "inspect-rise": "CV edge rose · verify water",
     "no-significant-change": "CV edge shift below threshold",
@@ -2297,8 +2298,25 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
   const signalClock = cameraWaterSignal?.receivedAt && new Intl.DateTimeFormat("en-GB", {
     timeZone: "Asia/Bangkok", hour: "2-digit", minute: "2-digit",
   }).format(cameraWaterSignal.receivedAt);
-  const signalText = signalClock ? `${cameraSignalText} · ${signalClock} ICT` : cameraSignalText;
-  const showMapWatch = watchedCamera && demoStep == null && enabledLayers.has("cctv-water-level");
+  const signalText = signalClock ? `${cameraSignalText} · received ${signalClock} ICT` : cameraSignalText;
+  const mapWatchVisible = demoStep == null && enabledLayers.has("cctv-water-level") && (!isMobile || mobilePanel === "map");
+  const showMapWatch = watchedCamera && mapWatchVisible;
+  useEffect(() => {
+    if (mapWatchId && !mapWatchVisible) {
+      setMapWatchCamera(null);
+      setCameraWaterSignal(null);
+    }
+  }, [mapWatchId, mapWatchVisible]);
+  useEffect(() => {
+    if (mapWatchId && mapWatchVisible && !selectedCctv) {
+      document.getElementById("map-camera-water-watch")?.focus();
+    }
+  }, [mapWatchId, mapWatchVisible, selectedCctv]);
+  const closeCameraDialog = () => {
+    const stopsWatch = selectedCctv != null && selectedCctv.id === mapWatchId;
+    setSelectedCctv(null);
+    if (stopsWatch) requestAnimationFrame(() => document.getElementById("city-map")?.focus());
+  };
   const mapSignalLayer = useMemo(
     () => showMapWatch && watchedCamera ? cameraWaterSignalLayer(watchedCamera, signalText) : null,
     [showMapWatch, watchedCamera, signalText],
@@ -3261,9 +3279,10 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
       </div>
 
       <CctvStreamModal
-        camera={selectedCctv ?? watchedCamera}
+        camera={selectedCctv ?? (mapWatchVisible ? watchedCamera : null)}
         open={selectedCctv != null}
-        onClose={() => setSelectedCctv(null)}
+        onClose={closeCameraDialog}
+        closeStopsWatch={selectedCctv != null && selectedCctv.id === mapWatchId}
         onSignal={setCameraWaterSignal}
         onShowOnMap={demoStep == null ? showCameraWatchOnMap : undefined}
         apiBase={API_BASE}

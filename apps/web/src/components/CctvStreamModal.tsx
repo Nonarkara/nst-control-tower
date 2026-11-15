@@ -25,6 +25,7 @@ interface Props {
   camera: CctvCamera | null;
   onClose: () => void;
   open?: boolean;
+  closeStopsWatch?: boolean;
   onSignal?: (signal: CameraWaterSignal | null) => void;
   onShowOnMap?: () => void;
   /** Base URL for the API — defaults to empty string (same origin). */
@@ -34,7 +35,7 @@ interface Props {
 const CV_POLL_MS = 10_000;
 const IMG_REFRESH_MS = 5_000;
 
-export function CctvStreamModal({ camera, onClose, open = true, onSignal, onShowOnMap, apiBase = "" }: Props) {
+export function CctvStreamModal({ camera, onClose, open = true, closeStopsWatch = false, onSignal, onShowOnMap, apiBase = "" }: Props) {
   const [waterWatch, setWaterWatch] = useState(false);
   const [cvEvent, setCvEvent] = useState<CvDetectionEvent | null>(null);
   const [imgTs, setImgTs] = useState(Date.now());
@@ -115,7 +116,7 @@ export function CctvStreamModal({ camera, onClose, open = true, onSignal, onShow
             </p>
           </div>
           <button type="button" className="btn" onClick={onClose}>
-            Close <kbd>Esc</kbd>
+            {closeStopsWatch ? "Stop watch and close" : "Close"} <kbd>Esc</kbd>
           </button>
         </header>
 
