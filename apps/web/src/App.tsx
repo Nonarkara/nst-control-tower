@@ -53,6 +53,7 @@ import {
   campusBoundaryLayer,
   cctvLayer,
   cctvPulseLayer,
+  cameraWaterSignalLayer,
   devicePresenceLayer,
   himawariInfraredLayer,
   openTopoTerrainLayer,
@@ -206,6 +207,7 @@ const ShortcutsDialog = lazy(() => import("./components/ShortcutsDialog").then((
 const SHEETS_STORAGE_KEY = "nst:sheets-url-v1";
 import { AqiBadge, type AqiTrend } from "./components/AqiBadge";
 import { BuildingCard } from "./components/BuildingCard";
+import type { CameraWaterSignal } from "./components/CameraWaterWatch";
 import { CctvStreamModal } from "./components/CctvStreamModal";
 import { CctvDirectory } from "./components/CctvDirectory";
 import { CvGaugePanel } from "./components/CvGaugePanel";
@@ -608,7 +610,17 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
   const [selectedCoord, setSelectedCoord] = useState<[number, number] | null>(null);
   // Selected incident — drives the IncidentCard with its "Open report ↗" link.
   const [selectedIncident, setSelectedIncident] = useState<IncidentFeature | null>(null);
-  const [selectedCctv, setSelectedCctv] = useState<CctvCamera | null>(null);
+  const [selectedCctv, setCameraDialog] = useState<CctvCamera | null>(null);
+  const [mapWatchCamera, setMapWatchCamera] = useState<CctvCamera | null>(null);
+  const [cameraWaterSignal, setCameraWaterSignal] = useState<CameraWaterSignal | null>(null);
+  const mapWatchId = mapWatchCamera?.id;
+  const setSelectedCctv = useCallback((camera: CctvCamera | null) => {
+    if (!camera || camera.id !== mapWatchId) {
+      setMapWatchCamera(null);
+      setCameraWaterSignal(null);
+    }
+    setCameraDialog(camera);
+  }, [mapWatchId]);
   const [cctvCommandOpen, setCctvCommandOpen] = useState(false);
   // Highlighted camera — when a map dot or wall thumbnail is clicked, both
   // pulse in sync so the operator can find "the one I just clicked" on
@@ -635,6 +647,17 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
   const flyTo = useCallback((longitude: number, latitude: number, zoom = 17) => {
     flyCamera({ longitude, latitude, zoom, transitionDuration: prefersReducedMotion() ? 0 : 700 });
   }, [flyCamera]);
+
+  const showCameraWatchOnMap = () => {
+    if (!selectedCctv) return;
+    setMapWatchCamera(selectedCctv);
+    setCameraDialog(null);
+    setCctvCommandOpen(false);
+    setMobilePanel("map");
+    setEnabledLayers(current => new Set(current).add("cctv-water-level"));
+    flyTo(selectedCctv.lng, selectedCctv.lat, Math.max(viewStateRef.current.zoom, 15));
+    requestAnimationFrame(() => document.getElementById("map-camera-water-watch")?.focus());
+  };
 
   // Reset map rotation to true north (compass click).
   const resetNorth = useCallback(() => {
@@ -675,7 +698,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
       // Click an incident → open its card with a deep-link back to the report.
       setSelectedBuilding(null);
       setSelectedIncident(info.object as IncidentFeature);
-    } else if ((info.layer?.id === "cctv-cameras" || info.layer?.id === "cctv-water-level") && info.object) {
+    } else if ((info.layer?.id === "cctv-cameras" || info.layer?.id === "cctv-water-level" || info.layer?.id === "cctv-water-signal") && info.object) {
       // The palette has promised "click for the live stream" — honor it.
       const c = info.object as CctvCamera;
       setSelectedCctv(c);
@@ -699,7 +722,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
       setSelectedBuilding(null);
       setSelectedIncident(null);
     }
-  }, [flyTo]);
+  }, [flyTo, setSelectedCctv, highlightCamera]);
 
   const handleInteractionStateChange = useCallback((state: { isDragging?: boolean; isZooming?: boolean; isRotating?: boolean }) => {
     mapBusyRef.current = Boolean(state.isDragging);
@@ -851,6 +874,10 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
       case "incidents-city-reports":
         title = pick("title") ?? "Incident";
         sub = pick("category", "severity", "status");
+        break;
+      case "cctv-water-signal":
+        title = pick("name") ?? "Water camera";
+        sub = pick("signalText");
         break;
       case "cctv-cameras":
       case "cctv-water-level":
@@ -2259,6 +2286,23 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
   // river arrows APPENDED then labelled on top. This concat is the ONLY work
   // their updates cost — the ~30 builder calls above never re-run for a slider
   // tick or an animation frame.
+  const watchedCamera = cctv.data.find(camera => camera.id === mapWatchId) ?? mapWatchCamera;
+  const cameraSignalText = cameraWaterSignal ? {
+    waiting: "CV waiting for image",
+    unavailable: "CV comparison unavailable",
+    reference: "CV reference set",
+    "inspect-rise": "CV edge rose · verify water",
+    "no-significant-change": "CV edge shift below threshold",
+  }[cameraWaterSignal.state] : "CV paused";
+  const signalClock = cameraWaterSignal?.receivedAt && new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Bangkok", hour: "2-digit", minute: "2-digit",
+  }).format(cameraWaterSignal.receivedAt);
+  const signalText = signalClock ? `${cameraSignalText} · ${signalClock} ICT` : cameraSignalText;
+  const showMapWatch = watchedCamera && demoStep == null && enabledLayers.has("cctv-water-level");
+  const mapSignalLayer = useMemo(
+    () => showMapWatch && watchedCamera ? cameraWaterSignalLayer(watchedCamera, signalText) : null,
+    [showMapWatch, watchedCamera, signalText],
+  );
   const allLayers = useMemo<Layer[]>(() => {
     // Each animated/hook layer is already null when its layer is disabled —
     // the hooks own those gates. Rain radar sits under the vectors; arrows
@@ -2266,7 +2310,7 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
     const radar = rainRadar.layer as Layer | null;
     const wwFlow = waterwayFlow.layer as Layer | null;
     const cctvPulse = cctvPulseLayer(highlightedCctvId, cctv.data, cctvPulseRadius);
-    if (!streetFloodSimLayer && !flowAnim.layer && !radar && !wwFlow && riverLabels.length === 0 && !cctvPulse) {
+    if (!streetFloodSimLayer && !flowAnim.layer && !radar && !wwFlow && riverLabels.length === 0 && !cctvPulse && !mapSignalLayer) {
       return layers;
     }
     let backgroundEnd = 0;
@@ -2280,8 +2324,9 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
       ...riverLabels,
       ...(cctvPulse ? [cctvPulse] : []),
       ...(flowAnim.layer ? [flowAnim.layer as Layer] : []),
+      ...(mapSignalLayer ? [mapSignalLayer] : []),
     ];
-  }, [layers, streetFloodSimLayer, flowAnim.layer, rainRadar.layer, waterwayFlow.layer, riverLabels, highlightedCctvId, cctv.data, cctvPulseRadius]);
+  }, [layers, streetFloodSimLayer, flowAnim.layer, rainRadar.layer, waterwayFlow.layer, riverLabels, highlightedCctvId, cctv.data, cctvPulseRadius, mapSignalLayer]);
 
   // Feature counts — passed to LayerPalette so every toggle shows a number,
   // making it immediately obvious whether the layer has data or not.
@@ -3037,6 +3082,14 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
               <button onClick={() => zoomBy(0.6)} aria-label="Zoom in" className="zoom-btn">+</button>
               <button onClick={() => zoomBy(-0.6)} aria-label="Zoom out" className="zoom-btn">−</button>
             </div>
+            {showMapWatch && watchedCamera && (
+              <button type="button" id="map-camera-water-watch" className="zoom-btn"
+                aria-label={`${watchedCamera.name}: ${signalText}. Manage camera watch`}
+                title={signalText}
+                onClick={() => setSelectedCctv(watchedCamera)}>
+                CV
+              </button>
+            )}
           </div>
           {/* Bottom-left HUD: building-type legend (when buildings are shown) + live coordinate readout */}
           <div className="map-hud-bl">
@@ -3208,8 +3261,11 @@ export default function App({ onFlip }: { onFlip?: () => void } = {}) {
       </div>
 
       <CctvStreamModal
-        camera={selectedCctv}
+        camera={selectedCctv ?? watchedCamera}
+        open={selectedCctv != null}
         onClose={() => setSelectedCctv(null)}
+        onSignal={setCameraWaterSignal}
+        onShowOnMap={demoStep == null ? showCameraWatchOnMap : undefined}
         apiBase={API_BASE}
       />
       {/* Modals — lazy-loaded chunks, fetched only on first open */}

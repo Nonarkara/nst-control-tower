@@ -14,7 +14,7 @@
  * button with a visible text label.
  */
 
-import { CameraWaterWatch } from "./CameraWaterWatch";
+import { CameraWaterWatch, type CameraWaterSignal } from "./CameraWaterWatch";
 import { useEffect, useId, useState } from "react";
 import type { CvDetectionEvent } from "@nst/shared";
 import type { CctvCamera } from "../map/layers";
@@ -24,6 +24,9 @@ import { CCTV_CATEGORY_LABEL, statusLabel } from "../lib/cctv";
 interface Props {
   camera: CctvCamera | null;
   onClose: () => void;
+  open?: boolean;
+  onSignal?: (signal: CameraWaterSignal | null) => void;
+  onShowOnMap?: () => void;
   /** Base URL for the API — defaults to empty string (same origin). */
   apiBase?: string;
 }
@@ -31,21 +34,21 @@ interface Props {
 const CV_POLL_MS = 10_000;
 const IMG_REFRESH_MS = 5_000;
 
-export function CctvStreamModal({ camera, onClose, apiBase = "" }: Props) {
+export function CctvStreamModal({ camera, onClose, open = true, onSignal, onShowOnMap, apiBase = "" }: Props) {
   const [waterWatch, setWaterWatch] = useState(false);
   const [cvEvent, setCvEvent] = useState<CvDetectionEvent | null>(null);
   const [imgTs, setImgTs] = useState(Date.now());
   const [videoError, setVideoError] = useState(false);
   const [hd, setHd] = useState(false);
-  const trapRef = useFocusTrap(!!camera);
+  const trapRef = useFocusTrap(open && !!camera);
   const titleId = useId();
 
   useEffect(() => {
-    if (!camera) return;
+    if (!camera || !open) return;
     const handler = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [camera, onClose]);
+  }, [camera, onClose, open]);
 
   useEffect(() => {
     setWaterWatch(false);
@@ -56,7 +59,7 @@ export function CctvStreamModal({ camera, onClose, apiBase = "" }: Props) {
 
   // CV detections (our own pipeline keyed by camera id) — silent when absent.
   useEffect(() => {
-    if (!camera) return;
+    if (!camera || !open) return;
     let active = true;
     const fetchCv = async () => {
       try {
@@ -74,7 +77,7 @@ export function CctvStreamModal({ camera, onClose, apiBase = "" }: Props) {
       active = false;
       clearInterval(timer);
     };
-  }, [camera, apiBase]);
+  }, [camera, apiBase, open]);
 
   const snapshotOnly = !!camera?.imageUrl && !camera.embedUrl && !camera.hlsUrl;
   useEffect(() => {
@@ -90,7 +93,7 @@ export function CctvStreamModal({ camera, onClose, apiBase = "" }: Props) {
   const canHls = !camera.embedUrl && !!camera.hlsUrl && !videoError;
 
   return (
-    <div className="cctv-modal-overlay" onClick={onClose}>
+    <div className="cctv-modal-overlay" style={open ? undefined : { display: "none" }} onClick={onClose}>
       <div
         ref={trapRef}
         className="cctv-modal"
@@ -123,9 +126,9 @@ export function CctvStreamModal({ camera, onClose, apiBase = "" }: Props) {
         )}
 
         {camera.category === "water" && <div className="cctv-modal-controls">
-          <button type="button" className="btn" aria-pressed={waterWatch} onClick={() => setWaterWatch(v => !v)}>{waterWatch ? "Return to live player" : "Compare water images · CV"}</button>
+          <button type="button" className="btn" aria-pressed={waterWatch} onClick={() => { if (waterWatch) onSignal?.(null); setWaterWatch(!waterWatch); }}>{waterWatch ? "Return to live player" : "Compare water images · CV"}</button>
         </div>}
-        {waterWatch ? <CameraWaterWatch key={camera.id} cameras={[camera]} compact /> : <div className="cctv-modal-stream">
+        {waterWatch ? <CameraWaterWatch key={camera.id} cameras={[camera]} compact onSignal={onSignal} onShowOnMap={onShowOnMap} /> : open && <div className="cctv-modal-stream">
           {camera.embedUrl ? (
             <iframe
               key={embedSrc}

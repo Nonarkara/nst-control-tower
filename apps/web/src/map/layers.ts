@@ -973,6 +973,27 @@ export function cctvLayer(cameras: CctvCamera[], id: "cctv-cameras" | "cctv-wate
   });
 }
 
+/** A browser-session camera comparison remains anchored to its public CCTV location. */
+export function cameraWaterSignalLayer(camera: CctvCamera, signalText: string) {
+  return new TextLayer({
+    id: "cctv-water-signal",
+    data: [{ ...camera, signalText }],
+    getPosition: (entry) => [entry.lng, entry.lat],
+    getText: (entry) => entry.signalText,
+    getSize: 13,
+    getPixelOffset: [0, -14],
+    getAlignmentBaseline: "bottom",
+    getColor: [255, 255, 255, 255],
+    getBackgroundColor: [19, 23, 26, 245],
+    background: true,
+    backgroundPadding: [6, 4],
+    billboard: true,
+    fontFamily: MAP_FONT,
+    pickable: true,
+    parameters: { depthWriteEnabled: false, depthCompare: "always" },
+  });
+}
+
 /**
  * CCTV pulse halo — a single-entry ScatterplotLayer that renders JUST the
  * highlighted camera as a pulsing ring on top of `cctvLayer`. The radius
