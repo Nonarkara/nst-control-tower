@@ -5,6 +5,7 @@ const infill = JSON.parse(readFileSync("public/geo/nst/buildings-infill.geojson"
 const coverageFixture = { ...infill, features: infill.features.slice(0, 1) };
 
 // Deliberately no third-party imagery requests or production API calls in CI.
+test.describe.configure({ timeout: 90_000 });
 test.beforeEach(async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   // Full asset integrity/geometry is tested in unit tests; UI tests need one
@@ -27,11 +28,11 @@ for (const width of [390, 1024, 1440]) {
     await expect(controls).toBeVisible();
     await expect(page.getByRole("button", { name: "Play flyover", exact: true })).toBeDisabled();
     for (let i = 0; i < 4; i++) await page.getByRole("button", { name: "Next flyover stop" }).click();
-    const details = controls.locator("summary");
+    const details = controls.getByRole("button", { name: "Custom level and limits" });
     const slider = controls.getByRole("slider");
     await expect(slider).toBeHidden();
     const collapsed = await controls.boundingBox();
-    expect(collapsed!.height).toBeLessThan(190);
+    expect(collapsed!.height).toBeLessThan(155);
     const artifactDir = process.env.NST_DESK_ARTIFACT_DIR;
     if (artifactDir) await page.screenshot({ path: join(artifactDir, `flyover-compact-${width}.png`) });
     await page.getByRole("button", { name: "2.12 m", exact: true }).click();

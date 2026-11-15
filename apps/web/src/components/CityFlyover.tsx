@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useLocale } from "../hooks/useLocale";
 import { STATUS } from "../lib/status";
 import { CITY_FLYOVER } from "../data/cityFlyover";
@@ -20,6 +21,7 @@ interface Props {
 }
 
 export function CityFlyover({ step, playing, reducedMotion, onStep, onPlay, onClose, level, onLevel, stats, coverage, surveyStatus }: Props) {
+  const [customOpen, setCustomOpen] = useState(false);
   const stop = CITY_FLYOVER[step]!;
   const { locale } = useLocale();
   const th = locale === "th";
@@ -28,19 +30,23 @@ export function CityFlyover({ step, playing, reducedMotion, onStep, onPlay, onCl
     <header className="city-flyover-head">
       <p className="city-flyover-title" aria-live="polite">{step + 1}/{CITY_FLYOVER.length} · {stop.title}</p>
       <div className="city-flyover-actions">
-        <button aria-label="Previous flyover stop" disabled={step === 0} onClick={() => onStep(step - 1)}>‹</button>
-        <button aria-label={playing ? "Pause flyover" : "Play flyover"} disabled={reducedMotion} title={reducedMotion ? "Reduced motion: use previous and next stops" : undefined} onClick={onPlay}>{playing ? "Ⅱ" : "▶"}</button>
-        <button aria-label="Next flyover stop" disabled={step === CITY_FLYOVER.length - 1} onClick={() => onStep(step + 1)}>›</button>
+        <button aria-label="Previous flyover stop" disabled={step === 0} onClick={() => { setCustomOpen(false); onStep(step - 1); }}>‹</button>
+        <button aria-label={playing ? "Pause flyover" : "Play flyover"} disabled={reducedMotion} title={reducedMotion ? "Reduced motion: use previous and next stops" : undefined} onClick={() => { setCustomOpen(false); onPlay(); }}>{playing ? "Ⅱ" : "▶"}</button>
+        <button aria-label="Next flyover stop" disabled={step === CITY_FLYOVER.length - 1} onClick={() => { setCustomOpen(false); onStep(step + 1); }}>›</button>
         <button aria-label="End flyover and restore previous map" onClick={onClose}>×</button>
       </div>
     </header>
     {!last && <p className="city-flyover-note">{reducedMotion && "Reduced motion: use ‹ and ›. "}{coverage === "ready" ? (th ? stop.noteTh : stop.note) : coverage === "unavailable" ? "Satellite-derived infill unavailable; showing base mapped buildings only." : "Loading satellite-derived building coverage…"}</p>}
     {last && <div className="city-flyover-scenario">
       <div className="city-flyover-presets" role="group" aria-label={th ? "ระดับน้ำสมมติ" : "What-if water level"}>
-        <span>{th ? "ระดับน้ำสมมติ" : "Water what-if"}</span>
+        <span>{th ? "ระดับสมมติ" : "What-if"}</span>
         <button onClick={() => onLevel(null)} aria-pressed={level == null}>{th ? "ปิด" : "Off"}</button>
         <button disabled={surveyStatus !== "ready"} onClick={() => onLevel(1.24)} aria-pressed={level === 1.24}>1.24 m</button>
         <button disabled={surveyStatus !== "ready"} onClick={() => onLevel(2.12)} aria-pressed={level === 2.12}>2.12 m</button>
+        <button className="city-flyover-custom" type="button" aria-label={th ? "ปรับระดับและดูข้อจำกัด" : "Custom level and limits"}
+          aria-expanded={customOpen} aria-controls="flyover-custom-level" onClick={() => setCustomOpen(open => !open)}>
+          {customOpen ? "▾" : "▸"} {th ? "ปรับเอง" : "Custom"}
+        </button>
         {level != null && level !== 1.24 && level !== 2.12 && <output aria-live="polite">{level.toFixed(2)} m MSL</output>}
       </div>
       {surveyStatus !== "ready" && <p role="status">{surveyStatus === "unavailable" ? "HII survey unavailable — no what-if result." : "Loading HII road survey…"}</p>}
@@ -49,12 +55,12 @@ export function CityFlyover({ step, playing, reducedMotion, onStep, onPlay, onCl
       </ul> : <p>{th ? "จุดถนน: เข้ม = ต่ำ · อ่อน = สูง" : "Road dots: darker = lower."}</p>}
       {level != null && surveyStatus === "ready" && <p role="status">{stats ? (th ? `≈${stats.wetKm.toFixed(1)}/${stats.totalKm.toFixed(1)} กม. ถนนสำรวจต่ำกว่าระดับสมมติ` : `≈${stats.wetKm.toFixed(1)}/${stats.totalKm.toFixed(1)} surveyed road km below level`) : (th ? "กำลังโหลดผลสำรวจ HII…" : "Loading HII road survey…")}</p>}
       <p className="city-flyover-limit">{th ? "เทียบระดับถนนเท่านั้น ไม่ใช่พยากรณ์น้ำท่วมคืนนี้" : "Road-height comparison, not tonight’s flood forecast."}</p>
-      <details><summary>{th ? "ปรับระดับและดูข้อจำกัด" : "Custom level & limits"}</summary>
+      <div className="city-flyover-custom-level" id="flyover-custom-level" hidden={!customOpen}>
         <label htmlFor="flyover-water-level">{th ? "ระดับน้ำสมมติ" : "What-if water level"} · {level == null ? (th ? "ปิด" : "off") : `${level.toFixed(2)} m MSL`}</label>
         <input disabled={surveyStatus !== "ready"} id="flyover-water-level" type="range" min={SCENARIO_MIN_M} max={SCENARIO_MAX_M} step={.01} value={level ?? SCENARIO_MIN_M} onChange={e => onLevel(Number(e.target.value))} aria-label="What-if water level in metres MSL" />
         <p>{th ? "ถนนฝั่งตะวันออกที่ HII สำรวจปี 2025 เท่านั้น ไม่รวมการไหล การระบายน้ำ หรือเวลาที่น้ำมาถึง" : "HII 2025 eastern-road survey only. No flow routing, drainage or arrival time."}</p>
         <p>{th ? "ป้ายคือรอยน้ำสูงในอดีต (ม. รทก.) ไม่ใช่มาตรวัดปัจจุบัน ค่าตั้งต้นคือมัธยฐานฤดูปกติ / รอยน้ำสูงสุดปาบึก 2019" : "Labels are past high-water marks (m MSL), not current gauges. Presets: normal-season median / Pabuk2019 maximum marks."}</p>
-      </details>
+      </div>
     </div>}
   </section><a className="city-demo-imagery-credit" href="https://goto.arcgisonline.com/maps/World_Imagery" target="_blank" rel="noreferrer">Imagery © Esri, Vantor, Earthstar Geographics, GIS User Community</a></>;
 }

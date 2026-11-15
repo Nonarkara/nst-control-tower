@@ -56,9 +56,8 @@
 .city-flyover-depth-key li { display: inline-flex; align-items: center; gap: 5px; }
 .city-flyover-depth-key span { width: 7px; height: 7px; }
 
-.city-flyover summary { display: inline-flex; align-items: center; min-height: 44px; cursor: pointer; font-size: 13px; }
-.city-flyover summary::before { content: "▸"; margin-right: 6px; }
-.city-flyover details[open] summary::before { content: "▾"; }
+.city-flyover-custom { text-decoration: underline; text-underline-offset: 3px; }
+.city-flyover-custom-level { border-top: 1px solid var(--line); margin-top: 6px; padding-top: 5px; }
 @media(max-width: 700px) {
   .shell.city-demo.mobile .city-flyover { left: 12px; max-width: calc(100% - 24px); bottom: 74px; }
   .city-flyover-head { flex-wrap: wrap; gap: 0; }
