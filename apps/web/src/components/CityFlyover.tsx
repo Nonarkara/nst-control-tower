@@ -28,7 +28,7 @@ export function CityFlyover({ step, playing, reducedMotion, onStep, onPlay, onCl
   const last = step === CITY_FLYOVER.length - 1;
   return <><section id="city-flyover-controls" className="city-flyover" aria-label="City flyover controls" tabIndex={-1}>
     <header className="city-flyover-head">
-      <p className="city-flyover-title" aria-live="polite">{step + 1}/{CITY_FLYOVER.length} · {stop.title}</p>
+      <p className="city-flyover-title" aria-live="polite">{step + 1}/{CITY_FLYOVER.length} · {th ? stop.titleTh : stop.title}</p>
       <div className="city-flyover-actions">
         <button aria-label="Previous flyover stop" disabled={step === 0} onClick={() => { setCustomOpen(false); onStep(step - 1); }}>‹</button>
         <button aria-label={playing ? "Pause flyover" : "Play flyover"} disabled={reducedMotion} title={reducedMotion ? "Reduced motion: use previous and next stops" : undefined} onClick={() => { setCustomOpen(false); onPlay(); }}>{playing ? "Ⅱ" : "▶"}</button>
