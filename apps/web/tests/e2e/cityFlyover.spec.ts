@@ -1,5 +1,6 @@
 import { test, expect } from "./fixtures";
 import { readFileSync } from "node:fs";
+import { join } from "node:path";
 const infill = JSON.parse(readFileSync("public/geo/nst/buildings-infill.geojson", "utf8"));
 const coverageFixture = { ...infill, features: infill.features.slice(0, 1) };
 
@@ -26,10 +27,21 @@ for (const width of [390, 1024, 1440]) {
     await expect(controls).toBeVisible();
     await expect(page.getByRole("button", { name: "Play flyover", exact: true })).toBeDisabled();
     for (let i = 0; i < 4; i++) await page.getByRole("button", { name: "Next flyover stop" }).click();
+    const details = controls.locator("summary");
+    const slider = controls.getByRole("slider");
+    await expect(slider).toBeHidden();
+    const collapsed = await controls.boundingBox();
+    expect(collapsed!.height).toBeLessThan(190);
+    const artifactDir = process.env.NST_DESK_ARTIFACT_DIR;
+    if (artifactDir) await page.screenshot({ path: join(artifactDir, `flyover-compact-${width}.png`) });
     await page.getByRole("button", { name: "2.12 m", exact: true }).click();
     await expect(controls).toContainText(/surveyed road km below level/);
     await expect(controls).toContainText(/not tonight’s flood forecast/);
-    await controls.locator("summary").click();
+    await details.focus();
+    await page.keyboard.press("Enter");
+    await expect(slider).toBeEnabled();
+    await slider.press("ArrowLeft");
+    await expect(controls.getByText("2.11 m MSL", { exact: true })).toBeVisible();
     await expect(controls).toContainText(/No flow routing, drainage or arrival time/);
     const box = await controls.boundingBox();
     expect(box!.y).toBeGreaterThanOrEqual(52);
@@ -37,7 +49,9 @@ for (const width of [390, 1024, 1440]) {
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width);
     await controls.getByRole("button", { name: "Previous flyover stop" }).focus();
     await expect(controls.getByRole("button", { name: "Previous flyover stop" })).toBeFocused();
-    await page.screenshot({ path: test.info().outputPath(`expanded-${width}.png`) });
+    await page.screenshot({
+      path: artifactDir ? join(artifactDir, `flyover-expanded-${width}.png`) : test.info().outputPath(`expanded-${width}.png`),
+    });
     await page.keyboard.press("Escape");
     await expect(controls).toHaveCount(0);
     await expect(page).not.toHaveURL(/demo=city/);
