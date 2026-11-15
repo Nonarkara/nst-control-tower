@@ -13,6 +13,7 @@ for (const width of [1440, 1024, 390]) {
         iceGatheringState = "complete";
         localDescription = { sdp: "fixture" };
         private stream?: MediaStream;
+        private frameTimer?: number;
         addTransceiver() {}
         async createOffer() { return this.localDescription; }
         async setLocalDescription() {}
@@ -21,16 +22,24 @@ for (const width of [1440, 1024, 390]) {
           canvas.width = 160;
           canvas.height = 100;
           const ctx = canvas.getContext("2d")!;
-          this.stream = canvas.captureStream();
-          ctx.fillStyle = "#aaaaaa";
-          ctx.fillRect(0, 0, 160, 60);
-          ctx.fillStyle = "#393939";
-          ctx.fillRect(0, 60, 160, 40);
+          this.stream = canvas.captureStream(0);
+          const track = this.stream.getVideoTracks()[0] as CanvasCaptureMediaStreamTrack;
+          // Emit after the video attaches to the stream, as a real camera does.
+          this.frameTimer = window.setInterval(() => {
+            ctx.fillStyle = "#aaaaaa";
+            ctx.fillRect(0, 0, 160, 60);
+            ctx.fillStyle = "#393939";
+            ctx.fillRect(0, 60, 160, 40);
+            track.requestFrame();
+          }, 80);
           const event = new Event("track");
           Object.defineProperty(event, "streams", { value: [this.stream] });
           this.dispatchEvent(event);
         }
-        close() { this.stream?.getTracks().forEach(track => track.stop()); }
+        close() {
+          window.clearInterval(this.frameTimer);
+          this.stream?.getTracks().forEach(track => track.stop());
+        }
       }
       Object.defineProperty(window, "RTCPeerConnection", { value: FixturePeer });
     });
@@ -59,7 +68,7 @@ for (const width of [1440, 1024, 390]) {
     const showOnMap = watch.getByRole("button", { name: /Watch on map/ });
     await expect(showOnMap).toBeDisabled();
     await watch.getByRole("button", { name: "เปิดรับภาพและ CV เฉพาะกล้องนี้" }).click();
-    await watch.getByRole("button", { name: /เลือกจุดอ้างอิงขอบน้ำในภาพ/ }).press("Enter");
+    await watch.getByRole("button", { name: /เลือกจุดอ้างอิงขอบน้ำในภาพ/ }).press("Enter", { timeout: 20_000 });
     await expect(watch.getByRole("status")).toContainText("บันทึกภาพอ้างอิงแล้ว");
     await showOnMap.click();
     await expect(dialog).toBeHidden();
