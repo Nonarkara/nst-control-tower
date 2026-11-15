@@ -35,9 +35,10 @@ for (const width of [1440, 1024, 390]) {
       Object.defineProperty(window, "RTCPeerConnection", { value: FixturePeer });
     });
     await page.clock.setFixedTime(new Date("2026-10-21T20:00:00+07:00"));
-    await page.route("**/api/cctv?**", r => r.fulfill({ json: { features: [{ id: "wl-fixture", sourceId: "WLTEST", name: "Canal camera test", lat: 8.411, lng: 99.966, category: "water", status: "online", embedUrl: "https://camera.example.test/wl/" }], meta: { source: "fixture", fetchedAt: new Date().toISOString(), ageMinutes: 0, fallbackTier: "live" } } }));
+    await page.route("**/api/cctv?**", r => r.fulfill({ json: { features: [{ id: "wl-fixture", sourceId: "WLTEST", name: "Canal camera test", lat: 8.411, lng: 99.966, category: "water", status: "online", embedUrl: "https://nstcctv.nakhoncity.org/cam/WLTEST_sub/" }], meta: { source: "fixture", fetchedAt: new Date().toISOString(), ageMinutes: 0, fallbackTier: "live" } } }));
+    // Exercise the deployed CSP with the approved origin, while intercepting every fixture request.
     let captured = false;
-    await page.route("https://camera.example.test/**", async route => {
+    await page.route("https://nstcctv.nakhoncity.org/cam/WLTEST_sub/**", async route => {
       if (route.request().method() === "POST") {
         if (captured) return route.abort();
         captured = true;
